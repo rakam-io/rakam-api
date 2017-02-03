@@ -41,7 +41,7 @@ public class JDBCCustomReportMetadata implements CustomReportMetadata {
 
     private void createIndexIfNotExists() {
         try(Handle handle = dbi.open()) {
-            handle.createStatement("CREATE INDEX report_type_idx ON public.custom_reports(report_type, project)")
+            handle.createStatement("CREATE INDEX report_type_idx ON custom_reports(report_type, project)")
                     .execute();
         } catch (UnableToExecuteStatementException e) {
             // IF NOT EXIST feature is not supported by majority of RDBMSs.
@@ -53,7 +53,7 @@ public class JDBCCustomReportMetadata implements CustomReportMetadata {
     @Override
     public void save(Integer user, int project, CustomReport report) {
         try(Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO public.custom_reports (report_type, project_id, name, data, user_id) VALUES (:reportType, :project, :name, :data, :user)")
+            handle.createStatement("INSERT INTO custom_reports (report_type, project_id, name, data, user_id) VALUES (:reportType, :project, :name, :data, :user)")
                     .bind("reportType", report.reportType)
                     .bind("project", project)
                     .bind("name", report.name)
@@ -71,7 +71,7 @@ public class JDBCCustomReportMetadata implements CustomReportMetadata {
     @Override
     public CustomReport get(String reportType, int project, String name) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT data FROM public.custom_reports WHERE report_type = :reportType AND project_id = :project AND name = :name")
+            return handle.createQuery("SELECT data FROM custom_reports WHERE report_type = :reportType AND project_id = :project AND name = :name")
                     .bind("reportType", reportType)
                     .bind("project", project)
                     .bind("name", name)
@@ -84,7 +84,7 @@ public class JDBCCustomReportMetadata implements CustomReportMetadata {
     @Override
     public List<CustomReport> list(String reportType, int project) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT name, data FROM public.custom_reports WHERE report_type = :reportType AND project_id = :project")
+            return handle.createQuery("SELECT name, data FROM custom_reports WHERE report_type = :reportType AND project_id = :project")
                     .bind("reportType", reportType)
                     .bind("project", project)
                     .map((i, resultSet, statementContext) -> {
@@ -96,7 +96,7 @@ public class JDBCCustomReportMetadata implements CustomReportMetadata {
     @Override
     public Map<String, List<CustomReport>> list(int project) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT report_type, name, data FROM public.custom_reports WHERE project_id = :project")
+            return handle.createQuery("SELECT report_type, name, data FROM custom_reports WHERE project_id = :project")
                     .bind("project", project)
                     .map((i, resultSet, statementContext) -> {
                         return new CustomReport(resultSet.getString(1), resultSet.getString(2), JsonHelper.read(resultSet.getString(3)));
@@ -107,7 +107,7 @@ public class JDBCCustomReportMetadata implements CustomReportMetadata {
     @Override
     public void delete(String reportType, int project, String name) {
         try(Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM public.custom_reports WHERE report_type = :reportType AND project_id = :project AND name = :name")
+            handle.createStatement("DELETE FROM custom_reports WHERE report_type = :reportType AND project_id = :project AND name = :name")
                     .bind("reportType", reportType)
                     .bind("project", project)
                     .bind("name", name).execute();
@@ -118,7 +118,7 @@ public class JDBCCustomReportMetadata implements CustomReportMetadata {
     public void update(int project, CustomReport report) {
         int execute;
         try(Handle handle = dbi.open()) {
-            execute = handle.createStatement("UPDATE public.custom_reports SET data = :data WHERE report_type = :reportType AND name = :name AND project_id = :project")
+            execute = handle.createStatement("UPDATE custom_reports SET data = :data WHERE report_type = :reportType AND name = :name AND project_id = :project")
                     .bind("reportType", report.reportType)
                     .bind("project", project)
                     .bind("name", report.name)
@@ -132,7 +132,7 @@ public class JDBCCustomReportMetadata implements CustomReportMetadata {
     @Override
     public List<String> types(int project) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT DISTINCT report_type FROM public.custom_reports WHERE project_id = :project")
+            return handle.createQuery("SELECT DISTINCT report_type FROM custom_reports WHERE project_id = :project")
                     .bind("project", project)
                     .map(StringMapper.FIRST).list();
         }

@@ -85,13 +85,13 @@ public class ClusterService
 
         try (Handle handle = dbi.open()) {
             try {
-                handle.createStatement("INSERT INTO public.rakam_cluster (user_id, api_url, lock_key) VALUES (:userId, :apiUrl, :lockKey)")
+                handle.createStatement("INSERT INTO rakam_cluster (user_id, api_url, lock_key) VALUES (:userId, :apiUrl, :lockKey)")
                         .bind("userId", userId)
                         .bind("apiUrl", cluster.apiUrl)
                         .bind("lockKey", cluster.lockKey).execute();
             }
             catch (Throwable e) {
-                int execute = handle.createStatement("UPDATE public.rakam_cluster SET lock_key = :lock_key WHERE user_id = :userId AND api_url = :apiUrl")
+                int execute = handle.createStatement("UPDATE rakam_cluster SET lock_key = :lock_key WHERE user_id = :userId AND api_url = :apiUrl")
                         .bind("userId", userId)
                         .bind("apiUrl", cluster.apiUrl)
                         .bind("lock_key", cluster.lockKey).execute();
@@ -116,7 +116,7 @@ public class ClusterService
         int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
 
         try (Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM public.rakam_cluster WHERE (user_id, api_url) VALUES (:userId, :apiUrl)")
+            handle.createStatement("DELETE FROM rakam_cluster WHERE (user_id, api_url) VALUES (:userId, :apiUrl)")
                     .bind("userId", id)
                     .bind("apiUrl", apiUrl).execute();
             return SuccessMessage.success();
@@ -132,7 +132,7 @@ public class ClusterService
         int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
 
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT api_url FROM public.rakam_cluster WHERE user_id = :userId")
+            return handle.createQuery("SELECT api_url FROM rakam_cluster WHERE user_id = :userId")
                     .bind("userId", id).map(StringMapper.FIRST).list();
         }
     }

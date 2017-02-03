@@ -312,7 +312,7 @@ public class PostgresqlRetentionQueryExecutor
                 }, '"') : "");
     }
 
-    private static String PL_PGGSQL_RETENTION_AGGREGATE_FUNCTION = "create or replace function public.analyze_retention_intermediate(arr integer[], ff boolean[]) returns integer[] volatile language plpgsql as $$\n" +
+    private static String PL_PGGSQL_RETENTION_AGGREGATE_FUNCTION = "create or replace function analyze_retention_intermediate(arr integer[], ff boolean[]) returns integer[] volatile language plpgsql as $$\n" +
             "DECLARE \n" +
             " i int;\n" +
             "begin\n" +
@@ -335,7 +335,7 @@ public class PostgresqlRetentionQueryExecutor
             "$$;";
 
     private static String PL_PGGSQL_RETENTION_TIMELINE_FUNCTION =
-            "create or replace function public.generate_timeline(start date, arr date[], durationmillis bigint, max_step integer) returns boolean[] volatile language plpgsql as $$\n" +
+            "create or replace function generate_timeline(start date, arr date[], durationmillis bigint, max_step integer) returns boolean[] volatile language plpgsql as $$\n" +
                     "DECLARE \n" +
                     " steps boolean[];\n" +
                     " value int;\n" +
@@ -387,7 +387,7 @@ public class PostgresqlRetentionQueryExecutor
             " return arr;\n" +
             "$$;" +
 
-            "create or replace function public.generate_timeline(start date, arr date[], durationmillis bigint, max_step integer) returns boolean[] volatile language plv8 as $$\n" +
+            "create or replace function generate_timeline(start date, arr date[], durationmillis bigint, max_step integer) returns boolean[] volatile language plv8 as $$\n" +
             "\n" +
             " if(arr == null) {\n" +
             "  return null;\n" +

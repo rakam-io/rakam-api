@@ -1,1 +1,1 @@
-alter table public.dashboard_items add column last_updated timestamp;
+alter table dashboard_items add column last_updated timestamp;

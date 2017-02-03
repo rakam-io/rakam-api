@@ -45,7 +45,7 @@ public class JDBCReportMetadata implements ReportMetadata {
 
     public List<Report> getReports(Integer requestedUserId, int project) {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT reports.project_id, reports.slug, reports.category, reports.name, reports.query, reports.options, reports.query_options, reports.shared, reports.user_id FROM public.reports " +
+            return handle.createQuery("SELECT reports.project_id, reports.slug, reports.category, reports.name, reports.query, reports.options, reports.query_options, reports.shared, reports.user_id FROM reports " +
                     " WHERE reports.project_id = :project " +
                     " ORDER BY reports.created_at")
                     .bind("project", project)
@@ -56,7 +56,7 @@ public class JDBCReportMetadata implements ReportMetadata {
 
     public void delete(Integer userId, int project, String slug) {
         try (Handle handle = dbi.open()) {
-            int execute = handle.createStatement("DELETE FROM public.reports WHERE project_id = :project AND slug = :slug" +
+            int execute = handle.createStatement("DELETE FROM reports WHERE project_id = :project AND slug = :slug" +
                     " AND (:user is null or user_id = :user)")
                     .bind("project", project)
                     .bind("slug", slug)
@@ -69,7 +69,7 @@ public class JDBCReportMetadata implements ReportMetadata {
 
     public void save(Integer userId, int project, Report report) {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO public.reports (project_id, slug, category, name, query, options, user_id, query_options) VALUES (:project, :slug, :category, :name, :query, :options, :user, :query_options)")
+            handle.createStatement("INSERT INTO reports (project_id, slug, category, name, query, options, user_id, query_options) VALUES (:project, :slug, :category, :name, :query, :options, :user, :query_options)")
                     .bind("project", project)
                     .bind("name", report.name)
                     .bind("query", report.query)
@@ -93,8 +93,8 @@ public class JDBCReportMetadata implements ReportMetadata {
 
     public Report get(Integer requestedUserId, int project, String slug) {
         try (Handle handle = dbi.open()) {
-            Report report = handle.createQuery("SELECT r.project_id, r.slug, r.category, r.name, query, r.options, r.query_options, r.shared, r.user_id FROM public.reports r " +
-                    " LEFT JOIN public.web_user_api_key permission ON (permission.project_id = r.project_id)" +
+            Report report = handle.createQuery("SELECT r.project_id, r.slug, r.category, r.name, query, r.options, r.query_options, r.shared, r.user_id FROM reports r " +
+                    " LEFT JOIN web_user_api_key permission ON (permission.project_id = r.project_id)" +
                     " WHERE r.project_id = :project AND r.slug = :slug AND (" +
                     "((permission.master_key IS NOT NULL OR r.shared OR r.user_id = :requestedUser)))")
                     .bind("project", project)
@@ -109,7 +109,7 @@ public class JDBCReportMetadata implements ReportMetadata {
 
     public Report update(Integer userId, int project, Report report) {
         try (Handle handle = dbi.open()) {
-            int execute = handle.createStatement("UPDATE public.reports SET name = :name, query = :query, category = :category, options = :options WHERE project_id = :project AND slug = :slug")
+            int execute = handle.createStatement("UPDATE reports SET name = :name, query = :query, category = :category, options = :options WHERE project_id = :project AND slug = :slug")
                     .bind("project", project)
                     .bind("name", report.name)
                     .bind("query", report.query)

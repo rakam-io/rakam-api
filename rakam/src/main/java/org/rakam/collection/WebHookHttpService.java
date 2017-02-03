@@ -283,7 +283,7 @@ public class WebHookHttpService
     public WebHook get(@Named("project") String project, @ApiParam("identifier") String identifier)
     {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT code, image, active, parameters FROM webhook WHERE project = :project AND identifier = :identifier")
+            WebHook first = handle.createQuery("SELECT code, image, active, parameters FROM webhook WHERE project = :project AND identifier = :identifier")
                     .bind("project", project)
                     .bind("identifier", identifier)
                     .map(new ResultSetMapper<WebHook>()
@@ -295,6 +295,10 @@ public class WebHookHttpService
                             return new WebHook(identifier, r.getString(1), r.getString(2), r.getBoolean(3), JsonHelper.read(r.getString(4), Map.class));
                         }
                     }).first();
+            if (first == null) {
+                throw new RakamException(NOT_FOUND);
+            }
+            return first;
         }
     }
 

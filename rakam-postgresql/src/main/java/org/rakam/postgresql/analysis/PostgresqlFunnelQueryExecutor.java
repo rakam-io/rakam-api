@@ -47,7 +47,7 @@ public class PostgresqlFunnelQueryExecutor
     public void setup()
     {
         try (Connection conn = executor.getConnection()) {
-            conn.createStatement().execute("CREATE OR REPLACE FUNCTION public.get_funnel_step(arr int[]) RETURNS integer AS $$\n" +
+            conn.createStatement().execute("CREATE OR REPLACE FUNCTION get_funnel_step(arr int[]) RETURNS integer AS $$\n" +
                     "DECLARE next_step integer := 1; step integer;\n" +
                     "        BEGIN \n" +
                     "                FOREACH step IN ARRAY arr\n" +

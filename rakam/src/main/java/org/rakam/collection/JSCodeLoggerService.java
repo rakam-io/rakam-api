@@ -59,6 +59,7 @@ public class JSCodeLoggerService
     {
         try (Handle handle = dbi.open()) {
             handle.createStatement("CREATE TABLE IF NOT EXISTS javascript_logs (" +
+                    "  id VARCHAR(16) NOT NULL," +
                     "  project VARCHAR(255) NOT NULL," +
                     "  type VARCHAR(15) NOT NULL," +
                     "  prefix VARCHAR(255) NOT NULL," +

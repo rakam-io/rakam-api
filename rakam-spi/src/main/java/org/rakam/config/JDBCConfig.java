@@ -6,6 +6,7 @@ import javax.validation.constraints.NotNull;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Optional;
 
 public class JDBCConfig
 {
@@ -24,19 +25,28 @@ public class JDBCConfig
             throws URISyntaxException
     {
         if (url.startsWith("jdbc:")) {
-            this.url = url;
+            url = url.substring(5);
         }
-        else {
-            URI dbUri = new URI(url);
-            String[] split = dbUri.getUserInfo().split(":");
+
+        URI dbUri = new URI(url);
+        String userInfo = dbUri.getUserInfo();
+        if(userInfo != null) {
+            String[] split = userInfo.split(":");
             this.username = split[0];
             if (split.length > 1) {
                 this.password = split[1];
             }
-            this.url = "jdbc:" + convertScheme(dbUri.getScheme()) + "://" + dbUri.getHost() + ':' + dbUri.getPort()
-                    + dbUri.getPath()
-                    + (dbUri.getQuery() == null ? "" : "?" + dbUri.getQuery());
         }
+
+        String query = Optional.ofNullable(dbUri.getQuery()).orElse("");
+        if(dbUri.getScheme().equals("postgresql")) {
+            query += "currentSchema=public";
+        }
+
+        this.url = "jdbc:" + convertScheme(dbUri.getScheme()) + "://" + dbUri.getHost() + ':' + dbUri.getPort()
+                + dbUri.getPath()
+                + (query.isEmpty() ? "" : "?" + query);
+
         return this;
     }
 

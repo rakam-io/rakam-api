@@ -206,7 +206,8 @@ public class ScheduledTaskHttpService
     public List<ScheduledTask> list(@Named("project") String project)
     {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT id, name, code, parameters, image, schedule_interval, last_executed_at FROM custom_scheduled_tasks WHERE project = :project")
+            return handle.createQuery("SELECT id, name, code, parameters, image, schedule_interval, last_executed_at " +
+                    "FROM custom_scheduled_tasks WHERE project = :project")
                     .bind("project", project).map((index, r, ctx) -> {
                         return new ScheduledTask(r.getInt(1), r.getString(2), r.getString(3), JsonHelper.read(r.getString(4), new TypeReference<Map<String, Parameter>>() {}), r.getString(5), Duration.ofSeconds(r.getInt(6)), Instant.ofEpochSecond(r.getLong(7)));
                     }).list();
@@ -283,7 +284,8 @@ public class ScheduledTaskHttpService
         try {
             Map<String, Object> first;
             try (Handle handle = dbi.open()) {
-                first = handle.createQuery("SELECT code, parameters FROM custom_scheduled_tasks WHERE project = :project AND id = :id")
+                first = handle.createQuery("SELECT code, parameters FROM custom_scheduled_tasks " +
+                        "WHERE project = :project AND id = :id")
                         .bind("project", project)
                         .bind("id", id).first();
             }
@@ -351,7 +353,9 @@ public class ScheduledTaskHttpService
     public SuccessMessage update(@Named("project") String project, @BodyParam ScheduledTask mapper)
     {
         try (Handle handle = dbi.open()) {
-            int execute = handle.createStatement("UPDATE custom_scheduled_tasks SET code = :code, parameters = :parameters, schedule_interval = :interval WHERE id = :id AND project = :project")
+            int execute = handle.createStatement("UPDATE custom_scheduled_tasks " +
+                    "SET code = :code, parameters = :parameters, schedule_interval = :interval " +
+                    "WHERE id = :id AND project = :project")
                     .bind("project", project)
                     .bind("id", mapper.id)
                     .bind("interval", mapper.interval.getSeconds())

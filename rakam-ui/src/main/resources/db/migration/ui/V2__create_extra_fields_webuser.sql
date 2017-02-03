@@ -1,1 +1,1 @@
-alter table public.web_user add column gender varchar(10), add column user_locale varchar(20), add column google_id varchar(50);
+alter table web_user add column gender varchar(10), add column user_locale varchar(20), add column google_id varchar(50);

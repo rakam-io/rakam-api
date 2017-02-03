@@ -1,1 +1,0 @@
-alter table custom_scheduled_tasks add column last_executed_at bigint, drop column updated_at;

@@ -145,7 +145,8 @@ public class CustomEventMapperHttpService
     public List<JSEventMapperCode> list(@Named("project") String project)
     {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT id, name, script, image, parameters FROM custom_event_mappers WHERE project = :project")
+            return handle.createQuery("SELECT id, name, script, image, parameters " +
+                    "FROM custom_event_mappers WHERE project = :project")
                     .bind("project", project).map((index, r, ctx) -> {
                         return new JSEventMapperCode(r.getInt(1), r.getString(2), r.getString(3), r.getString(4), JsonHelper.read(r.getString(5), new TypeReference<Map<String, Parameter>>() {}));
                     }).list();
@@ -160,7 +161,8 @@ public class CustomEventMapperHttpService
     public SuccessMessage update(@Named("project") String project, @BodyParam JSEventMapperCode mapper)
     {
         try (Handle handle = dbi.open()) {
-            int execute = handle.createStatement("UPDATE custom_event_mappers SET script = :script, parameters = :parameters, image = :image WHERE id = :id AND project = :project")
+            int execute = handle.createStatement("UPDATE custom_event_mappers SET script = :script, parameters = :parameters, image = :image " +
+                    "WHERE id = :id AND project = :project")
                     .bind("project", project)
                     .bind("id", mapper.id)
                     .bind("image", mapper.image)
@@ -181,7 +183,8 @@ public class CustomEventMapperHttpService
     public long create(@Named("project") String project, @ApiParam("name") String name, @ApiParam("script") String script, @ApiParam(value = "image", required = false) String image, @ApiParam(value = "parameters", required = false) Map<String, Parameter> parameters)
     {
         try (Handle handle = dbi.open()) {
-            GeneratedKeys<Long> longs = handle.createStatement("INSERT INTO custom_event_mappers (project, name, script, parameters, image) VALUES (:project, :name, :script, :parameters, :image)")
+            GeneratedKeys<Long> longs = handle.createStatement("INSERT INTO custom_event_mappers (project, name, script, parameters, image) " +
+                    "VALUES (:project, :name, :script, :parameters, :image)")
                     .bind("project", project)
                     .bind("script", script)
                     .bind("name", name)

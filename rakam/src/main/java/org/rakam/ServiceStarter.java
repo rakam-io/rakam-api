@@ -185,7 +185,7 @@ public final class ServiceStarter
         protected void setup(Binder binder)
         {
             binder.bind(Clock.class).toInstance(Clock.systemUTC());
-            binder.bind(FlywayExecutor.class).asEagerSingleton();
+//            binder.bind(FlywayExecutor.class).asEagerSingleton();
 
             binder.bind(FieldDependency.class).toProvider(FieldDependencyProvider.class).in(Scopes.SINGLETON);
 

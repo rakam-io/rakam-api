@@ -1,1 +1,0 @@
-alter table javascript_logs add column id varchar(36);

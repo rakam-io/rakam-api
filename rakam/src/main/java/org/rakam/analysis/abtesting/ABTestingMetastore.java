@@ -53,7 +53,8 @@ public class ABTestingMetastore {
 
     public List<ABTestingReport> getReports(String project) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT id, name, variants, collection_name, connector_field, goals, options FROM ab_testing WHERE project = :project")
+            return handle.createQuery("SELECT id, name, variants, collection_name, connector_field, goals, options FROM " +
+                    "public.ab_testing WHERE project = :project")
                     .bind("project", project).map(mapper).list();
         }
     }
@@ -70,7 +71,8 @@ public class ABTestingMetastore {
             throw new RakamException("Report already has an id.", HttpResponseStatus.BAD_REQUEST);
         }
         try(Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO ab_testing (project, name, variants, collection_name, connector_field, goals, options) VALUES (:project, :name, :variants, :collection_name, :goals, :options)")
+            handle.createStatement("INSERT INTO ab_testing (project, name, variants, collection_name, connector_field, goals, options)" +
+                    " VALUES (:project, :name, :variants, :collection_name, :goals, :options)")
                     .bind("project", project)
                     .bind("name", report.name)
                     .bind("collection_name", report.collectionName)
@@ -88,7 +90,8 @@ public class ABTestingMetastore {
 
     public ABTestingReport get(String project, int id) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT id, name, variants, collection_name, connector_field, goals, options FROM ab_testing WHERE project = :project AND id = :id")
+            return handle.createQuery("SELECT id, name, variants, collection_name, connector_field, goals, options " +
+                    "FROM ab_testing WHERE project = :project AND id = :id")
                     .bind("project", project)
                     .bind("id", id).map(mapper).first();
         }
