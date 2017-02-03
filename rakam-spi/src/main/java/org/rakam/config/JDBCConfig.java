@@ -40,12 +40,15 @@ public class JDBCConfig
 
         String query = Optional.ofNullable(dbUri.getQuery()).orElse("");
         if(dbUri.getScheme().equals("postgresql")) {
+            if(!query.isEmpty()) {
+                query += "&";
+            }
             query += "currentSchema=public";
         }
 
         this.url = "jdbc:" + convertScheme(dbUri.getScheme()) + "://" + dbUri.getHost() + ':' + dbUri.getPort()
                 + dbUri.getPath()
-                + (query.isEmpty() ? "" : "?" + query);
+                + (query.isEmpty() ? "" : ("?" + query));
 
         return this;
     }
