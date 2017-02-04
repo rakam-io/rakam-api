@@ -46,7 +46,9 @@ public class JDBCConfig
             query += "currentSchema=public";
         }
 
-        this.url = "jdbc:" + convertScheme(dbUri.getScheme()) + "://" + dbUri.getHost() + ':' + dbUri.getPort()
+        this.url = "jdbc:" + convertScheme(dbUri.getScheme()) + ":" +
+                (dbUri.getHost() != null ? "//" + dbUri.getHost() : "") +
+                (dbUri.getHost() != null && dbUri.getPort() > -1 ? ':' + dbUri.getPort() : "")
                 + dbUri.getPath()
                 + (query.isEmpty() ? "" : ("?" + query));
 
