@@ -48,7 +48,7 @@ public class JDBCConfig
 
         this.url = "jdbc:" + convertScheme(dbUri.getScheme()) + ":" +
                 (dbUri.getHost() != null ? "//" + dbUri.getHost() : "") +
-                (dbUri.getHost() != null && dbUri.getPort() > -1 ? ':' + dbUri.getPort() : "")
+                ((dbUri.getHost() != null && dbUri.getPort() > -1) ? (":" + dbUri.getPort()) : "")
                 + dbUri.getPath()
                 + (query.isEmpty() ? "" : ("?" + query));
 
