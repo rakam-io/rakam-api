@@ -22,11 +22,15 @@ import javax.inject.Named;
 import javax.ws.rs.Path;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.UUID;
 
 @Path("/javascript-logger")
@@ -158,15 +162,19 @@ public class JSCodeLoggerService
         private void log(String type, String value)
         {
             try (Handle handle = dbi.open()) {
-                handle.createStatement("INSERT INTO javascript_logs (project, id, type, prefix, error, created_at) " +
-                        "VALUES (:project, :id, :type, :prefix, :error, :created_at)")
-                        .bind("project", project)
-                        .bind("id", id)
-                        .bind("type", type)
-                        .bind("prefix", prefix)
-                        .bind("error", value)
-                        .bind("created_at", Timestamp.from(Instant.now()))
-                        .execute();
+                PreparedStatement preparedStatement = handle.getConnection().prepareStatement(
+                        "INSERT INTO javascript_logs (project, id, type, prefix, error, created_at) " +
+                        "VALUES (?, ?, ?, ?, ?, ?)");
+                preparedStatement.setString(1, project);
+                preparedStatement.setString(2, id);
+                preparedStatement.setString(3, type);
+                preparedStatement.setString(4, prefix);
+                preparedStatement.setString(5, value);
+                preparedStatement.setTimestamp(6, Timestamp.from(Instant.now()), Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
+                preparedStatement.execute();
+            }
+            catch (SQLException e) {
+                throw Throwables.propagate(e);
             }
         }
 

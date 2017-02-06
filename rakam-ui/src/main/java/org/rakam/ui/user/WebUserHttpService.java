@@ -295,39 +295,35 @@ public class WebUserHttpService
     @Path("/me")
     public void me(RakamHttpRequest request, @CookieParam(value = "session", required = false) String session)
     {
-        String cookie = request.headers().get(COOKIE);
-
         List<String> jsonpParam = request.params().get("jsonp");
         Optional<String> jsonp = jsonpParam == null ? Optional.empty() : jsonpParam.stream().findAny();
 
-        if (cookie != null) {
-            if (jsonp.isPresent() && !jsonp.get().matches("^[A-Za-z]+$")) {
-                throw new RakamException(BAD_REQUEST);
+        if (jsonp.isPresent() && !jsonp.get().matches("^[A-Za-z]+$")) {
+            throw new RakamException(BAD_REQUEST);
+        }
+
+        if (session != null) {
+            Integer id = null;
+            try {
+                id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
+            }
+            catch (Exception e) {
+                request.response(unauthorized(jsonp)).end();
             }
 
-            if (session != null) {
-                Integer id = null;
-                try {
-                    id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
-                }
-                catch (Exception e) {
-                    request.response(unauthorized(jsonp)).end();
-                }
+            if (id != null) {
+                final Optional<WebUser> user = service.getUser(id);
 
-                if (id != null) {
-                    final Optional<WebUser> user = service.getUser(id);
-
-                    if (user.isPresent()) {
-                        String encode = JsonHelper.encode(user.get());
-                        if (jsonp.isPresent()) {
-                            encode = jsonp.get() + "(" + encode + ")";
-                        }
-                        DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK,
-                                wrappedBuffer(encode.getBytes(CharsetUtil.UTF_8)));
-                        response.headers().set(CONTENT_TYPE, "application/json; charset=utf-8");
-                        request.response(response).end();
-                        return;
+                if (user.isPresent()) {
+                    String encode = JsonHelper.encode(user.get());
+                    if (jsonp.isPresent()) {
+                        encode = jsonp.get() + "(" + encode + ")";
                     }
+                    DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK,
+                            wrappedBuffer(encode.getBytes(CharsetUtil.UTF_8)));
+                    response.headers().set(CONTENT_TYPE, "application/json; charset=utf-8");
+                    request.response(response).end();
+                    return;
                 }
             }
         }

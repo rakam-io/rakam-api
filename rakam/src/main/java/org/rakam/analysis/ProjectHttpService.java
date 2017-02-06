@@ -29,6 +29,7 @@ import javax.ws.rs.Path;
 
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -216,7 +217,7 @@ public class ProjectHttpService
         return keys.stream().map(key -> {
             try {
                 Consumer<String> stringConsumer = e -> {
-                    if (!e.equals(project)) {
+                    if (!e.equals(project.toLowerCase(Locale.ENGLISH))) {
                         throw new RakamException(FORBIDDEN);
                     }
                 };
