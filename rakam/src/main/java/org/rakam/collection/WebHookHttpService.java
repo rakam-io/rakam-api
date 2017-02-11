@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.cfg.ContextAttributes;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -118,9 +119,20 @@ public class WebHookHttpService
                     throws Exception
             {
                 WebHook webHook = get(key.project, key.identifier);
-                return jsCodeCompiler.createEngine(key.project,
-                        createCode(webHook.script, webHook.parameters),
-                        "webhook." + key.project + "." + key.identifier);
+                String prefix = "webhook." + key.project + "." + key.identifier;
+                return jsCodeCompiler.createEngine(
+                        webHook.script,
+                        loggerService.createLogger(key.project, prefix),
+                        null,
+                        jsCodeCompiler.createConfigManager(key.project, prefix), (engine, bindings) -> {
+                            bindings.put("$$params", webHook.parameters);
+                            try {
+                                engine.eval("var $$module = function(queryParams, body, headers) { module(queryParams, body, $$params, headers)}");
+                            }
+                            catch (ScriptException e) {
+                                throw Throwables.propagate(e);
+                            }
+                        });
             }
         });
         this.dbi = new DBI(dataSource);
@@ -154,15 +166,6 @@ public class WebHookHttpService
                     "  )")
                     .execute();
         }
-    }
-
-    private String createCode(String script, Map<String, Object> parameters)
-    {
-        return script + "\n" +
-                "var params = " + JsonHelper.encode(parameters) + ";\n" +
-                "var scoped = function(queryParams, body, headers) { \n" +
-                "   return JSON.stringify(module(queryParams, JSON.parse(body), params, headers)); \n" +
-                "};";
     }
 
     @POST
@@ -199,7 +202,7 @@ public class WebHookHttpService
         handleFunction(
                 request,
                 key,
-                () -> function.invokeFunction("scoped", queryParams, data, headers),
+                () -> function.invokeFunction("$$module", queryParams, data, headers),
                 true);
     }
 
@@ -345,7 +348,7 @@ public class WebHookHttpService
         JSCodeCompiler.MemoryConfigManager configManager = new JSCodeCompiler.MemoryConfigManager();
         Invocable engine;
         try {
-            engine = jsCodeCompiler.createEngine(createCode(script, params), testLogger, null, configManager);
+            engine = jsCodeCompiler.createEngine(script, testLogger, null, configManager);
         }
         catch (Exception e) {
             throw new RakamException("Unable to compile Javascript code: " + e.getMessage(), INTERNAL_SERVER_ERROR);
@@ -369,9 +372,10 @@ public class WebHookHttpService
                     finalBody = "{}";
                 }
 
-                Object scoped = engine.invokeFunction("scoped",
+                Object scoped = engine.invokeFunction("module",
                         request.params(),
                         finalBody,
+                        params,
                         request.headers());
                 if (scoped == null) {
                     request.response(script, NO_CONTENT).end();
@@ -503,7 +507,7 @@ public class WebHookHttpService
     {
         public final String project;
         public final String identifier;
-        private final String requestId;
+        public final String requestId;
 
         public WebHookIdentifier(String project, String identifier, String requestId)
         {

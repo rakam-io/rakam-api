@@ -1,3 +1,5 @@
+//@ sourceURL=rakam-ui/src/main/resources/stripe/mailgun/script.js
+
 var module = function(queryParams, body, params, headers) {
     var properties = {
         _time: body.created * 1000,

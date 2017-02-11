@@ -1,3 +1,5 @@
+//@ sourceURL=rakam-ui/src/main/resources/webhook/intercom/script.js
+
 var module = function(queryParams, body, params, headers) {
     if(!body || body.topic == 'ping') {
         return null;
@@ -9,7 +11,7 @@ var module = function(queryParams, body, params, headers) {
 
     if(params.hub_secret) {
         var signature = headers['X-Hub-Signature'];
-        if(signature !== ('sha1=' + Java.type('org.rakam.util.CryptUtil').sha1(params.hub_secret))) {
+        if(signature !== ('sha1=' + util.crypt.sha1(params.hub_secret))) {
             return null;
         }
     }

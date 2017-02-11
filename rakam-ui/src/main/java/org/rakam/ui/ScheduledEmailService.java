@@ -61,6 +61,8 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -166,7 +168,12 @@ public class ScheduledEmailService
             catch (Exception e) {
                 LOGGER.error(e);
             }
-        }, 0, 1, TimeUnit.HOURS);
+        }, millisToNextHour(), 60, TimeUnit.MINUTES);
+    }
+
+    private long millisToNextHour() {
+        LocalDateTime nextHour = LocalDateTime.now().plusHours(1).truncatedTo(ChronoUnit.HOURS);
+        return LocalDateTime.now().until(nextHour, ChronoUnit.MINUTES);
     }
 
     private void perform()
@@ -246,7 +253,8 @@ public class ScheduledEmailService
                         screenPart.setFileName("dashboard.png");
                         screenPart.setDisposition(MimeBodyPart.INLINE);
 
-                        mailSender.sendMail(task.emails, "[Rakam] - " + task.name, null,
+                        mailSender.sendMail(task.emails, "[Rakam] - " + task.name,
+                                "Please view HTML version of the email, it contains the dashboard screenshot that is sent from Rakam UI.",
                                 Optional.of("<a href=\"https://app.rakam.io" + path + "\"> " +
                                         "<img alt=\"Rakam dashboard screenshot\" src=\"cid:" + imageId + "\" /></a>" +
                                         " <div style=\"color: white;\">Inline dashboard</div> <!-- This div allows the screenshot to be resized in android gmail, and shows as preview text. -->"),
@@ -283,7 +291,7 @@ public class ScheduledEmailService
     {
         if (ex == null) {
             try (Handle handle = dbi.open()) {
-                handle.createStatement("UPDATE scheduled_email SET last_executed_at = extract(epoch from now()) WHERE id = :id")
+                handle.createStatement("UPDATE scheduled_email SET last_executed_at = now() WHERE id = :id")
                         .bind("id", id).execute();
             }
             finally {

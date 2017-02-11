@@ -1,7 +1,9 @@
-var module = function(queryParams, body, params, headers) {
-    if(!body || body.signature || !body.timestamp || !body.recipient || 		!body.domain) return;
+//@ sourceURL=rakam-ui/src/main/resources/webhook/mailgun/script.js
 
-    if(body.signature[0] !== Java.type('org.rakam.util.CryptUtil').encryptToHex(body.timestamp[0]+body.token[0], params.api_key, 'HmacSHA256')) {
+var module = function(queryParams, body, params, headers) {
+    if(!body || body.signature || !body.timestamp || !body.recipient || !body.domain) return;
+
+    if(body.signature[0] !== util.crypt.encryptToHex(body.timestamp[0]+body.token[0], params.api_key, 'HmacSHA256')) {
         throw Error('Signature is invalid');
     }
 

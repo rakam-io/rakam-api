@@ -7,6 +7,7 @@ import com.google.common.collect.ImmutableList;
 import io.airlift.log.Level;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.QueryStringDecoder;
 import jdk.nashorn.api.scripting.ClassFilter;
 import jdk.nashorn.api.scripting.NashornScriptEngineFactory;
 import org.rakam.analysis.ConfigManager;
@@ -41,6 +42,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 
 import static com.fasterxml.jackson.core.JsonToken.START_OBJECT;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -58,6 +60,7 @@ public class JSCodeCompiler
     private static final String[] args = {"-strict", "--no-syntax-extensions"};
     private static final NashornEngineFilter classFilter = new NashornEngineFilter();
     private static final ClassLoader classLoader = CustomEventMapperHttpService.class.getClassLoader();
+    private static JSUtil JS_UTIL = new JSUtil();
 
     @Inject
     public JSCodeCompiler(
@@ -152,7 +155,12 @@ public class JSCodeCompiler
                 code,
                 loggerService.createLogger(project, prefix),
                 null,
-                prefix == null ? new MemoryConfigManager() : new JSConfigManager(configManager, project, prefix));
+                prefix == null ? new MemoryConfigManager() : createConfigManager(project, prefix));
+    }
+
+    public JSConfigManager createConfigManager(String project, String prefix)
+    {
+        return new JSConfigManager(configManager, project, prefix);
     }
 
     public JSEventStore getEventStore(String project, JsonEventDeserializer jsonEventDeserializer, EventStore eventStore, List<EventMapper> eventMappers)
@@ -161,6 +169,12 @@ public class JSCodeCompiler
     }
 
     public Invocable createEngine(String code, ILogger logger, JSEventStore eventStore, IJSConfigManager configManager)
+            throws ScriptException
+    {
+        return createEngine(code, logger, eventStore, configManager);
+    }
+
+    public Invocable createEngine(String code, ILogger logger, JSEventStore eventStore, IJSConfigManager configManager, BiConsumer<ScriptEngine, Bindings> binding)
             throws ScriptException
     {
         ScriptEngine engine = factory.getScriptEngine(args, classLoader, classFilter);
@@ -172,15 +186,19 @@ public class JSCodeCompiler
         }
         bindings.remove("loadWithNewGlobal");
         bindings.remove("exit");
-//        bindings.remove("Java");
+        bindings.remove("Java");
         bindings.remove("quit");
         bindings.put("logger", logger);
+        bindings.put("util", JS_UTIL);
         bindings.put("config", configManager);
-        bindings.put("$$eventStore", eventStore);
-        engine.eval("var eventStore = {store: function(call) { $$eventStore.store(JSON.stringify(call)); }}");
+        if (eventStore != null) {
+            bindings.put("$$eventStore", eventStore);
+            engine.eval("var eventStore = {store: function(call) { $$eventStore.store(JSON.stringify(call)); }}");
+        }
         bindings.put("http", httpClient);
 
         engine.eval(code);
+        binding.accept(engine, bindings);
 
         return (Invocable) engine;
     }
@@ -331,6 +349,57 @@ public class JSCodeCompiler
         public Object setOnce(String configName, Object value)
         {
             return configManager.setConfigOnce(project, prefix + configName, value);
+        }
+    }
+
+    private static class JSUtil
+    {
+        public final static JSCryptUtil crypt = new JSCryptUtil();
+        public final static JSRequestUtil request = new JSRequestUtil();
+
+        private JSUtil()
+        {
+        }
+
+        private static class JSRequestUtil
+        {
+            public static Map<String, List<String>> parseFormData(String data)
+            {
+                return new QueryStringDecoder("?" + data).parameters();
+            }
+        }
+
+        private static class JSCryptUtil
+        {
+            public static String generateRandomKey(int length)
+            {
+                return CryptUtil.generateRandomKey(length);
+            }
+
+            public static String sha1(String value)
+            {
+                return CryptUtil.sha1(value);
+            }
+
+            public static String encryptWithHMacSHA1(String data, String secret)
+            {
+                return CryptUtil.encryptWithHMacSHA1(data, secret);
+            }
+
+            public static String encryptToHex(String data, String secret, String hashType)
+            {
+                return CryptUtil.encryptToHex(data, secret, hashType);
+            }
+
+            public static String encryptAES(String data, String secretKey)
+            {
+                return CryptUtil.encryptAES(data, secretKey);
+            }
+
+            public static String decryptAES(String data, String secretKey)
+            {
+                return CryptUtil.decryptAES(data, secretKey);
+            }
         }
     }
 }

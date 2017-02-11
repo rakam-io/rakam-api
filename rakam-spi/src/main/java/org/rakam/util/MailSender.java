@@ -55,7 +55,9 @@ public class MailSender
             }
         }).toArray(InternetAddress[]::new));
         msg.setSubject(title);
-        msg.setText(textContent);
+        if(textContent != null) {
+            msg.setText(textContent);
+        }
 
         if (richText.isPresent()) {
             Multipart mp = new MimeMultipart();
