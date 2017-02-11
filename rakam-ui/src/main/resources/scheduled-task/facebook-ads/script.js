@@ -13,7 +13,6 @@ var nested_properties = [
 var fields = "account_id,account_name,action_values,actions,ad_id,ad_name,adset_id,adset_name,app_store_clicks,buying_type,call_to_action_clicks,campaign_id,campaign_name,canvas_avg_view_percent,canvas_avg_view_time,clicks,cost_per_10_sec_video_view,cost_per_action_type,cost_per_estimated_ad_recallers,cost_per_inline_link_click,cost_per_inline_post_engagement,cost_per_total_action,cost_per_unique_action_type,cost_per_unique_click,cost_per_unique_inline_link_click,cpc,cpm,cpp,ctr,date_start,deeplink_clicks,estimated_ad_recall_rate,estimated_ad_recallers,frequency,impressions,inline_link_click_ctr,inline_link_clicks,inline_post_engagement,newsfeed_avg_position,newsfeed_clicks,newsfeed_impressions,objective,place_page_name,reach,relevance_score,social_clicks,social_impressions,social_reach,social_spend,spend,total_action_value,total_actions,total_unique_actions,unique_actions,unique_clicks,unique_ctr,unique_impressions,unique_inline_link_click_ctr,unique_inline_link_clicks,unique_link_clicks_ctr,unique_social_clicks,unique_social_impressions,video_10_sec_watched_actions,video_15_sec_watched_actions,video_30_sec_watched_actions,video_avg_pct_watched_actions,video_avg_percent_watched_actions,video_avg_sec_watched_actions,video_avg_time_watched_actions,video_complete_watched_actions,video_p100_watched_actions,video_p25_watched_actions,video_p50_watched_actions,video_p75_watched_actions,video_p95_watched_actions,website_clicks,website_ctr";
 
 var fetch = function (parameters, url, events, startDate, endDate) {
-    logger.debug("Fetching between " + startDate + " and " + (endDate || 'now')+(url ? ' with cursor' : ''));
     if (endDate == null) {
         endDate = new Date();
         endDate.setDate(endDate.getDate() - 1);
@@ -24,9 +23,11 @@ var fetch = function (parameters, url, events, startDate, endDate) {
 
     if (startDate == null) {
         startDate = new Date();
-        startDate.setMonth(startDate.getMonth() - 2);
+        startDate.setDate(startDate.getDate() - 10);
         startDate = startDate.toJSON().slice(0, 10);
     }
+
+    logger.debug("Fetching between " + startDate + " and " + (endDate || 'now')+(url ? ' with cursor' : ''));
 
     if(!(new Date(endDate) > new Date(startDate))) {
         return;
@@ -47,14 +48,16 @@ var fetch = function (parameters, url, events, startDate, endDate) {
             if(!urlIsGenerated) {
                 throw new Error("Facebook halted: "+JSON.stringify(data.error));
             }
-            logger.warn("The date range is probably too big, here the the Facebook response: " + data.error.message);
+            logger.warn("The date range is probably too big, here the Facebook response: " + data.error.message);
             var gap = ((new Date(endDate).getTime() - new Date(startDate).getTime()) / 2) / 1000 / 86400;
             var mid = new Date(startDate);
             mid.setDate(mid.getDate() + gap);
             var midText = mid.toJSON().slice(0, 10);
             logger.debug("The date range is cut half two equal slices " + startDate + "-" + midText + " and " + midText + "-" + endDate);
             fetch(parameters, null, [], startDate, midText);
-            fetch(parameters, null, [], midText, endDate);
+            mid.setDate(mid.getDate() + 1);
+            var nextMidText = mid.toJSON().slice(0, 10);
+            fetch(parameters, null, [], nextMidText, endDate);
             return events;
         }
 
@@ -82,7 +85,6 @@ var fetch = function (parameters, url, events, startDate, endDate) {
         return fetch(parameters, data.paging.next, events, startDate, endDate);
     }
     else {
-        logger.info(endDate+" : "+JSON.stringify(data.paging));
         eventStore.store(events);
         config.set('start_date', endDate);
     }

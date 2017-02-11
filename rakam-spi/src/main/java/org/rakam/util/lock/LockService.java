@@ -1,4 +1,4 @@
-package org.rakam.plugin.tasks;
+package org.rakam.util.lock;
 
 public interface LockService
 {

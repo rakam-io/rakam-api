@@ -33,28 +33,17 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.UUID;
 
+import static java.time.ZoneOffset.UTC;
+
 @Path("/javascript-logger")
 @Api(value = "/javascript-logger", nickname = "javascript-logs", description = "Javascript code logs", tags = {"collect", "javascript"})
 public class JSCodeLoggerService
 {
     private final DBI dbi;
-    private final boolean postgresOrMysql;
 
     @Inject
     public JSCodeLoggerService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource)
     {
-        try (Connection handle = dataSource.getConnection(true)) {
-            if(handle instanceof MySQLConnection) {
-                postgresOrMysql = false;
-            } else if (handle instanceof PGConnection) {
-                postgresOrMysql = true;
-            } else {
-                throw new RuntimeException("JsCodeLogger service requires Postgresql or Mysql as dependency.");
-            }
-        }
-        catch (SQLException e) {
-            throw Throwables.propagate(e);
-        }
         this.dbi = new DBI(dataSource);
     }
 
@@ -67,10 +56,17 @@ public class JSCodeLoggerService
                     "  project VARCHAR(255) NOT NULL," +
                     "  type VARCHAR(15) NOT NULL," +
                     "  prefix VARCHAR(255) NOT NULL," +
-                    "  error TEXT NOT NULL," +
-                    "  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP" +
+                    "  error TEXT NOT NULL" +
                     "  )")
                     .execute();
+            try {
+                handle.createStatement("ALTER TABLE javascript_logs ADD COLUMN created BIGINT NOT NULL DEFAULT 0").execute();
+            }
+            catch (Exception e) {
+                if(!e.getMessage().contains("already exists")) {
+                    throw e;
+                }
+            }
         }
     }
 
@@ -79,32 +75,26 @@ public class JSCodeLoggerService
     @Path("/test")
     public List<LogEntry> getLogs(@Named("project") String project, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end, @ApiParam(value = "prefix") String prefix)
     {
-        String sql = "SELECT id, type, error, %s(created_at) FROM javascript_logs WHERE project = :project AND prefix = :prefix";
+        String sql = "SELECT id, type, error, created FROM javascript_logs WHERE project = :project AND prefix = :prefix";
         if (start != null) {
-            sql += " AND created_at > :start";
+            sql += " AND created > :start";
         }
         if (end != null) {
-            sql += " AND created_at < :end";
+            sql += " AND created < :end";
         }
 
-        sql += " ORDER BY created_at DESC";
+        sql += " ORDER BY created DESC";
 
         try (Handle handle = dbi.open()) {
-            if (postgresOrMysql) {
-                sql = String.format(sql, "to_unixtime");
-            } else {
-                sql = String.format(sql, "unix_timestamp");
-            }
-
             Query<Map<String, Object>> query = handle.createQuery(sql + " LIMIT 100");
             query.bind("project", project);
             query.bind("prefix", prefix);
 
             if (start != null) {
-                query.bind("start", Timestamp.from(start));
+                query.bind("start", start.toEpochMilli());
             }
             if (end != null) {
-                query.bind("end", Timestamp.from(end));
+                query.bind("end", end.toEpochMilli());
             }
 
             return query.map((index, r, ctx) -> {
@@ -163,14 +153,14 @@ public class JSCodeLoggerService
         {
             try (Handle handle = dbi.open()) {
                 PreparedStatement preparedStatement = handle.getConnection().prepareStatement(
-                        "INSERT INTO javascript_logs (project, id, type, prefix, error, created_at) " +
+                        "INSERT INTO javascript_logs (project, id, type, prefix, error, created) " +
                         "VALUES (?, ?, ?, ?, ?, ?)");
                 preparedStatement.setString(1, project);
                 preparedStatement.setString(2, id);
                 preparedStatement.setString(3, type);
                 preparedStatement.setString(4, prefix);
                 preparedStatement.setString(5, value);
-                preparedStatement.setTimestamp(6, Timestamp.from(Instant.now()), Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
+                preparedStatement.setLong(6, Instant.now().toEpochMilli());
                 preparedStatement.execute();
             }
             catch (SQLException e) {

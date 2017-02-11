@@ -4,8 +4,6 @@ import org.rakam.collection.SchemaField;
 
 import javax.annotation.Nullable;
 
-import java.util.Locale;
-
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.util.Locale.ENGLISH;
 
@@ -43,13 +41,14 @@ public final class ValidationUtil
         return character + collection.replaceAll("\"", "") + character;
     }
 
-    public static void checkCollectionValid(String collection)
+    public static String checkCollectionValid(String collection)
     {
         checkArgument(collection != null, "collection is null");
         checkArgument(!collection.isEmpty(), "collection is empty string");
-        if (collection.length() > 250) {
+        if (collection.length() > 100) {
             throw new IllegalArgumentException("Collection name must have maximum 250 characters.");
         }
+        return collection;
     }
 
     public static String checkTableColumn(String column, char escape)

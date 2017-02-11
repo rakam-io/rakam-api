@@ -1,45 +1,60 @@
 package org.rakam.collection.mapper.geoip.maxmind;
 
 import com.google.common.base.Splitter;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.List;
 
 public class MaxmindGeoIPModuleConfig
 {
+
+    private static final URL DEMO_URL;
+
+    static {
+        try {
+            DEMO_URL = new URL("http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz");
+        }
+        catch (MalformedURLException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
     private List<String> attributes;
-    private String databaseUrl = "http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz";
-    private String ispDatabaseUrl;
-    private String connectionTypeDatabaseUrl;
+    private URL databaseUrl = DEMO_URL;
+    private URL ispDatabaseUrl;
+    private URL connectionTypeDatabaseUrl;
     private boolean useExistingFields;
 
     @Config("plugin.geoip.database.url")
-    public MaxmindGeoIPModuleConfig setDatabaseUrl(String url)
+    public MaxmindGeoIPModuleConfig setDatabaseUrl(URL url)
     {
         this.databaseUrl = url;
         return this;
     }
     @Config("plugin.geoip.isp-database.url")
-    public MaxmindGeoIPModuleConfig setIspDatabaseUrl(String url)
+    public MaxmindGeoIPModuleConfig setIspDatabaseUrl(URL url)
     {
         this.ispDatabaseUrl = url;
         return this;
     }
 
-    public String getIspDatabaseUrl() {
+    public URL getIspDatabaseUrl() {
         return ispDatabaseUrl;
     }
 
     @Config("plugin.geoip.connection-type-database.url")
-    public MaxmindGeoIPModuleConfig setConnectionTypeDatabaseUrl(String type)
+    public MaxmindGeoIPModuleConfig setConnectionTypeDatabaseUrl(URL url)
     {
-        this.connectionTypeDatabaseUrl = type;
+        this.connectionTypeDatabaseUrl = url;
         return this;
     }
 
-    public String getConnectionTypeDatabaseUrl() {
+    public URL getConnectionTypeDatabaseUrl() {
         return connectionTypeDatabaseUrl;
     }
 
@@ -52,7 +67,7 @@ public class MaxmindGeoIPModuleConfig
         return this;
     }
 
-    public String getDatabaseUrl() {
+    public URL getDatabaseUrl() {
         return databaseUrl;
     }
 

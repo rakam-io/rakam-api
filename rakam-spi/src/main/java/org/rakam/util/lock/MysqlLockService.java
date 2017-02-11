@@ -1,4 +1,4 @@
-package org.rakam.plugin.tasks;
+package org.rakam.util.lock;
 
 import com.google.common.base.Throwables;
 import org.rakam.analysis.JDBCPoolDataSource;
@@ -7,18 +7,19 @@ import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.util.BooleanMapper;
 
 import java.sql.SQLException;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
 
-public class PostgresqlLockService
+import static java.lang.String.format;
+
+public class MysqlLockService
         implements LockService
 {
     private final DBI dbi;
     private Handle currentHandle;
     private Set<String> locks;
 
-    public PostgresqlLockService(JDBCPoolDataSource poolDataSource)
+    public MysqlLockService(JDBCPoolDataSource poolDataSource)
     {
         this.dbi = new DBI(() -> {
             return poolDataSource.getConnection(true);
@@ -28,7 +29,7 @@ public class PostgresqlLockService
     }
 
     @Override
-    public synchronized Lock tryLock(String name)
+    public Lock tryLock(String name)
     {
         if (!locks.add(name)) {
             return null;
@@ -36,13 +37,13 @@ public class PostgresqlLockService
         try {
             return tryLock(name, 4);
         }
-        catch (Throwable e) {
+        catch (Exception e) {
             locks.remove(name);
             throw Throwables.propagate(e);
         }
     }
 
-    private Lock tryLock(String name, int tryCount)
+    public Lock tryLock(String name, int tryCount)
     {
         try {
             if (currentHandle.getConnection().isClosed()) {
@@ -51,8 +52,8 @@ public class PostgresqlLockService
                 }
             }
 
-            Boolean first = currentHandle.createQuery("select pg_try_advisory_lock(:name)")
-                    .bind("name", name.hashCode())
+            Boolean first = currentHandle.createQuery("select get_lock(:name, 1)")
+                    .bind("name", name)
                     .map(BooleanMapper.FIRST)
                     .first();
 
@@ -63,8 +64,8 @@ public class PostgresqlLockService
 
             return () -> {
                 locks.remove(name);
-                currentHandle.createQuery("select pg_advisory_unlock(:name)")
-                        .bind("name", name.hashCode())
+                currentHandle.createQuery("select release_lock(:name)")
+                        .bind("name", name)
                         .map(BooleanMapper.FIRST)
                         .first();
             };

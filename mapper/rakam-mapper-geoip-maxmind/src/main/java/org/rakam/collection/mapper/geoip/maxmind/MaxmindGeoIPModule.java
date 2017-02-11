@@ -45,10 +45,9 @@ public class MaxmindGeoIPModule
         return "It attaches the events that have ip attribute with location information by GeoIP lookup service.";
     }
 
-    static File downloadOrGetFile(String fileUrl) throws Exception {
-        URL url = new URL(fileUrl);
+    static File downloadOrGetFile(URL url) throws Exception {
         if("file".equals(url.getProtocol())) {
-            return new File(fileUrl.substring("file:/".length()));
+            return new File(url.toString().substring("file:/".length()));
         }
         String name = url.getFile().substring(url.getFile().lastIndexOf('/') + 1, url.getFile().length());
         File data = new File(new File(System.getProperty("java.io.tmpdir")), "rakam/" + name);

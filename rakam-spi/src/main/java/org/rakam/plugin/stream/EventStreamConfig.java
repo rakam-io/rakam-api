@@ -24,7 +24,7 @@ public class EventStreamConfig {
         this.enabled = enabled;
     }
 
-    public boolean isEventStreamEnabled() {
+    public boolean getEventStreamEnabled() {
         return enabled;
     }
 }

@@ -16,6 +16,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.net.InetAddress;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +42,7 @@ public class TestGeoIPEventMapper {
     public void testIspEventMapper(Map<String, Object> props, InetAddress address) throws Exception {
         MaxmindGeoIPEventMapper mapper = new MaxmindGeoIPEventMapper(new MaxmindGeoIPModuleConfig()
                 .setAttributes("")
-                .setIspDatabaseUrl("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-ISP-Test.mmdb"));
+                .setIspDatabaseUrl(new URL("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-ISP-Test.mmdb")));
         FieldDependencyBuilder builder = new FieldDependencyBuilder();
         mapper.addFieldDependency(builder);
 
@@ -64,7 +65,7 @@ public class TestGeoIPEventMapper {
     public void testConnectionTypeEventMapper(Map<String, Object> props, InetAddress address) throws Exception {
         MaxmindGeoIPEventMapper mapper = new MaxmindGeoIPEventMapper(new MaxmindGeoIPModuleConfig()
                 .setAttributes("")
-                .setConnectionTypeDatabaseUrl("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-Connection-Type-Test.mmdb"));
+                .setConnectionTypeDatabaseUrl(new URL("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-Connection-Type-Test.mmdb")));
         FieldDependencyBuilder builder = new FieldDependencyBuilder();
         mapper.addFieldDependency(builder);
 
@@ -117,8 +118,8 @@ public class TestGeoIPEventMapper {
     @Test
     public void testNotFoundIpEventMapper() throws Exception {
         MaxmindGeoIPEventMapper mapper = new MaxmindGeoIPEventMapper(new MaxmindGeoIPModuleConfig()
-                .setConnectionTypeDatabaseUrl("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-Connection-Type-Test.mmdb")
-                .setIspDatabaseUrl("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-ISP-Test.mmdb"));
+                .setConnectionTypeDatabaseUrl(new URL("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-Connection-Type-Test.mmdb"))
+                .setIspDatabaseUrl(new URL("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-ISP-Test.mmdb")));
         FieldDependencyBuilder builder = new FieldDependencyBuilder();
         mapper.addFieldDependency(builder);
 
@@ -144,8 +145,8 @@ public class TestGeoIPEventMapper {
     @Test
     public void testNotTrackFlagIpEventMapper() throws Exception {
         MaxmindGeoIPEventMapper mapper = new MaxmindGeoIPEventMapper(new MaxmindGeoIPModuleConfig()
-                .setConnectionTypeDatabaseUrl("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-Connection-Type-Test.mmdb")
-                .setIspDatabaseUrl("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-ISP-Test.mmdb"));
+                .setConnectionTypeDatabaseUrl(new URL("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-Connection-Type-Test.mmdb"))
+                .setIspDatabaseUrl(new URL("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-ISP-Test.mmdb")));
         FieldDependencyBuilder builder = new FieldDependencyBuilder();
         mapper.addFieldDependency(builder);
 
@@ -193,8 +194,8 @@ public class TestGeoIPEventMapper {
     public void testFieldDependencyWithAll() throws Exception {
         MaxmindGeoIPModuleConfig config = new MaxmindGeoIPModuleConfig()
                 .setAttributes(list.stream().collect(Collectors.joining(",")))
-                .setConnectionTypeDatabaseUrl("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-Connection-Type-Test.mmdb")
-                .setIspDatabaseUrl("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-ISP-Test.mmdb");
+                .setConnectionTypeDatabaseUrl(new URL("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-Connection-Type-Test.mmdb"))
+                .setIspDatabaseUrl(new URL("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-ISP-Test.mmdb"));
 
         MaxmindGeoIPEventMapper mapper = new MaxmindGeoIPEventMapper(config);
         FieldDependencyBuilder builder = new FieldDependencyBuilder();

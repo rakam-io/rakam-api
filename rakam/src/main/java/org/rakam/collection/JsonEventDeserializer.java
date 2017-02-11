@@ -61,6 +61,8 @@ import static org.rakam.collection.FieldType.MAP_STRING;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.collection.SchemaField.stripName;
 import static org.rakam.util.AvroUtil.convertAvroSchema;
+import static org.rakam.util.ValidationUtil.checkCollection;
+import static org.rakam.util.ValidationUtil.checkCollectionValid;
 
 public class JsonEventDeserializer
         extends JsonDeserializer<Event>
@@ -125,7 +127,7 @@ public class JsonEventDeserializer
                     if (t != VALUE_STRING) {
                         throw new RakamException("collection parameter must be a string", BAD_REQUEST);
                     }
-                    collection = jp.getValueAsString().toLowerCase();
+                    collection = checkCollectionValid(jp.getValueAsString().toLowerCase());
                     break;
                 case "api":
                     if (api != null) {
@@ -401,7 +403,11 @@ public class JsonEventDeserializer
 
             switch (type) {
                 case STRING:
-                    return jp.getValueAsString();
+                    String valueAsString = jp.getValueAsString();
+                    if (valueAsString.length() > 100) {
+                        return valueAsString.substring(0, 100);
+                    }
+                    return valueAsString;
                 case BOOLEAN:
                     return jp.getValueAsBoolean();
                 case LONG:
@@ -422,7 +428,7 @@ public class JsonEventDeserializer
                 case DOUBLE:
                     return jp.getValueAsDouble();
                 case TIMESTAMP:
-                    if(jp.getValueAsString().isEmpty()) {
+                    if (jp.getValueAsString().isEmpty()) {
                         return null;
                     }
                     if (jp.getCurrentToken().isNumeric()) {
@@ -432,21 +438,25 @@ public class JsonEventDeserializer
                         return DateTimeUtils.parseTimestamp(jp.getValueAsString());
                     }
                     catch (Exception e) {
+                        if (field.name().equals("_time")) {
+                            throw new RakamException(String.format("Unable to parse TIMESTAMP value '%s' in _time column", jp.getValueAsString()),
+                                    BAD_REQUEST);
+                        }
                         return null;
-//                        throw new RakamException(String.format("Unable to parse TIMESTAMP value '%s'", jp.getValueAsString()),
-//                                BAD_REQUEST);
                     }
                 case DATE:
-                    if(jp.getValueAsString().isEmpty()) {
+                    if (jp.getValueAsString().isEmpty()) {
                         return null;
                     }
                     try {
                         return DateTimeUtils.parseDate(jp.getValueAsString());
                     }
                     catch (Exception e) {
+                        if (field.name().equals("_time")) {
+                            throw new RakamException(String.format("Unable to parse DATE value '%s' in _time column", jp.getValueAsString()),
+                                    BAD_REQUEST);
+                        }
                         return null;
-//                        throw new RakamException(String.format("Unable to parse DATE value '%s'", jp.getValueAsString()),
-//                                BAD_REQUEST);
                     }
                 default:
                     throw new JsonMappingException(jp, format("Scalar value '%s' cannot be cast to %s type for '%s' field.",
@@ -493,7 +503,8 @@ public class JsonEventDeserializer
                             throw new JsonMappingException(jp, String.format("Nested properties are not supported if the type is not MAP_STRING. ('%s' field)", field.name()));
                         }
                         value = JsonHelper.encode(jp.readValueAsTree());
-                    } else {
+                    }
+                    else {
                         value = getValue(jp, type.getMapValueType(), null, false);
                     }
 

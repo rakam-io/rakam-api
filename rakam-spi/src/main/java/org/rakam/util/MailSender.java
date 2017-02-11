@@ -1,46 +1,89 @@
 package org.rakam.util;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
+import com.google.common.io.ByteStreams;
+import org.rakam.report.EmailClientConfig;
 
+import javax.activation.DataHandler;
+import javax.activation.DataSource;
 import javax.mail.Message;
 import javax.mail.MessagingException;
 import javax.mail.Multipart;
 import javax.mail.Session;
 import javax.mail.Transport;
+import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
+import javax.mail.util.ByteArrayDataSource;
+
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.util.Base64;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static javax.mail.Message.RecipientType.TO;
 
-public class MailSender {
+public class MailSender
+{
     private final Session session;
     private final InternetAddress fromAddress;
 
-    public MailSender(Session session, String fromAddress, String fromName) {
+    public MailSender(Session session, String fromAddress, String fromName)
+    {
         this.session = session;
         try {
             this.fromAddress = new InternetAddress(fromAddress, fromName);
-        } catch (UnsupportedEncodingException e) {
+        }
+        catch (UnsupportedEncodingException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    public void sendMail(String toEmail, String title, String textContent, Optional<String> richText)
-            throws MessagingException {
+    public void sendMail(String toEmail, String title, String textContent, Optional<String> richText, Stream<MimeBodyPart> parts)
+            throws MessagingException
+    {
+        sendMail(ImmutableList.of(toEmail), title, textContent, richText, parts);
+    }
+
+    public void sendMail(List<String> toEmail, String title, String textContent, Optional<String> richText, Stream<MimeBodyPart> parts)
+            throws MessagingException
+    {
         Message msg = new MimeMessage(session);
         msg.setFrom(fromAddress);
-        msg.addRecipient(TO, new InternetAddress(toEmail));
+        msg.addRecipients(MimeMessage.RecipientType.TO, toEmail.stream().map(e -> {
+            try {
+                return new InternetAddress(e);
+            }
+            catch (AddressException e1) {
+                throw Throwables.propagate(e1);
+            }
+        }).toArray(InternetAddress[]::new));
         msg.setSubject(title);
         msg.setText(textContent);
-        if(richText.isPresent()) {
+
+        if (richText.isPresent()) {
             Multipart mp = new MimeMultipart();
             MimeBodyPart htmlPart = new MimeBodyPart();
             htmlPart.setContent(richText.get(), "text/html");
             mp.addBodyPart(htmlPart);
+            parts.forEach(part -> {
+                try {
+                    mp.addBodyPart(part);
+                }
+                catch (MessagingException e) {
+                    throw Throwables.propagate(e);
+                }
+            });
             msg.setContent(mp);
         }
         Transport.send(msg);

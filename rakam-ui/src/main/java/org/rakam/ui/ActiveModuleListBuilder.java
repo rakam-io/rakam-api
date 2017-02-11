@@ -63,7 +63,7 @@ public class ActiveModuleListBuilder {
             this.retentionAnalysisEnabled = userPluginConfig.isRetentionAnalysisEnabled();
             this.eventExplorer = eventExplorerConfig.isEventExplorerEnabled();
             this.realtime = realtimeConfig.isRealtimeModuleEnabled();
-            this.eventStream = eventStreamConfig.isEventStreamEnabled();
+            this.eventStream = eventStreamConfig.getEventStreamEnabled();
             this.userStorageEventFilter = userStorage.getStorageModule() != null;
         }
     }

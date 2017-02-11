@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 
 @Path("/user/action/email")
 @Api(value = "/user/action/email", nickname = "userEmailAction", description = "Email action", tags = "user-action")
@@ -182,7 +183,7 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
     private boolean sendInternal(String toEmail, EmailActionConfig config, String content) {
         try {
             mailSender.sendMail(toEmail, config.title, content,
-                    config.richText ? Optional.of(content) : Optional.empty());
+                    config.richText ? Optional.of(content) : Optional.empty(), Stream.empty());
         } catch (AddressException e) {
             return false;
         }  catch (MessagingException e) {

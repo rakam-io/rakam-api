@@ -98,7 +98,7 @@ public class PrestoModule extends RakamModule {
         binder.bind(MaterializedViewService.class).to(PrestoMaterializedViewService.class);
         binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class).toInstance("to_unixtime");
 
-        if (buildConfigObject(EventStreamConfig.class).isEventStreamEnabled()) {
+        if (buildConfigObject(EventStreamConfig.class).getEventStreamEnabled()) {
             httpClientBinder(binder).bindHttpClient("streamer", ForStreamer.class);
             binder.bind(EventStream.class).to(PrestoEventStream.class).in(Scopes.SINGLETON);
         }

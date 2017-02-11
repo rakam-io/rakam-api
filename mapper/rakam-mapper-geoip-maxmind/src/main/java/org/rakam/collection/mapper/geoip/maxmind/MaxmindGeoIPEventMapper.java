@@ -20,7 +20,6 @@ import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.SyncEventMapper;
 import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.plugin.user.UserPropertyMapper;
@@ -30,6 +29,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.List;
@@ -114,7 +114,7 @@ public class MaxmindGeoIPEventMapper
         this.connectionTypeLookup = connectionTypeLookup;
     }
 
-    private DatabaseReader getReader(String url)
+    private DatabaseReader getReader(URL url)
     {
         try {
             FileInputStream cityDatabase = new FileInputStream(MaxmindGeoIPModule.downloadOrGetFile(url));

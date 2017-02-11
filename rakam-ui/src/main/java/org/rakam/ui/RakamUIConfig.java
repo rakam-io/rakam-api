@@ -18,6 +18,8 @@ import io.airlift.configuration.ConfigDescription;
 import org.rakam.ui.RakamUIModule.CustomPageBackend;
 
 import java.io.File;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Locale;
 
 public class RakamUIConfig {
@@ -28,6 +30,11 @@ public class RakamUIConfig {
     private boolean hashPassword;
     private String googleClientId;
     private String stripeKey;
+    private URL screenCaptureService = new URL("http://46.101.145.48:8050");
+
+    public RakamUIConfig()
+            throws MalformedURLException
+    {}
 
     @Config("ui.directory")
     public RakamUIConfig setUIDirectory(File uiDirectory) {
@@ -67,6 +74,17 @@ public class RakamUIConfig {
     public String getStripeKey()
     {
         return stripeKey;
+    }
+
+    @Config("screen-capture-service-url")
+    public RakamUIConfig setScreenCaptureService(URL screenCaptureService) {
+        this.screenCaptureService = screenCaptureService;
+        return this;
+    }
+
+    public URL getScreenCaptureService()
+    {
+        return screenCaptureService;
     }
 
     public File getUIDirectory() {

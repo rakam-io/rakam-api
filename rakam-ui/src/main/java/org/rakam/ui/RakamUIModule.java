@@ -18,6 +18,10 @@ import org.rakam.config.EncryptionConfig;
 import org.rakam.config.JDBCConfig;
 import org.rakam.plugin.InjectionHook;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.stream.EventStreamConfig;
+import org.rakam.plugin.user.UserPluginConfig;
+import org.rakam.report.eventexplorer.EventExplorerConfig;
+import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.server.http.HttpRequestHandler;
 import org.rakam.server.http.HttpService;
 import org.rakam.ui.UIEvents.ProjectCreatedEvent;
@@ -57,6 +61,11 @@ public class RakamUIModule
     protected void setup(Binder binder)
     {
         configBinder(binder).bindConfig(EncryptionConfig.class);
+        configBinder(binder).bindConfig(UserPluginConfig.class);
+        configBinder(binder).bindConfig(RealTimeConfig.class);
+        configBinder(binder).bindConfig(EventStreamConfig.class);
+        configBinder(binder).bindConfig(EventExplorerConfig.class);
+        configBinder(binder).bindConfig(UserPluginConfig.class);
 
         RakamUIConfig rakamUIConfig = buildConfigObject(RakamUIConfig.class);
 
@@ -105,6 +114,7 @@ public class RakamUIModule
         httpServices.addBinding().to(CustomEventMapperUIHttpService.class);
         httpServices.addBinding().to(ClusterService.class);
         httpServices.addBinding().to(UIRecipeHttpService.class);
+        httpServices.addBinding().to(ScheduledEmailService.class);
         if (rakamUIConfig.getStripeKey() != null) {
             httpServices.addBinding().to(UserSubscriptionHttpService.class);
         }

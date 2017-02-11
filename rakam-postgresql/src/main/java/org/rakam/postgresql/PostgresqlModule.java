@@ -215,9 +215,6 @@ public class PostgresqlModule
             catch (Exception e) {
                 postgresql9_5 = false;
             }
-
-            // brin doesn't perform well enough for ad-hoc use case
-            postgresql9_5 = false;
         }
 
         @Subscribe
@@ -240,7 +237,8 @@ public class PostgresqlModule
                             postgresql9_5 ? "IF NOT EXISTS" : "",
                             checkCollection(String.format("%s_%s_%s_auto_index", project, collection, field.getName())),
                             project, checkCollection(collection),
-                            (postgresql9_5 && brinSupportedTypes.contains(field.getType())) ? "BRIN" : "BTREE",
+//                            (postgresql9_5 && brinSupportedTypes.contains(field.getType())) ? "BRIN" : "BTREE",
+                            (postgresql9_5 && field.getName().equals("_time")) ? "BRIN" : "BTREE",
                             checkTableColumn(field.getName())));
                 }
                 catch (Exception e) {

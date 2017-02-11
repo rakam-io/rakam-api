@@ -32,7 +32,7 @@ var fetch = function (parameters, events, index, startDate, endDate) {
 
     if (startDate == null) {
         startDate = new Date();
-        startDate.setMonth(startDate.getMonth() - 2);
+        startDate.setMonth(startDate.getMonth() > 3 ? 0 : startDate.getMonth() - 2);
         startDate = startDate.toJSON().slice(0, 10);
     }
 
@@ -100,15 +100,19 @@ var fetch = function (parameters, events, index, startDate, endDate) {
     config.set('start_date' + (index == null ? "" : "." + index), endDate);
 }
 
+var adgroup_query = "SELECT Date,AccountCurrencyCode,Clicks,AllConversions,AdGroupName,AverageCost,AverageCpm,AveragePosition,CampaignName,Conversions,Cost,Engagements, SearchRankLostImpressionShare,Impressions,Interactions,PercentNewVisitors,VideoViews,VideoQuartile100Rate,VideoQuartile75Rate,VideoQuartile50Rate,VideoQuartile25Rate,SearchImpressionShare,ContentImpressionShare,ContentRankLostImpressionShare from ADGROUP_PERFORMANCE_REPORT";
+var ad_query = "SELECT Date,AccountCurrencyCode,AdGroupName,AdType,AllConversions,AverageCost,AverageCpm,AveragePosition,CampaignName,Clicks,Conversions,Cost,CriterionType,DisplayUrl,Engagements,Headline,Impressions,Interactions,PercentNewVisitors,VideoViews,VideoQuartile100Rate,VideoQuartile75Rate,VideoQuartile50Rate,VideoQuartile25Rate FROM AD_PERFORMANCE_REPORT";
+
 var main = function (parameters) {
     if (parameters.query) {
         return fetch(parameters, []);
-    }
+    } else {
+        parameters.collection += "_adgroup";
+        parameters.query = adgroup_query;
+        fetch(parameters, [], 0);
 
-    ["SELECT Date,AccountCurrencyCode,Clicks,AllConversions,AdGroupName,AverageCost,AverageCpm,AveragePosition,CampaignName,Conversions,Cost,Engagements, SearchRankLostImpressionShare,Impressions,Interactions,PercentNewVisitors,VideoViews,VideoQuartile100Rate,VideoQuartile75Rate,VideoQuartile50Rate,VideoQuartile25Rate,SearchImpressionShare,ContentImpressionShare,ContentRankLostImpressionShare from ADGROUP_PERFORMANCE_REPORT",
-     "SELECT Date,AccountCurrencyCode,AdGroupName,AdType,AllConversions,AverageCost,AverageCpm,AveragePosition,CampaignName,Clicks,Conversions,Cost,CriterionType,DisplayUrl,Engagements,Headline,Impressions,Interactions,PercentNewVisitors,VideoViews,VideoQuartile100Rate,VideoQuartile75Rate,VideoQuartile50Rate,VideoQuartile25Rate FROM AD_PERFORMANCE_REPORT"]
-        .forEach(function (query, idx) {
-            parameters.query = query;
-            fetch(parameters, [], idx);
-        });
+        parameters.collection += "_ad";
+        parameters.query = ad_query;
+        fetch(parameters, [], 1);
+    }
 }

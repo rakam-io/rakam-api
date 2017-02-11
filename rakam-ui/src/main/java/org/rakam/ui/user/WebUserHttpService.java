@@ -303,28 +303,27 @@ public class WebUserHttpService
         }
 
         if (session != null) {
-            Integer id = null;
+            Integer id;
             try {
                 id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
             }
             catch (Exception e) {
                 request.response(unauthorized(jsonp)).end();
+                return;
             }
 
-            if (id != null) {
-                final Optional<WebUser> user = service.getUser(id);
+            final Optional<WebUser> user = service.getUser(id);
 
-                if (user.isPresent()) {
-                    String encode = JsonHelper.encode(user.get());
-                    if (jsonp.isPresent()) {
-                        encode = jsonp.get() + "(" + encode + ")";
-                    }
-                    DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK,
-                            wrappedBuffer(encode.getBytes(CharsetUtil.UTF_8)));
-                    response.headers().set(CONTENT_TYPE, "application/json; charset=utf-8");
-                    request.response(response).end();
-                    return;
+            if (user.isPresent()) {
+                String encode = JsonHelper.encode(user.get());
+                if (jsonp.isPresent()) {
+                    encode = jsonp.get() + "(" + encode + ")";
                 }
+                DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK,
+                        wrappedBuffer(encode.getBytes(CharsetUtil.UTF_8)));
+                response.headers().set(CONTENT_TYPE, "application/json; charset=utf-8");
+                request.response(response).end();
+                return;
             }
         }
 
@@ -401,16 +400,19 @@ public class WebUserHttpService
 
     private Response getLoginResponseForUser(WebUser user)
     {
+        return Response.ok(user).addCookie("session", getCookieForUser(user.id),
+                null, true, Duration.ofDays(30).getSeconds(), "/", null);
+    }
+
+    public String getCookieForUser(int userId) {
         final long expiringTimestamp = Instant.now().plus(7, ChronoUnit.DAYS).getEpochSecond();
         final StringBuilder cookieData = new StringBuilder()
                 .append(expiringTimestamp).append("|")
-                .append(user.id);
+                .append(userId);
 
         final String secureKey = CryptUtil.encryptWithHMacSHA1(cookieData.toString(), encryptionConfig.getSecretKey());
         cookieData.append('|').append(secureKey);
-
-        return Response.ok(user).addCookie("session", cookieData.toString(),
-                null, true, Duration.ofDays(30).getSeconds(), "/", null);
+        return cookieData.toString();
     }
 
     public static int extractUserFromCookie(String session, String key)

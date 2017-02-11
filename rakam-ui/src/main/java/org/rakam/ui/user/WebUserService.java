@@ -15,12 +15,10 @@ import com.google.inject.name.Named;
 import com.lambdaworks.crypto.SCryptUtil;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.analysis.ApiKeyService.AccessKeyType;
 import org.rakam.analysis.ApiKeyService.ProjectApiKeys;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.report.EmailClientConfig;
-import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.ui.RakamUIConfig;
 import org.rakam.ui.UIEvents;
@@ -61,11 +59,11 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.EXPECTATION_FAILED;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.PRECONDITION_REQUIRED;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
@@ -441,7 +439,7 @@ public class WebUserService
 
         return CompletableFuture.runAsync(() -> {
             try {
-                mailSender.sendMail(email, title, txtContent, Optional.of(htmlContent));
+                mailSender.sendMail(email, title, txtContent, Optional.of(htmlContent), Stream.empty());
             }
             catch (MessagingException e) {
                 LOGGER.error(e, "Unable to send mail");

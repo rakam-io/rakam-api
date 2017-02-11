@@ -6,9 +6,9 @@ import com.google.inject.name.Named;
 import com.mysql.jdbc.MySQLConnection;
 import org.postgresql.PGConnection;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.plugin.tasks.LockService;
-import org.rakam.plugin.tasks.MysqlLockService;
-import org.rakam.plugin.tasks.PostgresqlLockService;
+import org.rakam.util.lock.LockService;
+import org.rakam.util.lock.MysqlLockService;
+import org.rakam.util.lock.PostgresqlLockService;
 
 import javax.inject.Inject;
 
