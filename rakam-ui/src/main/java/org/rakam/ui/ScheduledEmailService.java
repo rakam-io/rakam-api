@@ -207,15 +207,15 @@ public class ScheduledEmailService
 
                 writer = new StringWriter();
                 String path = "/dashboard/" + task.type_id;
-                String apiUrl;
+                Map<String, Object> project;
                 try (Handle handle = dbi.open()) {
-                    apiUrl = handle.createQuery("select api_url from web_user_project where id = :id").bind("id", task.project_id)
-                            .map(StringMapper.FIRST).first();
+                    project = handle.createQuery("select project, api_url from web_user_project where id = :id")
+                            .bind("id", task.project_id).first();
                 }
                 template.execute(writer, of(
                         "domain", "app.rakam.io",
                         "session", webUserHttpService.getCookieForUser(task.user_id),
-                        "active_project", URLEncoder.encode(encode(of("project", task.project_id, "apiUrl", apiUrl)), "UTF-8"),
+                        "active_project", URLEncoder.encode(encode(of("name", project.get("project"), "apiUrl", project.get("api_url"))), "UTF-8"),
                         "path", path));
                 String txtContent = writer.toString();
 
