@@ -55,7 +55,7 @@ public class MailSender
             }
         }).toArray(InternetAddress[]::new));
         msg.setSubject(title);
-        if(textContent != null) {
+        if (textContent != null) {
             msg.setText(textContent);
         }
 

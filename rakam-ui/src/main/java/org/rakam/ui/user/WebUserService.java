@@ -62,6 +62,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.google.common.base.Charsets.UTF_8;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_GATEWAY;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.EXPECTATION_FAILED;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
@@ -116,6 +117,14 @@ public class WebUserService
     public void updateProjectConfigurations(int userId, int project, ProjectConfiguration configuration)
     {
         try (Connection conn = dbi.open().getConnection()) {
+            if(configuration.timezone != null) {
+                try {
+                    ZoneId.of(configuration.timezone);
+                }
+                catch (Exception e) {
+                    throw new RakamException("Timezone is invalid", BAD_REQUEST);
+                }
+            }
             PreparedStatement ps = conn.prepareStatement("UPDATE web_user_project SET timezone = ? WHERE user_id = ? and id = ?");
             ps.setString(1, configuration.timezone);
             ps.setInt(2, userId);
@@ -816,11 +825,12 @@ public class WebUserService
                     String url = r.getString(3);
                     ZoneId zoneId;
                     try {
-                        zoneId = r.getString(4) != null ? ZoneId.of(r.getString(4)) : null;
+//                        zoneId = r.getString(4) != null ? ZoneId.of(r.getString(4)) : null;
                     }
                     catch (ZoneRulesException e) {
                         zoneId = null;
                     }
+                    zoneId = null;
                     ZoneId finalZoneId = zoneId;
                     WebUser.Project p = list.stream().filter(e -> e.id == id)
                             .findFirst()
