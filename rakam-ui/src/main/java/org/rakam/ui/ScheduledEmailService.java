@@ -193,9 +193,10 @@ public class ScheduledEmailService
                     "end)\n" +
                     "WHEN date_interval LIKE 'month.%' THEN\n" +
                     "(date_trunc('month', last_executed_at) + INTERVAL '1 MONTH') + INTERVAL '1 DAY' * (((cast(substring(date_interval, 7) as bigint)))) - last_executed_at\n" +
-                    "ELSE NULL END) + (INTERVAL '1 HOURS' * 5) + last_executed_at > now())", query -> {
+                    "ELSE NULL END) + ((INTERVAL '1 HOURS') * mod(hour_of_day - cast(EXTRACT(hour FROM last_executed_at) as bigint) + 24, 24)) + last_executed_at > now() AT TIME ZONE 'UTC')", query -> {
             });
         }
+
 
         for (ScheduledEmailTask task : tasks) {
             try {

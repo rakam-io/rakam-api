@@ -63,9 +63,7 @@ public class JSCodeLoggerService
                 handle.createStatement("ALTER TABLE javascript_logs ADD COLUMN created BIGINT NOT NULL DEFAULT 0").execute();
             }
             catch (Exception e) {
-                if(!e.getMessage().contains("already exists")) {
-                    throw e;
-                }
+                // ignore
             }
         }
     }
