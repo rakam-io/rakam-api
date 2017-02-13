@@ -4,12 +4,14 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Level;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import jdk.nashorn.api.scripting.ClassFilter;
 import jdk.nashorn.api.scripting.NashornScriptEngineFactory;
+import org.jetbrains.annotations.Nullable;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.collection.Event;
 import org.rakam.collection.EventCollectionHttpService;
@@ -17,7 +19,6 @@ import org.rakam.collection.EventList;
 import org.rakam.collection.JSCodeLoggerService;
 import org.rakam.collection.JSCodeLoggerService.LogEntry;
 import org.rakam.collection.JsonEventDeserializer;
-import org.rakam.plugin.CustomEventMapperHttpService;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.RAsyncHttpClient;
@@ -34,10 +35,13 @@ import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,8 +63,10 @@ public class JSCodeCompiler
     private static final NashornScriptEngineFactory factory = new NashornScriptEngineFactory();
     private static final String[] args = {"-strict", "--no-syntax-extensions"};
     private static final NashornEngineFilter classFilter = new NashornEngineFilter();
-    private static final ClassLoader classLoader = CustomEventMapperHttpService.class.getClassLoader();
-    private static JSUtil JS_UTIL = new JSUtil();
+    private static final ClassLoader classLoader = new SafeClassLoader() {};
+    private static Map<String, Object> JS_UTIL = ImmutableMap.of(
+            "crypt", new JSUtil.JSCryptUtil(),
+            "request", new JSUtil.JSRequestUtil());
 
     @Inject
     public JSCodeCompiler(
@@ -69,6 +75,7 @@ public class JSCodeCompiler
             @Named("rakam-client") RAsyncHttpClient httpClient)
     {
         this(configManager, httpClient, loggerService, false);
+
     }
 
     public JSCodeCompiler(
@@ -136,14 +143,9 @@ public class JSCodeCompiler
     public static class NashornEngineFilter
             implements ClassFilter
     {
-        private final static String CRYPT_UTIL = CryptUtil.class.getName();
-
         @Override
         public boolean exposeToScripts(String s)
         {
-            if (s.equals(CRYPT_UTIL)) {
-                return true;
-            }
             return false;
         }
     }
@@ -171,7 +173,9 @@ public class JSCodeCompiler
     public Invocable createEngine(String code, ILogger logger, JSEventStore eventStore, IJSConfigManager configManager)
             throws ScriptException
     {
-        return createEngine(code, logger, eventStore, configManager);
+        return createEngine(code, logger, eventStore, configManager, (scriptEngine, bindings) -> {
+
+        });
     }
 
     public Invocable createEngine(String code, ILogger logger, JSEventStore eventStore, IJSConfigManager configManager, BiConsumer<ScriptEngine, Bindings> binding)
@@ -354,52 +358,160 @@ public class JSCodeCompiler
 
     private static class JSUtil
     {
-        public final static JSCryptUtil crypt = new JSCryptUtil();
-        public final static JSRequestUtil request = new JSRequestUtil();
-
         private JSUtil()
         {
         }
 
-        private static class JSRequestUtil
+        public static class JSRequestUtil
         {
-            public static Map<String, List<String>> parseFormData(String data)
+            public Map<String, List<String>> parseFormData(String data)
             {
                 return new QueryStringDecoder("?" + data).parameters();
             }
         }
 
-        private static class JSCryptUtil
+        public static class JSCryptUtil
         {
-            public static String generateRandomKey(int length)
+            public String generateRandomKey(int length)
             {
                 return CryptUtil.generateRandomKey(length);
             }
 
-            public static String sha1(String value)
+            public String sha1(String value)
             {
                 return CryptUtil.sha1(value);
             }
 
-            public static String encryptWithHMacSHA1(String data, String secret)
+            public String encryptWithHMacSHA1(String data, String secret)
             {
                 return CryptUtil.encryptWithHMacSHA1(data, secret);
             }
 
-            public static String encryptToHex(String data, String secret, String hashType)
+            public String encryptToHex(String data, String secret, String hashType)
             {
                 return CryptUtil.encryptToHex(data, secret, hashType);
             }
 
-            public static String encryptAES(String data, String secretKey)
+            public String encryptAES(String data, String secretKey)
             {
                 return CryptUtil.encryptAES(data, secretKey);
             }
 
-            public static String decryptAES(String data, String secretKey)
+            public String decryptAES(String data, String secretKey)
             {
                 return CryptUtil.decryptAES(data, secretKey);
             }
+        }
+    }
+
+    public static class SafeClassLoader extends ClassLoader {
+        @Override
+        public Class<?> loadClass(String name)
+                throws ClassNotFoundException
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        protected Class<?> loadClass(String name, boolean resolve)
+                throws ClassNotFoundException
+        {
+            return super.loadClass(name, resolve);
+        }
+
+        @Override
+        protected Object getClassLoadingLock(String className)
+        {
+            return super.getClassLoadingLock(className);
+        }
+
+        @Override
+        public void clearAssertionStatus()
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        protected Class<?> findClass(String name)
+                throws ClassNotFoundException
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Nullable
+        @Override
+        public URL getResource(String name)
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Enumeration<URL> getResources(String name)
+                throws IOException
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        protected URL findResource(String name)
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        protected Enumeration<URL> findResources(String name)
+                throws IOException
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public InputStream getResourceAsStream(String name)
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        protected Package definePackage(String name, String specTitle, String specVersion, String specVendor, String implTitle, String implVersion, String implVendor, URL sealBase)
+                throws IllegalArgumentException
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        protected Package getPackage(String name)
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        protected Package[] getPackages()
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        protected String findLibrary(String libname)
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setDefaultAssertionStatus(boolean enabled)
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setPackageAssertionStatus(String packageName, boolean enabled)
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setClassAssertionStatus(String className, boolean enabled)
+        {
+            throw new UnsupportedOperationException();
         }
     }
 }

@@ -7,6 +7,7 @@ import com.github.mustachejava.Mustache;
 import com.github.mustachejava.MustacheFactory;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Resources;
@@ -36,7 +37,6 @@ import org.rakam.util.lock.LockService;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.Query;
-import org.skife.jdbi.v2.ResultIterator;
 import org.skife.jdbi.v2.Update;
 import org.skife.jdbi.v2.util.IntegerMapper;
 import org.skife.jdbi.v2.util.StringMapper;
@@ -56,6 +56,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -69,6 +70,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinWorkerThread;
@@ -168,10 +170,11 @@ public class ScheduledEmailService
             catch (Exception e) {
                 LOGGER.error(e);
             }
-        }, millisToNextHour(), 60, TimeUnit.MINUTES);
+        }, 0, 1, TimeUnit.MINUTES);
     }
 
-    private long millisToNextHour() {
+    private long millisToNextHour()
+    {
         LocalDateTime nextHour = LocalDateTime.now().plusHours(1).truncatedTo(ChronoUnit.HOURS);
         return LocalDateTime.now().until(nextHour, ChronoUnit.MINUTES);
     }
@@ -180,23 +183,28 @@ public class ScheduledEmailService
     {
         List<ScheduledEmailTask> tasks;
         try (Handle handle = dbi.open()) {
-            tasks = list(handle, "last_executed_at is null or ((CASE WHEN date_interval LIKE 'day.%' THEN\n" +
-                    "(mod(cast(substring(date_interval, 5) as bigint) - cast(EXTRACT(DOW FROM last_executed_at) as bigint) + 7, 7) * INTERVAL '1 DAY')\n" +
+            tasks = list(handle, "enabled and (last_executed_at is null or (last_executed_at < now() AT TIME ZONE 'UTC' and ((CASE WHEN date_interval LIKE 'day.%' THEN\n" +
+                    "((cast(substring(date_interval, 5) as bigint) - cast(EXTRACT(DOW FROM last_executed_at) as bigint) +\n" +
+                    "  (case when cast(EXTRACT(DOW FROM last_executed_at) as bigint) >= cast(substring(date_interval, 5) as bigint) then 7 else 0 end)) * INTERVAL '1 DAY')\n" +
                     "WHEN date_interval LIKE 'day_range.%' THEN\n" +
-                    "(case \n" +
-                    "when cast(EXTRACT(DOW FROM last_executed_at) as bigint) > cast((string_to_array(substring(date_interval, 11), '-'))[2] as bigint) then\n" +
-                    "INTERVAL '1 DAY' * (cast(EXTRACT(DOW FROM last_executed_at) as bigint) - cast((string_to_array(substring(date_interval, 10), '-'))[1] as bigint))\n" +
-                    "when cast(EXTRACT(DOW FROM last_executed_at) as bigint) > cast((string_to_array(substring(date_interval, 11), '-'))[1] as bigint) then\n" +
-                    "INTERVAL '0 DAY'\n" +
-                    "else \n" +
+                    "(case\n" +
+                    "when cast(EXTRACT(DOW FROM last_executed_at) as bigint) >= cast((string_to_array(substring(date_interval, 11), '-'))[2] as bigint) then\n" +
+                    "INTERVAL '1 DAY' * (cast((string_to_array(substring(date_interval, 11), '-'))[1] as bigint) - cast(EXTRACT(DOW FROM last_executed_at) as bigint) + 7)\n" +
+                    "when cast(EXTRACT(DOW FROM last_executed_at) as bigint) >= cast((string_to_array(substring(date_interval, 11), '-'))[1] as bigint) then\n" +
+                    "INTERVAL '1 DAY'\n" +
+                    "else\n" +
                     "INTERVAL '1 DAY' * (cast((string_to_array(substring(date_interval, 11), '-'))[1] as bigint) - cast(EXTRACT(DOW FROM last_executed_at) as bigint))\n" +
                     "end)\n" +
                     "WHEN date_interval LIKE 'month.%' THEN\n" +
-                    "(date_trunc('month', last_executed_at) + INTERVAL '1 MONTH') + INTERVAL '1 DAY' * (((cast(substring(date_interval, 7) as bigint)))) - last_executed_at\n" +
-                    "ELSE NULL END) + ((INTERVAL '1 HOURS') * mod(hour_of_day - cast(EXTRACT(hour FROM last_executed_at) as bigint) + 24, 24)) + last_executed_at > now() AT TIME ZONE 'UTC')", query -> {
+                    "case\n" +
+                    " when extract(day from last_executed_at) > (cast(substring(date_interval, 7) as bigint))\n" +
+                    " then (date_trunc('month', last_executed_at) + INTERVAL '1 MONTH') + INTERVAL '1 DAY' * (((cast(substring(date_interval, 7) as bigint)))) - last_executed_at\n" +
+                    " else ((((cast(substring(date_interval, 7) as bigint)))) - extract(day from last_executed_at)) * INTERVAL '1 DAY' end\n" +
+                    "ELSE NULL END) + ((INTERVAL '1 HOURS') * (case when hour_of_day > cast(EXTRACT(hour FROM last_executed_at) as bigint)\n" +
+                    " then hour_of_day - cast(EXTRACT(hour FROM last_executed_at) as bigint) else hour_of_day - cast(EXTRACT(hour FROM last_executed_at) as bigint) end))\n" +
+                    ") + last_executed_at < now() AT TIME ZONE 'UTC'))", query -> {
             });
         }
-
 
         for (ScheduledEmailTask task : tasks) {
             try {
@@ -205,69 +213,10 @@ public class ScheduledEmailService
                 if (lock == null) {
                     continue;
                 }
+
                 long now = Instant.now().toEpochMilli();
 
-                MimeBodyPart screenPart = new MimeBodyPart();
-                String imageId = UUID.randomUUID().toString() + "@" + UUID.randomUUID().toString() + ".mail";
-                screenPart.setHeader("Content-ID", "<" + imageId + ">");
-
-                StringWriter writer;
-
-                writer = new StringWriter();
-                String path = "/dashboard/" + task.type_id;
-                Map<String, Object> project;
-                try (Handle handle = dbi.open()) {
-                    project = handle.createQuery("select project, api_url from web_user_project where id = :id")
-                            .bind("id", task.project_id).first();
-                }
-                template.execute(writer, of(
-                        "domain", "app.rakam.io",
-                        "session", webUserHttpService.getCookieForUser(task.user_id),
-                        "active_project", URLEncoder.encode(encode(of("name", project.get("project"), "apiUrl", project.get("api_url"))), "UTF-8"),
-                        "path", path));
-                String txtContent = writer.toString();
-
-                ListenableFuture<Void> run = executorService.submit(() -> {
-                    try {
-                        URL u = new URL(screenCaptureService.toString() + "/execute");
-                        HttpURLConnection conn = (HttpURLConnection) u.openConnection();
-                        conn.setDoOutput(true);
-                        conn.setRequestMethod("POST");
-                        conn.setRequestProperty("Content-Type", "application/json");
-                        conn.setRequestProperty("Content-Length", String.valueOf(txtContent.length()));
-
-                        try (DataOutputStream wr = new DataOutputStream(conn.getOutputStream())) {
-                            wr.write(JsonHelper.encodeAsBytes(ImmutableMap.of("lua_source", txtContent, "timeout", 60)));
-                        }
-
-                        byte[] bytes;
-                        if (conn.getResponseCode() == 200) {
-                            bytes = ByteStreams.toByteArray(conn.getInputStream());
-                        }
-                        else {
-                            bytes = ByteStreams.toByteArray(conn.getErrorStream());
-                            LOGGER.error(new RuntimeException(new String(bytes)), "Error while sending scheduled e-mail");
-                        }
-
-                        DataSource dataSource = new ByteArrayDataSource(bytes, "image/png");
-                        screenPart.setDataHandler(new DataHandler(dataSource));
-                        screenPart.setFileName("dashboard.png");
-                        screenPart.setDisposition(MimeBodyPart.INLINE);
-
-                        mailSender.sendMail(task.emails, "[Rakam] - " + task.name,
-                                "Please view HTML version of the email, it contains the dashboard screenshot that is sent from Rakam UI.",
-                                Optional.of("<a href=\"https://app.rakam.io" + path + "\"> " +
-                                        "<img alt=\"Rakam dashboard screenshot\" src=\"cid:" + imageId + "\" /></a>" +
-                                        " <div style=\"color: white;\">Inline dashboard</div> <!-- This div allows the screenshot to be resized in android gmail, and shows as preview text. -->"),
-                                Stream.of(screenPart));
-                        return null;
-                    }
-                    catch (IOException | MessagingException e) {
-                        throw Throwables.propagate(e);
-                    }
-                });
-
-                Futures.addCallback(run, new FutureCallback<Void>()
+                send(task, new FutureCallback<Void>()
                 {
                     @Override
                     public void onSuccess(@Nullable Void result)
@@ -288,11 +237,80 @@ public class ScheduledEmailService
         }
     }
 
+    private void send(ScheduledEmailTask task, FutureCallback<Void> callback)
+            throws MessagingException, UnsupportedEncodingException
+    {
+        MimeBodyPart screenPart = new MimeBodyPart();
+        String imageId = UUID.randomUUID().toString() + "@" +
+                UUID.randomUUID().toString() + ".mail";
+        screenPart.setHeader("Content-ID", "<" + imageId + ">");
+
+        StringWriter writer;
+
+        writer = new StringWriter();
+        String path = "/dashboard/" + task.type_id;
+        Map<String, Object> project;
+        try (Handle handle = dbi.open()) {
+            project = handle.createQuery("select project, api_url from web_user_project where id = :id")
+                    .bind("id", task.project_id).first();
+        }
+        template.execute(writer, of(
+                "domain", "app.rakam.io",
+                "session", webUserHttpService.getCookieForUser(task.user_id),
+                "active_project", URLEncoder.encode(encode(of("name", project.get("project"), "apiUrl", project.get("api_url"))), "UTF-8"),
+                "path", path));
+        String txtContent = writer.toString();
+
+        ListenableFuture<Void> run = executorService.submit(() -> {
+            try {
+                URL u = new URL(screenCaptureService.toString() + "/execute");
+                HttpURLConnection conn = (HttpURLConnection) u.openConnection();
+                conn.setDoOutput(true);
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("Content-Length", String.valueOf(txtContent.length()));
+
+                try (DataOutputStream wr = new DataOutputStream(conn.getOutputStream())) {
+                    wr.write(JsonHelper.encodeAsBytes(ImmutableMap.of("lua_source", txtContent, "timeout", 60)));
+                }
+                writer.flush();
+
+                byte[] bytes;
+                if (conn.getResponseCode() == 200) {
+                    bytes = ByteStreams.toByteArray(conn.getInputStream());
+                }
+                else {
+                    bytes = ByteStreams.toByteArray(conn.getErrorStream());
+                    throw new RuntimeException("Error while sending scheduled e-mail",
+                            new RuntimeException(new String(bytes)));
+                }
+
+                DataSource dataSource = new ByteArrayDataSource(bytes, "image/png");
+                screenPart.setDataHandler(new DataHandler(dataSource));
+                screenPart.setFileName("dashboard.png");
+                screenPart.setDisposition(MimeBodyPart.INLINE);
+
+                mailSender.sendMail(task.emails, "[Rakam] - " + task.name,
+                        "Please view HTML version of the email, it contains the dashboard screenshot that is sent from Rakam UI.",
+                        Optional.of("<a href=\"https://app.rakam.io" + path + "\"> " +
+                                "<img alt=\"Rakam dashboard screenshot\" src=\"cid:" + imageId + "\" /></a>" +
+                                " <div style=\"color: white;\">Inline dashboard</div> <!-- This div allows the screenshot to be resized in android gmail, and shows as preview text. -->"),
+                        Stream.of(screenPart));
+                return null;
+            }
+            catch (IOException | MessagingException e) {
+                throw Throwables.propagate(e);
+            }
+        });
+
+        Futures.addCallback(run, callback);
+    }
+
     private void updateTask(int id, LockService.Lock lock, long now, Throwable ex)
     {
         if (ex == null) {
             try (Handle handle = dbi.open()) {
-                handle.createStatement("UPDATE scheduled_email SET last_executed_at = now() WHERE id = :id")
+                handle.createStatement("UPDATE scheduled_email SET last_executed_at = now() at time zone 'utc' WHERE id = :id")
                         .bind("id", id).execute();
             }
             finally {
@@ -347,16 +365,60 @@ public class ScheduledEmailService
 
     @JsonRequest
     @ApiOperation(value = "Create dashboard")
+    @Path("/test")
+    public CompletableFuture<SuccessMessage> test(
+            @Named("user_id") UIPermissionParameterProvider.Project project,
+            @ApiParam("id") int id)
+    {
+        ScheduledEmailTask task;
+        String email;
+        try (Handle handle = dbi.open()) {
+            task = list(handle, "project_id = :project and user_id = :user and id = :id",
+                    query -> query.bind("project", project.project)
+                            .bind("user", project.userId)
+                            .bind("id", id)).get(0);
+            email = handle.createQuery("select email from web_user where id = :id")
+                    .bind("id", project.userId).map(StringMapper.FIRST).first();
+        }
+
+        CompletableFuture<SuccessMessage> success = new CompletableFuture<>();
+
+        try {
+            task.emails = ImmutableList.of(email);
+            send(task, new FutureCallback<Void>() {
+                @Override
+                public void onSuccess(@Nullable Void result)
+                {
+                    success.complete(SuccessMessage.success());
+                }
+
+                @Override
+                public void onFailure(Throwable t)
+                {
+                    success.completeExceptionally(t);
+                }
+            });
+        }
+        catch (MessagingException|UnsupportedEncodingException e) {
+            throw Throwables.propagate(e);
+        }
+
+        return success;
+    }
+
+    @JsonRequest
+    @ApiOperation(value = "Create dashboard")
     @Path("/update")
     @ProtectEndpoint(writeOperation = true)
     public SuccessMessage update(
             @Named("user_id") UIPermissionParameterProvider.Project project,
-            @ApiParam("id") String id,
+            @ApiParam("id") int id,
             @ApiParam(value = "name", required = false) String name,
             @ApiParam(value = "date_interval", required = false) String date_interval,
             @ApiParam(value = "hour_of_day", required = false) Integer hour_of_day,
             @ApiParam(value = "type", required = false) TaskType type,
             @ApiParam(value = "type_id", required = false) Integer type_id,
+            @ApiParam(value = "enabled", required = false) Boolean enabled,
             @ApiParam(value = "emails", required = false) List<String> emails)
     {
         try (Handle handle = dbi.open()) {
@@ -364,6 +426,9 @@ public class ScheduledEmailService
 
             if (name != null) {
                 objects.add("name = :name");
+            }
+            if (enabled != null) {
+                objects.add("enabled = :enabled");
             }
             if (date_interval != null) {
                 objects.add("date_interval = :date_interval");
@@ -381,9 +446,10 @@ public class ScheduledEmailService
                 objects.add("emails = :emails");
             }
 
-            Update bind = handle.createStatement(String.format("UPDATE scheduled_email SET %s WHERE project_id = :project AND user_id = :user_id",
+            Update bind = handle.createStatement(String.format("UPDATE scheduled_email SET %s WHERE project_id = :project AND user_id = :user_id AND id = :id",
                     objects.stream().collect(Collectors.joining(", "))))
                     .bind("project", project.project)
+                    .bind("id", id)
                     .bind("user_id", project.userId);
 
             if (name != null) {
@@ -398,11 +464,15 @@ public class ScheduledEmailService
             if (type != null) {
                 bind.bind("type", type.name());
             }
+            if (enabled != null) {
+                bind.bind("enabled", enabled);
+            }
             if (type_id != null) {
                 bind.bind("type_id", type_id);
             }
             if (emails != null) {
-                bind.bind("emails", handle.getConnection().createArrayOf("text", emails.toArray()));
+                bind.bind("emails", handle.getConnection()
+                        .createArrayOf("text", emails.toArray()));
             }
 
             bind.execute();
@@ -471,7 +541,7 @@ public class ScheduledEmailService
         public final int hour_of_day;
         public final TaskType type;
         public final int type_id;
-        public final List<String> emails;
+        public List<String> emails;
         public final boolean enabled;
         public final Instant last_executed_at;
         public final int user_id;

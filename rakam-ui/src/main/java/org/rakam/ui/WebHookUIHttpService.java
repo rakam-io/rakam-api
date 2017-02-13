@@ -19,13 +19,9 @@ import org.rakam.util.RakamException;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -121,16 +117,19 @@ public class WebHookUIHttpService
         public final FieldType type;
         public final String placeholder;
         public final String description;
+        public final Object value;
 
         @JsonCreator
         public Parameter(
                 @ApiParam("type") FieldType type,
                 @ApiParam("placeholder") String placeholder,
-                @ApiParam("description") String description)
+                @ApiParam("description") String description,
+                @ApiParam(value = "value", required = false) Object value)
         {
             this.type = type;
             this.placeholder = placeholder;
             this.description = description;
+            this.value = value;
         }
     }
 

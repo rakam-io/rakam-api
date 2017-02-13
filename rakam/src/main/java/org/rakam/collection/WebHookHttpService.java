@@ -2,6 +2,7 @@ package org.rakam.collection;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.core.Version;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.cfg.ContextAttributes;
@@ -13,6 +14,7 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.QueryStringDecoder;
@@ -21,6 +23,7 @@ import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
+import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.util.JSCodeCompiler;
@@ -37,6 +40,8 @@ import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.ui.WebHookUIHttpService;
+import org.rakam.ui.WebHookUIHttpService.Parameter;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.LogUtil;
 import org.rakam.util.RakamException;
@@ -66,6 +71,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -125,9 +131,13 @@ public class WebHookHttpService
                         loggerService.createLogger(key.project, prefix),
                         null,
                         jsCodeCompiler.createConfigManager(key.project, prefix), (engine, bindings) -> {
-                            bindings.put("$$params", webHook.parameters);
+                            Map<String, Object> values = webHook.parameters.entrySet()
+                                    .stream()
+                                    .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().value));
+
+                            bindings.put("$$params", values);
                             try {
-                                engine.eval("var $$module = function(queryParams, body, headers) { module(queryParams, body, $$params, headers)}");
+                                engine.eval("var $$module = function(queryParams, body, headers) { return module(queryParams, body, $$params, headers)}");
                             }
                             catch (ScriptException e) {
                                 throw Throwables.propagate(e);
@@ -198,7 +208,14 @@ public class WebHookHttpService
     private void call(RakamHttpRequest request, String project, String identifier, Map<String, List<String>> queryParams, HttpHeaders headers, String data)
     {
         WebHookIdentifier key = new WebHookIdentifier(project, identifier, UUID.randomUUID().toString());
-        Invocable function = functions.getUnchecked(key);
+        functions.invalidate(key);
+        Invocable function;
+        try {
+            function = functions.getUnchecked(key);
+        }
+        catch (UncheckedExecutionException e) {
+            throw Throwables.propagate(e.getCause());
+        }
         handleFunction(
                 request,
                 key,
@@ -295,7 +312,9 @@ public class WebHookHttpService
                         public WebHook map(int index, ResultSet r, StatementContext ctx)
                                 throws SQLException
                         {
-                            return new WebHook(identifier, r.getString(1), r.getString(2), r.getBoolean(3), JsonHelper.read(r.getString(4), Map.class));
+                            return new WebHook(identifier, r.getString(1),
+                                    r.getString(2), r.getBoolean(3),
+                                    JsonHelper.read(r.getString(4), new TypeReference<Map<String, Parameter>>() {}));
                         }
                     }).first();
             if (first == null) {
@@ -407,8 +426,14 @@ public class WebHookHttpService
                     if (body == null) {
                         return;
                     }
+                    if (!(body instanceof ScriptObjectMirror)) {
+                        returnError(request, "The script must return an object or array {collection: '', properties: {}}", BAD_REQUEST);
+                    }
 
-                    request.response(body.toString()).end();
+                    ScriptObjectMirror json = (ScriptObjectMirror) ((ScriptObjectMirror) body).eval("JSON");
+                    Object stringify = json.callMember("stringify", body);
+
+                    request.response(stringify.toString()).end();
                 }
                 else {
                     byte[] bytes = JsonHelper.encodeAsBytes(errorMessage("Webhook code timeouts.",
@@ -444,6 +469,13 @@ public class WebHookHttpService
                         return;
                     }
 
+                    if (!(body instanceof ScriptObjectMirror)) {
+                        returnError(request, "The script must return an object {collection: '', properties: {}}", BAD_REQUEST);
+                    }
+
+                    ScriptObjectMirror json = (ScriptObjectMirror) ((ScriptObjectMirror) body).eval("JSON");
+                    Object stringify = json.callMember("stringify", body);
+
                     boolean saved = false;
 
                     if (body == null || body.equals("null")) {
@@ -454,7 +486,7 @@ public class WebHookHttpService
                             Event event = jsonMapper.readerFor(Event.class)
                                     .with(ContextAttributes.getEmpty()
                                             .withSharedAttribute("project", id.project))
-                                    .readValue(body.toString());
+                                    .readValue(stringify.toString());
                             if (store && event != null) {
                                 saved = true;
                                 eventStore.store(event);
@@ -549,7 +581,7 @@ public class WebHookHttpService
         public final boolean active;
         public final String script;
         public final String image;
-        public final Map<String, Object> parameters;
+        public final Map<String, Parameter> parameters;
 
         @JsonCreator
         public WebHook(
@@ -557,7 +589,7 @@ public class WebHookHttpService
                 @ApiParam(value = "script") String script,
                 @ApiParam(value = "image", required = false) String image,
                 @ApiParam(value = "active", required = false) Boolean active,
-                @ApiParam(value = "parameters", required = false) Map<String, Object> parameters)
+                @ApiParam(value = "parameters", required = false) Map<String, Parameter> parameters)
         {
             this.identifier = identifier;
             this.active = !Boolean.FALSE.equals(active);

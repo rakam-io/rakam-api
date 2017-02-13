@@ -58,18 +58,21 @@ public class EmailClientConfig {
     }
 
     @Config("mail.smtp.port")
-    public void setPort(String port) {
+    public EmailClientConfig setPort(String port) {
         this.port = port;
+        return this;
     }
 
     @Config("mail.smtp.user")
-    public void setUser(String user) {
+    public EmailClientConfig setUser(String user) {
         this.user = user;
+        return this;
     }
 
     @Config("mail.smtp.password")
-    public void setPassword(String password) {
+    public EmailClientConfig setPassword(String password) {
         this.password = password;
+        return this;
     }
 
     @Config("mail.smtp.use-tls")

@@ -71,7 +71,8 @@ public final class CryptUtil
     public static String encryptToHex(String data, String secret, String hashType)
     {
         try {
-            SecretKeySpec signingKey = new SecretKeySpec(secret.getBytes("UTF-8"), hashType);
+            byte[] bytes = secret == null ? new byte[0] : secret.getBytes("UTF-8");
+            SecretKeySpec signingKey = new SecretKeySpec(bytes, hashType);
 
             Mac mac = Mac.getInstance(hashType);
             mac.init(signingKey);
