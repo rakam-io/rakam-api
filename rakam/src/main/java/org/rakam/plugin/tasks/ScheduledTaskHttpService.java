@@ -25,6 +25,7 @@ import org.rakam.collection.JSCodeLoggerService;
 import org.rakam.collection.JsonEventDeserializer;
 import org.rakam.collection.util.JSCodeCompiler;
 import org.rakam.collection.util.JSCodeCompiler.JSConfigManager;
+import org.rakam.collection.util.MonitorThread;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventStore;
 import org.rakam.server.http.HttpService;
@@ -469,6 +470,9 @@ public class ScheduledTaskHttpService
                                 .collect(Collectors.toMap(e -> e.getKey(),
                                         e -> Optional.ofNullable(e.getValue().value).orElse(""))))
                         .orElse(ImmutableMap.of());
+
+//                long maxCPUTimeInMs = 50000;
+//                final MonitorThread monitorThread = new MonitorThread(maxCPUTimeInMs * 1000000);
 
                 engine.invokeFunction("main", collect);
                 return null;

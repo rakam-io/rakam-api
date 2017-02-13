@@ -191,6 +191,10 @@ public class JSCodeCompiler
         bindings.remove("loadWithNewGlobal");
         bindings.remove("exit");
         bindings.remove("Java");
+        bindings.remove("readFully");
+        bindings.remove("readLine");
+        bindings.remove("print");
+        bindings.remove("echo");
         bindings.remove("quit");
         bindings.put("logger", logger);
         bindings.put("util", JS_UTIL);
