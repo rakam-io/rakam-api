@@ -45,7 +45,7 @@ function main(splash)
         var elem = document.getElementById('dashboard-content');
 				elem.setAttribute('style', 'height: '+elem.style.height + ' !important');
     ]])
-    splash:wait(0.5)
+    splash:wait(1.5)
     splash:set_viewport_full()
     local region = get_bbox("#dashboard-content")
     return splash:png{region=region}
