@@ -47,6 +47,7 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TRANSFER_ENC
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpHeaders.Names.EXPIRES;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static java.lang.String.format;
@@ -54,29 +55,31 @@ import static org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY;
 
 @Path("/user/export")
 @IgnoreApi
-public class UserUtilHttpService extends HttpService {
+public class UserUtilHttpService
+        extends HttpService
+{
     private final SqlParser sqlParser = new SqlParser();
     private final AbstractUserService service;
     private final ApiKeyService apiKeyService;
 
     @Inject
-    public UserUtilHttpService(ApiKeyService apiKeyService, AbstractUserService service) {
+    public UserUtilHttpService(ApiKeyService apiKeyService, AbstractUserService service)
+    {
         this.service = service;
         this.apiKeyService = apiKeyService;
     }
 
-    public static class FilterQuery {
-        public final String readKey;
+    public static class FilterQuery
+    {
         public final String filter;
         public final List<UserStorage.EventFilter> event_filter;
         public final UserStorage.Sorting sorting;
 
         @JsonCreator
-        public FilterQuery(@ApiParam("read_key") String apiKey,
-                           @ApiParam(value = "filter", required = false) String filter,
-                           @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
-                           @ApiParam(value = "sorting", required = false) UserStorage.Sorting sorting) {
-            this.readKey = apiKey;
+        public FilterQuery(@ApiParam(value = "filter", required = false) String filter,
+                @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
+                @ApiParam(value = "sorting", required = false) UserStorage.Sorting sorting)
+        {
             this.filter = filter;
             this.event_filter = event_filter;
             this.sorting = sorting;
@@ -85,7 +88,8 @@ public class UserUtilHttpService extends HttpService {
 
     @GET
     @Path("/")
-    public void export(RakamHttpRequest request) {
+    public void export(RakamHttpRequest request)
+    {
         final Map<String, List<String>> params = request.params();
         final List<String> query = params.get("query");
         if (query.isEmpty()) {
@@ -93,16 +97,23 @@ public class UserUtilHttpService extends HttpService {
             return;
         }
 
+        final List<String> readKey = params.get("read_key");
+        if (readKey == null || readKey.isEmpty()) {
+            HttpServer.returnError(request, FORBIDDEN.reasonPhrase(), FORBIDDEN);
+            return;
+        }
+
         String body = query.get(0);
         final ExportQuery read;
         try {
             read = JsonHelper.readSafe(body, ExportQuery.class);
-        } catch (IOException e) {
+        }
+        catch (IOException e) {
             HttpServer.returnError(request, "Couldn't parse body: " + e.getMessage(), BAD_REQUEST);
             return;
         }
 
-        String project = apiKeyService.getProjectOfApiKey(read.filterQuery.readKey,  READ_KEY);
+        String project = apiKeyService.getProjectOfApiKey(readKey.get(0), READ_KEY);
 
         Expression expression;
         if (read.filterQuery.filter != null) {
@@ -110,11 +121,13 @@ public class UserUtilHttpService extends HttpService {
                 synchronized (sqlParser) {
                     expression = sqlParser.createExpression(read.filterQuery.filter);
                 }
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 throw new RakamException(format("filter expression '%s' couldn't parsed", read.filterQuery.filter),
                         HttpResponseStatus.BAD_REQUEST);
             }
-        } else {
+        }
+        else {
             expression = null;
         }
 
@@ -132,7 +145,11 @@ public class UserUtilHttpService extends HttpService {
                 throw new IllegalStateException();
         }
 
-        stream.thenAccept(result -> {
+        stream.whenComplete((result, ex) -> {
+            if (ex != null) {
+                HttpServer.returnError(request, "Couldn't generate file: " + ex.getMessage(), BAD_REQUEST);
+                return;
+            }
             HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
             HttpHeaders.setContentLength(response, result.length);
             response.headers().set(CONTENT_TYPE, "application/octet-stream");
@@ -147,31 +164,35 @@ public class UserUtilHttpService extends HttpService {
                 lastContentFuture.addListener(ChannelFutureListener.CLOSE);
             }
         });
-
     }
 
-    private static class ExportQuery {
+    private static class ExportQuery
+    {
         public final FilterQuery filterQuery;
         public final ExportFormat exportFormat;
 
         @JsonCreator
         public ExportQuery(@ApiParam("filter") FilterQuery filterQuery,
-                           @ApiParam("export_format") ExportFormat exportFormat) {
+                @ApiParam("export_format") ExportFormat exportFormat)
+        {
             this.filterQuery = filterQuery;
             this.exportFormat = exportFormat;
         }
     }
 
-    public enum ExportFormat {
+    public enum ExportFormat
+    {
         XLS, CSV;
 
         @JsonCreator
-        public static ExportFormat fromString(String str) {
+        public static ExportFormat fromString(String str)
+        {
             return valueOf(str.toUpperCase(Locale.ENGLISH));
         }
     }
 
-    private CompletableFuture<byte[]> exportAsExcel(CompletableFuture<QueryResult> queryResult) {
+    private CompletableFuture<byte[]> exportAsExcel(CompletableFuture<QueryResult> queryResult)
+    {
         return queryResult.thenApply(result -> {
             HSSFWorkbook workbook = new HSSFWorkbook();
             HSSFSheet sheet = workbook.createSheet("Users generated by Rakam");
@@ -212,13 +233,19 @@ public class UserUtilHttpService extends HttpService {
                 workbook.write(output);
                 output.close();
                 return output.toByteArray();
-            } catch (IOException e) {
+            }
+            catch (IOException e) {
                 throw Throwables.propagate(e);
             }
         });
     }
 
-    private static void writeExcelValue(Cell cell, Object field, FieldType type) {
+    private static void writeExcelValue(Cell cell, Object field, FieldType type)
+    {
+        if (field == null) {
+            return;
+        }
+
         switch (type) {
             case STRING:
             case TIMESTAMP:
@@ -235,7 +262,8 @@ public class UserUtilHttpService extends HttpService {
         }
     }
 
-    private static int getExcelType(FieldType type) {
+    private static int getExcelType(FieldType type)
+    {
         switch (type) {
             case STRING:
                 return Cell.CELL_TYPE_STRING;

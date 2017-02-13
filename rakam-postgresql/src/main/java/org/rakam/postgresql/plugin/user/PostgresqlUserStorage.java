@@ -63,7 +63,7 @@ public class PostgresqlUserStorage
                 filters.add((format("id in (%s)", builder.toString())));
             }
             else {
-                builder.append(format("select \"_user\" from \"%s\".\"%s\"", project, collection));
+                builder.append(format("select \"_user\" from %s.%s", project, collection));
                 if (filter.filterExpression != null) {
                     builder.append(" where ").append(new ExpressionFormatter.Formatter(Optional.empty()).process(filter.getExpression(), true));
                 }
