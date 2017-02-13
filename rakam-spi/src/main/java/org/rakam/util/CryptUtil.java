@@ -3,6 +3,7 @@ package org.rakam.util;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.common.hash.Hashing;
+import io.netty.handler.codec.http.HttpResponseStatus;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -23,6 +24,8 @@ import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Random;
+
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
 public final class CryptUtil
 {
@@ -71,8 +74,10 @@ public final class CryptUtil
     public static String encryptToHex(String data, String secret, String hashType)
     {
         try {
-            byte[] bytes = secret == null ? new byte[0] : secret.getBytes("UTF-8");
-            SecretKeySpec signingKey = new SecretKeySpec(bytes, hashType);
+            if(secret == null || secret.isEmpty()) {
+                throw new RakamException("Secret is is empty", INTERNAL_SERVER_ERROR);
+            }
+            SecretKeySpec signingKey = new SecretKeySpec(secret.getBytes("UTF-8"), hashType);
 
             Mac mac = Mac.getInstance(hashType);
             mac.init(signingKey);

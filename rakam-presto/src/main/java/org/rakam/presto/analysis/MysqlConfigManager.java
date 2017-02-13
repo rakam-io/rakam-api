@@ -10,19 +10,24 @@ import org.skife.jdbi.v2.Handle;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+
 import java.util.Locale;
 
-public class MysqlConfigManager implements ConfigManager {
+public class MysqlConfigManager
+        implements ConfigManager
+{
 
     private final DBI dbi;
 
     @Inject
-    public MysqlConfigManager(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
+    public MysqlConfigManager(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource)
+    {
         this.dbi = new DBI(dataSource);
     }
 
     @PostConstruct
-    public void setup() {
+    public void setup()
+    {
         try (Handle handle = dbi.open()) {
             handle.createStatement("CREATE TABLE IF NOT EXISTS config (" +
                     "  project VARCHAR(255) NOT NULL," +
@@ -35,7 +40,8 @@ public class MysqlConfigManager implements ConfigManager {
     }
 
     @Override
-    public <T> T getConfig(String project, String configName, Class<T> clazz) {
+    public <T> T getConfig(String project, String configName, Class<T> clazz)
+    {
         try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT value FROM config WHERE project = :project AND name = :name")
                     .bind("project", project)
@@ -46,26 +52,29 @@ public class MysqlConfigManager implements ConfigManager {
     }
 
     @Override
-    public <T> T setConfigOnce(String project, String configName, T value) {
+    public <T> T setConfigOnce(String project, String configName, T value)
+    {
         try (Handle handle = dbi.open()) {
             T config = getConfig(project, configName, (Class<T>) value.getClass());
 
-            if(config == null) {
+            if (config == null) {
                 try {
                     handle.createStatement("INSERT INTO config (project, name, value) VALUES (:project, :name, :value)")
                             .bind("project", project)
                             .bind("name", configName.toUpperCase(Locale.ENGLISH))
                             .bind("value", JsonHelper.encode(value)).execute();
                     return value;
-                } catch (Exception e) {
+                }
+                catch (Exception e) {
                     // handle race condition
                     T lastValue = getConfig(project, configName, (Class<T>) value.getClass());
-                    if(lastValue == null) {
+                    if (lastValue == null) {
                         throw Throwables.propagate(e);
                     }
                     return lastValue;
                 }
-            } else {
+            }
+            else {
                 return config;
             }
         }
@@ -80,16 +89,13 @@ public class MysqlConfigManager implements ConfigManager {
     }
 
     @Override
-    public <T> void setConfig(String project, String configName, T value) {
+    public <T> void setConfig(String project, String configName, T value)
+    {
         try (Handle handle = dbi.open()) {
-            try {
-                handle.createStatement("INSERT INTO config (project, name, value) VALUES (:project, :name, :value)")
-                        .bind("project", project)
-                        .bind("name", configName.toUpperCase(Locale.ENGLISH))
-                        .bind("value", JsonHelper.encode(value)).execute();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            handle.createStatement("INSERT INTO config (project, name, value) VALUES (:project, :name, :value) ON DUPLICATE KEY UPDATE value = :value")
+                    .bind("project", project)
+                    .bind("name", configName.toUpperCase(Locale.ENGLISH))
+                    .bind("value", JsonHelper.encode(value)).execute();
         }
     }
 }

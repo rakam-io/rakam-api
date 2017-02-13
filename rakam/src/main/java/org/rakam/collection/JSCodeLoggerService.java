@@ -96,7 +96,7 @@ public class JSCodeLoggerService
             }
 
             return query.map((index, r, ctx) -> {
-                return new LogEntry(r.getString(1), Level.valueOf(r.getString(2)), r.getString(3), Instant.ofEpochSecond(r.getInt(4)));
+                return new LogEntry(r.getString(1), Level.valueOf(r.getString(2)), r.getString(3), Instant.ofEpochMilli(r.getLong(4)));
             }).list();
         }
     }
