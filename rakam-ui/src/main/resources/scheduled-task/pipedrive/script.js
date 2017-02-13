@@ -2,6 +2,27 @@
 
 var url = "https://api.pipedrive.com/v1/recents";
 
+var eventsWithCustomFields = ["organization", "person", "activity", "deal", "note", "product"];
+
+var fetchFields = function (type, token) {
+    var request = http.get("https://api.pipedrive.com/v1/" + type + ":(key,name)")
+        .query("api_token", token)
+        .query("limit", "500")
+        .send();
+
+    var requestJson = JSON.parse(request.getResponseBody());
+    if (request.getStatusCode() != 200 || !requestJson.success) {
+        throw new Error("Error fetching " + type + " fields: (" + request.getStatusCode() + ") " + request.getResponseBody());
+    }
+
+    var fields = {};
+    requestJson.data.forEach(function (field) {
+        fields[field.key] = field.name;
+    });
+
+    return fields;
+}
+
 var fetch = function (parameters, events, startDate, offset) {
     logger.debug("Fetching from " + startDate + " with offset " + offset);
     startDate = startDate || config.get('start_timestamp');
@@ -14,36 +35,7 @@ var fetch = function (parameters, events, startDate, offset) {
         offset = 0;
     }
 
-    var personFieldsRequest = http.get("https://api.pipedrive.com/v1/personFields:(key,name)")
-        .query("api_token", parameters.api_token)
-        .query("limit", "500")
-        .send();
-
-    var personFieldsRequestData = JSON.parse(personFieldsRequest.getResponseBody());
-    if (personFieldsRequest.getStatusCode() != 200 || !personFieldsRequestData.success) {
-        logger.error("Error fetching person fields: " + personFieldsRequest.getResponseBody());
-        return;
-    }
-    var peopleFields = {};
-    personFieldsRequestData.data.forEach(function(field) {
-        peopleFields[field.key] = field.name;
-    });
-
-    var organizationFieldsRequest = http.get("https://api.pipedrive.com/v1/organizationFields:(key,name)")
-        .query("api_token", parameters.api_token)
-        .query("limit", "500")
-        .send();
-
-    var organizationFieldsRequestData = JSON.parse(organizationFieldsRequest.getResponseBody());
-    if (organizationFieldsRequest.getStatusCode() != 200 || !organizationFieldsRequestData.success) {
-        logger.error("Error fetching organization fields: " + personFieldsRequest.getResponseBody());
-        return;
-    }
-
-    var organizationFields = {};
-    organizationFieldsRequestData.data.forEach(function(field) {
-        organizationFields[field.key] = field.name;
-    });
+    var types = {};
 
     var response = http.get(url)
         .query("api_token", parameters.api_token)
@@ -69,7 +61,24 @@ var fetch = function (parameters, events, startDate, offset) {
                     return;
                 }
 
-                var newItem = {};
+                if (item.org_id != null) {
+                    item._user = item.org_id;
+                }
+
+                if (activities.item == 'note') {
+                    if (item.organization && typeof item.organization === 'object') {
+                        item.organization = item.organization.name;
+                    } else {
+                        item.organization = item.organization + "";
+                    }
+                    if (typeof item.user === 'object') {
+                        item._user = item.user.email;
+                        item._user_name = item.user.name;
+                    } else {
+                        item._user = item.user + "";
+                    }
+                    item.user = undefined;
+                } else
                 if (activities.item == 'person') {
                     if (typeof item.email === 'object') {
                         item.email = item.email.value;
@@ -85,38 +94,38 @@ var fetch = function (parameters, events, startDate, offset) {
                         }
                         item.phone = phone
                     }
+                }
+
+                var newItem = {};
+                if (eventsWithCustomFields.indexOf(activities.item) > -1) {
+                    var customFields = types[activities.item];
+                    if (customFields == null) {
+                        customFields = fetchFields(activities.item + 'Fields', parameters.api_token);
+                        types[activities.item] = customFields;
+                    }
 
                     for (var key in item) {
                         if (item.hasOwnProperty(key)) {
-                            var peopleField = peopleFields[key];
-                            if(!peopleField) {
+                            var field = customFields[key];
+                            if (!field) {
                                 newItem[key] = item[key];
-                            } else {
-                                newItem[peopleField] = item[key];
+                            }
+                            else {
+                                newItem[field] = item[key];
                             }
                         }
                     }
-                } else
-                if (activities.item == 'organization') {
-                    for (var key in item) {
-                        if (item.hasOwnProperty(key)) {
-                            var organizationField = organizationFields[key];
-                            if(!organizationField) {
-                                newItem[key] = item[key];
-                            } else {
-                                newItem[organizationField] = item[key];
-                            }
-                        }
-                    }
-                } else {
+                }
+                else {
                     newItem = item;
                 }
 
-                item._time = item.update_time || item.created;
-                item._user = activities.id;
+                newItem._time = item.update_time || item.created;
+                newItem._user = activities.id;
                 events.push({
                     collection: parameters.collection_prefix + "_" + activities.item,
-                    properties: newItem});
+                    properties: newItem
+                });
             };
 
             if (Array.isArray(activities.data)) {

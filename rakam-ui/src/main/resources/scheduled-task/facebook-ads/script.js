@@ -23,13 +23,14 @@ var fetch = function (parameters, url, events, startDate, endDate) {
 
     if (startDate == null) {
         startDate = new Date();
-        startDate.setDate(startDate.getDate() - 10);
+        startDate.setYear(2015);
         startDate = startDate.toJSON().slice(0, 10);
     }
 
     logger.debug("Fetching between " + startDate + " and " + (endDate || 'now')+(url ? ' with cursor' : ''));
 
     if(!(new Date(endDate) > new Date(startDate))) {
+        config.set('start_date', endDate);
         return;
     }
 
@@ -48,7 +49,7 @@ var fetch = function (parameters, url, events, startDate, endDate) {
             if(!urlIsGenerated) {
                 throw new Error("Facebook halted: "+JSON.stringify(data.error));
             }
-            logger.warn("The date range is probably too big, here the Facebook response: " + data.error.message);
+            logger.warn("The date range is probably too big, here the the Facebook response: " + data.error.message);
             var gap = ((new Date(endDate).getTime() - new Date(startDate).getTime()) / 2) / 1000 / 86400;
             var mid = new Date(startDate);
             mid.setDate(mid.getDate() + gap);
@@ -56,14 +57,14 @@ var fetch = function (parameters, url, events, startDate, endDate) {
             logger.debug("The date range is cut half two equal slices " + startDate + "-" + midText + " and " + midText + "-" + endDate);
             fetch(parameters, null, [], startDate, midText);
             mid.setDate(mid.getDate() + 1);
-            var nextMidText = mid.toJSON().slice(0, 10);
-            fetch(parameters, null, [], nextMidText, endDate);
-            return events;
+            midText = mid.toJSON().slice(0, 10);
+            fetch(parameters, null, [], midText, endDate);
+        } else {
+            logger[data.error.code === 17 ? 'warn' : 'error'](JSON.stringify(data.error.code + ' : ' + data.error.error_subcode + ' : ' + data.error.message));
         }
-
-        logger[data.error.code === 17 ? 'warn' : 'error'](JSON.stringify(data.error.code + ' : ' + data.error.error_subcode + ' : ' + data.error.message));
         return;
     }
+
     data.data.forEach(function (campaign) {
         nested_properties.forEach(function (type) {
             var object = {};
