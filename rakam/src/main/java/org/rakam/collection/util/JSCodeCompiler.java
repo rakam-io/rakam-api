@@ -11,7 +11,6 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import jdk.nashorn.api.scripting.ClassFilter;
 import jdk.nashorn.api.scripting.NashornScriptEngineFactory;
-import org.jetbrains.annotations.Nullable;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.collection.Event;
 import org.rakam.collection.EventCollectionHttpService;
@@ -26,6 +25,7 @@ import org.rakam.util.CryptUtil;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.script.Bindings;
