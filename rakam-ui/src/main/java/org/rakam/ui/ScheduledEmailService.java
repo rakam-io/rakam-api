@@ -170,7 +170,7 @@ public class ScheduledEmailService
             catch (Exception e) {
                 LOGGER.error(e);
             }
-        }, 0, 1, TimeUnit.MINUTES);
+        }, millisToNextHour(), 1, TimeUnit.HOURS);
     }
 
     private long millisToNextHour()
