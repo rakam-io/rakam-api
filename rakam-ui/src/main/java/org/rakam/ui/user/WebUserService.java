@@ -815,7 +815,10 @@ public class WebUserService
                 " FROM web_user_project project " +
                 " JOIN web_user_api_key api_key ON (api_key.project_id = project.id)" +
                 " WHERE api_key.user_id = :user " +
-                " UNION ALL SELECT api_key.project_id, project.project, project.api_url, project.timezone, api_key.master_key, api_key.read_key, api_key.write_key\n" +
+                " UNION ALL SELECT api_key.project_id, project.project, project.api_url, project.timezone, " +
+                "case when permission.master_permission then api_key.master_key else null end," +
+                "case when permission.read_permission then api_key.read_key else null end," +
+                "case when permission.write_permission then api_key.write_key else null end " +
                 "FROM web_user_api_key_permission permission \n" +
                 "JOIN web_user_api_key api_key ON (permission.api_key_id = api_key.id) \n" +
                 "JOIN web_user_project project ON (project.id = api_key.project_id)\n" +
@@ -828,7 +831,7 @@ public class WebUserService
                     String url = r.getString(3);
                     ZoneId zoneId;
                     try {
-//                        zoneId = r.getString(4) != null ? ZoneId.of(r.getString(4)) : null;
+                        zoneId = r.getString(4) != null ? ZoneId.of(r.getString(4)) : null;
                     }
                     catch (ZoneRulesException e) {
                         zoneId = null;

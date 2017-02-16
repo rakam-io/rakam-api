@@ -173,6 +173,10 @@ public class ScheduledEmailService
     @PostConstruct
     public void schedule()
     {
+        long initialDelay = millisToNextHour();
+
+        LOGGER.info("Scheduled to run email summary tasks, the first task will run in %d minutes.", initialDelay);
+
         scheduler.scheduleAtFixedRate(() -> {
             try {
                 perform();
@@ -180,7 +184,7 @@ public class ScheduledEmailService
             catch (Throwable e) {
                 LOGGER.error(e);
             }
-        }, 0, 1, TimeUnit.HOURS);
+        }, initialDelay, 60, TimeUnit.MINUTES);
     }
 
     private long millisToNextHour()
