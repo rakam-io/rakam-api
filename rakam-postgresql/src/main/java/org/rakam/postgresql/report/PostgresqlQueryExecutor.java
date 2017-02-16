@@ -147,7 +147,7 @@ public class PostgresqlQueryExecutor
         }
         else if (name.getSuffix().equals("users") || name.getSuffix().equals("_users")) {
             if (userServiceIsPostgresql) {
-                return project + ".users";
+                return project + "._users";
             }
             throw new RakamException("User implementation is not supported", EXPECTATION_FAILED);
         }

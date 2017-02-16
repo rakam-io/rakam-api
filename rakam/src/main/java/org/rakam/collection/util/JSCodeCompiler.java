@@ -11,6 +11,8 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import jdk.nashorn.api.scripting.ClassFilter;
 import jdk.nashorn.api.scripting.NashornScriptEngineFactory;
+import okhttp3.OkHttpClient;
+import org.rakam.TestingConfigManager;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.collection.Event;
 import org.rakam.collection.EventCollectionHttpService;
@@ -47,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 import static com.fasterxml.jackson.core.JsonToken.START_OBJECT;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -59,7 +62,7 @@ public class JSCodeCompiler
     private final ConfigManager configManager;
     private final boolean loadAllowed;
     private final InetAddress localhost;
-    private final JSCodeLoggerService loggerService;
+    private final LoggerFactory loggerService;
     private static final NashornScriptEngineFactory factory = new NashornScriptEngineFactory();
     private static final String[] args = {"-strict", "--no-syntax-extensions"};
     private static final NashornEngineFilter classFilter = new NashornEngineFilter();
@@ -71,17 +74,19 @@ public class JSCodeCompiler
     @Inject
     public JSCodeCompiler(
             ConfigManager configManager,
-            JSCodeLoggerService loggerService,
-            @Named("rakam-client") RAsyncHttpClient httpClient)
+            @Named("rakam-client") RAsyncHttpClient httpClient,
+            JSCodeLoggerService loggerService)
     {
-        this(configManager, httpClient, loggerService, false);
+        this(configManager, httpClient,
+                (project, prefix) -> loggerService.createLogger(project, prefix),
+                false);
 
     }
 
     public JSCodeCompiler(
             ConfigManager configManager,
             @Named("rakam-client") RAsyncHttpClient httpClient,
-            JSCodeLoggerService loggerService,
+            LoggerFactory loggerService,
             boolean loadAllowed)
     {
         this.configManager = configManager;
@@ -158,6 +163,10 @@ public class JSCodeCompiler
                 loggerService.createLogger(project, prefix),
                 null,
                 prefix == null ? new MemoryConfigManager() : createConfigManager(project, prefix));
+    }
+
+    public interface LoggerFactory {
+        public JSCodeCompiler.ILogger createLogger(String project, String prefix);
     }
 
     public JSConfigManager createConfigManager(String project, String prefix)

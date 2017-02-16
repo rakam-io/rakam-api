@@ -473,7 +473,6 @@ public class ScheduledTaskHttpService
 
 //                long maxCPUTimeInMs = 50000;
 //                final MonitorThread monitorThread = new MonitorThread(maxCPUTimeInMs * 1000000);
-
                 engine.invokeFunction("main", collect);
                 return null;
             }

@@ -117,7 +117,7 @@ public class WebUserService
     public void updateProjectConfigurations(int userId, int project, ProjectConfiguration configuration)
     {
         try (Connection conn = dbi.open().getConnection()) {
-            if(configuration.timezone != null) {
+            if (configuration.timezone != null) {
                 try {
                     ZoneId.of(configuration.timezone);
                 }
@@ -337,7 +337,7 @@ public class WebUserService
     public List<String> revokeUserAccess(int userId, int project, String email)
     {
         try (Handle handle = dbi.open()) {
-            if(!hasMasterAccess(handle, project, userId)) {
+            if (!hasMasterAccess(handle, project, userId)) {
                 throw new RakamException("You do not have master key permission", UNAUTHORIZED);
             }
 
@@ -533,7 +533,7 @@ public class WebUserService
     public List<UserAccess> getUserAccessForProject(int user, int project)
     {
         try (Handle handle = dbi.open()) {
-            if(!hasMasterAccess(handle, project, user)) {
+            if (!hasMasterAccess(handle, project, user)) {
                 throw new RakamException("You do not have master key permission", UNAUTHORIZED);
             }
 
@@ -555,7 +555,7 @@ public class WebUserService
     public void giveAccessToExistingUser(int projectId, int userId, String email, boolean readPermission, boolean writePermission, boolean masterPermisson)
     {
         try (Handle handle = dbi.open()) {
-            if(!hasMasterAccess(handle, projectId, userId)) {
+            if (!hasMasterAccess(handle, projectId, userId)) {
                 throw new RakamException("You do not have master key permission", UNAUTHORIZED);
             }
 
@@ -626,7 +626,7 @@ public class WebUserService
 
         Integer newUserId;
         try (Handle handle = dbi.open()) {
-            if(!hasMasterAccess(handle, projectId, userId)) {
+            if (!hasMasterAccess(handle, projectId, userId)) {
                 throw new RakamException("You do not have master key permission", UNAUTHORIZED);
             }
 
@@ -697,7 +697,7 @@ public class WebUserService
 
     public Integer saveApiKeys(Handle handle, int user, int projectId, String readKey, String writeKey, String masterKey)
     {
-        if(!hasMasterAccess(handle, projectId, user)) {
+        if (!hasMasterAccess(handle, projectId, user)) {
             throw new RakamException("You do not have master key permission", UNAUTHORIZED);
         }
 
@@ -728,28 +728,31 @@ public class WebUserService
 
         List<WebUser.Project> projects;
 
+        final Map<String, Object> data;
+        String hashedPassword;
         try (Handle handle = dbi.open()) {
-            final Map<String, Object> data = handle
+            data = handle
                     .createQuery("SELECT id, name, password, read_only FROM web_user WHERE email = :email")
                     .bind("email", email).first();
             if (data == null) {
                 return Optional.empty();
             }
-            String hashedPassword = (String) data.get("password");
+
+            hashedPassword = (String) data.get("password");
             if (hashedPassword == null) {
                 throw new RakamException("Your password is not set. Please reset your password in order to set it.",
                         PRECONDITION_REQUIRED);
             }
+        }
 
+        if (!SCryptUtil.check(password, hashedPassword)) {
+            return Optional.empty();
+        }
+
+        try (Handle handle = dbi.open()) {
             String name = (String) data.get("name");
             int id = (int) data.get("id");
             boolean readOnly = (boolean) data.get("read_only");
-
-            // TODO move this heavy operation outside of the connection scope.
-            if (!SCryptUtil.check(password, hashedPassword)) {
-                return Optional.empty();
-            }
-
             projects = getUserApiKeys(handle, id);
             return Optional.of(new WebUser(id, email, name, readOnly, projects));
         }
@@ -853,7 +856,7 @@ public class WebUserService
     public void revokeApiKeys(int user, int project, String masterKey)
     {
         try (Handle handle = dbi.open()) {
-            if(!hasMasterAccess(handle, project, user)) {
+            if (!hasMasterAccess(handle, project, user)) {
                 throw new RakamException("You do not have master key permission", UNAUTHORIZED);
             }
 

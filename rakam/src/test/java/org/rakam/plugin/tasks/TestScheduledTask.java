@@ -76,7 +76,7 @@ public class TestScheduledTask
 
         JSCodeCompiler jsCodeCompiler = new JSCodeCompiler(testingConfigManager,
                 RAsyncHttpClient.create(1000, ""),
-                new JSCodeLoggerService(sa),
+                (project, prefix) -> new JSCodeLoggerService(sa).createLogger(project, prefix),
                 true);
 
         ListenableFuture<Void> test = run(jsCodeCompiler, MoreExecutors.listeningDecorator(MoreExecutors.newDirectExecutorService()), "test", "load('../rakam-ui/src/main/resources/scheduled-task/facebook-ads/script.js')",

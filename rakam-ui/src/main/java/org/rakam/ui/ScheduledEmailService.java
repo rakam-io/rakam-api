@@ -57,16 +57,23 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
+import java.lang.management.ManagementFactory;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.Month;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.TextStyle;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -82,6 +89,9 @@ import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableMap.of;
 import static java.lang.String.format;
+import static java.time.format.TextStyle.SHORT;
+import static java.util.Locale.ENGLISH;
+import static java.util.Locale.US;
 import static org.rakam.util.JsonHelper.encode;
 
 @Path("/ui/scheduled-email")
@@ -167,10 +177,10 @@ public class ScheduledEmailService
             try {
                 perform();
             }
-            catch (Exception e) {
+            catch (Throwable e) {
                 LOGGER.error(e);
             }
-        }, millisToNextHour(), 1, TimeUnit.HOURS);
+        }, 0, 1, TimeUnit.HOURS);
     }
 
     private long millisToNextHour()
@@ -191,7 +201,7 @@ public class ScheduledEmailService
                     "when cast(EXTRACT(DOW FROM last_executed_at) as bigint) >= cast((string_to_array(substring(date_interval, 11), '-'))[2] as bigint) then\n" +
                     "INTERVAL '1 DAY' * (cast((string_to_array(substring(date_interval, 11), '-'))[1] as bigint) - cast(EXTRACT(DOW FROM last_executed_at) as bigint) + 7)\n" +
                     "when cast(EXTRACT(DOW FROM last_executed_at) as bigint) >= cast((string_to_array(substring(date_interval, 11), '-'))[1] as bigint) then\n" +
-                    "INTERVAL '1 DAY'\n" +
+                    "(case when hour_of_day > cast(EXTRACT(hour FROM last_executed_at) as bigint) then  INTERVAL '0 DAY' else INTERVAL '1 DAY' end)\n" +
                     "else\n" +
                     "INTERVAL '1 DAY' * (cast((string_to_array(substring(date_interval, 11), '-'))[1] as bigint) - cast(EXTRACT(DOW FROM last_executed_at) as bigint))\n" +
                     "end)\n" +
@@ -205,6 +215,8 @@ public class ScheduledEmailService
                     ") + last_executed_at < now() AT TIME ZONE 'UTC'))", query -> {
             });
         }
+
+        LOGGER.info("Running email summary tasks, %d emails will be sent.", tasks.size());
 
         for (ScheduledEmailTask task : tasks) {
             try {
@@ -285,12 +297,18 @@ public class ScheduledEmailService
                             new RuntimeException(new String(bytes)));
                 }
 
+                ZonedDateTime dateTime = Instant.now().atZone(ZoneId.of("UTF-8"));
+                String month = dateTime.getMonth().getDisplayName(SHORT, US);
+                int day = dateTime.getDayOfMonth();
+                String weekDay = dateTime.getDayOfWeek().getDisplayName(SHORT, US);
                 DataSource dataSource = new ByteArrayDataSource(bytes, "image/png");
                 screenPart.setDataHandler(new DataHandler(dataSource));
                 screenPart.setFileName("dashboard.png");
                 screenPart.setDisposition(MimeBodyPart.INLINE);
 
-                mailSender.sendMail(task.emails, "[Rakam] - " + task.name,
+                String title = format("[Rakam] - %s -- %s, %s %d%s", task.name, weekDay, month, day, getDayOfMonthSuffix(day));
+
+                mailSender.sendMail(task.emails, title,
                         "Please view HTML version of the email, it contains the dashboard screenshot that is sent from Rakam UI.",
                         Optional.of("<a href=\"https://app.rakam.io" + path + "\"> " +
                                 "<img alt=\"Rakam dashboard screenshot\" src=\"cid:" + imageId + "\" /></a>" +
@@ -324,6 +342,23 @@ public class ScheduledEmailService
         long gapInMillis = System.currentTimeMillis() - now;
         if (ex != null) {
             LOGGER.error(ex, format("Failed to send scheduled email in %d ms : %s", gapInMillis, ex.getMessage()));
+        }
+    }
+
+    private String getDayOfMonthSuffix(final int n)
+    {
+        if (n >= 11 && n <= 13) {
+            return "th";
+        }
+        switch (n % 10) {
+            case 1:
+                return "st";
+            case 2:
+                return "nd";
+            case 3:
+                return "rd";
+            default:
+                return "th";
         }
     }
 
@@ -385,7 +420,8 @@ public class ScheduledEmailService
 
         try {
             task.emails = ImmutableList.of(email);
-            send(task, new FutureCallback<Void>() {
+            send(task, new FutureCallback<Void>()
+            {
                 @Override
                 public void onSuccess(@Nullable Void result)
                 {
@@ -399,7 +435,7 @@ public class ScheduledEmailService
                 }
             });
         }
-        catch (MessagingException|UnsupportedEncodingException e) {
+        catch (MessagingException | UnsupportedEncodingException e) {
             throw Throwables.propagate(e);
         }
 
@@ -446,7 +482,7 @@ public class ScheduledEmailService
                 objects.add("emails = :emails");
             }
 
-            Update bind = handle.createStatement(String.format("UPDATE scheduled_email SET %s WHERE project_id = :project AND user_id = :user_id AND id = :id",
+            Update bind = handle.createStatement(format("UPDATE scheduled_email SET %s WHERE project_id = :project AND user_id = :user_id AND id = :id",
                     objects.stream().collect(Collectors.joining(", "))))
                     .bind("project", project.project)
                     .bind("id", id)
