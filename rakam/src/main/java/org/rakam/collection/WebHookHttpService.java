@@ -40,7 +40,6 @@ import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.ui.WebHookUIHttpService;
 import org.rakam.ui.WebHookUIHttpService.Parameter;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.LogUtil;
@@ -134,7 +133,6 @@ public class WebHookHttpService
                             Map<String, Object> values = webHook.parameters.entrySet()
                                     .stream()
                                     .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().value));
-
                             bindings.put("$$params", values);
                             try {
                                 engine.eval("var $$module = function(queryParams, body, headers) { return module(queryParams, body, $$params, headers)}");
@@ -208,7 +206,6 @@ public class WebHookHttpService
     private void call(RakamHttpRequest request, String project, String identifier, Map<String, List<String>> queryParams, HttpHeaders headers, String data)
     {
         WebHookIdentifier key = new WebHookIdentifier(project, identifier, UUID.randomUUID().toString());
-        functions.invalidate(key);
         Invocable function;
         try {
             function = functions.getUnchecked(key);
@@ -216,11 +213,99 @@ public class WebHookHttpService
         catch (UncheckedExecutionException e) {
             throw Throwables.propagate(e.getCause());
         }
-        handleFunction(
-                request,
-                key,
-                () -> function.invokeFunction("$$module", queryParams, data, headers),
-                true);
+
+        Future<Object> f = executor.submit(() ->
+                function.invokeFunction("$$module", queryParams, data, headers));
+
+        f.addListener(new FutureListener<Object>()
+        {
+
+            @Override
+            public void operationComplete(Future<Object> future)
+                    throws Exception
+            {
+                if (future.await(3, TimeUnit.SECONDS)) {
+                    Object body;
+                    try {
+                        body = future.get();
+                    }
+                    catch (Throwable e) {
+                        returnError(request, "Error executing callback code", INTERNAL_SERVER_ERROR);
+                        LOGGER.warn(e, "Error executing webhook callback");
+                        String prefix = "webhook." + key.project + "." + key.identifier;
+                        String collect = headers.entries().stream()
+                                .map(header -> header.getKey() + " : " + header.getValue())
+                                .collect(Collectors.joining("\n"));
+
+                        loggerService.createLogger(key.project, prefix, key.requestId)
+                                .error(e.getMessage() + "\n" + request.getUri() + "\n" + collect + "Body:\n" + data + "\n--------\n");
+                        return;
+                    }
+
+                    if (!(body instanceof ScriptObjectMirror)) {
+                        returnError(request, "The script must return an object {collection: '', properties: {}}", BAD_REQUEST);
+                    }
+
+                    ScriptObjectMirror json = (ScriptObjectMirror) ((ScriptObjectMirror) body).eval("JSON");
+                    Object stringify = json.callMember("stringify", body);
+
+                    boolean saved = false;
+
+                    if (body == null || body.equals("null")) {
+                        saved = false;
+                    }
+                    else {
+                        try {
+                            Event event = jsonMapper.readerFor(Event.class)
+                                    .with(ContextAttributes.getEmpty()
+                                            .withSharedAttribute("project", key.project))
+                                    .readValue(stringify.toString());
+                            if (event != null) {
+                                saved = true;
+                                eventStore.store(event);
+                            }
+                        }
+                        catch (JsonMappingException e) {
+                            String message = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
+                            returnError(request, "JSON couldn't parsed: " + message, BAD_REQUEST);
+                            return;
+                        }
+                        catch (IOException e) {
+                            returnError(request, "JSON couldn't parsed: " + e.getMessage(), BAD_REQUEST);
+                            return;
+                        }
+                        catch (RakamException e) {
+                            LogUtil.logException(request, e);
+                            returnError(request, e.getMessage(), e.getStatusCode());
+                            return;
+                        }
+                        catch (HttpRequestException e) {
+                            returnError(request, e.getMessage(), e.getStatusCode());
+                            return;
+                        }
+                        catch (IllegalArgumentException e) {
+                            LogUtil.logException(request, e);
+                            returnError(request, e.getMessage(), BAD_REQUEST);
+                            return;
+                        }
+                        catch (Exception e) {
+                            LOGGER.error(e, "Error while collecting event");
+
+                            returnError(request, "An error occurred", INTERNAL_SERVER_ERROR);
+                            return;
+                        }
+                    }
+
+                    request.response(saved ? "1" : "0").end();
+                }
+                else {
+                    byte[] bytes = JsonHelper.encodeAsBytes(errorMessage("Webhook code timeouts.",
+                            INTERNAL_SERVER_ERROR));
+
+                    request.response(bytes, INTERNAL_SERVER_ERROR).end();
+                }
+            }
+        });
     }
 
     @GET
@@ -434,96 +519,6 @@ public class WebHookHttpService
                     Object stringify = json.callMember("stringify", body);
 
                     request.response(stringify.toString()).end();
-                }
-                else {
-                    byte[] bytes = JsonHelper.encodeAsBytes(errorMessage("Webhook code timeouts.",
-                            INTERNAL_SERVER_ERROR));
-
-                    request.response(bytes, INTERNAL_SERVER_ERROR).end();
-                }
-            }
-        });
-    }
-
-    private void handleFunction(RakamHttpRequest request, WebHookIdentifier id, Callable<Object> callable, boolean store)
-    {
-        Future<Object> f = executor.submit(callable);
-
-        f.addListener(new FutureListener<Object>()
-        {
-
-            @Override
-            public void operationComplete(Future<Object> future)
-                    throws Exception
-            {
-                if (future.await(3, TimeUnit.SECONDS)) {
-                    Object body;
-                    try {
-                        body = future.get();
-                    }
-                    catch (Throwable e) {
-                        returnError(request, "Error executing callback code", INTERNAL_SERVER_ERROR);
-                        LOGGER.warn(e, "Error executing webhook callback");
-                        loggerService.createLogger(id.project, "webhook." + id.project + "." + id.identifier)
-                                .error(e.getMessage());
-                        return;
-                    }
-
-                    if (!(body instanceof ScriptObjectMirror)) {
-                        returnError(request, "The script must return an object {collection: '', properties: {}}", BAD_REQUEST);
-                    }
-
-                    ScriptObjectMirror json = (ScriptObjectMirror) ((ScriptObjectMirror) body).eval("JSON");
-                    Object stringify = json.callMember("stringify", body);
-
-                    boolean saved = false;
-
-                    if (body == null || body.equals("null")) {
-                        saved = false;
-                    }
-                    else {
-                        try {
-                            Event event = jsonMapper.readerFor(Event.class)
-                                    .with(ContextAttributes.getEmpty()
-                                            .withSharedAttribute("project", id.project))
-                                    .readValue(stringify.toString());
-                            if (store && event != null) {
-                                saved = true;
-                                eventStore.store(event);
-                            }
-                        }
-                        catch (JsonMappingException e) {
-                            String message = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
-                            returnError(request, "JSON couldn't parsed: " + message, BAD_REQUEST);
-                            return;
-                        }
-                        catch (IOException e) {
-                            returnError(request, "JSON couldn't parsed: " + e.getMessage(), BAD_REQUEST);
-                            return;
-                        }
-                        catch (RakamException e) {
-                            LogUtil.logException(request, e);
-                            returnError(request, e.getMessage(), e.getStatusCode());
-                            return;
-                        }
-                        catch (HttpRequestException e) {
-                            returnError(request, e.getMessage(), e.getStatusCode());
-                            return;
-                        }
-                        catch (IllegalArgumentException e) {
-                            LogUtil.logException(request, e);
-                            returnError(request, e.getMessage(), BAD_REQUEST);
-                            return;
-                        }
-                        catch (Exception e) {
-                            LOGGER.error(e, "Error while collecting event");
-
-                            returnError(request, "An error occurred", INTERNAL_SERVER_ERROR);
-                            return;
-                        }
-                    }
-
-                    request.response(saved ? "1" : "0").end();
                 }
                 else {
                     byte[] bytes = JsonHelper.encodeAsBytes(errorMessage("Webhook code timeouts.",

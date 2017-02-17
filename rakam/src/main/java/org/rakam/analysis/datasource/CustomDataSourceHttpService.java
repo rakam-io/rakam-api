@@ -79,7 +79,7 @@ public class CustomDataSourceHttpService
         return customDataSourceList;
     }
 
-    @ApiOperation(value = "Schema of data-sources", authorizations = @Authorization(value = "master_key"))
+    @ApiOperation(value = "Schema of data-sources", authorizations = @Authorization(value = "read_key"))
     @Path("/schema")
     @GET
     public Map<String, Map<String, List<SchemaField>>> schemaDatabases(@Named("project") String project)

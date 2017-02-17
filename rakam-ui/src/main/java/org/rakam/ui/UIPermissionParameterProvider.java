@@ -113,10 +113,7 @@ public class UIPermissionParameterProvider
                                 .bind("user", userId)
                                 .bind("id", project)
                                 .first();
-                        if (readOnlyUser == null) {
-                            throw new RakamException(HttpResponseStatus.FORBIDDEN);
-                        }
-                        if (readOnlyUser) {
+                        if (readOnlyUser == null || readOnlyUser) {
                             throw new RakamException("User is not allowed to perform this operation", UNAUTHORIZED);
                         }
                     }

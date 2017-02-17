@@ -57,23 +57,18 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
-import java.lang.management.ManagementFactory;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.Month;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.time.format.TextStyle;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -90,7 +85,6 @@ import java.util.stream.Stream;
 import static com.google.common.collect.ImmutableMap.of;
 import static java.lang.String.format;
 import static java.time.format.TextStyle.SHORT;
-import static java.util.Locale.ENGLISH;
 import static java.util.Locale.US;
 import static org.rakam.util.JsonHelper.encode;
 
@@ -301,7 +295,7 @@ public class ScheduledEmailService
                             new RuntimeException(new String(bytes)));
                 }
 
-                ZonedDateTime dateTime = Instant.now().atZone(ZoneId.of("UTF-8"));
+                ZonedDateTime dateTime = Instant.now().atZone(ZoneOffset.UTC);
                 String month = dateTime.getMonth().getDisplayName(SHORT, US);
                 int day = dateTime.getDayOfMonth();
                 String weekDay = dateTime.getDayOfWeek().getDisplayName(SHORT, US);
@@ -310,7 +304,7 @@ public class ScheduledEmailService
                 screenPart.setFileName("dashboard.png");
                 screenPart.setDisposition(MimeBodyPart.INLINE);
 
-                String title = format("[Rakam] - %s -- %s, %s %d%s", task.name, weekDay, month, day, getDayOfMonthSuffix(day));
+                String title = format("[Rakam] %s — %s, %s %d%s", task.name, weekDay, month, day, getDayOfMonthSuffix(day));
 
                 mailSender.sendMail(task.emails, title,
                         "Please view HTML version of the email, it contains the dashboard screenshot that is sent from Rakam UI.",

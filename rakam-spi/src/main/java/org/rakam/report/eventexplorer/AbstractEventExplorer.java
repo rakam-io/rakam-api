@@ -276,23 +276,21 @@ public abstract class AbstractEventExplorer
         Optional<AggregationType> intermediateAggregation = getIntermediateAggregation(measure.aggregation);
 
         if (intermediateAggregation.isPresent()) {
-            if (grouping != null) {
-                if (grouping.type == COLUMN && segment.type == COLUMN) {
-                    query = format(" SELECT " +
-                                    " CASE WHEN group_rank > 15 THEN 'Others' ELSE cast(%s as varchar) END,\n" +
-                                    " CASE WHEN segment_rank > 20 THEN 'Others' ELSE cast(%s as varchar) END,\n" +
-                                    " %s FROM (\n" +
-                                    "   SELECT *,\n" +
-                                    "          row_number() OVER (ORDER BY %s DESC) AS group_rank,\n" +
-                                    "          row_number() OVER (PARTITION BY %s ORDER BY value DESC) AS segment_rank\n" +
-                                    "   FROM (%s) as data GROUP BY 1, 2, 3) as data GROUP BY 1, 2 ORDER BY 3 DESC",
-                            checkTableColumn(getColumnReference(grouping) + "_group"),
-                            checkTableColumn(getColumnReference(segment) + "_segment"),
-                            format(convertSqlFunction(intermediateAggregation.get(), measure.aggregation), "value"),
-                            format(convertSqlFunction(intermediateAggregation.get(), measure.aggregation), "value"),
-                            checkCollection(format(getColumnReference(grouping), "value") + "_group"),
-                            computeQuery);
-                }
+            if (grouping != null && grouping.type == COLUMN && segment.type == COLUMN) {
+                query = format(" SELECT " +
+                                " CASE WHEN group_rank > 15 THEN 'Others' ELSE cast(%s as varchar) END,\n" +
+                                " CASE WHEN segment_rank > 20 THEN 'Others' ELSE cast(%s as varchar) END,\n" +
+                                " %s FROM (\n" +
+                                "   SELECT *,\n" +
+                                "          row_number() OVER (ORDER BY %s DESC) AS group_rank,\n" +
+                                "          row_number() OVER (PARTITION BY %s ORDER BY value DESC) AS segment_rank\n" +
+                                "   FROM (%s) as data GROUP BY 1, 2, 3) as data GROUP BY 1, 2 ORDER BY 3 DESC",
+                        checkTableColumn(getColumnReference(grouping) + "_group"),
+                        checkTableColumn(getColumnReference(segment) + "_segment"),
+                        format(convertSqlFunction(intermediateAggregation.get(), measure.aggregation), "value"),
+                        format(convertSqlFunction(intermediateAggregation.get(), measure.aggregation), "value"),
+                        checkCollection(format(getColumnReference(grouping), "value") + "_group"),
+                        computeQuery);
             }
             else {
                 String columnValue = null, suffix = null;
@@ -462,7 +460,8 @@ public abstract class AbstractEventExplorer
 
     public abstract String convertSqlFunction(AggregationType aggType);
 
-    public String convertSqlFunction(AggregationType intermediate, AggregationType main) {
+    public String convertSqlFunction(AggregationType intermediate, AggregationType main)
+    {
         return convertSqlFunction(intermediate);
     }
 }
