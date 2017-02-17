@@ -14,6 +14,7 @@
 package org.rakam.ui.customreport;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.server.http.annotations.ApiParam;
 
 
@@ -23,11 +24,29 @@ public class CustomReport {
     public final Object data;
 
     @JsonCreator
-    public CustomReport(@ApiParam("reportType") String reportType,
+    public CustomReport(@ApiParam("report_type") String reportType,
                         @ApiParam("name") String name,
                         @ApiParam("data") Object data) {
         this.reportType = reportType;
         this.name = name;
         this.data = data;
+    }
+
+    @JsonProperty("report_type")
+    public String getReportType()
+    {
+        return reportType;
+    }
+
+    @JsonProperty("name")
+    public String getName()
+    {
+        return name;
+    }
+
+    @JsonProperty("data")
+    public Object getData()
+    {
+        return data;
     }
 }

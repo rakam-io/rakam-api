@@ -817,8 +817,8 @@ public class WebUserService
                 " WHERE api_key.user_id = :user " +
                 " UNION ALL SELECT api_key.project_id, project.project, project.api_url, project.timezone, " +
                 "case when permission.master_permission then api_key.master_key else null end," +
-                "case when permission.read_permission then api_key.read_key else null end," +
-                "case when permission.write_permission then api_key.write_key else null end " +
+                "case when permission.master_permission or permission.read_permission then api_key.read_key else null end," +
+                "case when permission.master_permission or permission.write_permission then api_key.write_key else null end " +
                 "FROM web_user_api_key_permission permission \n" +
                 "JOIN web_user_api_key api_key ON (permission.api_key_id = api_key.id) \n" +
                 "JOIN web_user_project project ON (project.id = api_key.project_id)\n" +
