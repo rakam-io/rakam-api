@@ -484,8 +484,8 @@ public abstract class AbstractPostgresqlUserStorage
         boolean isEventFilterActive = eventFilter != null && !eventFilter.isEmpty();
 
         QueryExecution query = (isEventFilterActive ? getExecutorForWithEventFilter() : queryExecutorService)
-                .executeQuery(project, format("SELECT %s FROM _users %s %s LIMIT %s",
-                        columns, filters.isEmpty() ? "" : " WHERE "
+                .executeQuery(project, format("SELECT %s FROM %s %s %s LIMIT %s",
+                        columns, getUserTable(project, false), filters.isEmpty() ? "" : " WHERE "
                                 + Joiner.on(" AND ").join(filters), orderBy, limit, offset));
 
         CompletableFuture<QueryResult> dataResult = query.getResult();
@@ -566,7 +566,7 @@ public abstract class AbstractPostgresqlUserStorage
         checkProject(project);
         return CompletableFuture.supplyAsync(() -> {
             try (Connection conn = queryExecutor.getConnection()) {
-                PreparedStatement ps = conn.prepareStatement(format("select * from _users where %s = ?", PRIMARY_KEY));
+                PreparedStatement ps = conn.prepareStatement(format("select * from %s where %s = ?", getUserTable(project, false), PRIMARY_KEY));
 
                 Optional<FieldType> unchecked = userTypeCache.getUnchecked(project);
 

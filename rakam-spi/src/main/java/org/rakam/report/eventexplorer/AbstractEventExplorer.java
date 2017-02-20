@@ -297,10 +297,10 @@ public abstract class AbstractEventExplorer
                         computeQuery);
             }
             else {
-
-                if (grouping.type == COLUMN || segment.type == COLUMN) {
+                if ((grouping != null && grouping.type == COLUMN) || (segment != null && segment.type == COLUMN)) {
                     String windowColumn = checkTableColumn(getColumnValue(timestampMapping,
-                            grouping.type == COLUMN ? grouping : segment, false) + (grouping.type == COLUMN ? "_group" : "_segment"));
+                            (grouping != null && grouping.type == COLUMN) ? grouping : segment, false) +
+                            ((grouping != null && grouping.type == COLUMN) ? "_group" : "_segment"));
 
                     query = format(" SELECT " +
                                     " %s CASE WHEN group_rank > 50 THEN 'Others' ELSE CAST(%s as varchar) END, %s FROM (\n" +
