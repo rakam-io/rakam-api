@@ -203,7 +203,7 @@ public class UserHttpService
 
     @POST
     @JsonRequest
-    @ApiOperation(value = "Get events of the user", authorizations = @Authorization(value = "read_key"))
+    @ApiOperation(value = "Get events of the user", authorizations = @Authorization(value = "master_key"))
     @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/create_segment")
     public SuccessMessage createSegment(@Named("project") String project,

@@ -56,7 +56,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
                                             UserPluginConfig config,
                                             PostgresqlQueryExecutor queryExecutor,
                                             Metastore metastore) {
-        super(queryExecutor, configManager);
+        super(executorService, queryExecutor, configManager);
         this.executor = executor;
         this.executorService = executorService;
         this.config = config;
@@ -130,8 +130,8 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
     }
 
     @Override
-    public QueryExecutor getExecutorForWithEventFilter() {
-        return executor;
+    public QueryExecutorService getExecutorForWithEventFilter() {
+        return executorService;
     }
 
     @Override

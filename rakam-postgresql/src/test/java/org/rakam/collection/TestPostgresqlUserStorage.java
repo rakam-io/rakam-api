@@ -47,9 +47,10 @@ public class TestPostgresqlUserStorage
 
         PostgresqlMaterializedViewService materializedViewService = new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore);
 
+        QueryExecutorService queryExecutorService = new QueryExecutorService(queryExecutor, metastore, materializedViewService, Clock.systemUTC(), '"');
         configManager = new PostgresqlConfigManager(dataSource);
         configManager.setup();
-        PostgresqlUserStorage userStorage = new PostgresqlUserStorage(materializedViewService, configManager, queryExecutor);
+        PostgresqlUserStorage userStorage = new PostgresqlUserStorage(queryExecutorService, materializedViewService, configManager, queryExecutor);
         userService = new PostgresqlUserService(userStorage, metastore, queryExecutor);
         super.setUp();
     }

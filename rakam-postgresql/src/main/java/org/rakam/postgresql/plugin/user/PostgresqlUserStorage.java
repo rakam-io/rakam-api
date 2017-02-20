@@ -9,6 +9,7 @@ import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.user.UserPropertyMapper;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecutor;
+import org.rakam.report.QueryExecutorService;
 
 import javax.inject.Inject;
 
@@ -17,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static org.rakam.report.realtime.AggregationType.COUNT;
@@ -27,22 +29,24 @@ public class PostgresqlUserStorage
 {
     public static final String USER_TABLE = "_users";
     private final MaterializedViewService materializedViewService;
-    private final PostgresqlQueryExecutor queryExecutor;
+    private final QueryExecutorService queryExecutorService;
 
     @Inject
-    public PostgresqlUserStorage(MaterializedViewService materializedViewService,
+    public PostgresqlUserStorage(
+            QueryExecutorService queryExecutorService,
+            MaterializedViewService materializedViewService,
             ConfigManager configManager,
             PostgresqlQueryExecutor queryExecutor)
     {
-        super(queryExecutor, configManager);
-        this.queryExecutor = queryExecutor;
+        super(queryExecutorService, queryExecutor, configManager);
+        this.queryExecutorService = queryExecutorService;
         this.materializedViewService = materializedViewService;
     }
 
     @Override
-    public QueryExecutor getExecutorForWithEventFilter()
+    public QueryExecutorService getExecutorForWithEventFilter()
     {
-        return queryExecutor;
+        return queryExecutorService;
     }
 
     @Override
@@ -55,7 +59,7 @@ public class PostgresqlUserStorage
 
             String collection = checkCollection(filter.collection);
             if (filter.aggregation == null) {
-                builder.append(format("select \"_user\" from %s.%s", project, collection));
+                builder.append(format("select \"_user\" from %s", collection));
                 if (filter.filterExpression != null) {
                     builder.append(" where ").append(new ExpressionFormatter.Formatter(Optional.empty()).process(filter.getExpression(), true));
                 }
@@ -63,7 +67,7 @@ public class PostgresqlUserStorage
                 filters.add((format("id in (%s)", builder.toString())));
             }
             else {
-                builder.append(format("select \"_user\" from %s.%s", project, collection));
+                builder.append(format("select \"_user\" from %s", collection));
                 if (filter.filterExpression != null) {
                     builder.append(" where ").append(new ExpressionFormatter.Formatter(Optional.empty()).process(filter.getExpression(), true));
                 }
@@ -103,14 +107,14 @@ public class PostgresqlUserStorage
     @Override
     public void createSegment(String project, String name, String tableName, Expression filterExpression, List<EventFilter> eventFilter, Duration interval)
     {
-        StringBuilder builder = new StringBuilder(String.format("select distinct id from %s where ", getUserTable(project, false)));
+        StringBuilder builder = new StringBuilder("select distinct id from _users where ");
 
         if (filterExpression != null) {
             builder.append(filterExpression.toString());
         }
 
         if (eventFilter != null) {
-            builder.append(getEventFilterPredicate(project, eventFilter));
+            builder.append(getEventFilterPredicate(project, eventFilter).stream().collect(Collectors.joining(" AND ")));
         }
 
         materializedViewService.create(project, new MaterializedView(tableName,

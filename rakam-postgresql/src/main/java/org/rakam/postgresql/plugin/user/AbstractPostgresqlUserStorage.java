@@ -30,6 +30,7 @@ import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
+import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 import org.rakam.util.DateTimeUtils;
 import org.rakam.util.JsonHelper;
@@ -73,13 +74,15 @@ import static org.rakam.util.ValidationUtil.checkTableColumn;
 public abstract class AbstractPostgresqlUserStorage
         implements UserStorage
 {
+    private final QueryExecutorService queryExecutorService;
     private final PostgresqlQueryExecutor queryExecutor;
     private final Cache<String, Map<String, FieldType>> propertyCache;
     private final LoadingCache<String, Optional<FieldType>> userTypeCache;
     private final ConfigManager configManager;
 
-    public AbstractPostgresqlUserStorage(PostgresqlQueryExecutor queryExecutor, ConfigManager configManager)
+    public AbstractPostgresqlUserStorage(QueryExecutorService queryExecutorService, PostgresqlQueryExecutor queryExecutor, ConfigManager configManager)
     {
+        this.queryExecutorService = queryExecutorService;
         this.queryExecutor = queryExecutor;
         propertyCache = CacheBuilder.newBuilder().build();
         this.configManager = configManager;
@@ -140,7 +143,7 @@ public abstract class AbstractPostgresqlUserStorage
         return columns;
     }
 
-    public abstract QueryExecutor getExecutorForWithEventFilter();
+    public abstract QueryExecutorService getExecutorForWithEventFilter();
 
     private Iterable<Map.Entry<String, JsonNode>> strip(Iterable<Map.Entry<String, JsonNode>> fields)
     {
@@ -480,21 +483,21 @@ public abstract class AbstractPostgresqlUserStorage
 
         boolean isEventFilterActive = eventFilter != null && !eventFilter.isEmpty();
 
-        QueryExecution query = (isEventFilterActive ? getExecutorForWithEventFilter() : queryExecutor)
-                .executeRawQuery(format("SELECT %s FROM %s %s %s LIMIT %s",
-                        columns, getUserTable(project, isEventFilterActive), filters.isEmpty() ? "" : " WHERE "
+        QueryExecution query = (isEventFilterActive ? getExecutorForWithEventFilter() : queryExecutorService)
+                .executeQuery(project, format("SELECT %s FROM _users %s %s LIMIT %s",
+                        columns, filters.isEmpty() ? "" : " WHERE "
                                 + Joiner.on(" AND ").join(filters), orderBy, limit, offset));
 
         CompletableFuture<QueryResult> dataResult = query.getResult();
 
         if (!isEventFilterActive) {
             StringBuilder builder = new StringBuilder();
-            builder.append("SELECT count(*) FROM ").append(getUserTable(project, false));
+            builder.append("SELECT count(*) FROM _users");
             if (filterExpression != null) {
                 builder.append(" WHERE ").append(filters.get(0));
             }
 
-            QueryExecution totalResult = queryExecutor.executeRawQuery(builder.toString());
+            QueryExecution totalResult = queryExecutorService.executeQuery(project, builder.toString());
 
             CompletableFuture<QueryResult> result = new CompletableFuture<>();
             CompletableFuture.allOf(dataResult, totalResult.getResult()).whenComplete((__, ex) -> {
@@ -563,7 +566,7 @@ public abstract class AbstractPostgresqlUserStorage
         checkProject(project);
         return CompletableFuture.supplyAsync(() -> {
             try (Connection conn = queryExecutor.getConnection()) {
-                PreparedStatement ps = conn.prepareStatement(format("select * from %s where %s = ?", getUserTable(project, false), PRIMARY_KEY));
+                PreparedStatement ps = conn.prepareStatement(format("select * from _users where %s = ?", PRIMARY_KEY));
 
                 Optional<FieldType> unchecked = userTypeCache.getUnchecked(project);
 

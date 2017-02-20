@@ -14,12 +14,14 @@
 package org.rakam.ui.customreport;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.server.http.annotations.ApiParam;
 
 
 public class CustomReport {
     public final String reportType;
+    public final Integer user;
     public final String name;
     public final Object data;
 
@@ -27,7 +29,12 @@ public class CustomReport {
     public CustomReport(@ApiParam("report_type") String reportType,
                         @ApiParam("name") String name,
                         @ApiParam("data") Object data) {
+        this(reportType, name, null, data);
+    }
+
+    public CustomReport(String reportType, String name, Integer user, Object data) {
         this.reportType = reportType;
+        this.user = user;
         this.name = name;
         this.data = data;
     }
@@ -48,5 +55,12 @@ public class CustomReport {
     public Object getData()
     {
         return data;
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonProperty("user")
+    public Integer getUser()
+    {
+        return user;
     }
 }

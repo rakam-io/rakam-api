@@ -39,13 +39,10 @@ import java.util.List;
 public class CustomReportHttpService extends HttpService {
 
     private final CustomReportMetadata metadata;
-    private final EncryptionConfig encryptionConfig;
 
     @Inject
-    public CustomReportHttpService(CustomReportMetadata metadata,
-            EncryptionConfig encryptionConfig) {
+    public CustomReportHttpService(CustomReportMetadata metadata) {
         this.metadata = metadata;
-        this.encryptionConfig = encryptionConfig;
     }
 
     @JsonRequest

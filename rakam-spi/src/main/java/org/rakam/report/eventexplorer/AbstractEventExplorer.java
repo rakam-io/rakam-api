@@ -4,6 +4,7 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.DefaultExpressionTraversalVisitor;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
+import io.airlift.log.Logger;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.MaterializedViewService;
@@ -47,6 +48,8 @@ import static org.rakam.util.ValidationUtil.checkTableColumn;
 public abstract class AbstractEventExplorer
         implements EventExplorer
 {
+    private final static Logger LOGGER = Logger.get(AbstractEventExplorer.class);
+
     protected final static String TIME_INTERVAL_ERROR_MESSAGE = "Date interval is too big. Please narrow the date range or use different date dimension.";
     protected final Reference DEFAULT_SEGMENT = new Reference(COLUMN, "_collection");
 
@@ -201,7 +204,8 @@ public abstract class AbstractEventExplorer
                 TIMESTAMP_FORMATTER.format(startDate), TIMESTAMP_FORMATTER.format(endDate));
 
         String groupBy;
-        if (segment != null && grouping != null) {
+        boolean bothActive = segment != null && grouping != null;
+        if (bothActive) {
             groupBy = "GROUP BY 1, 2";
         }
         else if (segment != null || grouping != null) {
@@ -238,7 +242,7 @@ public abstract class AbstractEventExplorer
             String measureAgg = convertSqlFunction(measure != null &&
                     measure.aggregation != null ? measure.aggregation : COUNT);
             String measureColumn = measure != null &&
-                    measure.column != null ? checkTableColumn(measure.column) : "1";
+                    measure.column != null ? checkTableColumn(measure.column) : "*";
 
             if (collections.size() == 1) {
                 String select = generateComputeQuery(grouping, segment, collections.get(0));
@@ -293,32 +297,20 @@ public abstract class AbstractEventExplorer
                         computeQuery);
             }
             else {
-                String columnValue = null, suffix = null;
-                boolean reference;
 
-                if (segment != null) {
-                    columnValue = getColumnValue(timestampMapping, segment, false);
-                    reference = segment.type == REFERENCE;
-                    suffix = "segment";
-                }
-                else if (grouping != null) {
-                    columnValue = getColumnValue(timestampMapping, grouping, false);
-                    reference = grouping.type == REFERENCE;
-                    suffix = "group";
-                }
-                else {
-                    reference = false;
-                }
+                if (grouping.type == COLUMN || segment.type == COLUMN) {
+                    String windowColumn = checkTableColumn(getColumnValue(timestampMapping,
+                            grouping.type == COLUMN ? grouping : segment, false) + (grouping.type == COLUMN ? "_group" : "_segment"));
 
-                if (columnValue != null && !reference) {
                     query = format(" SELECT " +
-                                    " CASE WHEN group_rank > 50 THEN 'Others' ELSE CAST(%s as varchar) END, %s FROM (\n" +
+                                    " %s CASE WHEN group_rank > 50 THEN 'Others' ELSE CAST(%s as varchar) END, %s FROM (\n" +
                                     "   SELECT *, row_number() OVER (ORDER BY %s DESC) AS group_rank\n" +
-                                    "   FROM (%s) as data GROUP BY 1, 2) as data GROUP BY 1 ORDER BY 2 DESC",
-                            checkTableColumn(columnValue + "_" + suffix),
+                                    "   FROM (%s) as data GROUP BY 1, 2 %s) as data GROUP BY 1 %s ORDER BY %d DESC",
+                            bothActive ? checkTableColumn(getColumnReference(grouping.type == COLUMN ? segment : grouping) + (grouping.type == COLUMN ? "_segment" : "_group")) + ", " : "",
+                            windowColumn,
                             format(convertSqlFunction(intermediateAggregation.get(), measure.aggregation), "value"),
                             format(convertSqlFunction(intermediateAggregation.get(), measure.aggregation), "value"),
-                            computeQuery);
+                            computeQuery, bothActive ? ", 3" : "", bothActive ? ", 2" : "", bothActive ? 3 : 2);
                 }
                 else {
                     query = computeQuery + " ORDER BY 1 DESC";
@@ -333,7 +325,7 @@ public abstract class AbstractEventExplorer
                             "cast(" + checkTableColumn("%s_segment") + " as varchar)" :
                             checkTableColumn("%s_segment"), getColumnReference(segment))),
                     grouping != null || segment != null ? "," : "",
-                    computeQuery, segment != null && grouping != null ? 3 : 2);
+                    computeQuery, bothActive ? 3 : 2);
         }
 
         String table = preComputedTable.map(e -> e.getValue()).orElse(null);
@@ -341,6 +333,9 @@ public abstract class AbstractEventExplorer
         return new DelegateQueryExecution(executor.executeQuery(project, query), result -> {
             if (table != null) {
                 result.setProperty("olapTable", table);
+            }
+            if (result.isFailed()) {
+                LOGGER.error(new RuntimeException(result.getError().toString()), "Error while running event explorer query");
             }
             return result;
         });
@@ -444,7 +439,15 @@ public abstract class AbstractEventExplorer
                     " from continuous._event_explorer_metrics where %s group by 1", timePredicate);
         }
 
-        return executor.executeQuery(project, query, Optional.empty(), "collection", 20000).getResult();
+        QueryExecution collection = executor.executeQuery(project, query, Optional.empty(), "collection", 20000);
+        collection.getResult().thenAccept(result -> {
+            if (result.isFailed()) {
+                LOGGER.error(new RuntimeException(result.getError().toString()),
+                        "An error occurred while executing event explorer statistics query.");
+            }
+        });
+
+        return collection.getResult();
     }
 
     @Override
