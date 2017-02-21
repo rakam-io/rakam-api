@@ -242,7 +242,7 @@ public abstract class AbstractEventExplorer
             String measureAgg = convertSqlFunction(measure != null &&
                     measure.aggregation != null ? measure.aggregation : COUNT);
             String measureColumn = measure != null &&
-                    measure.column != null ? checkTableColumn(measure.column) : "*";
+                    measure.column != null ? checkTableColumn(measure.column) : "1";
 
             if (collections.size() == 1) {
                 String select = generateComputeQuery(grouping, segment, collections.get(0));

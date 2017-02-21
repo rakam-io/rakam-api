@@ -36,7 +36,9 @@ var fetch = function (parameters, url, events, startDate, endDate) {
 
     var urlIsGenerated = url == null;
     if (urlIsGenerated) {
-        url = "https://graph.facebook.com/v2.8/act_" + parameters.account_id + "/insights?level=ad&time_increment=1&access_token=" + parameters.access_token + "&fields=" + fields + "&format=json&limit=250&breakdowns=age,gender&time_range={\"since\":\"" + startDate + "\",\"until\":\"" + endDate + "\"}";
+        var endGap = new Date(endDate);
+        endGap.setDate(endGap.getDate() - 1);
+        url = "https://graph.facebook.com/v2.8/act_" + parameters.account_id + "/insights?level=ad&time_increment=1&access_token=" + parameters.access_token + "&fields=" + fields + "&format=json&limit=250&breakdowns=age,gender&time_range={\"since\":\"" + startDate + "\",\"until\":\"" + endGap.toJSON().slice(0, 10) + "\"}";
     }
     var response = http.get(url).send();
     if (response.getStatusCode() == 0) {
@@ -56,8 +58,6 @@ var fetch = function (parameters, url, events, startDate, endDate) {
             var midText = mid.toJSON().slice(0, 10);
             logger.debug("The date range is cut half two equal slices " + startDate + "-" + midText + " and " + midText + "-" + endDate);
             fetch(parameters, null, [], startDate, midText);
-            mid.setDate(mid.getDate() + 1);
-            midText = mid.toJSON().slice(0, 10);
             fetch(parameters, null, [], midText, endDate);
         } else {
             logger[data.error.code === 17 ? 'warn' : 'error'](JSON.stringify(data.error.code + ' : ' + data.error.error_subcode + ' : ' + data.error.message));

@@ -50,7 +50,11 @@ public class EventListDeserializer
 
         Event.EventContext context = null;
 
-        jp.nextToken();
+        t = jp.nextToken();
+
+        if(t != FIELD_NAME) {
+            deserializationContext.reportWrongTokenException(jp, JsonToken.FIELD_NAME, null);
+        }
         String fieldName = jp.getCurrentName();
         jp.nextToken();
 
@@ -66,12 +70,11 @@ public class EventListDeserializer
         }
 
         t = jp.nextToken();
+        if(t != FIELD_NAME) {
+            deserializationContext.reportWrongTokenException(jp, JsonToken.FIELD_NAME, null);
+        }
         fieldName = jp.getCurrentName();
         jp.nextToken();
-
-        if (t != FIELD_NAME) {
-            throw new JsonParseException(jp, "", jp.getCurrentLocation());
-        }
 
         if (fieldName.equals("api")) {
             if (context != null) {

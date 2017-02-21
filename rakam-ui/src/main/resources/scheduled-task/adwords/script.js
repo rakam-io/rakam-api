@@ -51,6 +51,9 @@ var fetch = function (parameters, events, index, startDate, endDate) {
 
     var accessToken = response.getResponseBody();
 
+
+    var endGap = new Date(endDate);
+    endGap.setDate(endGap.getDate() - 1);
     response = http.post(report_url)
         .header('Authorization', accessToken)
         .header('clientCustomerId', parameters.customer_id)
@@ -58,7 +61,7 @@ var fetch = function (parameters, events, index, startDate, endDate) {
         .header('includeZeroImpressions', parameters.include_zero_impressions)
         .form('__fmt', 'CSV')
         .form('__rdquery', parameters.query + ' DURING ' +
-            startDate.replace(/-/g, '') + ', ' + endDate.replace(/-/g, ''))
+            startDate.replace(/-/g, '') + ', ' + endGap.toJSON().slice(0, 10).replace(/-/g, ''))
         .send();
 
     if (response.getStatusCode() != 200) {
