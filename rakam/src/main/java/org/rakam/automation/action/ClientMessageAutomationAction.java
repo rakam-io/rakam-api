@@ -30,7 +30,8 @@ public class ClientMessageAutomationAction
         public final Map<String, String> variables;
 
         @JsonCreator
-        public Template(@JsonProperty("template") String template, @JsonProperty(value = "variables", required = false) Map<String, String> variables) {
+        public Template(@JsonProperty("template") String template,
+                @JsonProperty(value = "variables", required = false) Map<String, String> variables) {
             this.template = template;
             this.variables = Optional.ofNullable(variables).orElse(ImmutableMap.of());
         }

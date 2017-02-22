@@ -452,7 +452,16 @@ public class WebHookHttpService
         JSCodeCompiler.MemoryConfigManager configManager = new JSCodeCompiler.MemoryConfigManager();
         Invocable engine;
         try {
-            engine = jsCodeCompiler.createEngine(script, testLogger, null, configManager);
+            engine = jsCodeCompiler.createEngine(script, testLogger, null, configManager, (e, bindings) -> {
+                bindings.put("$$params", params);
+                try {
+                    e.eval("var $$module = function(queryParams, body, headers) " +
+                            "{ return module(queryParams, body, $$params, headers)}");
+                }
+                catch (ScriptException ex) {
+                    throw Throwables.propagate(ex);
+                }
+            });
         }
         catch (Exception e) {
             throw new RakamException("Unable to compile Javascript code: " + e.getMessage(), INTERNAL_SERVER_ERROR);
@@ -460,27 +469,8 @@ public class WebHookHttpService
 
         Future<Object> f = executor.submit(() -> {
             try {
-                Object finalBody;
-                if (APPLICATION_JSON.equals(contentType)) {
-                    finalBody = body;
-                }
-                else if (APPLICATION_FORM_URLENCODED.equals(contentType)) {
-                    QueryStringDecoder decoder = new QueryStringDecoder(body.toString(), false);
-                    finalBody = JsonHelper.encode(decoder.parameters());
-                }
-                else {
-                    finalBody = body;
-                }
+                Object scoped = engine.invokeFunction("$$module", request.params(), body, request.headers());
 
-                if (finalBody == null || finalBody.equals("")) {
-                    finalBody = "{}";
-                }
-
-                Object scoped = engine.invokeFunction("module",
-                        request.params(),
-                        finalBody,
-                        params,
-                        request.headers());
                 if (scoped == null) {
                     request.response(script, NO_CONTENT).end();
                 }

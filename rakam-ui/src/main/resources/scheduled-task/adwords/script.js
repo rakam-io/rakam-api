@@ -1,13 +1,19 @@
 //@ sourceURL=rakam-ui/src/main/resources/scheduled-task/adwords/script.js
 var parseCSV=function(r){for(var n,e,f,i=function(r,n,e){return e},o=r.split(""),t=0,l=o.length,s=[];l>t;){for(s.push(f=[]);l>t&&"\r"!==o[t]&&"\n"!==o[t];){if(n=e=t,'"'===o[t]){for(n=e=++t;l>t;){if('"'===o[t]){if('"'!==o[t+1])break;o[++t]=""}e=++t}for('"'===o[t]&&++t;l>t&&"\r"!==o[t]&&"\n"!==o[t]&&","!==o[t];)++t}else for(;l>t&&"\r"!==o[t]&&"\n"!==o[t]&&","!==o[t];)e=++t;f.push(i(s.length-1,f.length,o.slice(n,e).join(""))),","===o[t]&&++t}"\r"===o[t]&&++t,"\n"===o[t]&&++t}return s};
 
-var doubleValues = ["impressions", "clicks", "engagements", "conversions", "all conv.", "interactions", "views", "average position", "cost", "avg. position", "all conv.", "avg. cpm", "avg. cost"];
+var doubleValues = ["impressions", "clicks", "engagements", "conversions", "all conv.", "interactions", "views", "average position", "avg. position", "all conv."];
 var percentageValues = ['% new sessions', 'search lost is (rank)', 'content lost is (rank)', 'search impr. share', 'content impr. share',
                         'video played to 25%', 'video played to 50%', 'video played to 75%', 'video played to 100%'];
+var moneyValues = ["cost", "avg. cost", "avg. cpm"];
 
-var valueMapper = {}
+var valueMapper = {};
 doubleValues.forEach(function (key) {
     valueMapper[key] = parseFloat;
+});
+moneyValues.forEach(function (key) {
+    valueMapper[key] = function(value) {
+        return parseFloat(value) / 1000000;
+    };
 });
 var parsePercentage = function (value) {
     return parseInt(value.substring(0, value.length - 1));

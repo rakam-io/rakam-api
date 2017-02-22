@@ -8,7 +8,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class StringTemplate {
-    private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\{([^/?}]+)\\}");
+    private static final Pattern VARIABLE_PATTERN = Pattern.compile("(?<!\\\\)\\{([^/?}]+)\\}");
 
     private final String template;
 
