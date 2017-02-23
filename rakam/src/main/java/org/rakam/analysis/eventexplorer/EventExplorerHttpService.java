@@ -109,7 +109,8 @@ public class EventExplorerHttpService
     public CompletableFuture<QueryResult> analyzeEvents(@Named("project") String project, @BodyParam AnalyzeRequest analyzeRequest)
     {
         checkArgument(!analyzeRequest.collections.isEmpty(), "collections array is empty");
-        checkArgument(!analyzeRequest.measure.column.equals("_time"), "measure column value cannot be '_time'");
+        checkArgument(Optional.ofNullable(analyzeRequest.measure).map(e -> e.column).map(e -> !e.equals("_time")).orElse(true),
+                "measure column value cannot be '_time'");
 
         return eventExplorer.analyze(project, analyzeRequest.collections,
                 analyzeRequest.measure, analyzeRequest.grouping,
