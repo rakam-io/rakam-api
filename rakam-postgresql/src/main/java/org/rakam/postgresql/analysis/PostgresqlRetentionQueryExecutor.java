@@ -17,9 +17,7 @@ import com.facebook.presto.sql.tree.Expression;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.metadata.Metastore;
-import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.AbstractRetentionQueryExecutor;
@@ -50,12 +48,9 @@ import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static com.google.common.primitives.Ints.checkedCast;
 import static java.lang.String.format;
 import static java.util.Locale.ENGLISH;
-import static org.rakam.analysis.InternalConfig.USER_TYPE;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.MONTH;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.WEEK;
 import static org.rakam.collection.FieldType.INTEGER;
-import static org.rakam.collection.FieldType.STRING;
-import static org.rakam.postgresql.analysis.PostgresqlMetastore.toSql;
 import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
 import static org.rakam.util.ValidationUtil.checkArgument;
 import static org.rakam.util.ValidationUtil.checkCollection;
@@ -123,9 +118,9 @@ public class PostgresqlRetentionQueryExecutor
     {
         period.ifPresent(e -> checkArgument(e >= 0, "Period must be 0 or a positive value"));
         checkTableColumn(CONNECTOR_FIELD, "connector field", '"');
-//        if (approximate) {
-//            throw new RakamException("Approximation is not supported.", HttpResponseStatus.BAD_REQUEST);
-//        }
+        if (approximate) {
+            throw new RakamException("Approximation is not supported.", HttpResponseStatus.BAD_REQUEST);
+        }
 
         String timeColumn = getTimeExpression(dateUnit);
 
@@ -158,8 +153,14 @@ public class PostgresqlRetentionQueryExecutor
 
         Map<String, List<SchemaField>> collections = metastore.getCollections(project);
 
-        String firstActionQuery = generateQuery(collections, project, firstAction, CONNECTOR_FIELD, dimension, startDate, endDate, zoneId);
-        String returningActionQuery = generateQuery(collections, project, returningAction, CONNECTOR_FIELD, dimension, startDate, endDate, zoneId);
+        String firstActionQuery = generateQuery(
+                collections, project, firstAction,
+                testDeviceIdExists(firstAction, collections) ? format("coalesce(cast(%s as varchar), _device_id)", CONNECTOR_FIELD) : CONNECTOR_FIELD,
+                dimension, startDate, endDate, zoneId);
+        String returningActionQuery = generateQuery(
+                collections, project, returningAction,
+                testDeviceIdExists(firstAction, collections) ? format("coalesce(cast(%s as varchar), _device_id)", CONNECTOR_FIELD) : CONNECTOR_FIELD,
+                dimension, startDate, endDate, zoneId);
 
         String query;
         if (firstAction.equals(returningAction)) {
@@ -256,6 +257,8 @@ public class PostgresqlRetentionQueryExecutor
                     new SchemaField("value", INTEGER)), rows, result.getProperties());
         });
     }
+
+
 
     private String generateQuery(
             Map<String, List<SchemaField>> collections,

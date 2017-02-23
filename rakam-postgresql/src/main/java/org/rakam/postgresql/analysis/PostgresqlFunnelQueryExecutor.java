@@ -15,8 +15,13 @@ package org.rakam.postgresql.analysis;
 
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.google.common.base.Throwables;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.AbstractFunnelQueryExecutor;
+import org.rakam.analysis.RetentionQueryExecutor;
+import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.SchemaField;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
+import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
 import javax.annotation.PostConstruct;
@@ -25,6 +30,8 @@ import javax.inject.Inject;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -37,9 +44,9 @@ public class PostgresqlFunnelQueryExecutor
     private final PostgresqlQueryExecutor executor;
 
     @Inject
-    public PostgresqlFunnelQueryExecutor(PostgresqlQueryExecutor executor)
+    public PostgresqlFunnelQueryExecutor(Metastore metastore, PostgresqlQueryExecutor executor)
     {
-        super(executor);
+        super(metastore, executor);
         this.executor = executor;
     }
 

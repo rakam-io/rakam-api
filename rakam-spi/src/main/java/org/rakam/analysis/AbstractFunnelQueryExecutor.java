@@ -15,6 +15,7 @@ package org.rakam.analysis;
 
 import com.google.common.collect.ImmutableList;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
@@ -38,13 +39,16 @@ import static org.rakam.collection.FieldType.LONG;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
 
-public abstract class AbstractFunnelQueryExecutor implements FunnelQueryExecutor
+public abstract class AbstractFunnelQueryExecutor
+        implements FunnelQueryExecutor
 {
     private static final String CONNECTOR_FIELD = "_user";
     private final QueryExecutor executor;
+    private final Metastore metastore;
 
-    public AbstractFunnelQueryExecutor(QueryExecutor executor)
+    public AbstractFunnelQueryExecutor(Metastore metastore, QueryExecutor executor)
     {
+        this.metastore = metastore;
         this.executor = executor;
     }
 
@@ -61,8 +65,13 @@ public abstract class AbstractFunnelQueryExecutor implements FunnelQueryExecutor
         if (dimension.isPresent() && CONNECTOR_FIELD.equals(dimension.get())) {
             throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
         }
+
+        Map<String, List<SchemaField>> collections = metastore.getCollections(project);
+
         String ctes = IntStream.range(0, steps.size())
-                .mapToObj(i -> convertFunnel(project, CONNECTOR_FIELD, i, steps.get(i), dimension, startDate, endDate))
+                .mapToObj(i -> convertFunnel(
+                        project, testDeviceIdExists(steps.get(i), collections) ? format("coalesce(cast(%s as varchar), _device_id)", CONNECTOR_FIELD) : CONNECTOR_FIELD, i,
+                        steps.get(i), dimension, startDate, endDate))
                 .collect(Collectors.joining(" UNION ALL "));
 
         String dimensionCol = dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ", ").orElse("");
@@ -71,7 +80,7 @@ public abstract class AbstractFunnelQueryExecutor implements FunnelQueryExecutor
                 TIMESTAMP_FORMATTER.format(endDate.plusDays(1).atStartOfDay(zoneId)),
                 dimensionCol, CONNECTOR_FIELD,
                 dimension.map(v -> ", 2").orElse(""));
-        if(dimension.isPresent()) {
+        if (dimension.isPresent()) {
             query = String.format("SELECT (CASE WHEN rank > 15 THEN 'Others' ELSE cast(%s as varchar) END) as dimension, step, sum(total) from " +
                             "(select *, row_number() OVER(ORDER BY total DESC) rank from (%s) t) t GROUP BY 1, 2",
                     dimension.map(ValidationUtil::checkTableColumn).get(), query);
@@ -128,5 +137,14 @@ public abstract class AbstractFunnelQueryExecutor implements FunnelQueryExecutor
                     }
                     return new QueryResult(metadata, newResult, result.getProperties());
                 });
+    }
+
+    protected boolean testDeviceIdExists(FunnelStep firstAction, Map<String, List<SchemaField>> collections)
+    {
+        List<SchemaField> schemaFields = collections.get(firstAction.getCollection());
+        if (schemaFields == null) {
+            throw new RakamException("The collection in first action does not exist.", HttpResponseStatus.BAD_REQUEST);
+        }
+        return schemaFields.stream().anyMatch(e -> e.getName().equals("_device_id"));
     }
 }

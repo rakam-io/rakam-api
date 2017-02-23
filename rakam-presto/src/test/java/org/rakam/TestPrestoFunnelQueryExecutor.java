@@ -54,7 +54,7 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
         QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, metastore,
                 materializedViewService, Clock.system(ZoneId.of("UTC")), '"');
 
-        funnelQueryExecutor = new PrestoFunnelQueryExecutor(queryExecutorService,
+        funnelQueryExecutor = new PrestoFunnelQueryExecutor(metastore, queryExecutorService,
                 prestoQueryExecutor, materializedViewService,
                 continuousQueryService, new UserPluginConfig());
         testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);

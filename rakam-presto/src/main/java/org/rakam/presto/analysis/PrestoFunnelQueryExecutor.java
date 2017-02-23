@@ -22,6 +22,7 @@ import org.rakam.analysis.CalculatedUserSet;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.AbstractFunnelQueryExecutor;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.PreComputedTableSubQueryVisitor;
@@ -58,13 +59,15 @@ public class PrestoFunnelQueryExecutor
     private final boolean userMappingEnabled;
 
     @Inject
-    public PrestoFunnelQueryExecutor(QueryExecutorService executorService,
+    public PrestoFunnelQueryExecutor(
+            Metastore metastore,
+            QueryExecutorService executorService,
             QueryExecutor executor,
             MaterializedViewService materializedViewService,
             ContinuousQueryService continuousQueryService,
             UserPluginConfig userPluginConfig)
     {
-        super(executor);
+        super(metastore, executor);
         this.materializedViewService = materializedViewService;
         this.continuousQueryService = continuousQueryService;
         this.executorService = executorService;
