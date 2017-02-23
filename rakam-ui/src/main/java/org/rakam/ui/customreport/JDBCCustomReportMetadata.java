@@ -99,7 +99,7 @@ public class JDBCCustomReportMetadata implements CustomReportMetadata {
             return handle.createQuery("SELECT report_type, name, data, user_id FROM custom_reports WHERE project_id = :project")
                     .bind("project", project)
                     .map((i, resultSet, statementContext) -> {
-                        return new CustomReport(resultSet.getString(1), resultSet.getString(2), resultSet.getInt(3), JsonHelper.read(resultSet.getString(3)));
+                        return new CustomReport(resultSet.getString(1), resultSet.getString(2), resultSet.getInt(4), JsonHelper.read(resultSet.getString(3)));
                     }).list().stream().collect(Collectors.groupingBy(customReport -> customReport.reportType));
         }
     }
