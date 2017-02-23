@@ -484,8 +484,8 @@ public abstract class AbstractPostgresqlUserStorage
         boolean isEventFilterActive = eventFilter != null && !eventFilter.isEmpty();
 
         QueryExecution query = (isEventFilterActive ? getExecutorForWithEventFilter() : queryExecutorService)
-                .executeQuery(project, format("SELECT %s FROM %s %s %s LIMIT %s",
-                        columns, getUserTable(project, false), filters.isEmpty() ? "" : " WHERE "
+                .executeQuery(project, format("SELECT %s FROM _users %s %s LIMIT %s",
+                        columns, filters.isEmpty() ? "" : " WHERE "
                                 + Joiner.on(" AND ").join(filters), orderBy, limit, offset));
 
         CompletableFuture<QueryResult> dataResult = query.getResult();

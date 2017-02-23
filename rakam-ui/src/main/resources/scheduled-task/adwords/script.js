@@ -109,7 +109,7 @@ var fetch = function (parameters, events, index, startDate, endDate) {
     config.set('start_date' + (index == null ? "" : "." + index), endDate);
 }
 
-var adgroup_query = "SELECT Date,AccountCurrencyCode,Clicks,AllConversions,AdGroupName,AverageCost,AverageCpm,AveragePosition,CampaignName,Conversions,Cost,Engagements, SearchRankLostImpressionShare,Impressions,Interactions,PercentNewVisitors,VideoViews,VideoQuartile100Rate,VideoQuartile75Rate,VideoQuartile50Rate,VideoQuartile25Rate,SearchImpressionShare,ContentImpressionShare,ContentRankLostImpressionShare from ADGROUP_PERFORMANCE_REPORT";
+var adgroup_query = "SELECT Date,AccountCurrencyCode,Clicks,AllConversions,AdGroupName,AverageCost,AverageCpm,AveragePosition,CampaignName,Conversions,Cost,Engagements,Impressions,Interactions,PercentNewVisitors,VideoViews,VideoQuartile100Rate,VideoQuartile75Rate,VideoQuartile50Rate,VideoQuartile25Rate,ContentImpressionShare,ContentRankLostImpressionShare from ADGROUP_PERFORMANCE_REPORT";
 var ad_query = "SELECT Date,AccountCurrencyCode,AdGroupName,AdType,AllConversions,AverageCost,AverageCpm,AveragePosition,CampaignName,Clicks,Conversions,Cost,CriterionType,DisplayUrl,Engagements,Headline,Impressions,Interactions,PercentNewVisitors,VideoViews,VideoQuartile100Rate,VideoQuartile75Rate,VideoQuartile50Rate,VideoQuartile25Rate FROM AD_PERFORMANCE_REPORT";
 
 var main = function (parameters) {
