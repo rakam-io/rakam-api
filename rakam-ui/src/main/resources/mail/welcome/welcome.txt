@@ -1,6 +1,6 @@
 Hi {{name}},
 
-I'm Burak Emre, the developer of Rakam API and Rakam BI. Thanks for signing up for Rakam. We’re very excited to have you on board.
+I'm Burak Emre, the developer of Rakam API and Rakam UI . Thanks for signing up for Rakam. We’re very excited to have you on board.
 
 Rakam is currently in beta and actively developed. If you have and suggestion or just found a bug, feel free to reach me by relying this email. This is my personal e-email address.
 

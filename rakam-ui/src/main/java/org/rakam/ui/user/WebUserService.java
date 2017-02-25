@@ -243,7 +243,6 @@ public class WebUserService
             throw new RakamException("Email is not valid", BAD_REQUEST);
         }
 
-        Map<String, Object> scopes = ImmutableMap.of("product_name", "Rakam");
 
         WebUser webuser = null;
 
@@ -283,7 +282,7 @@ public class WebUserService
         }
 
         sendMail(welcomeTitleCompiler, welcomeTxtCompiler,
-                welcomeHtmlCompiler, email, scopes);
+                welcomeHtmlCompiler, email, ImmutableMap.of("name", Optional.ofNullable(name).orElse("there")));
 
         return webuser;
     }

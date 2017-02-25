@@ -31,12 +31,14 @@ public class WebsiteEventMapperModule
 
         WebsiteMapperConfig config = buildConfigObject(WebsiteMapperConfig.class);
         if (config.getReferrer()) {
-            eventMappers.addBinding().to(ReferrerEventMapper.class).in(Scopes.SINGLETON);
-            userPropertyMappers.addBinding().to(ReferrerEventMapper.class).in(Scopes.SINGLETON);
+            ReferrerEventMapper referrerEventMapper = new ReferrerEventMapper();
+            eventMappers.addBinding().toInstance(referrerEventMapper);
+            userPropertyMappers.addBinding().toInstance(referrerEventMapper);
         }
         if (config.getUserAgent()) {
-            eventMappers.addBinding().to(UserAgentEventMapper.class).in(Scopes.SINGLETON);
-            userPropertyMappers.addBinding().to(UserAgentEventMapper.class).in(Scopes.SINGLETON);
+            UserAgentEventMapper userAgentEventMapper = new UserAgentEventMapper(config);
+            eventMappers.addBinding().toInstance(userAgentEventMapper);
+            userPropertyMappers.addBinding().toInstance(userAgentEventMapper);
         }
 
 //        eventMappers.addBinding().to(UserIdEventMapper.class).in(Scopes.SINGLETON);

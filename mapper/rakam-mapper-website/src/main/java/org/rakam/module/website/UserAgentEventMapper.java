@@ -26,7 +26,8 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.util.List;
 
-@Mapper(name = "User Agent Event mapper", description = "Parses user agent string and attaches new field related with the user agent of the user")
+@Mapper(name = "User Agent Event mapper",
+        description = "Parses user agent string and attaches new field related with the user agent of the user")
 public class UserAgentEventMapper implements SyncEventMapper, UserPropertyMapper {
     private final Parser uaParser;
     private final boolean trackSpiders;
