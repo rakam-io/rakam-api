@@ -51,6 +51,7 @@ public class MaxmindGeoIPEventMapper
     private final DatabaseReader connectionTypeLookup;
     private final DatabaseReader ispLookup;
     private final DatabaseReader cityLookup;
+    private final boolean attachIp;
 
     public MaxmindGeoIPEventMapper(MaxmindGeoIPModuleConfig config)
             throws IOException
@@ -58,6 +59,7 @@ public class MaxmindGeoIPEventMapper
         Preconditions.checkNotNull(config, "config is null");
 
         DatabaseReader connectionTypeLookup = null, ispLookup = null, cityLookup = null;
+        boolean attachIp = false;
         if (config.getAttributes() != null) {
             for (String attr : config.getAttributes()) {
                 if (CITY_DATABASE_ATTRIBUTES.contains(attr)) {
@@ -87,6 +89,10 @@ public class MaxmindGeoIPEventMapper
                     }
                     continue;
                 }
+                else if ("_ip".equals(attr)) {
+                    attachIp = true;
+                    continue;
+                }
                 throw new IllegalArgumentException("Attribute " + attr + " is not valid. Available attributes: " +
                         Joiner.on(", ").join(CITY_DATABASE_ATTRIBUTES));
             }
@@ -100,7 +106,9 @@ public class MaxmindGeoIPEventMapper
             else {
                 attributes = null;
             }
+            attachIp = true;
         }
+        this.attachIp = attachIp;
 
         if (config.getIspDatabaseUrl() != null) {
             ispLookup = getReader(config.getIspDatabaseUrl());
@@ -147,7 +155,7 @@ public class MaxmindGeoIPEventMapper
             if (cityLookup != null) {
                 // Cloudflare country code header (Only works when the request passed through CF servers)
                 String countryCode = extraProperties.headers().get("HTTP_CF_IPCOUNTRY");
-                if(countryCode != null) {
+                if (countryCode != null) {
                     event.properties().put("_country_code", countryCode);
                 }
             }
@@ -155,11 +163,13 @@ public class MaxmindGeoIPEventMapper
             return null;
         }
 
-        if(addr == null) {
+        if (addr == null) {
             return null;
         }
 
-        event.properties().put("__ip", addr.getHostAddress());
+        if (attachIp) {
+            event.properties().put("__ip", addr.getHostAddress());
+        }
 
         if (connectionTypeLookup != null) {
             setConnectionType(addr, event.properties());
@@ -209,7 +219,7 @@ public class MaxmindGeoIPEventMapper
             }
         }
 
-        if(sourceAddress == null) {
+        if (sourceAddress == null) {
             return;
         }
 
@@ -255,6 +265,7 @@ public class MaxmindGeoIPEventMapper
             case "region":
             case "city":
             case "timezone":
+            case "_ip":
                 return STRING;
             case "latitude":
             case "longitude":
@@ -279,7 +290,7 @@ public class MaxmindGeoIPEventMapper
         }
 
         ConnectionTypeResponse.ConnectionType connType = connectionType.getConnectionType();
-        if(connType != null) {
+        if (connType != null) {
             properties.put("_connection_type", connType.name());
         }
     }
