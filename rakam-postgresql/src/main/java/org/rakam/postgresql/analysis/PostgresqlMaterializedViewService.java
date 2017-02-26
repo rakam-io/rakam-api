@@ -28,9 +28,11 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static com.facebook.presto.sql.RakamSqlFormatter.formatSql;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static java.lang.String.format;
 import static org.rakam.postgresql.report.PostgresqlQueryExecutor.MATERIALIZED_VIEW_PREFIX;
+import static org.rakam.util.ValidationUtil.checkCollection;
 
 public class PostgresqlMaterializedViewService extends MaterializedViewService {
     private final SqlParser parser = new SqlParser();
@@ -57,10 +59,10 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
 
         new RakamSqlFormatter.Formatter(builder, name -> queryExecutor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of(), "collection"), '"').process(statement, 1);
 
-        QueryResult result = queryExecutor.executeRawStatement(format("CREATE MATERIALIZED VIEW \"%s\".\"%s%s\" AS %s WITH NO DATA",
-                project, MATERIALIZED_VIEW_PREFIX, materializedView.tableName, builder.toString())).getResult().join();
+        QueryResult result = queryExecutor.executeRawStatement(format("CREATE MATERIALIZED VIEW %s.%s AS %s WITH NO DATA",
+                ValidationUtil.checkProject(project), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName), builder.toString())).getResult().join();
         if (result.isFailed()) {
-            throw new RakamException("Couldn't created table: " + result.getError().toString(), FORBIDDEN);
+            throw new RakamException("Couldn't created table: " + result.getError().toString(), BAD_REQUEST);
         }
         database.createMaterializedView(project, materializedView);
         return CompletableFuture.completedFuture(null);
@@ -91,7 +93,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
                 return new MaterializedViewExecution(null, tableName);
             }
 
-            String collection = ValidationUtil.checkCollection( MATERIALIZED_VIEW_PREFIX + materializedView.tableName);
+            String collection = checkCollection( MATERIALIZED_VIEW_PREFIX + materializedView.tableName);
             QueryExecution execution = queryExecutor.executeRawStatement(format("REFRESH MATERIALIZED VIEW %s.%s ",
                     project, collection));
             DelegateQueryExecution delegateQueryExecution = new DelegateQueryExecution(execution, result -> {

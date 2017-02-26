@@ -1,7 +1,5 @@
 package org.rakam.report;
 
-import com.google.common.base.MoreObjects;
-
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -9,7 +7,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Optional.ofNullable;
 import static org.rakam.report.QueryStats.State.RUNNING;
 
@@ -18,7 +15,7 @@ public class ChainQueryExecution
 {
     private final List<QueryExecution> executions;
     private final String query;
-    private final Optional<CompletableFuture<QueryExecution>> chainedQuery;
+    private final CompletableFuture<QueryExecution> chainedQuery;
 
     public ChainQueryExecution(List<QueryExecution> executions, String query, Function<List<QueryResult>, QueryExecution> chainedQuery)
     {
@@ -35,10 +32,19 @@ public class ChainQueryExecution
         this.executions = executions;
         this.query = query;
 
-        this.chainedQuery = chainedQuery.map(q -> CompletableFuture
-                .allOf(executions.stream().map(e -> e.getResult())
-                        .toArray(CompletableFuture[]::new)).thenApply(r -> q.apply(executions.stream().map(e -> e.getResult().join())
-                        .collect(Collectors.toList()))));
+
+        if(chainedQuery.isPresent()) {
+            CompletableFuture<Void> afterAll = CompletableFuture
+                    .allOf(executions.stream().map(e -> e.getResult())
+                            .toArray(CompletableFuture[]::new));
+            this.chainedQuery = afterAll.thenApply(r -> {
+                List<QueryResult> collect = executions.stream().map(e -> e.getResult().join())
+                        .collect(Collectors.toList());
+                return chainedQuery.get().apply(collect);
+            });
+        } else {
+            this.chainedQuery = null;
+        }
     }
 
     @Override
@@ -55,8 +61,8 @@ public class ChainQueryExecution
             }
         }
 
-        if (chainedQuery.isPresent() && chainedQuery.get().isDone()) {
-            currentStats = merge(currentStats, chainedQuery.get().join().currentStats());
+        if (chainedQuery != null && chainedQuery.isDone()) {
+            currentStats = merge(currentStats, chainedQuery.join().currentStats());
         }
 
         return currentStats;
@@ -81,8 +87,8 @@ public class ChainQueryExecution
     @Override
     public boolean isFinished()
     {
-        if (chainedQuery.isPresent() && chainedQuery.get().isDone()) {
-            QueryExecution join = chainedQuery.get().join();
+        if (chainedQuery != null && chainedQuery.isDone()) {
+            QueryExecution join = chainedQuery.join();
             return join == null || join.isFinished();
         }
         else {
@@ -93,14 +99,14 @@ public class ChainQueryExecution
     @Override
     public CompletableFuture<QueryResult> getResult()
     {
-        if (!chainedQuery.isPresent()) {
+        if (chainedQuery == null) {
             return CompletableFuture
                     .allOf(executions.stream().map(e -> e.getResult())
                             .toArray(CompletableFuture[]::new)).thenApply(r -> QueryResult.empty());
         }
 
         CompletableFuture<QueryResult> future = new CompletableFuture<>();
-        chainedQuery.get().thenAccept(r -> {
+        chainedQuery.thenAccept(r -> {
             if (r == null) {
                 future.complete(null);
             }
@@ -123,8 +129,8 @@ public class ChainQueryExecution
     public void kill()
     {
         executions.forEach(org.rakam.report.QueryExecution::kill);
-        if (chainedQuery.isPresent()) {
-            chainedQuery.get().thenAccept(q -> q.kill());
+        if (chainedQuery != null) {
+            chainedQuery.thenAccept(q -> q.kill());
         }
     }
 }

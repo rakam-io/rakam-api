@@ -221,12 +221,12 @@ public class QueryExecutorService
                     throw new RakamException(String.format("Referenced materialized table %s is not exist", node.getSuffix()), BAD_REQUEST);
                 }
 
-                MaterializedViewExecution materializedViewExecution = materializedViews.computeIfAbsent(materializedView, (key) -> materializedViewService.lockAndUpdateView(project, materializedView));
+                MaterializedViewExecution materializedViewExecution = materializedViews.computeIfAbsent(materializedView,
+                        (key) -> materializedViewService.lockAndUpdateView(project, materializedView));
 
                 if (materializedViewExecution == null) {
                     throw new IllegalStateException();
                 }
-                return materializedViewExecution.computeQuery;
             }
 
             return executor.formatTableReference(project, node, sample, sessionParameters, defaultSchema);

@@ -114,10 +114,14 @@ public class PostgresqlUserStorage
         }
 
         if (eventFilter != null) {
+            if(filterExpression != null) {
+                builder.append(" AND ");
+            }
             builder.append(getEventFilterPredicate(project, eventFilter).stream().collect(Collectors.joining(" AND ")));
         }
 
         materializedViewService.create(project, new MaterializedView(tableName,
-                "Users who did " + (tableName == null ? "at least one event" : tableName + " event"), builder.toString(), interval, null, ImmutableMap.of()));
+                "Users who did " + (tableName == null ? "at least one event" : tableName + " event"),
+                builder.toString(), interval, null, ImmutableMap.of()));
     }
 }

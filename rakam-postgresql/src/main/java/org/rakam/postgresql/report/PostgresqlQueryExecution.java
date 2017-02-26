@@ -59,23 +59,22 @@ public class PostgresqlQueryExecution
 
         // TODO: unnecessary threads will be spawn
         Supplier<QueryResult> task = () -> {
+            final QueryResult queryResult;
             try (Connection connection = connectionPool.openConnection()) {
                 statement = connection.createStatement();
                 if (update) {
                     statement.executeUpdate(sqlQuery);
                     // CREATE TABLE queries doesn't return any value and
                     // fail when using executeQuery so we fake the result data
-                    List<SchemaField> cols = ImmutableList.of(new SchemaField("result", FieldType.BOOLEAN));
-                    List<List<Object>> data = ImmutableList.of(ImmutableList.of(true));
-                    return new QueryResult(cols, data);
+                    queryResult = new QueryResult(ImmutableList.of(new SchemaField("result", FieldType.BOOLEAN)),
+                            ImmutableList.of(ImmutableList.of(true)));
                 }
                 else {
                     long beforeExecuted = System.currentTimeMillis();
                     ResultSet resultSet = statement.executeQuery(sqlQuery);
                     statement = null;
-                    final QueryResult queryResult = resultSetToQueryResult(resultSet,
+                    queryResult = resultSetToQueryResult(resultSet,
                             System.currentTimeMillis() - beforeExecuted);
-                    return queryResult;
                 }
             }
             catch (Exception e) {
@@ -92,6 +91,8 @@ public class PostgresqlQueryExecution
                 LOGGER.debug(e, format("Error while executing Postgresql query: \n%s", query));
                 return QueryResult.errorResult(error);
             }
+
+            return queryResult;
         };
 
         CompletableFuture<QueryResult> future = CompletableFuture.supplyAsync(task, QUERY_EXECUTOR);

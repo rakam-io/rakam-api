@@ -37,7 +37,7 @@ var internal = function (parameters, url, events, day) {
 
     logger.debug("Fetching " + day + (url ? ' with cursor' : ''));
 
-    url = url || "https://graph.facebook.com/v2.8/act_" + parameters.account_id + "/insights?level=ad&time_increment=1&access_token=" + parameters.access_token + "&fields=" + fields + "&format=json&limit=250&breakdowns=age,gender&time_range={\"since\":\"" + day + "\",\"until\":\"" + day + "\"}";
+    url = url || "https://graph.facebook.com/v2.8/act_" + parameters.account_id + "/insights?level=ad&time_increment=1&access_token=" + parameters.access_token + "&fields=" + fields + "&format=json&breakdowns=age,gender&time_range={\"since\":\"" + day + "\",\"until\":\"" + day + "\"}";
 
     var response = http.get(url).send();
     if (response.getStatusCode() == 0) {
@@ -46,8 +46,7 @@ var internal = function (parameters, url, events, day) {
     var data = JSON.parse(response.getResponseBody());
 
     if (response.getStatusCode() != 200) {
-        logger[data.error.code === 17 ? 'warn' : 'error'](JSON.stringify(data.error.code + ' : ' + data.error.error_subcode + ' : ' + data.error.message));
-        return;
+        throw new Error(JSON.stringify(data.error.code + ' : ' + data.error.error_subcode + ' : ' + data.error.message));
     }
 
     data.data.forEach(function (campaign) {
@@ -87,6 +86,7 @@ var main = function (parameters) {
     }
     else {
         startDate = new Date(startDate);
+        startDate.setDate(startDate.getDate() + 1);
     }
 
     var url = null;
