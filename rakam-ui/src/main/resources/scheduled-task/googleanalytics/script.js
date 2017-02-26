@@ -3,8 +3,17 @@
 var oauth_url = "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/google";
 var report_url = "https://analyticsreporting.googleapis.com/v4/reports:batchGet";
 
-var fetch = function (parameters, events, startDate, endDate, nextToken) {
-    logger.debug("Fetching between " + startDate + " and " + (endDate || 'now') + (nextToken ? ('with token ' + nextToken) : ''));
+var fetch = function (parameters, startDate, endDate, nextToken) {
+    logger.debug("Fetching between " + startDate + " and " + (endDate || 'now') + (nextToken ? (' with token ' + nextToken) : ''));
+    if(nextToken == null) {
+        var token = config.get('cursor');
+        if (token != null) {
+            var parsed = token.split(' ');
+            endDate = parsed[0];
+            nextToken = parsed[1];
+        }
+    }
+
     if (endDate == null) {
         endDate = new Date();
         endDate.setDate(endDate.getDate() - 1);
@@ -46,6 +55,7 @@ var fetch = function (parameters, events, startDate, endDate, nextToken) {
                 {
                     viewId: parameters.profile_id,
                     pageToken: nextToken,
+                    pageSize: 10000,
                     dateRanges: [{"startDate": startDate, "endDate": endDate}],
                     metrics: metrics.map(function (metric) { return {"expression": metric} }),
                     dimensions: dimensions.map(function (dim) { return {"name": dim} }),
@@ -84,11 +94,11 @@ var fetch = function (parameters, events, startDate, endDate, nextToken) {
                 return function (a) { return a };
             }
         });
-    
+
+    var events = [];
     var report = data.reports[0];
     (report.data.rows || []).forEach(function (row) {
         row.metrics.forEach(function (metricValues) {
-
             var properties = {};
             dimensions.forEach(function (dimension, idx) {
                 var value = row.dimensions[idx];
@@ -100,7 +110,6 @@ var fetch = function (parameters, events, startDate, endDate, nextToken) {
                 if (value !== '(not set)') {
                     properties[dimension] = value;
                 }
-
             });
 
             metrics.forEach(function (metric, idx) {
@@ -111,14 +120,17 @@ var fetch = function (parameters, events, startDate, endDate, nextToken) {
         });
     });
 
-    if (report.nextPageToken) {
-        return fetch(parameters, events, startDate, endDate, report.nextPageToken);
+    if (report.nextPageToken && report.nextPageToken) {
+        eventStore.store(events);
+        config.set('cursor', endDate + " " + report.nextPageToken);
+        return fetch(parameters, startDate, endDate, report.nextPageToken);
     }
 
     eventStore.store(events);
+    config.set('cursor', null);
     config.set('start_date', endDate);
 }
 
 var main = function (parameters) {
-    return fetch(parameters, [])
+    return fetch(parameters)
 }

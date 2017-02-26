@@ -159,6 +159,8 @@ public class MaxmindGeoIPEventMapper
             return null;
         }
 
+        event.properties().put("__ip", addr.getHostAddress());
+
         if (connectionTypeLookup != null) {
             setConnectionType(addr, event.properties());
         }
@@ -241,6 +243,8 @@ public class MaxmindGeoIPEventMapper
             fields.add(new SchemaField("_connection_type", STRING));
         }
 
+        fields.add(new SchemaField("__ip", STRING));
+
         builder.addFields("_ip", fields);
     }
 
@@ -274,7 +278,10 @@ public class MaxmindGeoIPEventMapper
             return;
         }
 
-        properties.put("_connection_type", connectionType.getConnectionType().name());
+        ConnectionTypeResponse.ConnectionType connType = connectionType.getConnectionType();
+        if(connType != null) {
+            properties.put("_connection_type", connType.name());
+        }
     }
 
     private void setIsp(InetAddress address, GenericRecord properties)
