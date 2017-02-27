@@ -38,6 +38,7 @@ import static java.lang.String.format;
 import static org.rakam.collection.FieldType.LONG;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public abstract class AbstractFunnelQueryExecutor
         implements FunnelQueryExecutor
@@ -70,7 +71,7 @@ public abstract class AbstractFunnelQueryExecutor
 
         String ctes = IntStream.range(0, steps.size())
                 .mapToObj(i -> convertFunnel(
-                        project, testDeviceIdExists(steps.get(i), collections) ? format("coalesce(cast(%s as varchar), _device_id)", CONNECTOR_FIELD) : CONNECTOR_FIELD, i,
+                        project, testDeviceIdExists(steps.get(i), collections) ? format("coalesce(cast(%s as varchar), _device_id) as %s", CONNECTOR_FIELD, checkTableColumn(CONNECTOR_FIELD)) : CONNECTOR_FIELD, i,
                         steps.get(i), dimension, startDate, endDate))
                 .collect(Collectors.joining(" UNION ALL "));
 

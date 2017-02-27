@@ -25,6 +25,7 @@ import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
@@ -155,11 +156,11 @@ public class PostgresqlRetentionQueryExecutor
 
         String firstActionQuery = generateQuery(
                 collections, project, firstAction,
-                testDeviceIdExists(firstAction, collections) ? format("coalesce(cast(%s as varchar), _device_id)", CONNECTOR_FIELD) : CONNECTOR_FIELD,
+                testDeviceIdExists(firstAction, collections) ? format("coalesce(cast(%s as varchar), _device_id) as %s", CONNECTOR_FIELD, checkTableColumn(CONNECTOR_FIELD)) : CONNECTOR_FIELD,
                 dimension, startDate, endDate, zoneId);
         String returningActionQuery = generateQuery(
                 collections, project, returningAction,
-                testDeviceIdExists(firstAction, collections) ? format("coalesce(cast(%s as varchar), _device_id)", CONNECTOR_FIELD) : CONNECTOR_FIELD,
+                testDeviceIdExists(firstAction, collections) ? format("coalesce(cast(%s as varchar), _device_id) as %s", CONNECTOR_FIELD, checkTableColumn(CONNECTOR_FIELD)) : CONNECTOR_FIELD,
                 dimension, startDate, endDate, zoneId);
 
         String query;
