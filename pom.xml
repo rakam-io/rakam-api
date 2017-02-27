@@ -81,7 +81,7 @@
         <java.version>1.8</java.version>
         <jackson.version>2.8.1</jackson.version>
         <aws.library>1.10.66</aws.library>
-        <netty.rest.version>0.89</netty.rest.version>
+        <netty.rest.version>0.90</netty.rest.version>
 
         <!--Plugin versions-->
         <maven.compiler.plugin.version>3.3</maven.compiler.plugin.version>
