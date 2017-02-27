@@ -242,19 +242,20 @@ public class WebHookHttpService
                         return;
                     }
 
-                    if (!(body instanceof ScriptObjectMirror)) {
-                        returnError(request, "The script must return an object {collection: '', properties: {}}", BAD_REQUEST);
-                    }
-
-                    ScriptObjectMirror json = (ScriptObjectMirror) ((ScriptObjectMirror) body).eval("JSON");
-                    Object stringify = json.callMember("stringify", body);
-
                     boolean saved = false;
 
                     if (body == null || body.equals("null")) {
                         saved = false;
                     }
                     else {
+                        if (!(body instanceof ScriptObjectMirror)) {
+                            returnError(request, "The script must return an object {collection: '', properties: {}}", BAD_REQUEST);
+                        }
+
+                        ScriptObjectMirror json = (ScriptObjectMirror) ((ScriptObjectMirror) body).eval("JSON");
+                        Object stringify = json.callMember("stringify", body);
+
+
                         try {
                             Event event = jsonMapper.readerFor(Event.class)
                                     .with(ContextAttributes.getEmpty()
