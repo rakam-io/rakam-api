@@ -112,12 +112,10 @@ public class PostgresqlMetastore
     @Override
     public Map<String, List<SchemaField>> getCollections(String project)
     {
-        try {
-            return collectionCache.get(project).stream()
-                    .collect(Collectors.toMap(c -> c, collection ->
-                            getCollection(project, collection)));
+        try (Connection connection = connectionPool.getConnection()) {
+            return getAllSchema(connection, project);
         }
-        catch (ExecutionException e) {
+        catch (SQLException e) {
             throw Throwables.propagate(e);
         }
     }
@@ -213,6 +211,41 @@ public class PostgresqlMetastore
             schemaFields.add(new SchemaField(columnName, fieldType));
         }
         return schemaFields.isEmpty() ? null : schemaFields;
+    }
+
+    private Map<String, List<SchemaField>> getAllSchema(Connection connection, String project)
+            throws SQLException
+    {
+        BaseConnection pgConnection = connection.unwrap(BaseConnection.class);
+
+        Map<String, List<SchemaField>> map = new HashMap<>();
+        ResultSet resultSet = pgConnection.execSQLQuery(format("SELECT c.relname, a.attname, typname\n" +
+                        "FROM pg_catalog.pg_class c\n" +
+                        "    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace\n" +
+                        "    LEFT JOIN pg_inherits i ON (i.inhrelid = c.oid)\n" +
+                        "    JOIN pg_attribute a ON (a.attrelid=c.oid)\n" +
+                        "    JOIN pg_type t ON (a.atttypid = t.oid)\n" +
+                        "    WHERE n.nspname = '%s' and c.relkind IN ('r', '') and i.inhrelid is null\n" +
+                        "    AND n.nspname <> 'pg_catalog'\n" +
+                        "    AND n.nspname <> 'information_schema'\n" +
+                        "    AND n.nspname !~ '^pg_toast'     \n" +
+                        "    AND a.attnum > 0 AND NOT a.attisdropped",
+                checkLiteral(project)));
+
+        while (resultSet.next()) {
+            String columnName = resultSet.getString(2);
+            FieldType fieldType;
+            try {
+                fieldType = fromSql(pgConnection.getTypeInfo().getSQLType(resultSet.getString(3)),
+                        resultSet.getString(3));
+            }
+            catch (IllegalStateException e) {
+                continue;
+            }
+            map.computeIfAbsent(resultSet.getString(1), (k) -> new ArrayList<>()).add(new SchemaField(columnName, fieldType));
+        }
+
+        return map;
     }
 
     @Override
