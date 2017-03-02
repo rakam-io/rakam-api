@@ -6,7 +6,6 @@ import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import io.airlift.log.Logger;
 import io.netty.channel.EventLoopGroup;
-import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.ServiceStarter;
 import org.rakam.analysis.ApiKeyService;

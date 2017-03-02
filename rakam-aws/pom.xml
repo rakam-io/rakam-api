@@ -100,6 +100,10 @@
             <artifactId>configuration</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.rakam</groupId>
+            <artifactId>netty-rest</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
         </dependency>
