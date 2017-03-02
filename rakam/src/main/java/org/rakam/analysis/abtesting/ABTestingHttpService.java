@@ -23,7 +23,7 @@ import java.util.Map;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
 @Path("/ab-testing")
-@Api(value = "/ab-testing", nickname = "abTesting", description = "A/B Testing module", tags = {"ab-testing"})
+@Api(value = "/ab-testing", nickname = "abTesting", description = "A/B Testing module", tags = "ab-testing")
 public class ABTestingHttpService extends HttpService {
 
     private final ABTestingMetastore metadata;

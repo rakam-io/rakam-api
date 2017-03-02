@@ -15,8 +15,8 @@ public class EventList {
     public final List<Event> events;
 
     @JsonCreator
-    public EventList(@ApiParam("api") Event.EventContext api,
-                     @ApiParam("events") List<Event> events) {
+    public EventList(@ApiParam(value = "api", description = "api_key parameter is required in 'api' property") Event.EventContext api,
+                     @ApiParam(value = "events", description = "The list of events") List<Event> events) {
         this.events = checkNotNull(events, "events parameter is null");
         this.api = checkNotNull(api, "api is null");
         this.project = null;

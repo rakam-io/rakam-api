@@ -74,7 +74,7 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.rakam.util.SuccessMessage.success;
 
 @Path("/scheduled-task")
-@Api(value = "/scheduled-task", nickname = "task", description = "Tasks for automatic event collection", tags = {"collect", "task"})
+@Api(value = "/scheduled-task", nickname = "task", description = "Tasks for automatic event collection", tags = "scheduled-task")
 public class ScheduledTaskHttpService
         extends HttpService
 {

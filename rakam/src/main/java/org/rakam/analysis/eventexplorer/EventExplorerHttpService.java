@@ -123,7 +123,8 @@ public class EventExplorerHttpService
         public final String name;
         public final String tableName;
 
-        public PrecalculatedTable(String name, String tableName)
+        @JsonCreator
+        public PrecalculatedTable(@ApiParam("name") String name, @ApiParam("tableName") String tableName)
         {
             this.name = name;
             this.tableName = tableName;

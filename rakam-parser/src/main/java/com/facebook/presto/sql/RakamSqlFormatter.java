@@ -517,11 +517,10 @@ public final class RakamSqlFormatter
 
             boolean first = true;
             for (Expression row : node.getRows()) {
-                builder.append('\n')
-                        .append(indentString(indent))
+                builder.append(indentString(indent))
                         .append(first ? "  " : ", ");
 
-                builder.append(formatExpression(row, tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier));
+                builder.append("(" + formatExpression(row, tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier) + ")");
                 first = false;
             }
             builder.append('\n');

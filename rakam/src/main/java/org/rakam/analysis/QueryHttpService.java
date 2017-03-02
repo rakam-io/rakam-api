@@ -76,7 +76,7 @@ import static org.rakam.util.JsonHelper.jsonObject;
 import static org.rakam.util.JsonHelper.readSafe;
 
 @Path("/query")
-@Api(value = "/query", nickname = "query", description = "Execute query", tags = {"query"})
+@Api(value = "/query", nickname = "query", description = "Execute query", tags = "query")
 @Produces({"application/json"})
 public class QueryHttpService
         extends HttpService
@@ -318,7 +318,6 @@ public class QueryHttpService
 
     public static class QueryRequest
     {
-        @ApiModelProperty(example = "SELECT 1", value = "SQL query that will be executed on data-set")
         public final String query;
         public final Integer limit;
         public final String defaultSchema;
@@ -327,11 +326,11 @@ public class QueryHttpService
 
         @JsonCreator
         public QueryRequest(
-                @ApiParam("query") String query,
-                @ApiParam(value = "export_type", required = false) CopyType exportType,
-                @ApiParam(value = "sampling", required = false) QuerySampling sample,
-                @ApiParam(value = "default_schema", required = false) String defaultSchema,
-                @ApiParam(value = "limit", required = false) Integer limit)
+                @ApiParam(value = "query", description = "SQL query that will be executed on data-set (SELECT count(*) from pageview)") String query,
+                @ApiParam(value = "export_type", required = false, description = "Export data using different formats") CopyType exportType,
+                @ApiParam(value = "sampling", required = false, description = "Optional parameter for specifying the sampling on source data") QuerySampling sample,
+                @ApiParam(value = "default_schema", required = false, description = "The default schema of the query. If the schema is not defined, this schema will be used.") String defaultSchema,
+                @ApiParam(value = "limit", required = false, description = "The maximum rows that can be returned from a query is 500K") Integer limit)
         {
             this.query = requireNonNull(query, "query is empty").trim().replaceAll(";+$", "");
             if (limit != null && limit > MAX_QUERY_RESULT_LIMIT) {

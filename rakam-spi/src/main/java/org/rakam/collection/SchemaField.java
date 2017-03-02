@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
@@ -23,12 +24,12 @@ public class SchemaField
     private final String category;
 
     @JsonCreator
-    public SchemaField(@JsonProperty("name") String name,
-            @JsonProperty("type") FieldType type,
-            @JsonProperty("unique") Boolean unique,
-            @JsonProperty("descriptiveName") String descriptiveName,
-            @JsonProperty("description") String description,
-            @JsonProperty("category") String category)
+    public SchemaField(@ApiParam("name") String name,
+            @ApiParam("type") FieldType type,
+            @ApiParam(value = "unique", required = false) Boolean unique,
+            @ApiParam(value = "descriptiveName", required = false) String descriptiveName,
+            @ApiParam(value = "description", required = false) String description,
+            @ApiParam(value = "category", required = false) String category)
     {
         this.name = stripName(ValidationUtil.checkNotNull(name, "name"), "field name");
         this.type = ValidationUtil.checkNotNull(type, "type");

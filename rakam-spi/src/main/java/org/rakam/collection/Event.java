@@ -26,9 +26,9 @@ public class Event
     private GenericRecord properties;
 
     @JsonCreator
-    public Event(@ApiParam("collection") String collection,
+    public Event(@ApiParam(value = "collection", description = "The collection of event (pageview, touch, click etc.)") String collection,
             @ApiParam("api") EventContext api,
-            @ApiParam("properties") GenericRecord properties)
+            @ApiParam(value = "properties", description = "The properties of the event") GenericRecord properties)
     {
         this(null, collection, api, null, properties);
     }
@@ -163,10 +163,10 @@ public class Event
         @JsonCreator
         public EventContext(
                 @ApiParam(value = "api_key", required = false) String apiKey,
-                @ApiParam(value = "library", required = false) Library library,
-                @ApiParam(value = "api_version", required = false) String apiVersion,
-                @ApiParam(value = "upload_time", required = false) Long uploadTime,
-                @ApiParam(value = "checksum", required = false) String checksum)
+                @ApiParam(value = "library", required = false, description = "Optional library information for statistics") Library library,
+                @ApiParam(value = "api_version", required = false, description = "Optional API version for versioning") String apiVersion,
+                @ApiParam(value = "upload_time", required = false, description = "Optional client upload time for clock synchronization") Long uploadTime,
+                @ApiParam(value = "checksum", required = false, description = "Optional checksum for verify the body content") String checksum)
         {
             this.library = library;
             this.apiKey = apiKey;

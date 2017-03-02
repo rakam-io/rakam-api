@@ -36,7 +36,7 @@ import java.util.UUID;
 import static java.time.ZoneOffset.UTC;
 
 @Path("/javascript-logger")
-@Api(value = "/javascript-logger", nickname = "javascript-logs", description = "Javascript code logs", tags = {"collect", "javascript"})
+@Api(value = "/javascript-logger", nickname = "javascript-logs", description = "Javascript code logs", tags = "javascript")
 public class JSCodeLoggerService
 {
     private final DBI dbi;
@@ -70,7 +70,7 @@ public class JSCodeLoggerService
 
     @JsonRequest
     @ApiOperation(value = "Get logs", authorizations = @Authorization(value = "master_key"))
-    @Path("/test")
+    @Path("/get_logs")
     public List<LogEntry> getLogs(@Named("project") String project, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end, @ApiParam(value = "prefix") String prefix)
     {
         String sql = "SELECT id, type, error, created FROM javascript_logs WHERE project = :project AND prefix = :prefix";

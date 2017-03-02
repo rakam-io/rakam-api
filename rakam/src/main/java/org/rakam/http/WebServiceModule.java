@@ -133,7 +133,6 @@ public class WebServiceModule
                     }
                 })
                 .setMapper(JsonHelper.getMapper())
-                .setDebugMode(config.getDebug())
                 .setProxyProtocol(config.getProxyProtocol())
                 .setExceptionHandler((request, ex) -> {
                     if (ex instanceof RakamException) {

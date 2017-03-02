@@ -13,7 +13,6 @@ import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.InvalidConfigurationException;
-import io.swagger.jackson.SwaggerAnnotationIntrospector_;
 import io.swagger.models.Tag;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.ContinuousQueryService;
@@ -25,8 +24,10 @@ import org.rakam.plugin.InjectionHook;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
 import org.rakam.server.http.HttpService;
+import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
 
 import javax.inject.Inject;
+
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -97,7 +98,7 @@ public class RecipeModule extends RakamModule {
             mapper.registerModule(new SimpleModule() {
                 @Override
                 public void setupModule(SetupContext context) {
-                    context.insertAnnotationIntrospector(new SwaggerAnnotationIntrospector_());
+                    context.insertAnnotationIntrospector(new SwaggerJacksonAnnotationIntrospector());
                 }
             });
             Recipe recipe;

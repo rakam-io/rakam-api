@@ -39,7 +39,7 @@ public class QueryResult
     @JsonCreator
     private QueryResult(
             @ApiParam("metadata") List<SchemaField> metadata,
-            @ApiParam(value = "result", description = "naber") List<List<Object>> result,
+            @ApiParam("result") List<List<Object>> result,
             @ApiParam("error") QueryError error,
             @ApiParam("properties") Map<String, Object> properties)
     {

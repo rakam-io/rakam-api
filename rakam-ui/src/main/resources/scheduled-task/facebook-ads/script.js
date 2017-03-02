@@ -17,9 +17,8 @@ var double_fields = ["cost_per_inline_link_click", "cost_per_inline_post_engagem
 var long_fields = ["app_store_clicks", "call_to_action_clicks",
                    "canvas_avg_view_percent", "canvas_avg_view_time",
                    "clicks", "deeplink_clicks", "estimated_ad_recall_rate",
-                   "impressions", "inline_link_click_ctr", "inline_link_click_ctr",
-                   "newsfeed_avg_position", "newsfeed_avg_position", "reach", "social_clicks",
-                   "social_impressions", "social_reach", "spend", "total_actions",
+                   "impressions", "reach", "social_clicks",
+                   "social_impressions", "social_reach", "total_actions",
                    "total_unique_actions", "unique_clicks", "unique_impressions",
                    "unique_inline_link_clicks", "unique_social_clicks", "unique_social_clicks", "website_clicks"];
 var valueMapper = {};

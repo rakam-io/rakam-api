@@ -85,7 +85,7 @@ import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.server.http.HttpServer.returnError;
 
 @Path("/event/hook")
-@Api(value = "/event/hook", nickname = "webhook", description = "Webhook for event collection", tags = {"collect", "webhook"})
+@Api(value = "/event/hook", nickname = "webhook", description = "Webhook for event collection", tags = "webhook")
 public class WebHookHttpService
         extends HttpService
 {

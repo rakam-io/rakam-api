@@ -114,7 +114,7 @@ import static org.rakam.util.StandardErrors.PARTIAL_ERROR_MESSAGE;
 import static org.rakam.util.ValidationUtil.checkCollection;
 
 @Path("/event")
-@Api(value = "/event", nickname = "collectEvent", description = "Event collection", tags = {"collect"})
+@Api(value = "/event", nickname = "collectEvent", description = "Event collection", tags = "collect")
 public class EventCollectionHttpService
         extends HttpService
 {
@@ -128,7 +128,6 @@ public class EventCollectionHttpService
     private final List<EventMapper> eventMappers;
     private final ApiKeyService apiKeyService;
     private final AvroEventDeserializer avroEventDeserializer;
-    private final Metastore metastore;
     private final QueryHttpService queryHttpService;
     private final com.google.common.base.Optional<CopyEvent> copyEvent;
     private final JsonEventDeserializer jsonEventDeserializer;
@@ -143,14 +142,12 @@ public class EventCollectionHttpService
             AvroEventDeserializer avroEventDeserializer,
             EventListDeserializer eventListDeserializer,
             CsvEventDeserializer csvEventDeserializer,
-            Metastore metastore,
             Set<EventMapper> mappers)
     {
         this.eventStore = eventStore;
         this.eventMappers = ImmutableList.copyOf(mappers);
         this.apiKeyService = apiKeyService;
         this.queryHttpService = queryHttpService;
-        this.metastore = metastore;
         this.copyEvent = copyEvent;
 
         jsonMapper = new ObjectMapper();

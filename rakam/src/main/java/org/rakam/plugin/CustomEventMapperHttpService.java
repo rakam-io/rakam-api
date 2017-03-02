@@ -84,7 +84,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.rakam.util.AvroUtil.generateAvroSchema;
 
 @Path("/custom-event-mapper")
-@Api(value = "/custom-event-mapper", nickname = "collection", description = "Custom event mapper", tags = "collection")
+@Api(value = "/custom-event-mapper", nickname = "collection", description = "Custom event mapper", tags = "event-mapper")
 public class CustomEventMapperHttpService
         extends HttpService
         implements EventMapper

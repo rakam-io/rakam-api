@@ -33,7 +33,7 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static org.rakam.util.JsonHelper.encode;
 
 @Path("/user/mailbox")
-@Api(value = "/user/mailbox", nickname = "userMailbox", description = "UserMailbox", tags = {"user-mailbox"})
+@Api(value = "/user/mailbox", nickname = "userMailbox", description = "UserMailbox", tags = "user-mailbox")
 public class UserMailboxHttpService extends HttpService {
     private final UserMailboxStorage storage;
     private final MailBoxWebSocketService webSocketService;

@@ -72,11 +72,11 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
         public final boolean richText;
 
         @JsonCreator
-        public EmailActionConfig(@JsonProperty("column_name") String columnName,
-                                 @JsonProperty("title") String title,
-                                 @JsonProperty("content") String content,
-                                 @JsonProperty("variables") Map<String, String> defaultValues,
-                                 @JsonProperty("rich_text") boolean richText) {
+        public EmailActionConfig(@ApiParam("column_name") String columnName,
+                                 @ApiParam("title") String title,
+                                 @ApiParam("content") String content,
+                                 @ApiParam("variables") Map<String, String> defaultValues,
+                                 @ApiParam("rich_text") boolean richText) {
             this.columnName = columnName;
             this.title = title;
             this.content = content;

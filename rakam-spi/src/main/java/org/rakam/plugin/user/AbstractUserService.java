@@ -153,10 +153,10 @@ public abstract class AbstractUserService {
 
             @JsonCreator
             public SingleUserBatchOperations(
-                    @ApiParam("set_properties") ObjectNode setProperties,
-                    @ApiParam("set_properties_once") ObjectNode setPropertiesOnce,
-                    @ApiParam("increment_properties") Map<String, Double> incrementProperties,
-                    @ApiParam("unset_properties") List<String> unsetProperties,
+                    @ApiParam(value = "set_properties", required = false) ObjectNode setProperties,
+                    @ApiParam(value = "set_properties_once", required = false) ObjectNode setPropertiesOnce,
+                    @ApiParam(value = "increment_properties", required = false) Map<String, Double> incrementProperties,
+                    @ApiParam(value = "unset_properties", required = false) List<String> unsetProperties,
                     @ApiParam("time") Long time)
             {
                 this.setProperties = setProperties;

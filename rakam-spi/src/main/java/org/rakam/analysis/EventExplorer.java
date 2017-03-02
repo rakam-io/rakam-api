@@ -115,8 +115,8 @@ public interface EventExplorer
         public final AggregationType aggregation;
 
         @JsonCreator
-        public Measure(@JsonProperty("column") String column,
-                @JsonProperty("aggregation") AggregationType aggregation)
+        public Measure(@ApiParam("column") String column,
+                @ApiParam("aggregation") AggregationType aggregation)
         {
             if (column == null && aggregation != COUNT) {
                 throw new IllegalArgumentException("measure column is required if aggregation is not COUNT");
@@ -132,8 +132,8 @@ public interface EventExplorer
         public final String value;
 
         @JsonCreator
-        public Reference(@JsonProperty("type") ReferenceType type,
-                @JsonProperty("value") String value)
+        public Reference(@ApiParam("type") ReferenceType type,
+                @ApiParam("value") String value)
         {
             this.type = checkNotNull(type, "type is null");
             this.value = checkNotNull(value, "value is null");

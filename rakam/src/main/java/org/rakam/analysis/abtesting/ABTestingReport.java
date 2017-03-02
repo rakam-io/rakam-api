@@ -46,8 +46,8 @@ public class ABTestingReport {
         public final String filter;
 
         @JsonCreator
-        public Goal(@JsonProperty("collection") String collection,
-                    @JsonProperty(value = "filter", required = false) String filter) {
+        public Goal(@ApiParam("collection") String collection,
+                    @ApiParam(value = "filter", required = false) String filter) {
             this.collection = collection;
             this.filter = filter;
         }
@@ -59,9 +59,9 @@ public class ABTestingReport {
         public final Object data;
 
         @JsonCreator
-        public Variant(@JsonProperty("name") String name,
-                       @JsonProperty("weight") int weight,
-                       @JsonProperty("data") Object data) {
+        public Variant(@ApiParam("name") String name,
+                       @ApiParam("weight") int weight,
+                       @ApiParam("data") Object data) {
             this.name = name;
             this.weight = weight;
             this.data = data;

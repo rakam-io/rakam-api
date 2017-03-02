@@ -16,6 +16,7 @@ package org.rakam.aws.kinesis;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.plugin.stream.CollectionStreamQuery;
+import org.rakam.server.http.annotations.ApiParam;
 
 import java.util.List;
 
@@ -24,8 +25,8 @@ public class StreamQuery {
     public final List<CollectionStreamQuery> collections;
 
     @JsonCreator
-    public StreamQuery(@JsonProperty("project") String project,
-                       @JsonProperty("collections") List<CollectionStreamQuery> collections) {
+    public StreamQuery(@ApiParam("project") String project,
+                       @ApiParam("collections") List<CollectionStreamQuery> collections) {
         this.project = project;
         this.collections = collections;
     }

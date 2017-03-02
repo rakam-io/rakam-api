@@ -34,7 +34,7 @@ import static com.facebook.presto.spi.type.TypeSignature.parseTypeSignature;
 
 @IgnoreApi
 @Path("/custom-data-source")
-@Api(value = "/custom-data-source", nickname = "custom-data-source", description = "Connect to custom databases", tags = {"analyze"})
+@Api(value = "/custom-data-source", nickname = "custom-data-source", description = "Connect to custom databases", tags = "analyze")
 public class CustomDataSourceHttpService
         extends HttpService
 {

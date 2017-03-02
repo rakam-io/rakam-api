@@ -137,7 +137,7 @@ public class ContinuousQueryHttpService extends HttpService {
         public final String table_name;
 
         @JsonCreator
-        public RefreshQuery(@JsonProperty("table_name") String table_name) {
+        public RefreshQuery(@ApiParam("table_name") String table_name) {
             this.table_name = table_name;
         }
     }
