@@ -329,7 +329,7 @@ public class QueryHttpService
                 @ApiParam(value = "query", description = "SQL query that will be executed on data-set (SELECT count(*) from pageview)") String query,
                 @ApiParam(value = "export_type", required = false, description = "Export data using different formats") CopyType exportType,
                 @ApiParam(value = "sampling", required = false, description = "Optional parameter for specifying the sampling on source data") QuerySampling sample,
-                @ApiParam(value = "default_schema", required = false, description = "The default schema of the query. If the schema is not defined, this schema will be used.") String defaultSchema,
+                @ApiParam(value = "default_schema", required = false, defaultValue = "collection", description = "The default schema of the query. If the schema is not defined, this schema will be used.") String defaultSchema,
                 @ApiParam(value = "limit", required = false, description = "The maximum rows that can be returned from a query is 500K") Integer limit)
         {
             this.query = requireNonNull(query, "query is empty").trim().replaceAll(";+$", "");
