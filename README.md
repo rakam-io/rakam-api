@@ -105,8 +105,9 @@ git clone https://github.com/rakam-io/rakam.git
 cd rakam
 mvn clean install package -DskipTests
 rakam/target/rakam-*-bundle/rakam-*/bin/launcher.py run --config rakam/target/rakam-*-bundle/rakam-*/etc/config.properties
-Note that you need to modify `config.properties` file in order to be able to start Rakam. You can find an example configuration in `/Dockerfile`
 ```
+
+Note that you need to modify `config.properties` file in order to be able to start Rakam. You can find an example configuration in `/Dockerfile`
 
 ##### Running Rakam in your IDE
 Since we already use Maven, you can import Rakam to your IDE using the root pom.xml file. We recommend using Intellij IDEA since the core team uses it when developing Rakam. Here is a sample configuration for executing Rakam in your IDE:
