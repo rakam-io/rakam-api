@@ -19,17 +19,14 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import org.postgresql.util.PGobject;
 import org.rakam.analysis.ConfigManager;
-import org.rakam.analysis.InternalConfig;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.plugin.user.User;
 import org.rakam.plugin.user.UserStorage;
-import org.rakam.postgresql.analysis.PostgresqlMetastore;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
-import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 import org.rakam.util.DateTimeUtils;
@@ -331,10 +328,16 @@ public abstract class AbstractPostgresqlUserStorage
 
         switch (fieldType) {
             case TIMESTAMP:
+                try {
+                    return new Timestamp(value.isNumber() ? DateTimeUtils.parseTimestamp(value.asLong())
+                            : DateTimeUtils.parseTimestamp(value.textValue()));
+                }
+                catch (Exception e) {
+                    return null;
+                }
             case DATE:
                 try {
-                    return new Timestamp(DateTimeUtils.parseTimestamp(value.isNumber() ? value.numberValue()
-                            : value.textValue()));
+                    return new Timestamp(DateTimeUtils.parseDate(value.textValue()));
                 }
                 catch (Exception e) {
                     return null;
@@ -907,6 +910,22 @@ public abstract class AbstractPostgresqlUserStorage
     private String getPostgresqlType(JsonNode clazz)
     {
         if (clazz.isTextual()) {
+            try {
+                DateTimeUtils.parseDate(clazz.asText());
+                return "date";
+            }
+            catch (Exception e) {
+
+            }
+
+            try {
+                DateTimeUtils.parseTimestamp(clazz.asText());
+                return "timestamp";
+            }
+            catch (Exception e) {
+
+            }
+
             return "text";
         }
         else if (clazz.isFloat() || clazz.isDouble()) {
