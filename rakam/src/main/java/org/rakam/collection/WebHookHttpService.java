@@ -64,6 +64,7 @@ import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -130,10 +131,11 @@ public class WebHookHttpService
                         loggerService.createLogger(key.project, prefix),
                         null,
                         jsCodeCompiler.createConfigManager(key.project, prefix), (engine, bindings) -> {
-                            Map<String, Object> values = webHook.parameters.entrySet()
-                                    .stream()
-                                    .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().value));
-                            bindings.put("$$params", values);
+                            Map<String, Parameter> parameters = webHook.parameters;
+                            Map<String, Object> map = new HashMap<>();
+                            parameters.forEach((k,v) -> map.put(k, v.value));
+
+                            bindings.put("$$params", map);
                             try {
                                 engine.eval("var $$module = function(queryParams, body, headers) { return module(queryParams, body, $$params, headers)}");
                             }
