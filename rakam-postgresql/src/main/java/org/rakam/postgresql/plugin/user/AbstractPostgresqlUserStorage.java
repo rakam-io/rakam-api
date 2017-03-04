@@ -38,6 +38,7 @@ import javax.annotation.Nullable;
 import java.sql.Array;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -631,37 +632,56 @@ public abstract class AbstractPostgresqlUserStorage
         JsonNode node;
         switch (fieldType) {
             case STRING:
-                node = JsonHelper.textNode(resultSet.getString(i));
+                String string = resultSet.getString(i);
+                if(resultSet.wasNull()) return NullNode.getInstance();
+                node = JsonHelper.textNode(string);
                 break;
             case INTEGER:
-                node = JsonHelper.numberNode(resultSet.getInt(i));
+                int anInt = resultSet.getInt(i);
+                if(resultSet.wasNull()) return NullNode.getInstance();
+                node = JsonHelper.numberNode(anInt);
                 break;
             case LONG:
-                node = JsonHelper.numberNode(resultSet.getLong(i));
+                long aLong = resultSet.getLong(i);
+                if(resultSet.wasNull()) return NullNode.getInstance();
+                node = JsonHelper.numberNode(aLong);
                 break;
             case BOOLEAN:
-                node = JsonHelper.booleanNode(resultSet.getBoolean(i));
+                boolean aBoolean = resultSet.getBoolean(i);
+                if(resultSet.wasNull()) return NullNode.getInstance();
+                node = JsonHelper.booleanNode(aBoolean);
                 break;
             case DATE:
-                node = JsonHelper.textNode(resultSet.getDate(i).toLocalDate().toString());
+                Date date = resultSet.getDate(i);
+                if(resultSet.wasNull()) return NullNode.getInstance();
+                node = JsonHelper.textNode(date.toLocalDate().toString());
                 break;
             case TIMESTAMP:
-                node = JsonHelper.textNode(resultSet.getTimestamp(i).toInstant().toString());
+                Timestamp timestamp = resultSet.getTimestamp(i);
+                if(resultSet.wasNull()) return NullNode.getInstance();
+                node = JsonHelper.textNode(timestamp.toInstant().toString());
                 break;
             case TIME:
-                node = JsonHelper.textNode(resultSet.getTime(i).toInstant().toString());
+                Time time = resultSet.getTime(i);
+                if(resultSet.wasNull()) return NullNode.getInstance();
+                node = JsonHelper.textNode(time.toInstant().toString());
                 break;
             case BINARY:
-                node = JsonHelper.binaryNode(resultSet.getBytes(i));
+                byte[] bytes = resultSet.getBytes(i);
+                if(resultSet.wasNull()) return NullNode.getInstance();
+                node = JsonHelper.binaryNode(bytes);
                 break;
             case DOUBLE:
             case DECIMAL:
-                node = JsonHelper.numberNode(resultSet.getDouble(i));
+                double aDouble = resultSet.getDouble(i);
+                if(resultSet.wasNull()) return NullNode.getInstance();
+                node = JsonHelper.numberNode(aDouble);
                 break;
             default:
                 if (fieldType.isArray()) {
                     ArrayNode jsonNodes = JsonHelper.jsonArray();
                     Array array = resultSet.getArray(i);
+                    if(resultSet.wasNull()) return NullNode.getInstance();
 
                     ResultSet rs = array.getResultSet();
                     int arrIdx = 1;
@@ -673,6 +693,7 @@ public abstract class AbstractPostgresqlUserStorage
                 }
                 else if (fieldType.isMap()) {
                     PGobject pgObject = (PGobject) resultSet.getObject(i + 1);
+                    if(resultSet.wasNull()) return NullNode.getInstance();
 
                     node = JsonHelper.read(pgObject.getValue());
                 }
@@ -681,7 +702,7 @@ public abstract class AbstractPostgresqlUserStorage
                 }
         }
 
-        return resultSet.wasNull() ? NullNode.getInstance() : node;
+        return node;
     }
 
     @Override
