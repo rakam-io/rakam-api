@@ -1,12 +1,8 @@
-package org.rakam.collection;
+package org.rakam.util.javascript;
 
 import com.google.common.base.Throwables;
-import com.mysql.jdbc.MySQLConnection;
-import com.zaxxer.hikari.pool.HikariProxyConnection;
 import io.airlift.log.Level;
-import org.postgresql.PGConnection;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.collection.util.JSCodeCompiler;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
@@ -21,19 +17,12 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.ws.rs.Path;
 
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
 import java.util.UUID;
-
-import static java.time.ZoneOffset.UTC;
 
 @Path("/javascript-logger")
 @Api(value = "/javascript-logger", nickname = "javascript-logs", description = "Javascript code logs", tags = "javascript")
@@ -128,7 +117,7 @@ public class JSCodeLoggerService
     }
 
     public class PersistentLogger
-            implements JSCodeCompiler.ILogger
+            implements ILogger
     {
         private final String prefix;
         private final String project;

@@ -21,11 +21,7 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
-import org.rakam.collection.JSCodeLoggerService;
 import org.rakam.collection.JsonEventDeserializer;
-import org.rakam.collection.util.JSCodeCompiler;
-import org.rakam.collection.util.JSCodeCompiler.JSConfigManager;
-import org.rakam.collection.util.MonitorThread;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventStore;
 import org.rakam.server.http.HttpService;
@@ -39,6 +35,10 @@ import org.rakam.ui.ScheduledTaskUIHttpService.Parameter;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 import org.rakam.util.SuccessMessage;
+import org.rakam.util.javascript.ILogger;
+import org.rakam.util.javascript.JSCodeCompiler;
+import org.rakam.util.javascript.JSConfigManager;
+import org.rakam.util.javascript.JSCodeLoggerService;
 import org.rakam.util.lock.LockService;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.GeneratedKeys;
@@ -324,7 +324,7 @@ public class ScheduledTaskHttpService
         return SuccessMessage.success("The task is running");
     }
 
-    private void updateTask(String project, int id, LockService.Lock lock, JSCodeCompiler.ILogger logger, long now, Throwable ex)
+    private void updateTask(String project, int id, LockService.Lock lock, ILogger logger, long now, Throwable ex)
     {
         if (ex == null) {
             try (Handle handle = dbi.open()) {
@@ -458,7 +458,7 @@ public class ScheduledTaskHttpService
         }
     }
 
-    static ListenableFuture<Void> run(JSCodeCompiler jsCodeCompiler, ListeningExecutorService executor, String project, String script, Map<String, Parameter> parameters, JSCodeCompiler.ILogger logger, JSCodeCompiler.IJSConfigManager configManager, JsonEventDeserializer deserializer, EventStore eventStore, List<EventMapper> eventMappers)
+    static ListenableFuture<Void> run(JSCodeCompiler jsCodeCompiler, ListeningExecutorService executor, String project, String script, Map<String, Parameter> parameters, ILogger logger, JSCodeCompiler.IJSConfigManager configManager, JsonEventDeserializer deserializer, EventStore eventStore, List<EventMapper> eventMappers)
     {
         return executor.submit(() -> {
             try {

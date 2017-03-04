@@ -6,10 +6,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.netty.channel.epoll.Epoll;
-import org.asynchttpclient.AsyncHttpClientConfig;
-import org.asynchttpclient.DefaultAsyncHttpClient;
-import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 import org.rakam.TestingConfigManager;
 import org.rakam.analysis.InMemoryApiKeyService;
 import org.rakam.analysis.InMemoryEventStore;
@@ -17,15 +13,16 @@ import org.rakam.analysis.InMemoryMetastore;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.collection.FieldDependencyBuilder;
-import org.rakam.collection.JSCodeLoggerService;
+import org.rakam.util.javascript.JSCodeLoggerService;
 import org.rakam.collection.JsonEventDeserializer;
-import org.rakam.collection.util.JSCodeCompiler;
+import org.rakam.util.javascript.JSCodeCompiler;
 import org.rakam.config.JDBCConfig;
 import org.rakam.plugin.RAsyncHttpClient;
 import org.rakam.plugin.tasks.ScheduledTaskHttpService.Environment;
 import org.rakam.ui.ScheduledTaskUIHttpService;
 import org.rakam.ui.ScheduledTaskUIHttpService.Parameter;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.javascript.JSConfigManager;
 import org.testng.annotations.Test;
 
 import java.util.concurrent.CompletableFuture;
@@ -46,7 +43,7 @@ public class TestScheduledTask
         FieldDependencyBuilder.FieldDependency fieldDependency = new FieldDependencyBuilder().build();
         JSCodeCompiler.TestLogger logger = new JSCodeCompiler.TestLogger();
         TestingConfigManager testingConfigManager = new TestingConfigManager();
-        JSCodeCompiler.IJSConfigManager ijsConfigManager = new JSCodeCompiler.JSConfigManager(testingConfigManager, "test", null);
+        JSCodeCompiler.IJSConfigManager ijsConfigManager = new JSConfigManager(testingConfigManager, "test", null);
 
         InMemoryApiKeyService apiKeyService = new InMemoryApiKeyService();
         InMemoryMetastore metastore = new InMemoryMetastore(apiKeyService);
@@ -77,7 +74,7 @@ public class TestScheduledTask
         JSCodeCompiler jsCodeCompiler = new JSCodeCompiler(testingConfigManager,
                 RAsyncHttpClient.create(1000, ""),
                 (project, prefix) -> new JSCodeLoggerService(sa).createLogger(project, prefix),
-                true);
+                true, true);
 
         ListenableFuture<Void> test = run(jsCodeCompiler, MoreExecutors.listeningDecorator(MoreExecutors.newDirectExecutorService()), "test", "load('../rakam-ui/src/main/resources/scheduled-task/facebook-ads/script.js')",
                 task.parameters, logger, ijsConfigManager, testingEventDeserializer, eventStore, ImmutableList.of());

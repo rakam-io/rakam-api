@@ -1,4 +1,4 @@
-package org.rakam.collection.util;
+package org.rakam.util.javascript;
 
 
 import com.google.common.base.Throwables;

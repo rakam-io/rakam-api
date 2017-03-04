@@ -2,7 +2,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.collect.ImmutableList;
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericArray;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -11,25 +10,13 @@ import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.EncoderFactory;
-import org.asynchttpclient.DefaultAsyncHttpClient;
-import org.rakam.TestingConfigManager;
-import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.collection.JSCodeLoggerService;
-import org.rakam.collection.util.JSCodeCompiler;
-import org.rakam.config.JDBCConfig;
-import org.rakam.plugin.RAsyncHttpClient;
 import org.rakam.recipe.Recipe;
 import org.testng.annotations.Test;
-
-import javax.script.Invocable;
-import javax.script.ScriptException;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
 
 public class RecipeConfigTest {
 //    @Test

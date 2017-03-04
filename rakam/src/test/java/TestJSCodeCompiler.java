@@ -1,6 +1,6 @@
 import okhttp3.OkHttpClient;
 import org.rakam.TestingConfigManager;
-import org.rakam.collection.util.JSCodeCompiler;
+import org.rakam.util.javascript.JSCodeCompiler;
 import org.rakam.plugin.RAsyncHttpClient;
 import org.testng.annotations.Test;
 
@@ -15,7 +15,7 @@ public class TestJSCodeCompiler
 
         JSCodeCompiler jsCodeCompiler = new JSCodeCompiler(new TestingConfigManager(),
                 new RAsyncHttpClient(new OkHttpClient()),
-                (project, prefix) -> new JSCodeCompiler.TestLogger(), false);
+                (project, prefix) -> new JSCodeCompiler.TestLogger(), false, true);
 //        jsCodeCompiler.createEngine("test", "new Array(100000000).concat(new Array(100000000));", "");
     }
 }

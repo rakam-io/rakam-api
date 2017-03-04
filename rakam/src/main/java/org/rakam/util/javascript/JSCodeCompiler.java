@@ -1,4 +1,4 @@
-package org.rakam.collection.util;
+package org.rakam.util.javascript;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
@@ -11,14 +11,11 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import jdk.nashorn.api.scripting.ClassFilter;
 import jdk.nashorn.api.scripting.NashornScriptEngineFactory;
-import okhttp3.OkHttpClient;
-import org.rakam.TestingConfigManager;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.collection.Event;
 import org.rakam.collection.EventCollectionHttpService;
 import org.rakam.collection.EventList;
-import org.rakam.collection.JSCodeLoggerService;
-import org.rakam.collection.JSCodeLoggerService.LogEntry;
+import org.rakam.util.javascript.JSCodeLoggerService.LogEntry;
 import org.rakam.collection.JsonEventDeserializer;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventStore;
@@ -36,6 +33,7 @@ import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
@@ -47,9 +45,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.BiConsumer;
-import java.util.function.Supplier;
 
 import static com.fasterxml.jackson.core.JsonToken.START_OBJECT;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -70,29 +66,32 @@ public class JSCodeCompiler
     private static Map<String, Object> JS_UTIL = ImmutableMap.of(
             "crypt", new JSUtil.JSCryptUtil(),
             "request", new JSUtil.JSRequestUtil());
+    private final boolean customEnabled;
 
     @Inject
     public JSCodeCompiler(
             ConfigManager configManager,
             @Named("rakam-client") RAsyncHttpClient httpClient,
-            JSCodeLoggerService loggerService)
+            JSCodeLoggerService loggerService,
+            JavascriptConfig config)
     {
         this(configManager, httpClient,
                 (project, prefix) -> loggerService.createLogger(project, prefix),
-                false);
-
+                false, config.getCustomEnabled());
     }
 
     public JSCodeCompiler(
             ConfigManager configManager,
             @Named("rakam-client") RAsyncHttpClient httpClient,
             LoggerFactory loggerService,
-            boolean loadAllowed)
+            boolean loadAllowed,
+            boolean customEnabled)
     {
         this.configManager = configManager;
         this.httpClient = httpClient;
         this.loggerService = loggerService;
         this.loadAllowed = loadAllowed;
+        this.customEnabled = customEnabled;
         try {
             localhost = InetAddress.getLocalHost();
         }
@@ -158,6 +157,7 @@ public class JSCodeCompiler
     public Invocable createEngine(String project, String code, String prefix)
             throws ScriptException
     {
+
         return createEngine(
                 code,
                 loggerService.createLogger(project, prefix),
@@ -165,8 +165,9 @@ public class JSCodeCompiler
                 prefix == null ? new MemoryConfigManager() : createConfigManager(project, prefix));
     }
 
-    public interface LoggerFactory {
-        public JSCodeCompiler.ILogger createLogger(String project, String prefix);
+    public interface LoggerFactory
+    {
+        ILogger createLogger(String project, String prefix);
     }
 
     public JSConfigManager createConfigManager(String project, String prefix)
@@ -190,6 +191,18 @@ public class JSCodeCompiler
     public Invocable createEngine(String code, ILogger logger, JSEventStore eventStore, IJSConfigManager configManager, BiConsumer<ScriptEngine, Bindings> binding)
             throws ScriptException
     {
+        if (!customEnabled) {
+            int firstLineBreak = code.indexOf("\n");
+            if(firstLineBreak == -1) {
+                throw new RakamException("Custom javascript code is not allowed", BAD_REQUEST);
+            }
+            String substring = code.substring(0, firstLineBreak);
+            if(!substring.startsWith("//@ sourceURL=rakam-ui/src/main/resources/")) {
+                throw new RakamException("Custom javascript code is not allowed", BAD_REQUEST);
+            }
+
+            String path = substring.substring("//@ sourceURL=rakam-ui/src/main/resources/".length());
+        }
         ScriptEngine engine = factory.getScriptEngine(args, classLoader, classFilter);
         Bindings bindings = engine.getBindings(ScriptContext.ENGINE_SCOPE);
 
@@ -218,17 +231,6 @@ public class JSCodeCompiler
         binding.accept(engine, bindings);
 
         return (Invocable) engine;
-    }
-
-    public interface ILogger
-    {
-        void debug(String value);
-
-        void warn(String value);
-
-        void info(String value);
-
-        void error(String value);
     }
 
     public static class TestLogger
@@ -336,39 +338,6 @@ public class JSCodeCompiler
         }
     }
 
-    public static class JSConfigManager
-            implements IJSConfigManager
-    {
-        private final ConfigManager configManager;
-        private final String project;
-        private final String prefix;
-
-        public JSConfigManager(ConfigManager configManager, String project, String prefix)
-        {
-            this.configManager = configManager;
-            this.project = project;
-            this.prefix = Optional.ofNullable(prefix).map(v -> v + ".").orElse("");
-        }
-
-        @Override
-        public Object get(String configName)
-        {
-            return configManager.getConfig(project, prefix + configName, Object.class);
-        }
-
-        @Override
-        public void set(String configName, Object value)
-        {
-            configManager.setConfig(project, prefix + configName, value);
-        }
-
-        @Override
-        public Object setOnce(String configName, Object value)
-        {
-            return configManager.setConfigOnce(project, prefix + configName, value);
-        }
-    }
-
     private static class JSUtil
     {
         private JSUtil()
@@ -417,7 +386,9 @@ public class JSCodeCompiler
         }
     }
 
-    public static class SafeClassLoader extends ClassLoader {
+    public static class SafeClassLoader
+            extends ClassLoader
+    {
         @Override
         public Class<?> loadClass(String name)
                 throws ClassNotFoundException

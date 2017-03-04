@@ -7,11 +7,13 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.util.RakamException;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -21,6 +23,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.collect.ImmutableList.of;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
 public abstract class AbstractUserService {
     private final UserStorage storage;
@@ -54,7 +57,12 @@ public abstract class AbstractUserService {
         return storage.searchUsers(project, columns, filterExpression, eventFilter, sorting, limit, offset);
     }
 
-    public void createSegment(String project, String name, String tableName, Expression filterExpression, List<UserStorage.EventFilter> eventFilter, Duration interval) {
+    public void createSegment(String project, String name, String tableName, Expression filterExpression, List<UserStorage.EventFilter> eventFilter, Duration interval)
+            throws RakamException
+    {
+        if(filterExpression == null && (eventFilter == null || eventFilter.isEmpty())) {
+            throw new RakamException("At least one filter is required.", BAD_REQUEST);
+        }
         storage.createSegment(project, name, tableName, filterExpression, eventFilter, interval);
     }
 

@@ -113,7 +113,7 @@ public class PostgresqlUserStorage
             builder.append(filterExpression.toString());
         }
 
-        if (eventFilter != null) {
+        if (eventFilter != null && !eventFilter.isEmpty()) {
             if(filterExpression != null) {
                 builder.append(" AND ");
             }
