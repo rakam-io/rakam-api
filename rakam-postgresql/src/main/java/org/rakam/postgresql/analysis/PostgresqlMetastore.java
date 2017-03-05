@@ -229,7 +229,7 @@ public class PostgresqlMetastore
                         "    AND n.nspname <> 'pg_catalog'\n" +
                         "    AND n.nspname <> 'information_schema'\n" +
                         "    AND n.nspname !~ '^pg_toast'     \n" +
-                        "    AND a.attnum > 0 AND NOT a.attisdropped",
+                        "    AND a.attnum > 0 AND NOT a.attisdropped AND c.relname != '_users'",
                 checkLiteral(project)));
 
         while (resultSet.next()) {
