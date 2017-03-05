@@ -14,8 +14,10 @@
 package org.rakam.postgresql.report;
 
 import com.google.common.collect.ImmutableMap;
+import io.airlift.log.Logger;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 import org.rakam.report.eventexplorer.AbstractEventExplorer;
@@ -41,6 +43,8 @@ import static org.rakam.util.ValidationUtil.checkProject;
 public class PostgresqlEventExplorer
         extends AbstractEventExplorer
 {
+    private final static Logger LOGGER = Logger.get(PostgresqlEventExplorer.class);
+
     private static final Map<TimestampTransformation, String> timestampMapping = ImmutableMap.
             <TimestampTransformation, String>builder()
             .put(HOUR_OF_DAY, "lpad(cast(extract(hour FROM %s) as text), 2, '0')||':00'")
@@ -100,7 +104,15 @@ public class PostgresqlEventExplorer
                     " from %s where %s group by 1", collectionQuery, timePredicate);
         }
 
-        return executorService.executeQuery(project, query, Optional.empty(), "collection", 20000).getResult();
+        QueryExecution collection = executorService.executeQuery(project, query, Optional.empty(), "collection", 20000);
+        collection.getResult().thenAccept(result -> {
+            if (result.isFailed()) {
+                LOGGER.error(new RuntimeException(result.getError().toString()),
+                        "An error occurred while executing event explorer statistics query.");
+            }
+        });
+
+        return collection.getResult();
     }
 
     @Override

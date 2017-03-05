@@ -404,7 +404,8 @@ public abstract class AbstractEventExplorer
     }
 
     @Override
-    public CompletableFuture<QueryResult> getEventStatistics(String project,
+    public CompletableFuture<QueryResult>
+    getEventStatistics(String project,
             Optional<Set<String>> collections,
             Optional<String> dimension, Instant startDate, Instant endDate)
     {
