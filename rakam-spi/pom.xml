@@ -201,6 +201,12 @@
             <artifactId>mysql-connector-java</artifactId>
             <version>5.1.35</version>
         </dependency>
+
+        <dependency>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
+            <version>6.1.0.jre8</version>
+        </dependency>
     </dependencies>
 
     <build>

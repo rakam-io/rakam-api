@@ -100,6 +100,42 @@ public enum SupportedCustomDatabase
                     Optional.ofNullable(factory.getPort()).orElse(3306),
                     factory.getDatabase()), info);
         }
+    }),
+    MSSQL(new CDataSource<JDBCSchemaConfig>() {
+        @Override
+        public Optional<String> test(JDBCSchemaConfig config) {
+            Connection connection = null;
+            try{
+                connection = openConnection(config);
+                return Optional.empty();
+            }catch (SQLException e){
+                return Optional.of(e.getMessage());
+            }finally {
+                if (connection != null) {
+                    try {
+                        connection.close();
+                    }
+                    catch (SQLException e) {
+                        throw Throwables.propagate(e);
+                    }
+                }
+            }
+        }
+
+        @Override
+        public Connection openConnection(JDBCSchemaConfig config) throws SQLException {
+            Properties info = new Properties();
+            String userName = config.getUsername();
+            String password = config.getPassword();
+            Optional.ofNullable(userName).map(value -> info.put("user", value));
+            Optional.ofNullable(password).map(value -> info.put("password", value));
+
+            return new com.microsoft.sqlserver.jdbc.SQLServerDriver()
+                    .connect(format("jdbc:sqlserver://%s:%s;databaseName=%s",
+                    config.getHost(),
+                    Optional.ofNullable(config.getPort()).orElse(1433),
+                    config.getDatabase()), info);
+        }
     });
 
     private final CDataSource<JDBCSchemaConfig> dataSource;
