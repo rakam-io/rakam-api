@@ -51,7 +51,6 @@ public class MaterializedViewHttpService extends HttpService {
 
     @JsonRequest
     @ApiOperation(value = "Get schemas", authorizations = @Authorization(value = "read_key"))
-
     @Path("/schema")
     public List<MaterializedViewSchema> getSchemaOfView(@javax.inject.Named("project") String project,
                                                                   @ApiParam(value = "names", required = false) List<String> tableNames) {

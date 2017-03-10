@@ -15,6 +15,7 @@ plugin.user.enabled=true\n\
 real-time.enabled=true\n\
 event.stream.enabled=true\n\
 event-explorer.enabled=true\n\
+custom-data-source.enabled=true\n\
 user.funnel-analysis.enabled=true\n\
 user.retention-analysis.enabled=true\n\
 plugin.geoip.enabled=true\n\

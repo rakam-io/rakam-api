@@ -5,6 +5,7 @@ import com.google.common.base.Throwables;
 import com.google.common.io.Files;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
@@ -18,16 +19,19 @@ import java.net.URL;
 import java.util.zip.GZIPInputStream;
 
 @AutoService(RakamModule.class)
-@ConditionalModule(config = "plugin.geoip.enabled", value="true")
+@ConditionalModule(config = "plugin.geoip.enabled", value = "true")
 public class MaxmindGeoIPModule
-        extends RakamModule {
+        extends RakamModule
+{
     @Override
-    protected void setup(Binder binder) {
+    protected void setup(Binder binder)
+    {
         MaxmindGeoIPModuleConfig geoIPModuleConfig = buildConfigObject(MaxmindGeoIPModuleConfig.class);
         MaxmindGeoIPEventMapper geoIPEventMapper;
         try {
             geoIPEventMapper = new MaxmindGeoIPEventMapper(geoIPModuleConfig);
-        } catch (IOException e) {
+        }
+        catch (IOException e) {
             binder.addError(e);
             return;
         }
@@ -36,17 +40,21 @@ public class MaxmindGeoIPModule
     }
 
     @Override
-    public String name() {
+    public String name()
+    {
         return "GeoIP Event Mapper";
     }
 
     @Override
-    public String description() {
+    public String description()
+    {
         return "It attaches the events that have ip attribute with location information by GeoIP lookup service.";
     }
 
-    static File downloadOrGetFile(URL url) throws Exception {
-        if("file".equals(url.getProtocol())) {
+    static File downloadOrGetFile(URL url)
+            throws Exception
+    {
+        if ("file".equals(url.getProtocol())) {
             return new File(url.toString().substring("file:/".length()));
         }
         String name = url.getFile().substring(url.getFile().lastIndexOf('/') + 1, url.getFile().length());
@@ -54,25 +62,44 @@ public class MaxmindGeoIPModule
 
         data.getParentFile().mkdirs();
 
-        String extension = Files.getFileExtension(data.getAbsolutePath());
-        if(extension.equals("gz")) {
-            File extractedFile = new File("/tmp/rakam/" + Files.getNameWithoutExtension(data.getAbsolutePath()));
-            if(extractedFile.exists()) {
-                return extractedFile;
+        String extension = Files.getFileExtension(data.getAbsolutePath()).split("&")[0];
+
+        File extractedFile = new File("/tmp/rakam/" + Files.getNameWithoutExtension(data.getAbsolutePath()));
+        if (extractedFile.exists()) {
+            return extractedFile;
+        }
+
+        if (!extractedFile.getParentFile().exists()) {
+            extractedFile.getParentFile().mkdirs();
+        }
+
+        if (!data.exists()) {
+            try {
+                new HttpDownloadHelper().download(url, data.toPath(), new HttpDownloadHelper.VerboseProgress(System.out));
+            }
+            catch (Exception e) {
+                throw Throwables.propagate(e);
+            }
+        }
+
+        if (extension.equals("tar.gz")) {
+            TarArchiveInputStream gzipInputStream =
+                    new TarArchiveInputStream(new GZIPInputStream(new FileInputStream(data)));
+
+            FileOutputStream out = new FileOutputStream(extractedFile);
+
+            byte[] buffer = new byte[1024];
+            int len;
+            while ((len = gzipInputStream.read(buffer)) > 0) {
+                out.write(buffer, 0, len);
             }
 
-            if(!extractedFile.getParentFile().exists()) {
-                extractedFile.getParentFile().mkdirs();
-            }
-
-            if (!data.exists()) {
-                try {
-                    new HttpDownloadHelper().download(url, data.toPath(), new HttpDownloadHelper.VerboseProgress(System.out));
-                } catch (Exception e) {
-                    throw Throwables.propagate(e);
-                }
-            }
-
+            gzipInputStream.close();
+            out.close();
+            data.delete();
+            return extractedFile;
+        }
+        else if (extension.equals("gz")) {
             GZIPInputStream gzipInputStream =
                     new GZIPInputStream(new FileInputStream(data));
 
@@ -89,14 +116,12 @@ public class MaxmindGeoIPModule
             data.delete();
 
             return extractedFile;
-        } else {
-            if(data.exists()) {
-                return data;
-            }
-
-            new HttpDownloadHelper().download(url, data.toPath(), new HttpDownloadHelper.VerboseProgress(System.out));
-
+        }
+        else if (extension.equals("mmdb")) {
             return data;
+        }
+        else {
+            throw new IllegalArgumentException("Unknown extension of Maxming GeoIP file: " + extension);
         }
     }
 }

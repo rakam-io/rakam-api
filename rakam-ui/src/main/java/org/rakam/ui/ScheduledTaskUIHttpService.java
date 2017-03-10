@@ -54,7 +54,7 @@ public class ScheduledTaskUIHttpService
         extends HttpService
 {
     @GET
-    @ApiOperation(value = "List scheduled job", response = Integer.class)
+    @ApiOperation(value = "List scheduled job")
     @Path("/list")
     public List<ScheduledTask> list()
     {
@@ -74,6 +74,7 @@ public class ScheduledTaskUIHttpService
                 resource = JsonHelper.read(ByteStreams.toByteArray(config.openStream()), ScheduledTask.class);
                 resource.script = new String(script, StandardCharsets.UTF_8);
                 resource.image = "/ui/scheduled-task/image/" + e;
+                resource.slug = e;
             }
             catch (IOException ex) {
                 return Stream.of();
@@ -83,12 +84,11 @@ public class ScheduledTaskUIHttpService
         }).collect(Collectors.toList());
     }
 
-    @ApiOperation(value = "Get scheduled job", response = Integer.class)
+    @ApiOperation(value = "Get scheduled job")
     @JsonRequest
     @Path("/get")
     public ScheduledTask get(@ApiParam("name") String name)
     {
-
         List<String> resourceFiles;
         try {
             resourceFiles = getResourceFiles("scheduled-task");
@@ -108,6 +108,7 @@ public class ScheduledTaskUIHttpService
             resource = JsonHelper.read(ByteStreams.toByteArray(config.openStream()), ScheduledTask.class);
             resource.script = new String(script, StandardCharsets.UTF_8);
             resource.image = "/ui/scheduled-task/image/" + name;
+            resource.slug = name;
             return resource;
         }
         catch (IOException ex) {
@@ -116,7 +117,7 @@ public class ScheduledTaskUIHttpService
     }
 
     @GET
-    @ApiOperation(value = "List scheduled job", response = Integer.class)
+    @ApiOperation(value = "List scheduled job", response = byte[].class)
     @Path("/image/*")
     public void image(RakamHttpRequest request)
     {
@@ -221,8 +222,10 @@ public class ScheduledTaskUIHttpService
 
     public static class ScheduledTask
     {
+        public String slug;
         public final String name;
         public External external;
+        public final String recipe;
         public String image;
         public final String description;
         public String script;
@@ -231,16 +234,20 @@ public class ScheduledTaskUIHttpService
 
         @JsonCreator
         public ScheduledTask(
+                @ApiParam(value = "slug", required = false) String slug,
                 @ApiParam("name") String name,
                 @ApiParam(value = "image", required = false) String image,
+                @ApiParam(value = "recipe", required = false) String recipe,
                 @ApiParam(value = "externalUrl", required = false) External external,
                 @ApiParam(value = "defaultDuration", required = false) Duration defaultDuration,
                 @ApiParam(value = "description", required = false) String description,
                 @ApiParam(value = "script", required = false) String script,
                 @ApiParam(value = "parameters", required = false) Map<String, Parameter> parameters)
         {
+            this.slug = slug;
             this.name = name;
             this.image = image;
+            this.recipe = recipe;
             this.external = external;
             this.defaultDuration = defaultDuration;
             this.description = description;
