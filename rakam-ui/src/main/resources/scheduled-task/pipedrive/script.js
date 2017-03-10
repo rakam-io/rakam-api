@@ -138,7 +138,9 @@ var fetch = function (parameters, events, startDate, offset) {
     }
 
     eventStore.store(events);
-    config.set('start_timestamp', data.additional_data.last_timestamp_on_page);
+    if(data.additional_data.last_timestamp_on_page) {
+        config.set('start_timestamp', data.additional_data.last_timestamp_on_page);
+    }
 
     if (data.additional_data.pagination.more_items_in_collection) {
         return fetch(parameters, [], startDate, data.additional_data.pagination.next_start);

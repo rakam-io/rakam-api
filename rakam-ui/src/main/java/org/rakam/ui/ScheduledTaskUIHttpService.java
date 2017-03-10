@@ -15,6 +15,7 @@ import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.IgnoreApi;
+import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
@@ -82,6 +83,38 @@ public class ScheduledTaskUIHttpService
         }).collect(Collectors.toList());
     }
 
+    @ApiOperation(value = "Get scheduled job", response = Integer.class)
+    @JsonRequest
+    @Path("/get")
+    public ScheduledTask get(@ApiParam("name") String name)
+    {
+
+        List<String> resourceFiles;
+        try {
+            resourceFiles = getResourceFiles("scheduled-task");
+        }
+        catch (IOException e) {
+            throw new RakamException("Unable to read files", INTERNAL_SERVER_ERROR);
+        }
+
+        if (!resourceFiles.contains(name)) {
+            throw new RakamException(NOT_FOUND);
+        }
+
+        ScheduledTask resource;
+        try {
+            URL config = getClass().getResource("/scheduled-task/" + name + "/config.json");
+            byte[] script = ByteStreams.toByteArray(getClass().getResource("/scheduled-task/" + name + "/script.js").openStream());
+            resource = JsonHelper.read(ByteStreams.toByteArray(config.openStream()), ScheduledTask.class);
+            resource.script = new String(script, StandardCharsets.UTF_8);
+            resource.image = "/ui/scheduled-task/image/" + name;
+            return resource;
+        }
+        catch (IOException ex) {
+            throw new RakamException(NOT_FOUND);
+        }
+    }
+
     @GET
     @ApiOperation(value = "List scheduled job", response = Integer.class)
     @Path("/image/*")
@@ -136,8 +169,9 @@ public class ScheduledTaskUIHttpService
         }
         catch (URISyntaxException e) {
             throw Throwables.propagate(e);
-        } finally {
-            if(fileSystem != null) {
+        }
+        finally {
+            if (fileSystem != null) {
                 fileSystem.close();
             }
         }
@@ -152,6 +186,7 @@ public class ScheduledTaskUIHttpService
         public final String description;
         @JsonInclude(JsonInclude.Include.NON_NULL)
         public final List<Choice> choices;
+        public final boolean hidden;
 
         @JsonCreator
         public Parameter(
@@ -159,13 +194,15 @@ public class ScheduledTaskUIHttpService
                 @ApiParam(value = "value", required = false) Object value,
                 @ApiParam(value = "placeholder", required = false) String placeholder,
                 @ApiParam(value = "choices", required = false) List<Choice> choices,
-                @ApiParam(value = "description", required = false) String description)
+                @ApiParam(value = "description", required = false) String description,
+                @ApiParam(value = "hidden", required = false) boolean hidden)
         {
             this.type = type;
             this.value = value;
             this.placeholder = placeholder;
             this.choices = choices;
             this.description = description;
+            this.hidden = hidden;
         }
 
         public static class Choice

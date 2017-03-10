@@ -103,11 +103,6 @@
         </dependency>
 
         <dependency>
-            <groupId>javax.ws.rs</groupId>
-            <artifactId>javax.ws.rs-api</artifactId>
-        </dependency>
-
-        <dependency>
             <groupId>com.google.auto.value</groupId>
             <artifactId>auto-value</artifactId>
             <scope>provided</scope>
@@ -216,10 +211,19 @@
                     <artifactId>commons-logging</artifactId>
                 </exclusion>
                 <exclusion>
+                    <groupId>com.sun.jersey</groupId>
+                    <artifactId>jersey-core</artifactId>
+                </exclusion>
+                <exclusion>
                     <groupId>org.apache.httpcomponents</groupId>
                     <artifactId>httpclient</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>javax.ws.rs</groupId>
+            <artifactId>javax.ws.rs-api</artifactId>
         </dependency>
     </dependencies>
 
@@ -244,7 +248,12 @@
                             <ignoredUnusedDeclaredDependencies>
                                 <ignoredUnusedDeclaredDependency>org.slf4j:slf4j-api
                                 </ignoredUnusedDeclaredDependency>
+                                <ignoredUnusedDeclaredDependency>javax.ws.rs:javax.ws.rs-api
+                                </ignoredUnusedDeclaredDependency>
                             </ignoredUnusedDeclaredDependencies>
+                            <ignoredUsedUndeclaredDependencies>
+                                <ignoredUsedUndeclaredDependency>com.sun.jersey:jersey-core</ignoredUsedUndeclaredDependency>
+                            </ignoredUsedUndeclaredDependencies>
                         </configuration>
                     </execution>
                 </executions>
