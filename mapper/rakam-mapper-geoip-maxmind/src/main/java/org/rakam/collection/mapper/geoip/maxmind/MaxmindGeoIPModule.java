@@ -2,10 +2,15 @@ package org.rakam.collection.mapper.geoip.maxmind;
 
 import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
+import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
+import com.google.common.primitives.Ints;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
+import org.apache.commons.compress.archivers.ArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
+import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
@@ -62,15 +67,12 @@ public class MaxmindGeoIPModule
 
         data.getParentFile().mkdirs();
 
-        String extension = Files.getFileExtension(data.getAbsolutePath()).split("&")[0];
-
-        File extractedFile = new File("/tmp/rakam/" + Files.getNameWithoutExtension(data.getAbsolutePath()));
-        if (extractedFile.exists()) {
-            return extractedFile;
+        String extension;
+        if (url.getHost().equals("download.maxmind.com") && url.getPath().startsWith("/app")) {
+            extension = "tar.gz";
         }
-
-        if (!extractedFile.getParentFile().exists()) {
-            extractedFile.getParentFile().mkdirs();
+        else {
+            extension = Files.getFileExtension(data.getAbsolutePath());
         }
 
         if (!data.exists()) {
@@ -82,46 +84,73 @@ public class MaxmindGeoIPModule
             }
         }
 
+        File extractedFile = new File("/tmp/rakam/" + Files.getNameWithoutExtension(data.getAbsolutePath()) + "-extracted");
+        if (extractedFile.exists() && extractedFile.length() > 0) {
+            return extractedFile;
+        }
+
+        if (!extractedFile.getParentFile().exists()) {
+            extractedFile.getParentFile().mkdirs();
+        }
+
         if (extension.equals("tar.gz")) {
-            TarArchiveInputStream gzipInputStream =
-                    new TarArchiveInputStream(new GZIPInputStream(new FileInputStream(data)));
+            TarArchiveInputStream tarInput =
+                    new TarArchiveInputStream(new GzipCompressorInputStream(new FileInputStream(data)));
 
             FileOutputStream out = new FileOutputStream(extractedFile);
+            try {
+                ArchiveEntry entry;
+                int size = -1;
+                while (null != (entry = tarInput.getNextEntry())) {
+                    if (entry.getName().endsWith("mmdb")) {
+                        size = Ints.checkedCast(entry.getSize());
+                        break;
+                    } else {
+                        ByteStreams.toByteArray(tarInput);
+                    }
+                }
 
-            byte[] buffer = new byte[1024];
-            int len;
-            while ((len = gzipInputStream.read(buffer)) > 0) {
-                out.write(buffer, 0, len);
+                if (size == -1) {
+                    throw new IllegalStateException("tar.gz file doesn't contain an mmdb file");
+                }
+
+                byte[] bytes = new byte[size];
+                tarInput.read(bytes);
+                out.write(bytes);
+            }
+            finally {
+                tarInput.close();
+                out.close();
+                data.delete();
             }
 
-            gzipInputStream.close();
-            out.close();
-            data.delete();
             return extractedFile;
-        }
-        else if (extension.equals("gz")) {
-            GZIPInputStream gzipInputStream =
-                    new GZIPInputStream(new FileInputStream(data));
-
-            FileOutputStream out = new FileOutputStream(extractedFile);
-
-            byte[] buffer = new byte[1024];
-            int len;
-            while ((len = gzipInputStream.read(buffer)) > 0) {
-                out.write(buffer, 0, len);
-            }
-
-            gzipInputStream.close();
-            out.close();
-            data.delete();
-
-            return extractedFile;
-        }
-        else if (extension.equals("mmdb")) {
-            return data;
         }
         else {
-            throw new IllegalArgumentException("Unknown extension of Maxming GeoIP file: " + extension);
+            if (extension.equals("gz")) {
+                GZIPInputStream gzipInputStream =
+                        new GZIPInputStream(new FileInputStream(data));
+
+                FileOutputStream out = new FileOutputStream(extractedFile);
+
+                byte[] buffer = new byte[1024];
+                int len;
+                while ((len = gzipInputStream.read(buffer)) > 0) {
+                    out.write(buffer, 0, len);
+                }
+
+                gzipInputStream.close();
+                out.close();
+                data.delete();
+
+                return extractedFile;
+            }
+            else if (extension.equals("mmdb")) {
+                return data;
+            }
+            else {
+                throw new IllegalArgumentException("Unknown extension of Maxming GeoIP file: " + extension);
+            }
         }
     }
 }

@@ -285,7 +285,7 @@ public class MaxmindGeoIPEventMapper
             return;
         }
         catch (Exception e) {
-            LOGGER.error(e, "Error while search for location information. ");
+            LOGGER.error(e, "Error while searching for location information.");
             return;
         }
 
@@ -305,7 +305,7 @@ public class MaxmindGeoIPEventMapper
             return;
         }
         catch (Exception e) {
-            LOGGER.error(e, "Error while search for location information. ");
+            LOGGER.error(e, "Error while searching for location information.");
             return;
         }
 
@@ -323,7 +323,7 @@ public class MaxmindGeoIPEventMapper
             return;
         }
         catch (Exception e) {
-            LOGGER.error(e, "Error while search for location information. ");
+            LOGGER.error(e, "Error while searching for location information.");
             return;
         }
 
