@@ -143,32 +143,21 @@ public class EventExplorerHttpService
                 .filter(Optional::isPresent).map(Optional::get).collect(Collectors.joining(", ")))
                 .collect(Collectors.joining(", "));
 
-        String subQuery;
         String dimensions = table.dimensions.stream().collect(Collectors.joining(", "));
-        if (table.collections.size() == 1) {
-            subQuery = table.collections.iterator().next();
-        }
-        else if (table.collections.size() > 1) {
-            subQuery = table.collections.stream().map(collection -> String.format("SELECT '%s' as collection, _time %s %s FROM %s",
-                    collection,
-                    dimensions.isEmpty() ? "" : ", " + dimensions,
-                    table.measures.isEmpty() ? "" : ", " + table.measures.stream().collect(Collectors.joining(", ")), collection))
-                    .collect(Collectors.joining(" UNION ALL "));
-        }
-        else {
-            throw new RakamException("collections is empty", HttpResponseStatus.BAD_REQUEST);
-        }
+        String subQuery = table.collections.stream().map(collection -> String.format("SELECT cast('%s' as varchar) as _collection, _time %s %s FROM %s",
+                collection,
+                dimensions.isEmpty() ? "" : ", " + dimensions,
+                table.measures.isEmpty() ? "" : ", " + table.measures.stream().collect(Collectors.joining(", ")), collection))
+                .collect(Collectors.joining(" UNION ALL "));
 
         String name = "Dimensions";
 
         String dimensionColumns = !dimensions.isEmpty() ? (dimensions + ",") : "";
-        String collectionColumn = table.collections.size() != 1 ? ("collection,") : "";
-        String query = String.format("SELECT %s _time, %s %s FROM (SELECT %s CAST(_time AS DATE) as _time, %s %s FROM (%s)) GROUP BY CUBE (_time %s %s) ORDER BY 1 ASC",
-                collectionColumn, dimensionColumns, metrics,
-                collectionColumn, dimensionColumns, table.measures.stream().collect(Collectors.joining(", ")),
-
+        String query = String.format("SELECT %s _time, %s %s FROM (SELECT %s CAST(_time AS DATE) as _time, %s %s FROM (%s) data) data GROUP BY CUBE (_time %s %s) ORDER BY 1 ASC",
+                "_collection,", dimensionColumns, metrics,
+                "_collection,", dimensionColumns, table.measures.stream().collect(Collectors.joining(", ")),
                 subQuery,
-                table.collections.size() == 1 ? "" : ", collection", dimensions.isEmpty() ? "" : "," + dimensions);
+                ", _collection", dimensions.isEmpty() ? "" : "," + dimensions);
 
         return materializedViewService.create(project, new MaterializedView(table.tableName, "Olap table", query,
                 Duration.ofHours(1), null, ImmutableMap.of("olap_table", table)))

@@ -2,7 +2,7 @@
   "name": "Pipedrive",
   "description": "Collects data from Pipedrive API",
   "defaultDuration": "PT1H",
-  "recipe": "rakam/pipedrive",
+  "recipe": "pipedrive",
   "parameters": {
     "collection_prefix": {
       "type": "string",

@@ -303,7 +303,8 @@ public class PrestoQueryExecution
                     transformAndAdd(client.finalResults());
 
                     ImmutableMap<String, Object> stats = ImmutableMap.of(
-                            QueryResult.EXECUTION_TIME, startTime.until(Instant.now(), ChronoUnit.MILLIS));
+                            QueryResult.EXECUTION_TIME, startTime.until(Instant.now(), ChronoUnit.MILLIS),
+                            QueryResult.QUERY, query);
 
                     result.complete(new QueryResult(columns, data, stats));
                 }

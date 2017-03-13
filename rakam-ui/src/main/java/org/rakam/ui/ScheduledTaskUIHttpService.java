@@ -184,6 +184,8 @@ public class ScheduledTaskUIHttpService
         public Object value;
         @JsonInclude(JsonInclude.Include.NON_NULL)
         public final String placeholder;
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        public final boolean required;
         public final String description;
         @JsonInclude(JsonInclude.Include.NON_NULL)
         public final List<Choice> choices;
@@ -193,17 +195,19 @@ public class ScheduledTaskUIHttpService
         public Parameter(
                 @ApiParam("type") FieldType type,
                 @ApiParam(value = "value", required = false) Object value,
+                @ApiParam(value = "required", required = false) Boolean required,
                 @ApiParam(value = "placeholder", required = false) String placeholder,
                 @ApiParam(value = "choices", required = false) List<Choice> choices,
                 @ApiParam(value = "description", required = false) String description,
-                @ApiParam(value = "hidden", required = false) boolean hidden)
+                @ApiParam(value = "hidden", required = false) Boolean hidden)
         {
             this.type = type;
+            this.required = Boolean.TRUE.equals(required);
             this.value = value;
             this.placeholder = placeholder;
             this.choices = choices;
             this.description = description;
-            this.hidden = hidden;
+            this.hidden = Boolean.TRUE.equals(hidden);
         }
 
         public static class Choice

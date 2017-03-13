@@ -1,0 +1,1640 @@
+{
+  "name": "Mixpanel",
+  "description": "Exports raw data from Mixpanel",
+  "defaultDuration": "PT24H",
+  "parameters": {
+    "api_secret": {
+      "type": "string",
+      "placeholder": "dsb085z33086484247123gc4s72l1223",
+      "description": "The API secret of your Mixpanel project. Your name on top-right corner -> Project settings -> API Secret"
+    },
+    "timezone": {
+      "type": "string",
+      "placeholder": "https://rakam.io",
+      "description": "The timezone of your project",
+      "value": 0,
+      "choices": [
+        {
+          "value": "US/Alaska",
+          "key": -600
+        },
+        {
+          "value": "US/Arizona",
+          "key": -420
+        },
+        {
+          "value": "US/Central",
+          "key": -360
+        },
+        {
+          "value": "US/Eastern",
+          "key": -300
+        },
+        {
+          "value": "US/Hawaii",
+          "key": -600
+        },
+        {
+          "value": "US/Mountain",
+          "key": -420
+        },
+        {
+          "value": "US/Pacific",
+          "key": -480
+        },
+        {
+          "value": "Africa/Abidjan",
+          "key": 0
+        },
+        {
+          "value": "Africa/Accra",
+          "key": 0
+        },
+        {
+          "value": "Africa/Addis_Ababa",
+          "key": 180
+        },
+        {
+          "value": "Africa/Algiers",
+          "key": 0
+        },
+        {
+          "value": "Africa/Asmara",
+          "key": 180
+        },
+        {
+          "value": "Africa/Bamako",
+          "key": 0
+        },
+        {
+          "value": "Africa/Bangui",
+          "key": 60
+        },
+        {
+          "value": "Africa/Banjul",
+          "key": 0
+        },
+        {
+          "value": "Africa/Bissau",
+          "key": -60
+        },
+        {
+          "value": "Africa/Blantyre",
+          "key": 120
+        },
+        {
+          "value": "Africa/Brazzaville",
+          "key": 60
+        },
+        {
+          "value": "Africa/Bujumbura",
+          "key": 120
+        },
+        {
+          "value": "Africa/Cairo",
+          "key": 120
+        },
+        {
+          "value": "Africa/Casablanca",
+          "key": 0
+        },
+        {
+          "value": "Africa/Ceuta",
+          "key": 0
+        },
+        {
+          "value": "Africa/Conakry",
+          "key": 0
+        },
+        {
+          "value": "Africa/Dakar",
+          "key": 0
+        },
+        {
+          "value": "Africa/Dar_es_Salaam",
+          "key": 180
+        },
+        {
+          "value": "Africa/Djibouti",
+          "key": 180
+        },
+        {
+          "value": "Africa/Douala",
+          "key": 60
+        },
+        {
+          "value": "Africa/El_Aaiun",
+          "key": -60
+        },
+        {
+          "value": "Africa/Freetown",
+          "key": 0
+        },
+        {
+          "value": "Africa/Gaborone",
+          "key": 120
+        },
+        {
+          "value": "Africa/Harare",
+          "key": 120
+        },
+        {
+          "value": "Africa/Johannesburg",
+          "key": 120
+        },
+        {
+          "value": "Africa/Kampala",
+          "key": 180
+        },
+        {
+          "value": "Africa/Khartoum",
+          "key": 120
+        },
+        {
+          "value": "Africa/Kigali",
+          "key": 120
+        },
+        {
+          "value": "Africa/Kinshasa",
+          "key": 60
+        },
+        {
+          "value": "Africa/Lagos",
+          "key": 60
+        },
+        {
+          "value": "Africa/Libreville",
+          "key": 60
+        },
+        {
+          "value": "Africa/Lome",
+          "key": 0
+        },
+        {
+          "value": "Africa/Luanda",
+          "key": 60
+        },
+        {
+          "value": "Africa/Lubumbashi",
+          "key": 120
+        },
+        {
+          "value": "Africa/Lusaka",
+          "key": 120
+        },
+        {
+          "value": "Africa/Malabo",
+          "key": 60
+        },
+        {
+          "value": "Africa/Maputo",
+          "key": 120
+        },
+        {
+          "value": "Africa/Maseru",
+          "key": 120
+        },
+        {
+          "value": "Africa/Mbabane",
+          "key": 120
+        },
+        {
+          "value": "Africa/Mogadishu",
+          "key": 180
+        },
+        {
+          "value": "Africa/Monrovia",
+          "key": -44.5
+        },
+        {
+          "value": "Africa/Nairobi",
+          "key": 180
+        },
+        {
+          "value": "Africa/Ndjamena",
+          "key": 60
+        },
+        {
+          "value": "Africa/Niamey",
+          "key": 60
+        },
+        {
+          "value": "Africa/Nouakchott",
+          "key": 0
+        },
+        {
+          "value": "Africa/Ouagadougou",
+          "key": 0
+        },
+        {
+          "value": "Africa/Porto-Novo",
+          "key": 60
+        },
+        {
+          "value": "Africa/Sao_Tome",
+          "key": 0
+        },
+        {
+          "value": "Africa/Tripoli",
+          "key": 120
+        },
+        {
+          "value": "Africa/Tunis",
+          "key": 60
+        },
+        {
+          "value": "Africa/Windhoek",
+          "key": 120
+        },
+        {
+          "value": "America/Adak",
+          "key": -660
+        },
+        {
+          "value": "America/Anchorage",
+          "key": -600
+        },
+        {
+          "value": "America/Anguilla",
+          "key": -240
+        },
+        {
+          "value": "America/Antigua",
+          "key": -240
+        },
+        {
+          "value": "America/Araguaina",
+          "key": -180
+        },
+        {
+          "value": "America/Argentina/Buenos_Aires",
+          "key": -180
+        },
+        {
+          "value": "America/Argentina/Catamarca",
+          "key": -180
+        },
+        {
+          "value": "America/Argentina/Cordoba",
+          "key": -180
+        },
+        {
+          "value": "America/Argentina/Jujuy",
+          "key": -180
+        },
+        {
+          "value": "America/Argentina/La_Rioja",
+          "key": -180
+        },
+        {
+          "value": "America/Argentina/Mendoza",
+          "key": -180
+        },
+        {
+          "value": "America/Argentina/Rio_Gallegos",
+          "key": -180
+        },
+        {
+          "value": "America/Argentina/Salta",
+          "key": -180
+        },
+        {
+          "value": "America/Argentina/San_Juan",
+          "key": -180
+        },
+        {
+          "value": "America/Argentina/San_Luis",
+          "key": -180
+        },
+        {
+          "value": "America/Argentina/Tucuman",
+          "key": -180
+        },
+        {
+          "value": "America/Argentina/Ushuaia",
+          "key": -180
+        },
+        {
+          "value": "America/Aruba",
+          "key": -240
+        },
+        {
+          "value": "America/Asuncion",
+          "key": -240
+        },
+        {
+          "value": "America/Atikokan",
+          "key": -300
+        },
+        {
+          "value": "America/Bahia",
+          "key": -180
+        },
+        {
+          "value": "America/Bahia_Banderas",
+          "key": -420
+        },
+        {
+          "value": "America/Barbados",
+          "key": -240
+        },
+        {
+          "value": "America/Belem",
+          "key": -180
+        },
+        {
+          "value": "America/Belize",
+          "key": -360
+        },
+        {
+          "value": "America/Blanc-Sablon",
+          "key": -240
+        },
+        {
+          "value": "America/Boa_Vista",
+          "key": -240
+        },
+        {
+          "value": "America/Bogota",
+          "key": -300
+        },
+        {
+          "value": "America/Boise",
+          "key": -420
+        },
+        {
+          "value": "America/Cambridge_Bay",
+          "key": -420
+        },
+        {
+          "value": "America/Campo_Grande",
+          "key": -240
+        },
+        {
+          "value": "America/Cancun",
+          "key": -360
+        },
+        {
+          "value": "America/Caracas",
+          "key": -240
+        },
+        {
+          "value": "America/Cayenne",
+          "key": -180
+        },
+        {
+          "value": "America/Cayman",
+          "key": -300
+        },
+        {
+          "value": "America/Chicago",
+          "key": -360
+        },
+        {
+          "value": "America/Chihuahua",
+          "key": -360
+        },
+        {
+          "value": "America/Costa_Rica",
+          "key": -360
+        },
+        {
+          "value": "America/Cuiaba",
+          "key": -240
+        },
+        {
+          "value": "America/Curacao",
+          "key": -240
+        },
+        {
+          "value": "America/Danmarkshavn",
+          "key": -180
+        },
+        {
+          "value": "America/Dawson",
+          "key": -540
+        },
+        {
+          "value": "America/Dawson_Creek",
+          "key": -480
+        },
+        {
+          "value": "America/Denver",
+          "key": -420
+        },
+        {
+          "value": "America/Detroit",
+          "key": -300
+        },
+        {
+          "value": "America/Dominica",
+          "key": -240
+        },
+        {
+          "value": "America/Edmonton",
+          "key": -420
+        },
+        {
+          "value": "America/Eirunepe",
+          "key": -300
+        },
+        {
+          "value": "America/El_Salvador",
+          "key": -360
+        },
+        {
+          "value": "America/Fortaleza",
+          "key": -180
+        },
+        {
+          "value": "America/Glace_Bay",
+          "key": -240
+        },
+        {
+          "value": "America/Godthab",
+          "key": -180
+        },
+        {
+          "value": "America/Goose_Bay",
+          "key": -240
+        },
+        {
+          "value": "America/Grand_Turk",
+          "key": -300
+        },
+        {
+          "value": "America/Grenada",
+          "key": -240
+        },
+        {
+          "value": "America/Guadeloupe",
+          "key": -240
+        },
+        {
+          "value": "America/Guatemala",
+          "key": -360
+        },
+        {
+          "value": "America/Guayaquil",
+          "key": -300
+        },
+        {
+          "value": "America/Guyana",
+          "key": -225
+        },
+        {
+          "value": "America/Halifax",
+          "key": -240
+        },
+        {
+          "value": "America/Havana",
+          "key": -300
+        },
+        {
+          "value": "America/Hermosillo",
+          "key": -420
+        },
+        {
+          "value": "America/Indiana/Indianapolis",
+          "key": -300
+        },
+        {
+          "value": "America/Indiana/Knox",
+          "key": -360
+        },
+        {
+          "value": "America/Indiana/Marengo",
+          "key": -300
+        },
+        {
+          "value": "America/Indiana/Petersburg",
+          "key": -360
+        },
+        {
+          "value": "America/Indiana/Tell_City",
+          "key": -300
+        },
+        {
+          "value": "America/Indiana/Vevay",
+          "key": -300
+        },
+        {
+          "value": "America/Indiana/Vincennes",
+          "key": -300
+        },
+        {
+          "value": "America/Indiana/Winamac",
+          "key": -300
+        },
+        {
+          "value": "America/Inuvik",
+          "key": -480
+        },
+        {
+          "value": "America/Iqaluit",
+          "key": -300
+        },
+        {
+          "value": "America/Jamaica",
+          "key": -300
+        },
+        {
+          "value": "America/Juneau",
+          "key": -480
+        },
+        {
+          "value": "America/Kentucky/Louisville",
+          "key": -300
+        },
+        {
+          "value": "America/Kentucky/Monticello",
+          "key": -360
+        },
+        {
+          "value": "America/La_Paz",
+          "key": -240
+        },
+        {
+          "value": "America/Lima",
+          "key": -300
+        },
+        {
+          "value": "America/Los_Angeles",
+          "key": -480
+        },
+        {
+          "value": "America/Maceio",
+          "key": -180
+        },
+        {
+          "value": "America/Managua",
+          "key": -360
+        },
+        {
+          "value": "America/Manaus",
+          "key": -240
+        },
+        {
+          "value": "America/Martinique",
+          "key": -240
+        },
+        {
+          "value": "America/Matamoros",
+          "key": -360
+        },
+        {
+          "value": "America/Mazatlan",
+          "key": -420
+        },
+        {
+          "value": "America/Menominee",
+          "key": -300
+        },
+        {
+          "value": "America/Merida",
+          "key": -360
+        },
+        {
+          "value": "America/Mexico_City",
+          "key": -360
+        },
+        {
+          "value": "America/Miquelon",
+          "key": -240
+        },
+        {
+          "value": "America/Moncton",
+          "key": -240
+        },
+        {
+          "value": "America/Monterrey",
+          "key": -360
+        },
+        {
+          "value": "America/Montevideo",
+          "key": -180
+        },
+        {
+          "value": "America/Montreal",
+          "key": -300
+        },
+        {
+          "value": "America/Montserrat",
+          "key": -240
+        },
+        {
+          "value": "America/Nassau",
+          "key": -300
+        },
+        {
+          "value": "America/New_York",
+          "key": -300
+        },
+        {
+          "value": "America/Nipigon",
+          "key": -300
+        },
+        {
+          "value": "America/Nome",
+          "key": -660
+        },
+        {
+          "value": "America/Noronha",
+          "key": -120
+        },
+        {
+          "value": "America/North_Dakota/Center",
+          "key": -420
+        },
+        {
+          "value": "America/North_Dakota/New_Salem",
+          "key": -420
+        },
+        {
+          "value": "America/Ojinaga",
+          "key": -360
+        },
+        {
+          "value": "America/Panama",
+          "key": -300
+        },
+        {
+          "value": "America/Pangnirtung",
+          "key": -240
+        },
+        {
+          "value": "America/Paramaribo",
+          "key": -210
+        },
+        {
+          "value": "America/Phoenix",
+          "key": -420
+        },
+        {
+          "value": "America/Port-au-Prince",
+          "key": -300
+        },
+        {
+          "value": "America/Porto_Velho",
+          "key": -240
+        },
+        {
+          "value": "America/Port_of_Spain",
+          "key": -240
+        },
+        {
+          "value": "America/Puerto_Rico",
+          "key": -240
+        },
+        {
+          "value": "America/Rainy_River",
+          "key": -360
+        },
+        {
+          "value": "America/Rankin_Inlet",
+          "key": -360
+        },
+        {
+          "value": "America/Recife",
+          "key": -180
+        },
+        {
+          "value": "America/Regina",
+          "key": -360
+        },
+        {
+          "value": "America/Resolute",
+          "key": -360
+        },
+        {
+          "value": "America/Rio_Branco",
+          "key": -300
+        },
+        {
+          "value": "America/Santarem",
+          "key": -240
+        },
+        {
+          "value": "America/Santa_Isabel",
+          "key": -480
+        },
+        {
+          "value": "America/Santiago",
+          "key": -180
+        },
+        {
+          "value": "America/Santo_Domingo",
+          "key": -270
+        },
+        {
+          "value": "America/Sao_Paulo",
+          "key": -180
+        },
+        {
+          "value": "America/Scoresbysund",
+          "key": -120
+        },
+        {
+          "value": "America/St_Johns",
+          "key": -210
+        },
+        {
+          "value": "America/St_Kitts",
+          "key": -240
+        },
+        {
+          "value": "America/St_Lucia",
+          "key": -240
+        },
+        {
+          "value": "America/St_Thomas",
+          "key": -240
+        },
+        {
+          "value": "America/St_Vincent",
+          "key": -240
+        },
+        {
+          "value": "America/Swift_Current",
+          "key": -420
+        },
+        {
+          "value": "America/Tegucigalpa",
+          "key": -360
+        },
+        {
+          "value": "America/Thule",
+          "key": -240
+        },
+        {
+          "value": "America/Thunder_Bay",
+          "key": -300
+        },
+        {
+          "value": "America/Tijuana",
+          "key": -480
+        },
+        {
+          "value": "America/Toronto",
+          "key": -300
+        },
+        {
+          "value": "America/Tortola",
+          "key": -240
+        },
+        {
+          "value": "America/Vancouver",
+          "key": -480
+        },
+        {
+          "value": "America/Whitehorse",
+          "key": -480
+        },
+        {
+          "value": "America/Winnipeg",
+          "key": -360
+        },
+        {
+          "value": "America/Yakutat",
+          "key": -540
+        },
+        {
+          "value": "America/Yellowknife",
+          "key": -420
+        },
+        {
+          "value": "Antarctica/Casey",
+          "key": 480
+        },
+        {
+          "value": "Antarctica/Davis",
+          "key": 420
+        },
+        {
+          "value": "Antarctica/DumontDUrville",
+          "key": 600
+        },
+        {
+          "value": "Antarctica/Macquarie",
+          "key": 660
+        },
+        {
+          "value": "Antarctica/Mawson",
+          "key": 360
+        },
+        {
+          "value": "Antarctica/McMurdo",
+          "key": 720
+        },
+        {
+          "value": "Antarctica/Palmer",
+          "key": -180
+        },
+        {
+          "value": "Antarctica/Rothera",
+          "key": 0
+        },
+        {
+          "value": "Antarctica/Syowa",
+          "key": 180
+        },
+        {
+          "value": "Antarctica/Vostok",
+          "key": 360
+        },
+        {
+          "value": "Asia/Aden",
+          "key": 180
+        },
+        {
+          "value": "Asia/Almaty",
+          "key": 360
+        },
+        {
+          "value": "Asia/Amman",
+          "key": 120
+        },
+        {
+          "value": "Asia/Anadyr",
+          "key": 780
+        },
+        {
+          "value": "Asia/Aqtau",
+          "key": 300
+        },
+        {
+          "value": "Asia/Aqtobe",
+          "key": 300
+        },
+        {
+          "value": "Asia/Ashgabat",
+          "key": 300
+        },
+        {
+          "value": "Asia/Baghdad",
+          "key": 180
+        },
+        {
+          "value": "Asia/Bahrain",
+          "key": 240
+        },
+        {
+          "value": "Asia/Baku",
+          "key": 240
+        },
+        {
+          "value": "Asia/Bangkok",
+          "key": 420
+        },
+        {
+          "value": "Asia/Beirut",
+          "key": 120
+        },
+        {
+          "value": "Asia/Bishkek",
+          "key": 360
+        },
+        {
+          "value": "Asia/Brunei",
+          "key": 480
+        },
+        {
+          "value": "Asia/Choibalsan",
+          "key": 420
+        },
+        {
+          "value": "Asia/Chongqing",
+          "key": 480
+        },
+        {
+          "value": "Asia/Colombo",
+          "key": 330
+        },
+        {
+          "value": "Asia/Damascus",
+          "key": 120
+        },
+        {
+          "value": "Asia/Dhaka",
+          "key": 360
+        },
+        {
+          "value": "Asia/Dili",
+          "key": 540
+        },
+        {
+          "value": "Asia/Dubai",
+          "key": 240
+        },
+        {
+          "value": "Asia/Dushanbe",
+          "key": 360
+        },
+        {
+          "value": "Asia/Gaza",
+          "key": 120
+        },
+        {
+          "value": "Asia/Harbin",
+          "key": 480
+        },
+        {
+          "value": "Asia/Hong_Kong",
+          "key": 480
+        },
+        {
+          "value": "Asia/Hovd",
+          "key": 360
+        },
+        {
+          "value": "Asia/Ho_Chi_Minh",
+          "key": 480
+        },
+        {
+          "value": "Asia/Irkutsk",
+          "key": 480
+        },
+        {
+          "value": "Asia/Jakarta",
+          "key": 420
+        },
+        {
+          "value": "Asia/Jayapura",
+          "key": 540
+        },
+        {
+          "value": "Asia/Jerusalem",
+          "key": 120
+        },
+        {
+          "value": "Asia/Kabul",
+          "key": 270
+        },
+        {
+          "value": "Asia/Kamchatka",
+          "key": 720
+        },
+        {
+          "value": "Asia/Karachi",
+          "key": 300
+        },
+        {
+          "value": "Asia/Kashgar",
+          "key": 360
+        },
+        {
+          "value": "Asia/Kathmandu",
+          "key": 330
+        },
+        {
+          "value": "Asia/Kolkata",
+          "key": 330
+        },
+        {
+          "value": "Asia/Krasnoyarsk",
+          "key": 420
+        },
+        {
+          "value": "Asia/Kuala_Lumpur",
+          "key": 450
+        },
+        {
+          "value": "Asia/Kuching",
+          "key": 480
+        },
+        {
+          "value": "Asia/Kuwait",
+          "key": 180
+        },
+        {
+          "value": "Asia/Macau",
+          "key": 480
+        },
+        {
+          "value": "Asia/Magadan",
+          "key": 660
+        },
+        {
+          "value": "Asia/Makassar",
+          "key": 480
+        },
+        {
+          "value": "Asia/Manila",
+          "key": 480
+        },
+        {
+          "value": "Asia/Muscat",
+          "key": 240
+        },
+        {
+          "value": "Asia/Nicosia",
+          "key": 120
+        },
+        {
+          "value": "Asia/Novokuznetsk",
+          "key": 420
+        },
+        {
+          "value": "Asia/Novosibirsk",
+          "key": 420
+        },
+        {
+          "value": "Asia/Omsk",
+          "key": 360
+        },
+        {
+          "value": "Asia/Oral",
+          "key": 300
+        },
+        {
+          "value": "Asia/Phnom_Penh",
+          "key": 420
+        },
+        {
+          "value": "Asia/Pontianak",
+          "key": 480
+        },
+        {
+          "value": "Asia/Pyongyang",
+          "key": 540
+        },
+        {
+          "value": "Asia/Qatar",
+          "key": 240
+        },
+        {
+          "value": "Asia/Qyzylorda",
+          "key": 300
+        },
+        {
+          "value": "Asia/Rangoon",
+          "key": 390
+        },
+        {
+          "value": "Asia/Riyadh",
+          "key": 180
+        },
+        {
+          "value": "Asia/Sakhalin",
+          "key": 660
+        },
+        {
+          "value": "Asia/Samarkand",
+          "key": 300
+        },
+        {
+          "value": "Asia/Seoul",
+          "key": 540
+        },
+        {
+          "value": "Asia/Shanghai",
+          "key": 480
+        },
+        {
+          "value": "Asia/Singapore",
+          "key": 450
+        },
+        {
+          "value": "Asia/Taipei",
+          "key": 480
+        },
+        {
+          "value": "Asia/Tashkent",
+          "key": 360
+        },
+        {
+          "value": "Asia/Tbilisi",
+          "key": 240
+        },
+        {
+          "value": "Asia/Tehran",
+          "key": 210
+        },
+        {
+          "value": "Asia/Thimphu",
+          "key": 330
+        },
+        {
+          "value": "Asia/Tokyo",
+          "key": 540
+        },
+        {
+          "value": "Asia/Ulaanbaatar",
+          "key": 420
+        },
+        {
+          "value": "Asia/Urumqi",
+          "key": 360
+        },
+        {
+          "value": "Asia/Vientiane",
+          "key": 420
+        },
+        {
+          "value": "Asia/Vladivostok",
+          "key": 600
+        },
+        {
+          "value": "Asia/Yakutsk",
+          "key": 540
+        },
+        {
+          "value": "Asia/Yekaterinburg",
+          "key": 300
+        },
+        {
+          "value": "Asia/Yerevan",
+          "key": 240
+        },
+        {
+          "value": "Atlantic/Azores",
+          "key": -60
+        },
+        {
+          "value": "Atlantic/Bermuda",
+          "key": -240
+        },
+        {
+          "value": "Atlantic/Canary",
+          "key": 0
+        },
+        {
+          "value": "Atlantic/Cape_Verde",
+          "key": -120
+        },
+        {
+          "value": "Atlantic/Faroe",
+          "key": 0
+        },
+        {
+          "value": "Atlantic/Madeira",
+          "key": 0
+        },
+        {
+          "value": "Atlantic/Reykjavik",
+          "key": 0
+        },
+        {
+          "value": "Atlantic/South_Georgia",
+          "key": -120
+        },
+        {
+          "value": "Atlantic/Stanley",
+          "key": -240
+        },
+        {
+          "value": "Atlantic/St_Helena",
+          "key": 0
+        },
+        {
+          "value": "Australia/Adelaide",
+          "key": 570
+        },
+        {
+          "value": "Australia/Brisbane",
+          "key": 600
+        },
+        {
+          "value": "Australia/Broken_Hill",
+          "key": 570
+        },
+        {
+          "value": "Australia/Currie",
+          "key": 600
+        },
+        {
+          "value": "Australia/Darwin",
+          "key": 570
+        },
+        {
+          "value": "Australia/Eucla",
+          "key": 525
+        },
+        {
+          "value": "Australia/Hobart",
+          "key": 660
+        },
+        {
+          "value": "Australia/Lindeman",
+          "key": 600
+        },
+        {
+          "value": "Australia/Lord_Howe",
+          "key": 600
+        },
+        {
+          "value": "Australia/Melbourne",
+          "key": 600
+        },
+        {
+          "value": "Australia/Perth",
+          "key": 480
+        },
+        {
+          "value": "Australia/Sydney",
+          "key": 600
+        },
+        {
+          "value": "Canada/Atlantic",
+          "key": -240
+        },
+        {
+          "value": "Canada/Central",
+          "key": -360
+        },
+        {
+          "value": "Canada/Eastern",
+          "key": -300
+        },
+        {
+          "value": "Canada/Mountain",
+          "key": -420
+        },
+        {
+          "value": "Canada/Newfoundland",
+          "key": -210
+        },
+        {
+          "value": "Canada/Pacific",
+          "key": -480
+        },
+        {
+          "value": "Europe/Amsterdam",
+          "key": 60
+        },
+        {
+          "value": "Europe/Andorra",
+          "key": 60
+        },
+        {
+          "value": "Europe/Athens",
+          "key": 120
+        },
+        {
+          "value": "Europe/Belgrade",
+          "key": 60
+        },
+        {
+          "value": "Europe/Berlin",
+          "key": 60
+        },
+        {
+          "value": "Europe/Brussels",
+          "key": 60
+        },
+        {
+          "value": "Europe/Bucharest",
+          "key": 120
+        },
+        {
+          "value": "Europe/Budapest",
+          "key": 60
+        },
+        {
+          "value": "Europe/Chisinau",
+          "key": 180
+        },
+        {
+          "value": "Europe/Copenhagen",
+          "key": 60
+        },
+        {
+          "value": "Europe/Dublin",
+          "key": 60
+        },
+        {
+          "value": "Europe/Gibraltar",
+          "key": 60
+        },
+        {
+          "value": "Europe/Helsinki",
+          "key": 120
+        },
+        {
+          "value": "Europe/Istanbul",
+          "key": 120
+        },
+        {
+          "value": "Europe/Kaliningrad",
+          "key": 180
+        },
+        {
+          "value": "Europe/Kiev",
+          "key": 180
+        },
+        {
+          "value": "Europe/Lisbon",
+          "key": 60
+        },
+        {
+          "value": "Europe/London",
+          "key": 60
+        },
+        {
+          "value": "Europe/Luxembourg",
+          "key": 60
+        },
+        {
+          "value": "Europe/Madrid",
+          "key": 60
+        },
+        {
+          "value": "Europe/Malta",
+          "key": 60
+        },
+        {
+          "value": "Europe/Minsk",
+          "key": 180
+        },
+        {
+          "value": "Europe/Monaco",
+          "key": 60
+        },
+        {
+          "value": "Europe/Moscow",
+          "key": 180
+        },
+        {
+          "value": "Europe/Oslo",
+          "key": 60
+        },
+        {
+          "value": "Europe/Paris",
+          "key": 60
+        },
+        {
+          "value": "Europe/Prague",
+          "key": 60
+        },
+        {
+          "value": "Europe/Riga",
+          "key": 180
+        },
+        {
+          "value": "Europe/Rome",
+          "key": 60
+        },
+        {
+          "value": "Europe/Samara",
+          "key": 240
+        },
+        {
+          "value": "Europe/Simferopol",
+          "key": 180
+        },
+        {
+          "value": "Europe/Sofia",
+          "key": 120
+        },
+        {
+          "value": "Europe/Stockholm",
+          "key": 60
+        },
+        {
+          "value": "Europe/Tallinn",
+          "key": 180
+        },
+        {
+          "value": "Europe/Tirane",
+          "key": 60
+        },
+        {
+          "value": "Europe/Uzhgorod",
+          "key": 180
+        },
+        {
+          "value": "Europe/Vaduz",
+          "key": 60
+        },
+        {
+          "value": "Europe/Vienna",
+          "key": 60
+        },
+        {
+          "value": "Europe/Vilnius",
+          "key": 180
+        },
+        {
+          "value": "Europe/Volgograd",
+          "key": 240
+        },
+        {
+          "value": "Europe/Warsaw",
+          "key": 60
+        },
+        {
+          "value": "Europe/Zaporozhye",
+          "key": 180
+        },
+        {
+          "value": "Europe/Zurich",
+          "key": 60
+        },
+        {
+          "value": "GMT",
+          "key": 0
+        },
+        {
+          "value": "Indian/Antananarivo",
+          "key": 180
+        },
+        {
+          "value": "Indian/Chagos",
+          "key": 300
+        },
+        {
+          "value": "Indian/Christmas",
+          "key": 420
+        },
+        {
+          "value": "Indian/Cocos",
+          "key": 390
+        },
+        {
+          "value": "Indian/Comoro",
+          "key": 180
+        },
+        {
+          "value": "Indian/Kerguelen",
+          "key": 300
+        },
+        {
+          "value": "Indian/Mahe",
+          "key": 240
+        },
+        {
+          "value": "Indian/Maldives",
+          "key": 300
+        },
+        {
+          "value": "Indian/Mauritius",
+          "key": 240
+        },
+        {
+          "value": "Indian/Mayotte",
+          "key": 180
+        },
+        {
+          "value": "Indian/Reunion",
+          "key": 240
+        },
+        {
+          "value": "Pacific/Apia",
+          "key": -660
+        },
+        {
+          "value": "Pacific/Auckland",
+          "key": 720
+        },
+        {
+          "value": "Pacific/Chatham",
+          "key": 765
+        },
+        {
+          "value": "Pacific/Chuuk",
+          "key": 600
+        },
+        {
+          "value": "Pacific/Easter",
+          "key": -360
+        },
+        {
+          "value": "Pacific/Efate",
+          "key": 660
+        },
+        {
+          "value": "Pacific/Enderbury",
+          "key": -720
+        },
+        {
+          "value": "Pacific/Fakaofo",
+          "key": -660
+        },
+        {
+          "value": "Pacific/Fiji",
+          "key": 720
+        },
+        {
+          "value": "Pacific/Funafuti",
+          "key": 720
+        },
+        {
+          "value": "Pacific/Galapagos",
+          "key": -300
+        },
+        {
+          "value": "Pacific/Gambier",
+          "key": -540
+        },
+        {
+          "value": "Pacific/Guadalcanal",
+          "key": 660
+        },
+        {
+          "value": "Pacific/Guam",
+          "key": 600
+        },
+        {
+          "value": "Pacific/Honolulu",
+          "key": -600
+        },
+        {
+          "value": "Pacific/Johnston",
+          "key": -600
+        },
+        {
+          "value": "Pacific/Kiritimati",
+          "key": -640
+        },
+        {
+          "value": "Pacific/Kosrae",
+          "key": 720
+        },
+        {
+          "value": "Pacific/Kwajalein",
+          "key": -720
+        },
+        {
+          "value": "Pacific/Majuro",
+          "key": 720
+        },
+        {
+          "value": "Pacific/Marquesas",
+          "key": -570
+        },
+        {
+          "value": "Pacific/Midway",
+          "key": -660
+        },
+        {
+          "value": "Pacific/Nauru",
+          "key": 690
+        },
+        {
+          "value": "Pacific/Niue",
+          "key": -690
+        },
+        {
+          "value": "Pacific/Norfolk",
+          "key": 690
+        },
+        {
+          "value": "Pacific/Noumea",
+          "key": 660
+        },
+        {
+          "value": "Pacific/Pago_Pago",
+          "key": -660
+        },
+        {
+          "value": "Pacific/Palau",
+          "key": 540
+        },
+        {
+          "value": "Pacific/Pitcairn",
+          "key": -510
+        },
+        {
+          "value": "Pacific/Pohnpei",
+          "key": 660
+        },
+        {
+          "value": "Pacific/Port_Moresby",
+          "key": 600
+        },
+        {
+          "value": "Pacific/Rarotonga",
+          "key": -630
+        },
+        {
+          "value": "Pacific/Saipan",
+          "key": 600
+        },
+        {
+          "value": "Pacific/Tahiti",
+          "key": -600
+        },
+        {
+          "value": "Pacific/Tarawa",
+          "key": 720
+        },
+        {
+          "value": "Pacific/Tongatapu",
+          "key": 780
+        },
+        {
+          "value": "Pacific/Wake",
+          "key": 720
+        },
+        {
+          "value": "Pacific/Wallis",
+          "key": 720
+        },
+        {
+          "value": "UTC",
+          "key": 0
+        }
+      ]
+    }
+  }
+}

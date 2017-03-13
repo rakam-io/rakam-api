@@ -177,7 +177,7 @@ public abstract class AbstractEventExplorer
                 if (options.aggregations.contains(measure.aggregation)
                         && options.measures.contains(measure.column)
                         && (grouping == null || (grouping.type == REFERENCE || (grouping.type == COLUMN && options.dimensions.contains(grouping.value))))
-                        && (segment == null || (segment.type == REFERENCE || (segment.type == COLUMN && options.dimensions.contains(segment.value))))
+                        && (segment == null || (segment.value.equals("_collection") && segment.type == COLUMN && options.collections.size() == 1) || (segment.type == REFERENCE || (segment.type == COLUMN && options.dimensions.contains(segment.value))))
                         && (filterExp == null || testFilterExpressionForPerComputedTable(filterExp, options))) {
                     return true;
                 }
@@ -190,14 +190,14 @@ public abstract class AbstractEventExplorer
                 .filter(view -> view.options != null && view.options.containsKey("olap_table"))
                 .map(view -> JsonHelper.convert(view.options.get("olap_table"), OLAPTable.class))
                 .filter(table -> groupedMetricsPredicate.test(table)).findAny()
-                .map(view -> new AbstractMap.SimpleImmutableEntry<>(view, "materialized." + view.tableName));
+                .map(view -> new AbstractMap.SimpleImmutableEntry<>(view, "materialized." + checkCollection(view.tableName)));
 
         if (!preComputedTable.isPresent()) {
             preComputedTable = continuousQueryService.list(project).stream()
                     .filter(view -> view.options != null && view.options.containsKey("olap_table"))
                     .map(view -> JsonHelper.convert(view.options.get("olap_table"), OLAPTable.class))
                     .filter(table -> groupedMetricsPredicate.test(table)).findAny()
-                    .map(view -> new AbstractMap.SimpleImmutableEntry<>(view, "continuous." + view.tableName));
+                    .map(view -> new AbstractMap.SimpleImmutableEntry<>(view, "continuous." + checkCollection(view.tableName)));
         }
 
         String timeFilter = format(" _time between timestamp '%s' and timestamp '%s' + interval '1' day",
@@ -227,7 +227,7 @@ public abstract class AbstractEventExplorer
                     grouping != null ? (getColumnValue(timestampMapping, grouping, true) + " as " + checkTableColumn(getColumnReference(grouping) + "_group") + " ,") : "",
                     segment != null ? (getColumnValue(timestampMapping, segment, true) + " as " + checkTableColumn(getColumnReference(segment) + "_segment") + " ,") : "",
                     format(getFinalForAggregationFunction(measure), measure.column + "_" + measure.aggregation.name().toLowerCase()),
-                    checkCollection(preComputedTable.get().getValue()),
+                    preComputedTable.get().getValue(),
                     Stream.of(
                             collections.size() > 1 ? format("collection IN (%s)", collections.stream().map(c -> "'" + c + "'").collect(Collectors.joining(","))) : "",
                             filters,

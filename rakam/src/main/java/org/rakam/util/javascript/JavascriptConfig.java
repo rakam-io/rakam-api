@@ -4,9 +4,9 @@ import io.airlift.configuration.Config;
 
 public class JavascriptConfig
 {
-    private boolean customEnabled;
+    private boolean customEnabled = true;
 
-    @Config("clickhouse.address")
+    @Config("custom-javascript-enabled")
     public JavascriptConfig setCustomEnabled(boolean customEnabled)
     {
         this.customEnabled = customEnabled;

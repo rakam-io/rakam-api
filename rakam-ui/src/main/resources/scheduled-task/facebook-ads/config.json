@@ -2,7 +2,7 @@
   "name": "Facebook Ads",
   "description": "Collects data from Facebook Marketing API",
   "defaultDuration": "PT24H",
-  "recipe": "rakam/facebook-ads",
+  "recipe": "facebook-ads",
   "external": {
     "url": "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/facebook",
     "name": "Login with Facebook"
@@ -10,8 +10,20 @@
   "parameters": {
     "collection": {
       "type": "string",
+      "required": true,
       "placeholder": "facebook_ads",
       "description": "The collection name for result data"
+    },
+    "start_date": {
+      "type": "string",
+      "placeholder": "2016-12-01",
+      "description": "The start date for facebook ads data"
+    },
+    "breakdowns": {
+      "type": "string",
+      "hidden": true,
+      "placeholder": "age,gender",
+      "description": "The dimensions of the metrics"
     }
   }
 }

@@ -78,7 +78,7 @@ public class UIRecipeHandler
 
         List<DashboardBuilder> dashboards;
         if (dashboardService.isPresent()) {
-            dashboards = dashboardService.get().list(new Project(project, userId)).stream()
+            dashboards = dashboardService.get().list(new Project(project, userId)).dashboards.stream()
                     .map(a -> {
                         List<DashboardService.DashboardItem> items = dashboardService.get()
                                 .get(new Project(project, userId), a.id).stream()
@@ -126,7 +126,7 @@ public class UIRecipeHandler
                         dashboard = dashboardService.get().create(p, report.name, null, ImmutableMap.of()).id;
                     }
                     catch (AlreadyExistsException e) {
-                        dashboard = dashboardService.get().list(p).stream().filter(a -> a.name.equals(report.name)).findAny().get().id;
+                        dashboard = dashboardService.get().list(p).dashboards.stream().filter(a -> a.name.equals(report.name)).findAny().get().id;
                         dashboardService.get().delete(p, dashboard);
                         dashboard = dashboardService.get().create(p, report.name, null, ImmutableMap.of()).id;
                     }

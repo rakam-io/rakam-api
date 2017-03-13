@@ -52,11 +52,13 @@ public class DashboardService
         extends HttpService
 {
     private final DBI dbi;
+    private final UserDefaultService userDefaultService;
 
     @Inject
-    public DashboardService(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource)
+    public DashboardService(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource, UserDefaultService userDefaultService)
     {
         dbi = new DBI(dataSource);
+        this.userDefaultService = userDefaultService;
     }
 
     @JsonRequest
@@ -88,6 +90,17 @@ public class DashboardService
                 throw e;
             }
             return new Dashboard(id, project.userId, name, null, options, TRUE.equals(sharedEveryone));
+        }
+    }
+
+    @JsonRequest
+    @ApiOperation(value = "Get Report")
+    @Path("/set-default")
+    public SuccessMessage setDefault(@Named("user_id") Project project, @ApiParam("id") int id)
+    {
+        try (Handle handle = dbi.open()) {
+            userDefaultService.set(handle, project, "DASHBOARD", id);
+            return SuccessMessage.success();
         }
     }
 
@@ -161,20 +174,6 @@ public class DashboardService
         }
     }
 
-    public static class DashboardPermission
-    {
-        public final int id;
-        public final String email;
-        public final Instant sharedAt;
-
-        public DashboardPermission(int id, String email, Instant sharedAt)
-        {
-            this.id = id;
-            this.email = email;
-            this.sharedAt = sharedAt;
-        }
-    }
-
     @JsonRequest
     @ApiOperation(value = "Cache report data")
     @Path("/cache-item-data")
@@ -196,16 +195,43 @@ public class DashboardService
     @JsonRequest
     @ApiOperation(value = "List Report")
     @Path("/list")
-    public List<Dashboard> list(@Named("user_id") Project project)
+    public DashboardList list(@Named("user_id") Project project)
     {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT id, name, refresh_interval, options FROM dashboard WHERE project_id = :project ORDER BY id")
+            Integer defaultDashboard = userDefaultService.get(handle, project, "DASHBOARD");
+            List<Dashboard> dashboards = handle.createQuery("SELECT id, name, refresh_interval, options, shared_everyone FROM dashboard WHERE project_id = :project ORDER BY id")
                     .bind("project", project.project).map((i, resultSet, statementContext) -> {
                         Map options = JsonHelper.read(resultSet.getString(4), Map.class);
                         return new Dashboard(resultSet.getInt(1), project.userId, resultSet.getString(2),
                                 resultSet.getObject(3) == null ? null : Duration.ofSeconds(resultSet.getInt(3)),
-                                options == null ? null : options, resultSet.getBoolean(4));
+                                options == null ? null : options, resultSet.getBoolean(5));
                     }).list();
+            return new DashboardList(dashboards, defaultDashboard);
+        }
+    }
+
+    public static class DashboardList
+    {
+        public final List<Dashboard> dashboards;
+        public final Integer defaultDashboard;
+
+        public DashboardList(List<Dashboard> dashboards, Integer defaultDashboard) {
+            this.dashboards = dashboards;
+            this.defaultDashboard = defaultDashboard;
+        }
+    }
+
+    public static class DashboardPermission
+    {
+        public final int id;
+        public final String email;
+        public final Instant sharedAt;
+
+        public DashboardPermission(int id, String email, Instant sharedAt)
+        {
+            this.id = id;
+            this.email = email;
+            this.sharedAt = sharedAt;
         }
     }
 

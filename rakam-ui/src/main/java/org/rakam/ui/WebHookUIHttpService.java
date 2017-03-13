@@ -118,18 +118,24 @@ public class WebHookUIHttpService
         public final String placeholder;
         public final String description;
         public final Object value;
+        public final boolean hidden;
+        public final boolean required;
 
         @JsonCreator
         public Parameter(
                 @ApiParam("type") FieldType type,
                 @ApiParam("placeholder") String placeholder,
                 @ApiParam("description") String description,
-                @ApiParam(value = "value", required = false) Object value)
+                @ApiParam(value = "value", required = false) Object value,
+                @ApiParam(value = "hidden", required = false) Boolean hidden,
+                @ApiParam(value = "required", required = false) Boolean required)
         {
             this.type = type;
             this.placeholder = placeholder;
             this.description = description;
             this.value = value;
+            this.hidden = Boolean.TRUE.equals(hidden);
+            this.required = Boolean.TRUE.equals(required);
         }
     }
 

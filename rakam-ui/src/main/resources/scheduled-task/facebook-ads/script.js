@@ -33,10 +33,9 @@ long_fields.forEach(function (key) {
 var fields = "account_id,account_name,action_values,actions,ad_id,ad_name,adset_id,adset_name,app_store_clicks,buying_type,call_to_action_clicks,campaign_id,campaign_name,canvas_avg_view_percent,canvas_avg_view_time,clicks,cost_per_10_sec_video_view,cost_per_action_type,cost_per_estimated_ad_recallers,cost_per_inline_link_click,cost_per_inline_post_engagement,cost_per_total_action,cost_per_unique_action_type,cost_per_unique_click,cost_per_unique_inline_link_click,cpc,cpm,cpp,ctr,date_start,deeplink_clicks,estimated_ad_recall_rate,estimated_ad_recallers,frequency,impressions,inline_link_click_ctr,inline_link_clicks,inline_post_engagement,newsfeed_avg_position,newsfeed_clicks,newsfeed_impressions,objective,place_page_name,reach,relevance_score,social_clicks,social_impressions,social_reach,social_spend,spend,total_action_value,total_actions,total_unique_actions,unique_actions,unique_clicks,unique_ctr,unique_impressions,unique_inline_link_click_ctr,unique_inline_link_clicks,unique_link_clicks_ctr,unique_social_clicks,unique_social_impressions,video_10_sec_watched_actions,video_15_sec_watched_actions,video_30_sec_watched_actions,video_avg_pct_watched_actions,video_avg_percent_watched_actions,video_avg_sec_watched_actions,video_avg_time_watched_actions,video_complete_watched_actions,video_p100_watched_actions,video_p25_watched_actions,video_p50_watched_actions,video_p75_watched_actions,video_p95_watched_actions,website_clicks,website_ctr";
 
 var internal = function (parameters, url, events, day) {
-
     logger.debug("Fetching " + day + (url ? ' with cursor' : ''));
 
-    url = url || "https://graph.facebook.com/v2.8/act_" + parameters.account_id + "/insights?level=ad&time_increment=1&access_token=" + parameters.access_token + "&fields=" + fields + "&format=json&breakdowns=age,gender&time_range={\"since\":\"" + day + "\",\"until\":\"" + day + "\"}";
+    url = url || "https://graph.facebook.com/v2.8/act_" + parameters.account_id + "/insights?level=ad&time_increment=1&access_token=" + parameters.access_token + "&fields=" + fields + "&format=json&breakdowns=" + parameters.breakdowns + "&time_range={\"since\":\"" + day + "\",\"until\":\"" + day + "\"}";
 
     var response = http.get(url).send();
     if (response.getStatusCode() == 0) {
@@ -73,6 +72,8 @@ var internal = function (parameters, url, events, day) {
 }
 
 var main = function (parameters) {
+    parameters.breakdowns = parameters.breakdowns || "age,gender";
+
     var endDate = new Date();
     endDate.setDate(endDate.getDate() - 1);
     endDate = endDate.toJSON().slice(0, 10);
@@ -80,8 +81,7 @@ var main = function (parameters) {
     var startDate = config.get('start_date');
 
     if (startDate == null) {
-        startDate = new Date();
-        startDate.setYear(2015);
+        startDate = new Date(parameters.start_date || '2016-12-01');
     }
     else {
         startDate = new Date(startDate);
@@ -98,7 +98,8 @@ var main = function (parameters) {
             if (data.paging && data.paging.next) {
                 url = data.paging.next;
                 continue;
-            } else {
+            }
+            else {
                 url = null;
                 break;
             }

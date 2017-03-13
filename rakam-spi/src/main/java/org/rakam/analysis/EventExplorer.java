@@ -176,6 +176,9 @@ public interface EventExplorer
             if (measures.isEmpty()) {
                 throw new RakamException("There must be at least one measure", BAD_REQUEST);
             }
+            if(collections.isEmpty()) {
+                throw new RakamException("There must be at least one collection", BAD_REQUEST);
+            }
 
             this.collections = collections;
             this.dimensions = dimensions;

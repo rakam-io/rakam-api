@@ -40,6 +40,7 @@ import static java.lang.String.format;
 import static org.rakam.postgresql.analysis.PostgresqlEventStore.UTC_CALENDAR;
 import static org.rakam.postgresql.report.PostgresqlQueryExecutor.QUERY_EXECUTOR;
 import static org.rakam.report.QueryResult.EXECUTION_TIME;
+import static org.rakam.report.QueryResult.QUERY;
 import static org.rakam.report.QueryStats.State.FINISHED;
 import static org.rakam.report.QueryStats.State.RUNNING;
 import static org.rakam.util.JDBCUtil.fromSql;
@@ -141,7 +142,7 @@ public class PostgresqlQueryExecution
         }
     }
 
-    private static QueryResult resultSetToQueryResult(ResultSet resultSet, long executionTimeInMillis)
+    private QueryResult resultSetToQueryResult(ResultSet resultSet, long executionTimeInMillis)
     {
         List<SchemaField> columns;
         List<List<Object>> data;
@@ -260,7 +261,7 @@ public class PostgresqlQueryExecution
                     columns.set(i, new SchemaField(metaData.getColumnName(i + 1), FieldType.STRING));
                 }
             }
-            return new QueryResult(columns, data, ImmutableMap.of(EXECUTION_TIME, executionTimeInMillis));
+            return new QueryResult(columns, data, ImmutableMap.of(EXECUTION_TIME, executionTimeInMillis, QUERY, query));
         }
         catch (SQLException e) {
             QueryError error = new QueryError(e.getMessage(), e.getSQLState(), e.getErrorCode(), null, null);

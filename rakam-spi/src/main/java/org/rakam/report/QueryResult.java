@@ -23,6 +23,7 @@ public class QueryResult
     }
 
     public static final String EXECUTION_TIME = "executionTimeInMillis";
+    public static final String QUERY = "query";
     public static final String TOTAL_RESULT = "totalResult";
 
     @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)

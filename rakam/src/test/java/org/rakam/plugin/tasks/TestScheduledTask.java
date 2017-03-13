@@ -66,8 +66,8 @@ public class TestScheduledTask
 //        task.parameters.computeIfAbsent("customer_id", (k) -> new Parameter(STRING, null, null, null, null)).value = "";
 //        task.parameters.computeIfAbsent("refresh_token", (k) -> new Parameter(STRING, null, null, null, null)).value = "";
 
-        task.parameters.computeIfAbsent("account_id", (k) -> new Parameter(STRING, null, null, null, null, false)).value = "";
-        task.parameters.computeIfAbsent("access_token", (k) -> new Parameter(STRING, null, null, null, null, false)).value = "";
+        task.parameters.computeIfAbsent("account_id", (k) -> new Parameter(STRING, null, false, null, null, null, false)).value = "";
+        task.parameters.computeIfAbsent("access_token", (k) -> new Parameter(STRING, null, false, null, null, null, false)).value = "";
 
         InMemoryEventStore eventStore = new InMemoryEventStore();
 

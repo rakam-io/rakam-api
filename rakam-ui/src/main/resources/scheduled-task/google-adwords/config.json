@@ -2,7 +2,7 @@
   "name": "Google Adwords",
   "description": "Collects data from Google Adwords",
   "defaultDuration": "PT24H",
-  "recipe": "rakam/google-adwords",
+  "recipe": "google-adwords",
   "external": {
      "url": "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/google?type=https://www.googleapis.com/auth/adwords",
      "name": "Login with Google"
@@ -10,6 +10,7 @@
   "parameters": {
     "collection": {
       "type": "string",
+      "required": true,
       "placeholder": "google_adwords",
       "description": "The collection name for result data"
     },
@@ -22,7 +23,7 @@
     "query": {
       "type": "boolean",
       "placeholder": "SELECT Date,AccountCurrencyCode,AdGroupName,AdType,AllConversions,AverageCost,AverageCpm,AveragePosition,CampaignName,Clicks,Conversions,Cost,CriterionType,DisplayUrl,Engagements,Headline,Impressions,Interactions,PercentNewVisitors,VideoViews,VideoQuartile100Rate,VideoQuartile75Rate,VideoQuartile50Rate,VideoQuartile25Rate FROM AD_PERFORMANCE_REPORT",
-      "description": "The AWQL query you want to execute. You can find the schema here: https://www.awql.me/adwords-awql-help/",
+      "description": "The AWQL query you want to execute. You can find the schema here: https://www.awql.me/adwords-awql-help/ If you don't specify the query the script will fill ad group and ad metrics for the query in placeholder",
       "hidden": true
     }
   }

@@ -163,7 +163,9 @@ public class RakamUIModule
                 id = handle.createQuery("select user_id from web_user_project where id = :id")
                         .bind("id", event.project).map(IntegerMapper.FIRST).first();
             }
-            service.create(new Project(event.project, id), "My dashboard", true, null);
+            Project project = new Project(event.project, id);
+            DashboardService.Dashboard dashboard = service.create(project, "My dashboard", true, null);
+            service.setDefault(project, dashboard.id);
         }
     }
 
@@ -189,7 +191,7 @@ public class RakamUIModule
         @Subscribe
         public void onDeleteProject(UIEvents.ProjectDeletedEvent event)
         {
-            for (DashboardService.Dashboard dashboard : dashboardService.list(new Project(0, event.project))) {
+            for (DashboardService.Dashboard dashboard : dashboardService.list(new Project(0, event.project)).dashboards) {
                 dashboardService.delete(new Project(event.project, 0), dashboard.id);
             }
             if (customPageDatabase != null) {
