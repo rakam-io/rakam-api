@@ -57,7 +57,7 @@ public class UserDefaultService
                     .bind("value", JsonHelper.encode(value)).execute();
         }
         catch (Exception e) {
-            handle.createStatement("UPDATE ui_user_defaults SET value = :value WHERE project_id = :project AND user_id = :user, name = :name")
+            handle.createStatement("UPDATE ui_user_defaults SET value = :value WHERE project_id = :project AND user_id = :user AND name = :name")
                     .bind("project", project.project)
                     .bind("user", project.userId)
                     .bind("name", name.toUpperCase(Locale.ENGLISH))
