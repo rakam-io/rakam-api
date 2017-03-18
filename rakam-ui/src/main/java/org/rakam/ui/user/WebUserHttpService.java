@@ -78,12 +78,12 @@ public class WebUserHttpService
     @JsonRequest
     @Path("/register")
     public Response register(@ApiParam("email") String email,
-            @ApiParam("name") String name,
+            @ApiParam(value = "name", required = false) String name,
             @ApiParam("password") String password)
     {
         // TODO: implement captcha https://github.com/VividCortex/angular-recaptcha https://developers.google.com/recaptcha/docs/verify
-        // keep a counter for ip in local nodes and use stickiness feature of load balancer
-        final WebUser user = service.createUser(email, name, password, null, null, null);
+        // keep a counter for ip in local nodes
+        final WebUser user = service.createUser(email, password, name, null, null, null);
         return getLoginResponseForUser(user);
     }
 

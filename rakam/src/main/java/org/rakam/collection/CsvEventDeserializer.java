@@ -180,7 +180,11 @@ public class CsvEventDeserializer
 
         switch (type) {
             case STRING:
-                return jp.getValueAsString();
+                String valueAsString = jp.getValueAsString();
+                if (valueAsString.length() > 100) {
+                    valueAsString = valueAsString.substring(0, 100);
+                }
+                return valueAsString;
             case BOOLEAN:
                 return jp.getValueAsBoolean();
             case LONG:

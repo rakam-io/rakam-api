@@ -88,7 +88,7 @@ public class UserSubscriptionHttpService
     @Path("/create")
     public List<UserSubscription> create(
             @ApiParam("token") String token,
-            @ApiParam("coupon") String coupon,
+            @ApiParam(value = "coupon", required = false) String coupon,
             @ApiParam("plan") String plan,
             @CookieParam("session") String session,
             @HeaderParam("X-Requested-With") String csrfHeader)
@@ -119,6 +119,7 @@ public class UserSubscriptionHttpService
                 customer = Customer.retrieve(userStripeId, requestOptions);
                 if (customer.getDeleted() == Boolean.TRUE) {
                     customer = Customer.create(customerParams, requestOptions);
+                    service.setStripeId(webUser.get().id, customer.getId());
                 }
                 else {
                     customer.update(customerParams, requestOptions);
@@ -126,6 +127,7 @@ public class UserSubscriptionHttpService
             }
             else {
                 customer = Customer.create(customerParams, requestOptions);
+                service.setStripeId(webUser.get().id, customer.getId());
             }
 
             if (plan != null && !plan.isEmpty()) {
@@ -136,8 +138,6 @@ public class UserSubscriptionHttpService
                 }
                 customer.createSubscription(subsParams, requestOptions);
             }
-
-            service.setStripeId(webUser.get().id, customer.getId());
         }
         catch (InvalidRequestException e) {
             throw new RakamException(e.getMessage(),
