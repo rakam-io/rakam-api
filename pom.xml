@@ -31,6 +31,14 @@
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
+            <id>central</id>
+            <name>Maven Repository Switchboard</name>
+            <url>http://repo1.maven.org/maven2</url>
+        </repository>
+        <repository>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
             <id>bintray-buremba-maven</id>
             <name>bintray</name>
             <url>http://dl.bintray.com/buremba/maven</url>

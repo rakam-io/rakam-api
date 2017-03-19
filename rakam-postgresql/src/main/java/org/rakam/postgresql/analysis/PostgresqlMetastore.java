@@ -191,7 +191,9 @@ public class PostgresqlMetastore
                         "    LEFT JOIN pg_inherits i ON (i.inhrelid = c.oid)\n" +
                         "    JOIN pg_attribute a ON (a.attrelid=c.oid)\n" +
                         "    JOIN pg_type t ON (a.atttypid = t.oid)\n" +
-                        "    WHERE n.nspname = '%s' and c.relname = '%s' and c.relkind IN ('r', '') and i.inhrelid is null\n" +
+                        "    WHERE n.nspname = '%s' and c.relname = '%s' " +
+                        "    AND a.attname != '$server_time'\n" +
+                        "    AND c.relkind IN ('r', '') and i.inhrelid IS NULL\n" +
                         "    AND n.nspname <> 'pg_catalog'\n" +
                         "    AND n.nspname <> 'information_schema'\n" +
                         "    AND n.nspname !~ '^pg_toast'     \n" +
@@ -229,7 +231,7 @@ public class PostgresqlMetastore
                         "    AND n.nspname <> 'pg_catalog'\n" +
                         "    AND n.nspname <> 'information_schema'\n" +
                         "    AND n.nspname !~ '^pg_toast'     \n" +
-                        "    AND a.attnum > 0 AND NOT a.attisdropped AND c.relname != '_users'",
+                        "    AND a.attnum > 0 AND NOT a.attisdropped AND c.relname != '_users' AND c.attname != '$server_time'",
                 checkLiteral(project)));
 
         while (resultSet.next()) {
@@ -280,8 +282,15 @@ public class PostgresqlMetastore
                             currentFields.add(f);
                             return f;
                         })
-                        .map(f -> format("%s %s NULL", checkCollection(f.getName()), toSql(f.getType())))
+                        .map(f -> format("%s %s NULL", checkTableColumn(f.getName()), toSql(f.getType())))
                         .collect(Collectors.joining(", "));
+
+                if(!queryEnd.isEmpty()) {
+                    queryEnd += ", ";
+                }
+
+                queryEnd += "\"$server_time\" timestamp without time zone default (current_timestamp at time zone 'UTC')";
+
                 if (queryEnd.isEmpty()) {
                     return currentFields;
                 }
@@ -410,8 +419,9 @@ public class PostgresqlMetastore
             case BOOLEAN:
             case DATE:
             case TIME:
-            case TIMESTAMP:
                 return type.name();
+            case TIMESTAMP:
+                return "timestamp without time zone";
             case DOUBLE:
                 return "DOUBLE PRECISION";
             default:

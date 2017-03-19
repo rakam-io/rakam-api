@@ -835,7 +835,6 @@ public class WebUserService
                     catch (ZoneRulesException e) {
                         zoneId = null;
                     }
-                    zoneId = null;
                     ZoneId finalZoneId = zoneId;
                     WebUser.Project p = list.stream().filter(e -> e.id == id)
                             .findFirst()
