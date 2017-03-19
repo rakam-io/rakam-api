@@ -258,7 +258,7 @@ public class ScheduledEmailService
         StringWriter writer;
 
         writer = new StringWriter();
-        String path = "/dashboard/" + task.type_id;
+        String path = "/" + task.project_id + "/dashboard/" + task.type_id;
         Map<String, Object> project;
         try (Handle handle = dbi.open()) {
             project = handle.createQuery("select project, api_url from web_user_project where id = :id")

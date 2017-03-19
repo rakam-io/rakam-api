@@ -9,7 +9,7 @@ var nested_properties = [
     'video_p25_watched_actions', 'video_p50_watched_actions', 'video_p75_watched_actions',
     'video_p95_watched_actions'];
 
-var double_fields = ["cost_per_inline_link_click", "cost_per_inline_post_engagement",
+var double_fields = ["cost_per_inline_link_click", "cost_per_inline_post_engagement", "inline_post_engagement",
                      "cost_per_total_action", "cost_per_estimated_ad_recallers",
                      "cost_per_unique_click", "cost_per_unique_inline_link_click", "cpc", "cpm", "cpp", "ctr",
                      "frequency", "inline_link_click_ctr", "newsfeed_avg_position",
