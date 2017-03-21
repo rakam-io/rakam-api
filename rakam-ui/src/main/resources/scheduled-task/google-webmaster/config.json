@@ -10,11 +10,13 @@
   "parameters": {
     "collection": {
       "type": "string",
+      "required": true,
       "placeholder": "google_webmaster",
       "description": "The collection name for result data"
     },
     "website_url": {
       "type": "string",
+      "required": true,
       "placeholder": "https://rakam.io",
       "description": "The website verified for your Google Webmaster"
     }

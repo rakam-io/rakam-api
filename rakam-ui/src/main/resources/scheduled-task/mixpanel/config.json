@@ -5,11 +5,13 @@
   "parameters": {
     "api_secret": {
       "type": "string",
+      "required": true,
       "placeholder": "dsb085z33086484247123gc4s72l1223",
       "description": "The API secret of your Mixpanel project. Your name on top-right corner -> Project settings -> API Secret"
     },
     "timezone": {
       "type": "string",
+      "required": false,
       "placeholder": "https://rakam.io",
       "description": "The timezone of your project",
       "value": 0,

@@ -6,11 +6,13 @@
   "parameters": {
     "collection_prefix": {
       "type": "string",
+      "required": true,
       "placeholder": "pipedrive",
       "description": "The collection prefix for result data"
     },
     "api_token": {
       "type": "string",
+      "required": true,
       "placeholder": "93e37815286b792ebob95d19a26912f1c416b181",
       "description": "The API token for Pipedrive. Get it from here: https://mycompany.pipedrive.com/settings#api"
     }
