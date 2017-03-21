@@ -220,12 +220,6 @@ public class ClickHouseQueryExecution
     }
 
     @Override
-    public String getQuery()
-    {
-        return query;
-    }
-
-    @Override
     public void kill()
     {
         if (!result.isDone()) {

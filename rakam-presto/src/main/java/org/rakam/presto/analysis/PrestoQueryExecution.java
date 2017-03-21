@@ -194,11 +194,6 @@ public class PrestoQueryExecution
         return error.message.startsWith(SERVER_NOT_ACTIVE);
     }
 
-    public String getQuery()
-    {
-        return query;
-    }
-
     @Override
     public void kill()
     {
@@ -296,7 +291,7 @@ public class PrestoQueryExecution
                             error.getErrorCode(),
                             errorLocation != null ? errorLocation.getLineNumber() : null,
                             errorLocation != null ? errorLocation.getColumnNumber() : null);
-                    LogUtil.logQueryError(getQuery(), queryError, PrestoQueryExecutor.class);
+                    LogUtil.logQueryError(query, queryError, PrestoQueryExecutor.class);
                     result.complete(QueryResult.errorResult(queryError));
                 }
                 else {
@@ -311,7 +306,7 @@ public class PrestoQueryExecution
             }
             catch (Exception e) {
                 QueryError queryError = QueryError.create(e.getMessage());
-                LogUtil.logQueryError(getQuery(), queryError, PrestoQueryExecutor.class);
+                LogUtil.logQueryError(query, queryError, PrestoQueryExecutor.class);
                 result.complete(QueryResult.errorResult(queryError));
             }
         }

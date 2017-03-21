@@ -124,12 +124,6 @@ public class PostgresqlQueryExecution
     }
 
     @Override
-    public String getQuery()
-    {
-        return query;
-    }
-
-    @Override
     public void kill()
     {
         if (statement != null) {

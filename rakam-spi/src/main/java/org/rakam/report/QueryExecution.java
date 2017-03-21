@@ -8,7 +8,6 @@ public interface QueryExecution {
     QueryStats currentStats();
     boolean isFinished();
     CompletableFuture<QueryResult> getResult();
-    String getQuery();
     void kill();
 
     static QueryExecution completedQueryExecution(String query, QueryResult result) {
@@ -26,11 +25,6 @@ public interface QueryExecution {
             @Override
             public CompletableFuture<QueryResult> getResult() {
                 return CompletableFuture.completedFuture(result);
-            }
-
-            @Override
-            public String getQuery() {
-                return query;
             }
 
             @Override

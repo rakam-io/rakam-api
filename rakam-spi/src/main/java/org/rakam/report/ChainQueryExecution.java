@@ -120,12 +120,6 @@ public class ChainQueryExecution
     }
 
     @Override
-    public String getQuery()
-    {
-        return query;
-    }
-
-    @Override
     public void kill()
     {
         executions.forEach(org.rakam.report.QueryExecution::kill);

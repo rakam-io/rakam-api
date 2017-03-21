@@ -262,7 +262,6 @@ public class QueryHttpService
                 LOGGER.error(ex, "Error while executing query");
                 response.send("result", encode(jsonObject()
                         .put("success", false)
-                        .put("query", query.getQuery())
                         .put("error", ex.getCause() instanceof RakamException ?
                                 ex.getCause().getMessage() :
                                 "Internal error"))).end();
@@ -270,7 +269,6 @@ public class QueryHttpService
             else if (result.isFailed()) {
                 response.send("result", encode(jsonObject()
                         .put("success", false)
-                        .put("query", query.getQuery())
                         .putPOJO("error", result.getError()))).end();
             }
             else {
@@ -278,7 +276,6 @@ public class QueryHttpService
 
                 String encode = encode(jsonObject()
                         .put("success", true)
-                        .putPOJO("query", query.getQuery())
                         .putPOJO("properties", result.getProperties())
                         .putPOJO("result", result.getResult())
                         .putPOJO("metadata", metadata));

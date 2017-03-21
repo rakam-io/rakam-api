@@ -29,11 +29,6 @@ public class DelegateQueryExecution implements QueryExecution {
     }
 
     @Override
-    public String getQuery() {
-        return execution.getQuery();
-    }
-
-    @Override
     public void kill() {
         execution.kill();
     }
