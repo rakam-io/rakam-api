@@ -4,6 +4,7 @@ import com.facebook.presto.sql.parser.ParsingException;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -101,23 +102,28 @@ public class EventStreamHttpService
         String project = apiKeyService.getProjectOfApiKey(api_key.get(0), READ_KEY);
 
         List<CollectionStreamQuery> collect;
-        try {
-            collect = query.collections.stream().map(collection -> {
-                Expression expression = null;
-                try {
-                    expression = collection.filter == null ? null : sqlParser.createExpression(collection.filter);
-                }
-                catch (ParsingException e) {
-                    request.response(encode(errorMessage(format("Couldn't parse %s: %s",
-                            collection.filter, e.getErrorMessage()), BAD_REQUEST))).end();
-                    throw e;
-                }
-                return new CollectionStreamQuery(collection.name,
-                        expression == null ? null : expression.toString());
-            }).collect(Collectors.toList());
-        }
-        catch (ParsingException e) {
-            return;
+
+        if(query.collections == null) {
+            collect = ImmutableList.of(new CollectionStreamQuery(null, null));
+        } else {
+            try {
+                collect = query.collections.stream().map(collection -> {
+                    Expression expression = null;
+                    try {
+                        expression = collection.filter == null ? null : sqlParser.createExpression(collection.filter);
+                    }
+                    catch (ParsingException e) {
+                        request.response(encode(errorMessage(format("Couldn't parse %s: %s",
+                                collection.filter, e.getErrorMessage()), BAD_REQUEST))).end();
+                        throw e;
+                    }
+                    return new CollectionStreamQuery(collection.name,
+                            expression == null ? null : expression.toString());
+                }).collect(Collectors.toList());
+            }
+            catch (ParsingException e) {
+                return;
+            }
         }
 
         EventStream.EventStreamer subscribe = stream.subscribe(project, collect, query.columns,

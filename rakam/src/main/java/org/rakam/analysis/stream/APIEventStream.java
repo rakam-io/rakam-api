@@ -14,6 +14,7 @@ import com.facebook.presto.spi.type.VarcharType;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.type.ArrayType;
 import com.facebook.presto.type.MapType;
+import com.google.common.collect.ImmutableList;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.stream.APIEventStreamModule.CollectionStreamHolder;
@@ -57,20 +58,31 @@ public class APIEventStream
     @Override
     public EventStreamer subscribe(String project, List<CollectionStreamQuery> collections, List<String> columns, StreamResponse response)
     {
-        List<CollectionFilter> collect1 = collections.stream().map(item -> {
-            List<Map.Entry<String, Type>> collect = metastore.getCollection(project, item.getCollection())
-                    .stream()
-                    .map((Function<SchemaField, Map.Entry<String, Type>>) f ->
-                            new SimpleImmutableEntry<>(f.getName(), toType(f.getType())))
-                    .collect(Collectors.toList());
+        List<CollectionFilter> collect1;
+        if(collections != null) {
+            collect1 = collections.stream().map(item -> {
+                Predicate<GenericRecord> predicate;
 
-            Predicate<GenericRecord> predicate = Optional.ofNullable(item.getFilter())
-                    .map(value -> new SqlParser().createExpression(item.getFilter()))
-                    .map(expression -> expressionCompiler.generate(expression, collect))
-                    .orElse(null);
+                if(item.getCollection() == null) {
+                    predicate = (val) -> true;
+                } else {
+                    List<Map.Entry<String, Type>> collect = metastore.getCollection(project, item.getCollection())
+                            .stream()
+                            .map((Function<SchemaField, Map.Entry<String, Type>>) f ->
+                                    new SimpleImmutableEntry<>(f.getName(), toType(f.getType())))
+                            .collect(Collectors.toList());
 
-            return new CollectionFilter(item.getCollection(), predicate);
-        }).collect(Collectors.toList());
+                    predicate = Optional.ofNullable(item.getFilter())
+                            .map(value -> new SqlParser().createExpression(item.getFilter()))
+                            .map(expression -> expressionCompiler.generate(expression, collect))
+                            .orElse(null);
+                }
+
+                return new CollectionFilter(item.getCollection(), predicate);
+            }).collect(Collectors.toList());
+        } else {
+            collect1 = ImmutableList.of(new CollectionFilter(null, null));
+        }
 
         CollectionStreamHolder streamHolder = new CollectionStreamHolder(collect1);
         List<CollectionStreamHolder> holders = this.holder.computeIfAbsent(project, s -> new ArrayList<>());

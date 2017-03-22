@@ -44,7 +44,7 @@ public class EventListenerMapper
 
             for (CollectionFilter item : holderItem.collections) {
                 if (item.collection != null) {
-                    if (!item.collection.equals(event.collection())) {
+                    if (item.collection != null && !item.collection.equals(event.collection())) {
                         continue;
                     }
                 }
