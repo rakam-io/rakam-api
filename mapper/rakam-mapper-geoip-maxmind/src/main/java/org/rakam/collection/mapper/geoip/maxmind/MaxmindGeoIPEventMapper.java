@@ -376,8 +376,10 @@ public class MaxmindGeoIPEventMapper
         }
         Matcher matcher = IP_ADDRESS_PATTERN.matcher(s);
         while (matcher.find()) {
-            if (!PRIVATE_IP_ADDRESS_PATTERN.matcher(matcher.group(0)).find())
-                return matcher.group(0);
+            String group = matcher.group(0);
+            if (group != null && !PRIVATE_IP_ADDRESS_PATTERN.matcher(group).find()) {
+                return group;
+            }
             matcher.region(matcher.end(), s.length());
         }
         return null;

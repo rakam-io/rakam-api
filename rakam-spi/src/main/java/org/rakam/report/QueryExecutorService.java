@@ -39,12 +39,12 @@ import static org.rakam.report.QueryResult.EXECUTION_TIME;
 public class QueryExecutorService
 {
     private final SqlParser parser = new SqlParser();
-    public static final int MAX_QUERY_RESULT_LIMIT = 500000;
+    public static final int DEFAULT_QUERY_RESULT_COUNT = 50000;
+    public static final int MAX_QUERY_RESULT_LIMIT = 1000000;
 
     private final QueryExecutor executor;
     private final MaterializedViewService materializedViewService;
     private final Metastore metastore;
-    private final Clock clock;
     private final char escapeIdentifier;
     private volatile Set<String> projectCache;
 
@@ -54,7 +54,6 @@ public class QueryExecutorService
         this.executor = executor;
         this.materializedViewService = materializedViewService;
         this.metastore = metastore;
-        this.clock = clock;
         this.escapeIdentifier = escapeIdentifier;
     }
 
@@ -135,7 +134,7 @@ public class QueryExecutorService
 
     public QueryExecution executeQuery(String project, String sqlQuery)
     {
-        return executeQuery(project, sqlQuery, Optional.empty(), "collection", MAX_QUERY_RESULT_LIMIT);
+        return executeQuery(project, sqlQuery, Optional.empty(), "collection", DEFAULT_QUERY_RESULT_COUNT);
     }
 
     public QueryExecution executeStatement(String project, String sqlQuery)

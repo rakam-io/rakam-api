@@ -69,6 +69,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static java.util.Objects.requireNonNull;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY;
+import static org.rakam.report.QueryExecutorService.DEFAULT_QUERY_RESULT_COUNT;
 import static org.rakam.report.QueryExecutorService.MAX_QUERY_RESULT_LIMIT;
 import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.encode;
@@ -106,7 +107,7 @@ public class QueryHttpService
         QueryExecution queryExecution = executorService.executeQuery(project, query.query,
                 query.sample,
                 Optional.ofNullable(query.defaultSchema).orElse("collection"),
-                query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit);
+                query.limit == null ? DEFAULT_QUERY_RESULT_COUNT : query.limit);
         return queryExecution
                 .getResult().thenApply(result -> {
                     if (result.isFailed()) {
@@ -125,7 +126,8 @@ public class QueryHttpService
     public void export(RakamHttpRequest request, @Named("project") String project, @BodyParam QueryRequest query)
     {
         executorService.executeQuery(project, query.query,
-                query.sample, Optional.ofNullable(query.defaultSchema).orElse("collection"), query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit).getResult().thenAccept(result -> {
+                query.sample, Optional.ofNullable(query.defaultSchema).orElse("collection"),
+                query.limit == null ? DEFAULT_QUERY_RESULT_COUNT : query.limit).getResult().thenAccept(result -> {
             if (result.isFailed()) {
                 throw new RakamException(result.getError().toString(), BAD_REQUEST);
             }
@@ -160,7 +162,7 @@ public class QueryHttpService
                 executorService.executeQuery(project, query.query,
                         query.sample,
                         Optional.ofNullable(query.defaultSchema).orElse("collection"),
-                        query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit));
+                        query.limit == null ? DEFAULT_QUERY_RESULT_COUNT : query.limit));
     }
 
     public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction)
