@@ -33,6 +33,8 @@ import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.rakam.collection.FieldType.STRING;
@@ -149,7 +151,18 @@ public class MaxmindGeoIPEventMapper
             }
         }
         else if (Boolean.TRUE == ip) {
-            addr = sourceAddress;
+            String forwardedFor = extraProperties.headers().get("X-Forwarded-For");
+            if (forwardedFor != null && (forwardedFor = findNonPrivateIpAddress(forwardedFor)) != null) {
+                try {
+                    // it may be slow because java performs reverse hostname lookup.
+                    addr = Inet4Address.getByName(forwardedFor);
+                }
+                catch (UnknownHostException e) {
+                    return null;
+                }
+            } else {
+                addr = sourceAddress;
+            }
         }
         else {
             if (cityLookup != null) {
@@ -349,5 +362,24 @@ public class MaxmindGeoIPEventMapper
                     break;
             }
         }
+    }
+
+    private static final String IP_ADDRESS_REGEX = "([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})";
+    private static final String PRIVATE_IP_ADDRESS_REGEX = "(^127\\.0\\.0\\.1)|(^10\\.)|(^172\\.1[6-9]\\.)|(^172\\.2[0-9]\\.)|(^172\\.3[0-1]\\.)|(^192\\.168\\.)";
+    private static Pattern IP_ADDRESS_PATTERN = null;
+    private static Pattern PRIVATE_IP_ADDRESS_PATTERN = null;
+
+    private static String findNonPrivateIpAddress(String s) {
+        if (IP_ADDRESS_PATTERN == null) {
+            IP_ADDRESS_PATTERN = Pattern.compile(IP_ADDRESS_REGEX);
+            PRIVATE_IP_ADDRESS_PATTERN = Pattern.compile(PRIVATE_IP_ADDRESS_REGEX);
+        }
+        Matcher matcher = IP_ADDRESS_PATTERN.matcher(s);
+        while (matcher.find()) {
+            if (!PRIVATE_IP_ADDRESS_PATTERN.matcher(matcher.group(0)).find())
+                return matcher.group(0);
+            matcher.region(matcher.end(), s.length());
+        }
+        return null;
     }
 }
