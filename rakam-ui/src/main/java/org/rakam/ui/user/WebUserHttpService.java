@@ -53,6 +53,7 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.SET_COOKIE;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
@@ -361,7 +362,7 @@ public class WebUserHttpService
             return getLoginResponseForUser(user.get());
         }
 
-        throw new RakamException("Account couldn't found.", HttpResponseStatus.NOT_FOUND);
+        throw new RakamException("Account couldn't found.", NOT_FOUND);
     }
 
     @JsonRequest

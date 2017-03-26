@@ -545,7 +545,8 @@ public class JsonEventDeserializer
                     return JsonHelper.encode(jp.readValueAs(TokenBuffer.class));
                 }
                 else {
-                    throw new JsonMappingException(jp, String.format("Cannot cast object to %s for '%s' field", type.name(), field.name()));
+                    return null;
+//                    throw new JsonMappingException(jp, String.format("Cannot cast object to %s for '%s' field", type.name(), field.name()));
                 }
             }
         }

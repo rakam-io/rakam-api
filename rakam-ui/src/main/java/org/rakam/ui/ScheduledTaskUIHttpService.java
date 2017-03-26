@@ -145,7 +145,7 @@ public class ScheduledTaskUIHttpService
         request.response(resp).end();
     }
 
-    public static final List<String> getResourceFiles(String path)
+    public synchronized static final List<String> getResourceFiles(String path)
             throws IOException
     {
         FileSystem fileSystem = null;
@@ -155,8 +155,13 @@ public class ScheduledTaskUIHttpService
 
             java.nio.file.Path myPath;
             if (uri.getScheme().equals("jar")) {
-                fileSystem = FileSystems.newFileSystem(uri, Collections.emptyMap());
-                myPath = fileSystem.getPath("/" + path);
+                try {
+                    fileSystem = FileSystems.newFileSystem(uri, Collections.emptyMap());
+                    myPath = fileSystem.getPath("/" + path);
+                }
+                finally {
+                    fileSystem.close();
+                }
             }
             else {
                 myPath = Paths.get(uri);
