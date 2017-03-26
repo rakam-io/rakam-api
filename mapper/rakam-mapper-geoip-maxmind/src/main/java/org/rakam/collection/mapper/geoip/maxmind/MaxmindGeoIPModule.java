@@ -72,7 +72,7 @@ public class MaxmindGeoIPModule
             extension = "tar.gz";
         }
         else {
-            extension = Files.getFileExtension(data.getAbsolutePath());
+            extension = Files.getFileExtension(data.getAbsolutePath()).split("\\?")[0];
         }
 
         if (!data.exists()) {
