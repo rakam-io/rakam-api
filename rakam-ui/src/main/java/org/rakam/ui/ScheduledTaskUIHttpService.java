@@ -154,24 +154,25 @@ public class ScheduledTaskUIHttpService
             URI uri = ScheduledTaskUIHttpService.class.getResource("/" + path).toURI();
 
             java.nio.file.Path myPath;
-            if (uri.getScheme().equals("jar")) {
-                try {
+            try {
+                if (uri.getScheme().equals("jar")) {
+
                     fileSystem = FileSystems.newFileSystem(uri, Collections.emptyMap());
                     myPath = fileSystem.getPath("/" + path);
                 }
-                finally {
-                    fileSystem.close();
+                else {
+                    myPath = Paths.get(uri);
                 }
+                return Files.walk(myPath, 1).flatMap(next -> {
+                    if (next.equals(myPath)) {
+                        return Stream.of();
+                    }
+                    return Stream.of(CharMatcher.is('/').trimFrom(next.getFileName().toString()));
+                }).collect(Collectors.toList());
             }
-            else {
-                myPath = Paths.get(uri);
+            finally {
+                fileSystem.close();
             }
-            return Files.walk(myPath, 1).flatMap(next -> {
-                if (next.equals(myPath)) {
-                    return Stream.of();
-                }
-                return Stream.of(CharMatcher.is('/').trimFrom(next.getFileName().toString()));
-            }).collect(Collectors.toList());
         }
         catch (URISyntaxException e) {
             throw Throwables.propagate(e);

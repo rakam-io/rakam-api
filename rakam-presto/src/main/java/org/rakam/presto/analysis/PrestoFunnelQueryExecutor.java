@@ -138,7 +138,7 @@ public class PrestoFunnelQueryExecutor
                 Optional.empty() :
                 Optional.of(format("JOIN step%d ON (step%d.date >= step%d.date %s %s)",
                         idx - 1, idx, idx - 1,
-                        window.map(v -> String.format("AND step%d.date - interval '%d' %s < step%d.date", idx, v.value, v.type.name().toLowerCase(), idx - 1)).orElse(""),
+                        window.map(v -> format("AND step%d.date - interval '%d' %s < step%d.date", idx, v.value, v.type.name().toLowerCase(), idx - 1)).orElse(""),
                         dimension.map(value -> format("AND step%d.dimension = step%d.dimension", idx, idx - 1)).orElse("")));
 
         Optional<String> preComputedTable = getPreComputedTable(calculatedUserSets, project, funnelStep.getCollection(), connectorField,
@@ -270,17 +270,18 @@ public class PrestoFunnelQueryExecutor
                 name -> formatIdentifier("step" + idx, '"') + "." + name.getParts().stream()
                         .map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")), '"'));
 
-        return format("SELECT %s %s, %d as step, %s._time from %s %s %s %s",
+        String format = format("SELECT %s %s, %d as step, %s._time from %s %s %s %s",
                 dimension.map(ValidationUtil::checkTableColumn).map(v -> "step" + idx + "." + v + ",").orElse(""),
-                userMappingEnabled ? String.format("coalesce(mapping._user, %s.%s) as %s", "step" + idx, connectorField, connectorField) : ("step" + idx + "." + connectorField),
+                userMappingEnabled ? format("coalesce(mapping._user, %s._user, %s) as _user", "step" + idx, format(connectorField, "step" + idx)) : ("step" + idx + "._user"),
                 idx + 1,
                 "step" + idx,
                 project + "." + checkCollection(funnelStep.getCollection()),
                 "step" + idx,
-                userMappingEnabled ? String.format("left join %s.%s mapping on (%s._user is null and mapping.created_at >= date '%s' and mapping.merged_at <= date '%s' and mapping.id = %s._user)",
+                userMappingEnabled ? format("left join %s.%s mapping on (%s._user is null and mapping.created_at >= date '%s' and mapping.merged_at <= date '%s' and mapping.id = %s._user)",
                         project, checkCollection(ANONYMOUS_ID_MAPPING),
                         "step" + idx, startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE),
                         "step" + idx) : "",
                 filterExp.map(v -> "where " + v).orElse(""));
+        return format;
     }
 }

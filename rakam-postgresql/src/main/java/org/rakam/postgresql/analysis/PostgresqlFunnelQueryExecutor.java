@@ -85,14 +85,15 @@ public class PostgresqlFunnelQueryExecutor
     {
         String table = project + "." + ValidationUtil.checkCollection(funnelStep.getCollection());
         Optional<String> filterExp = funnelStep.getExpression().map(value -> RakamSqlFormatter.formatExpression(value,
-                name -> name.getParts().stream().map(e-> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
+                name -> name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
                 name -> formatIdentifier("step" + idx, '"') + "." + name.getParts().stream()
                         .map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")), '"'));
 
-        return format("SELECT %s %s, %d as step, _time from %s %s %s",
-                dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ",").orElse(""), connectorField, idx + 1, table,
+        String format = format("SELECT %s %s as _user, %d as step, _time from %s %s %s",
+                dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ",").orElse(""), format(connectorField, "step" + idx), idx + 1, table,
                 "step" + idx,
                 filterExp.map(v -> "where " + v).orElse(""));
+        return format;
     }
 }
 

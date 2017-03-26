@@ -71,7 +71,7 @@ public abstract class AbstractFunnelQueryExecutor
 
         String ctes = IntStream.range(0, steps.size())
                 .mapToObj(i -> convertFunnel(
-                        project, testDeviceIdExists(steps.get(i), collections) ? format("coalesce(cast(%s as varchar), _device_id) as %s", CONNECTOR_FIELD, checkTableColumn(CONNECTOR_FIELD)) : CONNECTOR_FIELD, i,
+                        project, testDeviceIdExists(steps.get(i), collections) ? "coalesce(cast(%s._user as varchar), _device_id)" : "_user", i,
                         steps.get(i), dimension, startDate, endDate))
                 .collect(Collectors.joining(" UNION ALL "));
 
