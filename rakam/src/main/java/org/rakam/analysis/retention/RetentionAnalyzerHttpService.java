@@ -14,11 +14,14 @@
 package org.rakam.analysis.retention;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.ServiceStarter;
 import org.rakam.analysis.QueryHttpService;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.RetentionQueryExecutor.DateUnit;
 import org.rakam.analysis.RetentionQueryExecutor.RetentionAction;
+import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -29,6 +32,7 @@ import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
@@ -50,6 +54,7 @@ public class RetentionAnalyzerHttpService
 {
     private final RetentionQueryExecutor retentionQueryExecutor;
     private final QueryHttpService queryService;
+    private final static Logger LOGGER = Logger.get(RetentionAnalyzerHttpService.class);
 
     @Inject
     public RetentionAnalyzerHttpService(RetentionQueryExecutor retentionQueryExecutor, QueryHttpService queryService)
@@ -68,17 +73,24 @@ public class RetentionAnalyzerHttpService
     @Path("/analyze")
     public void analyzeRetention(RakamHttpRequest request)
     {
-        queryService.handleServerSentQueryExecution(request, RetentionQuery.class, (project, query) ->
-                retentionQueryExecutor.query(project,
-                        Optional.ofNullable(query.firstAction),
-                        Optional.ofNullable(query.returningAction),
-                        query.dateUnit,
-                        Optional.ofNullable(query.dimension),
-                        Optional.ofNullable(query.period),
-                        query.startDate,
-                        query.endDate,
-                        query.timezone,
-                        query.approximate));
+        queryService.handleServerSentQueryExecution(request, RetentionQuery.class, (project, query) -> {
+            QueryExecution execution = retentionQueryExecutor.query(project,
+                    Optional.ofNullable(query.firstAction),
+                    Optional.ofNullable(query.returningAction),
+                    query.dateUnit,
+                    Optional.ofNullable(query.dimension),
+                    Optional.ofNullable(query.period),
+                    query.startDate,
+                    query.endDate,
+                    query.timezone,
+                    query.approximate);
+            execution.getResult().thenAccept(data -> {
+                if (data.isFailed()) {
+                    LOGGER.error("Error running retention query", JsonHelper.encode(query) + " : " + data.getError().toString());
+                }
+            });
+            return execution;
+        });
     }
 
     @ApiOperation(value = "Execute query",
@@ -89,7 +101,7 @@ public class RetentionAnalyzerHttpService
     @Path("/analyze")
     public CompletableFuture<QueryResult> analyzeRetention(@Named("project") String project, @BodyParam RetentionQuery query)
     {
-        return retentionQueryExecutor.query(project,
+        CompletableFuture<QueryResult> result = retentionQueryExecutor.query(project,
                 Optional.ofNullable(query.firstAction),
                 Optional.ofNullable(query.returningAction),
                 query.dateUnit,
@@ -99,6 +111,12 @@ public class RetentionAnalyzerHttpService
                 query.endDate,
                 query.timezone,
                 query.approximate).getResult();
+        result.thenAccept(data -> {
+            if (data.isFailed()) {
+                LOGGER.error("Error running funnel query", JsonHelper.encode(query) + " : " + data.getError().toString());
+            }
+        });
+        return result;
     }
 
     private static class RetentionQuery

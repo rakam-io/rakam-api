@@ -14,12 +14,13 @@
 package org.rakam.analysis.funnel;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.FunnelQueryExecutor.FunnelStep;
 import org.rakam.analysis.FunnelQueryExecutor.FunnelWindow;
 import org.rakam.analysis.QueryHttpService;
+import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -30,6 +31,7 @@ import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
@@ -55,6 +57,7 @@ public class FunnelAnalyzerHttpService
 {
     private final FunnelQueryExecutor funnelQueryExecutor;
     private final QueryHttpService queryService;
+    private final static Logger LOGGER = Logger.get(FunnelAnalyzerHttpService.class);
 
     @Inject
     public FunnelAnalyzerHttpService(FunnelQueryExecutor funnelQueryExecutor, QueryHttpService queryService)
@@ -75,14 +78,21 @@ public class FunnelAnalyzerHttpService
     @Path("/analyze")
     public void analyzeFunnel(RakamHttpRequest request)
     {
-        queryService.handleServerSentQueryExecution(request, FunnelQuery.class, (project, query) ->
-                funnelQueryExecutor.query(project,
-                        query.steps,
-                        Optional.ofNullable(query.dimension),
-                        query.startDate,
-                        query.endDate,
-                        Optional.ofNullable(query.window),
-                        query.timezone));
+        queryService.handleServerSentQueryExecution(request, FunnelQuery.class, (project, query) -> {
+            QueryExecution execution = funnelQueryExecutor.query(project,
+                    query.steps,
+                    Optional.ofNullable(query.dimension),
+                    query.startDate,
+                    query.endDate,
+                    Optional.ofNullable(query.window),
+                    query.timezone);
+            execution.getResult().thenAccept(data -> {
+                if (data.isFailed()) {
+                    LOGGER.error("Error running funnel query", JsonHelper.encode(query) + " : " + data.getError().toString());
+                }
+            });
+            return execution;
+        });
     }
 
     @ApiOperation(value = "Execute query",
@@ -94,12 +104,18 @@ public class FunnelAnalyzerHttpService
     @Path("/analyze")
     public CompletableFuture<QueryResult> analyzeFunnel(@Named("project") String project, @BodyParam FunnelQuery query)
     {
-        return funnelQueryExecutor.query(project,
+        CompletableFuture<QueryResult> result = funnelQueryExecutor.query(project,
                 query.steps,
                 Optional.ofNullable(query.dimension),
                 query.startDate,
                 query.endDate, Optional.ofNullable(query.window),
                 query.timezone).getResult();
+        result.thenAccept(data -> {
+            if (data.isFailed()) {
+                LOGGER.error("Error running funnel query", JsonHelper.encode(query) + " : " + data.getError().toString());
+            }
+        });
+        return result;
     }
 
     private static class FunnelQuery

@@ -260,7 +260,6 @@ public class QueryHttpService
         }
         query.getResult().whenComplete((result, ex) -> {
             if (ex != null) {
-
                 LOGGER.error(ex, "Error while executing query");
                 response.send("result", encode(jsonObject()
                         .put("success", false)
@@ -271,7 +270,9 @@ public class QueryHttpService
             else if (result.isFailed()) {
                 response.send("result", encode(jsonObject()
                         .put("success", false)
-                        .putPOJO("error", result.getError()))).end();
+                        .putPOJO("error", result.getError())
+                        .putPOJO("properties", result.getProperties())
+                )).end();
             }
             else {
                 List<? extends SchemaField> metadata = result.getMetadata();
