@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.swagger.annotations.ApiModelProperty;
 import org.rakam.collection.SchemaField;
 import org.rakam.server.http.annotations.ApiModel;
@@ -20,6 +21,10 @@ public class QueryResult
     public static QueryResult errorResult(QueryError error)
     {
         return new QueryResult(null, null, error, null);
+    }
+    public static QueryResult errorResult(QueryError error, String query)
+    {
+        return new QueryResult(null, null, error, ImmutableMap.of("query", query));
     }
 
     public static final String EXECUTION_TIME = "executionTimeInMillis";

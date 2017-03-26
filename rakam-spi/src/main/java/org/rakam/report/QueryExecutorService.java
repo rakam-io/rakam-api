@@ -73,7 +73,7 @@ public class QueryExecutorService
         catch (ParsingException e) {
             QueryError error = new QueryError(e.getMessage(), null, null, e.getLineNumber(), e.getColumnNumber());
             LogUtil.logQueryError(sqlQuery, error, executor.getClass());
-            return QueryExecution.completedQueryExecution(sqlQuery, QueryResult.errorResult(error));
+            return QueryExecution.completedQueryExecution(sqlQuery, QueryResult.errorResult(error, sqlQuery));
         }
 
         long startTime = System.currentTimeMillis();
@@ -111,7 +111,7 @@ public class QueryExecutorService
                                     String message = String.format("Error while updating materialized table '%s': %s", queryExecution.computeQuery, error.message);
                                     QueryError error1 = new QueryError(message, error.sqlState, error.errorCode, error.errorLine, error.charPositionInLine);
                                     LogUtil.logQueryError(query, error1, executor.getClass());
-                                    return QueryResult.errorResult(error1);
+                                    return QueryResult.errorResult(error1, query);
                                 });
                     }
                 }

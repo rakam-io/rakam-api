@@ -266,7 +266,7 @@ public class PrestoQueryExecution
             catch (RuntimeException e) {
                 String message = SERVER_NOT_ACTIVE + " " + e.getMessage();
                 LOGGER.warn(e, message);
-                result.complete(QueryResult.errorResult(QueryError.create(message)));
+                result.complete(QueryResult.errorResult(QueryError.create(message), query));
                 return;
             }
 
@@ -275,11 +275,11 @@ public class PrestoQueryExecution
 
                 if (client.isClosed()) {
                     QueryError queryError = QueryError.create("Query aborted by user");
-                    result.complete(QueryResult.errorResult(queryError));
+                    result.complete(QueryResult.errorResult(queryError, query));
                 }
                 else if (client.isGone()) {
                     QueryError queryError = QueryError.create("Query is gone (server restarted?)");
-                    result.complete(QueryResult.errorResult(queryError));
+                    result.complete(QueryResult.errorResult(queryError, query));
                 }
                 else if (client.isFailed()) {
                     com.facebook.presto.jdbc.internal.client.QueryError error = client.finalResults().getError();
@@ -292,7 +292,7 @@ public class PrestoQueryExecution
                             errorLocation != null ? errorLocation.getLineNumber() : null,
                             errorLocation != null ? errorLocation.getColumnNumber() : null);
                     LogUtil.logQueryError(query, queryError, PrestoQueryExecutor.class);
-                    result.complete(QueryResult.errorResult(queryError));
+                    result.complete(QueryResult.errorResult(queryError, query));
                 }
                 else {
                     transformAndAdd(client.finalResults());
@@ -307,7 +307,7 @@ public class PrestoQueryExecution
             catch (Exception e) {
                 QueryError queryError = QueryError.create(e.getMessage());
                 LogUtil.logQueryError(query, queryError, PrestoQueryExecutor.class);
-                result.complete(QueryResult.errorResult(queryError));
+                result.complete(QueryResult.errorResult(queryError, query));
             }
         }
 
