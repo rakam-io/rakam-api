@@ -429,7 +429,8 @@ public class TestEventJsonParser
         assertEquals(events.properties().get("test"), "[\"test\"]");
     }
 
-    @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "Cannot cast object to INTEGER for 'test' field.*")
+//    @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "Cannot cast object to INTEGER for 'test' field.*")
+    @Test()
     public void testObjectSentToInvalidScalarValue()
             throws Exception
     {
@@ -444,7 +445,8 @@ public class TestEventJsonParser
                 "collection", "test",
                 "properties", props));
 
-        mapper.readValue(bytes, Event.class);
+        Event event = mapper.readValue(bytes, Event.class);
+        assertNull(event.getAttribute("test"));
     }
 
     @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "Scalar value 'test' cannot be cast to ARRAY_BOOLEAN type for 'test' field.*")
