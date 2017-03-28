@@ -13,14 +13,15 @@
  */
 package org.rakam.util;
 
+import static org.rakam.util.ValidationUtil.checkNotNull;
 
 public class ProjectCollection {
     public final String project;
     public final String collection;
 
     public ProjectCollection(String project, String collection) {
-        this.project = project;
-        this.collection = collection;
+        this.project = checkNotNull(collection, "project is null");
+        this.collection = checkNotNull(collection, "collection is null");
     }
 
     @Override

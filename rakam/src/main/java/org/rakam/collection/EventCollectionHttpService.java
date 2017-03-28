@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.cfg.ContextAttributes;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 import com.google.common.collect.ImmutableList;
@@ -72,7 +73,9 @@ import java.net.UnknownHostException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -88,6 +91,7 @@ import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_CREDENTIALS;
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_EXPOSE_HEADERS;
+import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpHeaders.Names.ORIGIN;
 import static io.netty.handler.codec.http.HttpHeaders.Names.SET_COOKIE;
@@ -121,6 +125,7 @@ public class EventCollectionHttpService
     private final static Logger LOGGER = Logger.get(EventCollectionHttpService.class);
 
     private final byte[] OK_MESSAGE = "1".getBytes(UTF_8);
+    private final byte[] gif1x1 = Base64.getDecoder().decode("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7");
 
     private final ObjectMapper jsonMapper;
     private final ObjectMapper csvMapper;
@@ -294,6 +299,78 @@ public class EventCollectionHttpService
                 request.response(response).end();
             });
         });
+    }
+
+    @IgnoreApi
+    @GET
+    @ApiOperation(value = "Collect event via Pixel", request = Event.class)
+    @Path("/pixel")
+    public void pixel(RakamHttpRequest request)
+    {
+        String socketAddress = request.getRemoteAddress();
+
+        DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(OK_MESSAGE));
+
+        Map<String, Object> objectNode = new HashMap<>();
+        Map<String, Object> propertiesNode = new HashMap<>();
+        Map<String, Object> apiNode = new HashMap<>();
+
+        objectNode.put("properties", propertiesNode);
+        objectNode.put("api", apiNode);
+        for (Map.Entry<String, List<String>> entry : request.params().entrySet()) {
+            if(entry.getKey().startsWith("prop.")) {
+                propertiesNode.put(entry.getKey().substring(5), entry.getValue().get(0));
+            } else if(entry.getKey().equals("api.api_key")) {
+                apiNode.put("api_key", entry.getValue().get(0));
+            } else if(entry.getKey().equals("collection")) {
+                objectNode.put("collection", entry.getValue().get(0));
+            }
+        }
+
+        CompletableFuture<List<Cookie>> cookiesFuture = null;
+
+        try {
+            Event event = jsonMapper.convertValue(objectNode, Event.class);
+
+            EventContext context = event.api();
+
+            if (context.checksum != null) {
+                return;
+            }
+
+            cookiesFuture = mapEvent(eventMappers, (mapper) -> mapper.mapAsync(event, new HttpRequestParams(request),
+                    getRemoteAddress(socketAddress), response.trailingHeaders()));
+            cookiesFuture.thenAccept(v -> eventStore.store(event));
+        }
+        catch (RakamException e) {
+            response.headers().add("server-error", e.getMessage());
+        }
+        catch (HttpRequestException e) {
+            response.headers().add("server-error", e.getMessage());
+        }
+        catch (IllegalArgumentException e) {
+            LogUtil.logException(request, e);
+            response.headers().add("server-error", e.getMessage());
+        }
+        catch (Exception e) {
+            LOGGER.error(e, "Error while collecting event");
+            response.headers().add("server-error", "An error occurred");
+            return;
+        }
+
+        if(cookiesFuture != null) {
+            cookiesFuture.thenAccept(cookies -> {
+                if (cookies != null) {
+                    response.headers().add(SET_COOKIE, STRICT.encode(cookies));
+                }
+                request.response(response).end();
+            });
+        }
+
+        request.headers().add(CONTENT_TYPE, "image/gif");
+        request.headers().add(CONTENT_LENGTH, "42");
+
+        request.response(gif1x1).end();
     }
 
     public static InetAddress getRemoteAddress(String socketAddress)

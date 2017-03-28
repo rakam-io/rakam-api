@@ -243,7 +243,6 @@ public class WebUserService
             throw new RakamException("Email is not valid", BAD_REQUEST);
         }
 
-
         WebUser webuser = null;
 
         try (Handle handle = dbi.open()) {
@@ -366,7 +365,13 @@ public class WebUserService
                     "Your password must contain at least one lowercase character, uppercase character and digit and be at least 8 characters. ", BAD_REQUEST);
         }
 
-        String realKey = new String(Base64.getDecoder().decode(key.getBytes(UTF_8)), UTF_8);
+        String realKey;
+        try {
+            realKey = new String(Base64.getDecoder().decode(key.getBytes(UTF_8)), UTF_8);
+        }
+        catch (IllegalArgumentException e) {
+            throw new RakamException("Invalid token", UNAUTHORIZED);
+        }
         if (!CryptUtil.encryptWithHMacSHA1(realKey, encryptionConfig.getSecretKey()).equals(hash)) {
             throw new RakamException("Invalid token", UNAUTHORIZED);
         }
@@ -400,6 +405,10 @@ public class WebUserService
     {
         if (!EMAIL_PATTERN.matcher(email).matches()) {
             throw new RakamException("Email is not valid", BAD_REQUEST);
+        }
+
+        if (!getUserByEmail(email).isPresent()) {
+            throw new RakamException("Email is not found", BAD_REQUEST);
         }
         Map<String, Object> scopes = ImmutableMap.of(
                 "product_name", "Rakam",
