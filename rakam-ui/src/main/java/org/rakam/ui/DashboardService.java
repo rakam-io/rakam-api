@@ -131,14 +131,14 @@ public class DashboardService
     public List<DashboardPermission> getUsers(@Named("user_id") Project project, @ApiParam("id") int id)
     {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT web_user.id, web_user.email, permission.shared_at" +
+            return handle.createQuery("SELECT web_user.id, permission.shared_at" +
                     " FROM dashboard_permission permission " +
                     " JOIN web_user ON (permission.user_id = web_user.id) " +
                     " WHERE dashboard = (SELECT id FROM dashboard WHERE project_id = :project AND id = :id)")
                     .bind("project", project.project)
                     .bind("id", id)
                     .map((i, r, statementContext) -> {
-                        return new DashboardPermission(r.getInt(1), r.getString(2), r.getTimestamp(3).toInstant());
+                        return new DashboardPermission(r.getInt(1), r.getTimestamp(3).toInstant());
                     }).list();
         }
     }
@@ -224,13 +224,11 @@ public class DashboardService
     public static class DashboardPermission
     {
         public final int id;
-        public final String email;
         public final Instant sharedAt;
 
-        public DashboardPermission(int id, String email, Instant sharedAt)
+        public DashboardPermission(int id, Instant sharedAt)
         {
             this.id = id;
-            this.email = email;
             this.sharedAt = sharedAt;
         }
     }

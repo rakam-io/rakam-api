@@ -86,7 +86,8 @@ public class RetentionAnalyzerHttpService
                     query.approximate);
             execution.getResult().thenAccept(data -> {
                 if (data.isFailed()) {
-                    LOGGER.error("Error running retention query", JsonHelper.encode(query) + " : " + data.getError().toString());
+                    LOGGER.error("Error running retention query",
+                            new RuntimeException(JsonHelper.encode(query) + " : " + data.getError().toString()));
                 }
             });
             return execution;
@@ -113,7 +114,8 @@ public class RetentionAnalyzerHttpService
                 query.approximate).getResult();
         result.thenAccept(data -> {
             if (data.isFailed()) {
-                LOGGER.error("Error running funnel query", JsonHelper.encode(query) + " : " + data.getError().toString());
+                LOGGER.error("Error running retention query",
+                        new RuntimeException(JsonHelper.encode(query) + " : " + data.getError().toString()));
             }
         });
         return result;
