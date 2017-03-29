@@ -20,7 +20,7 @@ public class ProjectCollection {
     public final String collection;
 
     public ProjectCollection(String project, String collection) {
-        this.project = checkNotNull(collection, "project is null");
+        this.project = checkNotNull(project, "project is null");
         this.collection = checkNotNull(collection, "collection is null");
     }
 

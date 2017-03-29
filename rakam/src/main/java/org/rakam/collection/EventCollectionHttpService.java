@@ -384,7 +384,7 @@ public class EventCollectionHttpService
     }
 
     @POST
-    @ApiOperation(value = "Collect Bulk events", request = EventList.class, response = SuccessMessage.class, notes = "Bulk API requires master_key as api key and designed to handle large value of data. " +
+    @ApiOperation(value = "Collect Bulk events", request = EventList.class, response = SuccessMessage.class, notes = "Bulk API requires master_key as api key and designed to handle big amount of data. " +
             "The endpoint also accepts application/avro and text/csv formats. You need need to set 'collection' and 'master_key' query parameters if the content-type is not application/json.")
     @Path("/bulk")
     public void bulkEvents(RakamHttpRequest request)
