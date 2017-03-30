@@ -159,31 +159,38 @@ public class JDBCQueryMetadata
     public boolean updateMaterializedView(String project, MaterializedView view, CompletableFuture<Instant> releaseLock)
     {
         Handle handle = dbi.open();
-        long lastUpdated = handle.createQuery("SELECT last_updated FROM materialized_views " +
-                "WHERE project = :project AND table_name = :table_name FOR UPDATE")
-                .bind("project", project)
-                .bind("table_name", view.tableName)
-                .map(LongMapper.FIRST).first();
+        try {
+            long lastUpdated = handle.createQuery("SELECT last_updated FROM materialized_views " +
+                    "WHERE project = :project AND table_name = :table_name FOR UPDATE")
+                    .bind("project", project)
+                    .bind("table_name", view.tableName)
+                    .map(LongMapper.FIRST).first();
 
-        view.lastUpdate = Instant.ofEpochSecond(lastUpdated);
-        if (!view.needsUpdate(clock)) {
-            return false;
-        }
-
-        releaseLock.whenComplete((success, ex) -> {
-            if (success != null) {
-                view.lastUpdate = success;
-                long lastUpdate = view.lastUpdate.getEpochSecond();
-                handle.createStatement("UPDATE materialized_views SET last_updated = :last_updated " +
-                        "WHERE project = :project AND table_name = :table_name")
-                        .bind("project", project)
-                        .bind("table_name", view.tableName)
-                        .bind("last_updated", lastUpdate)
-                        .execute();
+            view.lastUpdate = Instant.ofEpochSecond(lastUpdated);
+            if (!view.needsUpdate(clock)) {
+                handle.close();
+                return false;
             }
 
+            releaseLock.whenComplete((success, ex) -> {
+                if (success != null) {
+                    view.lastUpdate = success;
+                    long lastUpdate = view.lastUpdate.getEpochSecond();
+                    handle.createStatement("UPDATE materialized_views SET last_updated = :last_updated " +
+                            "WHERE project = :project AND table_name = :table_name")
+                            .bind("project", project)
+                            .bind("table_name", view.tableName)
+                            .bind("last_updated", lastUpdate)
+                            .execute();
+                }
+
+                handle.close();
+            });
+        }
+        catch (Exception e) {
             handle.close();
-        });
+            throw Throwables.propagate(e);
+        }
 
         return true;
     }
