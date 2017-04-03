@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 
 public class RealTimeReport {
@@ -32,11 +33,14 @@ public class RealTimeReport {
         this.table_name = checkNotNull(tableName, "table_name is required");
         this.collections = checkNotNull(collections, "collections is required");
         this.filter = filter;
-        this.measures = checkNotNull(measures, "measures is required");;
+        this.measures = checkNotNull(measures, "measures is required");
         this.dimensions = dimensions;
+        if(this.measures.isEmpty()) {
+            throw new RakamException("There must be at least one measure", BAD_REQUEST);
+        }
         for (Measure measure : measures) {
             if (dimensions.stream().anyMatch(dimension -> dimension.equals(measure.column))) {
-                throw new RakamException(format("Column %s in dimension cannot be also in measures", measure.column), HttpResponseStatus.BAD_REQUEST);
+                throw new RakamException(format("Column %s in dimension cannot be also in measures", measure.column), BAD_REQUEST);
             }
         }
         ValidationUtil.checkArgument(!collections.isEmpty(), "collections is empty");

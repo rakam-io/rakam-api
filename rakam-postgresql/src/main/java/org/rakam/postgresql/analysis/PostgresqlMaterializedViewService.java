@@ -57,7 +57,14 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
             statement = (Query) parser.createStatement(materializedView.query);
         }
 
-        new RakamSqlFormatter.Formatter(builder, name -> queryExecutor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of(), "collection"), '"').process(statement, 1);
+        new RakamSqlFormatter.Formatter(builder, name -> queryExecutor
+                .formatTableReference(project, name, Optional.empty(), new HashMap<String, String>() {
+                    @Override
+                    public String put(String key, String value)
+                    {
+                        throw new RakamException("Cross database materialized views are not supported in Postgresql deployment type.", BAD_REQUEST);
+                    }
+                }, "collection"), '"').process(statement, 1);
 
         QueryResult result = queryExecutor.executeRawStatement(format("CREATE MATERIALIZED VIEW %s.%s AS %s WITH NO DATA",
                 ValidationUtil.checkProject(project), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName), builder.toString())).getResult().join();

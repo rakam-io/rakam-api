@@ -115,7 +115,7 @@ public interface EventExplorer
         public final AggregationType aggregation;
 
         @JsonCreator
-        public Measure(@ApiParam("column") String column,
+        public Measure(@ApiParam(value = "column", required = false) String column,
                 @ApiParam("aggregation") AggregationType aggregation)
         {
             if (column == null && aggregation != COUNT) {

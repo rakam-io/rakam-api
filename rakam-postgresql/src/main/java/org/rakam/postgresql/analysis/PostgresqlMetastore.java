@@ -139,7 +139,7 @@ public class PostgresqlMetastore
         }
         try (Connection connection = connectionPool.getConnection()) {
             final Statement statement = connection.createStatement();
-            statement.executeUpdate(String.format("CREATE SCHEMA IF NOT EXISTS \"%s\"", ValidationUtil.checkProject(project)));
+            statement.executeUpdate(String.format("CREATE SCHEMA IF NOT EXISTS \"%s\"", checkProject(project)));
             statement.executeUpdate(format("CREATE OR REPLACE FUNCTION %s.to_unixtime(timestamp) RETURNS double precision AS 'select extract(epoch from $1)' LANGUAGE SQL IMMUTABLE RETURNS NULL ON NULL INPUT", project));
         }
         catch (SQLException e) {
@@ -397,7 +397,7 @@ public class PostgresqlMetastore
     {
         checkProject(project);
         try (Connection conn = connectionPool.getConnection()) {
-            conn.createStatement().execute("DROP SCHEMA " + project + " CASCADE");
+            conn.createStatement().execute(String.format("DROP SCHEMA %s CASCADE", checkProject(project)));
         }
         catch (SQLException e) {
             throw Throwables.propagate(e);

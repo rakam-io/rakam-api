@@ -175,7 +175,7 @@ public abstract class AbstractEventExplorer
 
             if (options.collections.containsAll(collections)) {
                 if (options.aggregations.contains(measure.aggregation)
-                        && options.measures.contains(measure.column)
+                        && measure.column != null && options.measures.contains(measure.column)
                         && (grouping == null || (grouping.type == REFERENCE || (grouping.type == COLUMN && options.dimensions.contains(grouping.value))))
                         && (segment == null || (segment.value.equals("_collection") && segment.type == COLUMN && options.collections.size() == 1) || (segment.type == REFERENCE || (segment.type == COLUMN && options.dimensions.contains(segment.value))))
                         && (filterExp == null || testFilterExpressionForPerComputedTable(filterExp, options))) {
