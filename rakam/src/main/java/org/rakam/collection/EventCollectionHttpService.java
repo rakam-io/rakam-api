@@ -126,6 +126,7 @@ public class EventCollectionHttpService
 
     private final byte[] OK_MESSAGE = "1".getBytes(UTF_8);
     private final byte[] gif1x1 = Base64.getDecoder().decode("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7");
+    private static final int[] FAILED_SINGLE_EVENT = new int[] {0};
 
     private final ObjectMapper jsonMapper;
     private final ObjectMapper csvMapper;
@@ -299,6 +300,15 @@ public class EventCollectionHttpService
                 request.response(response).end();
             });
         });
+    }
+
+    @IgnoreApi
+    @POST
+    @ApiOperation(value = "Collect event via Pixel", request = Event.class)
+    @Path("/pixel")
+    public void pixelPost(RakamHttpRequest request)
+    {
+        pixel(request);
     }
 
     @IgnoreApi
@@ -611,7 +621,6 @@ public class EventCollectionHttpService
         return strings.get(strings.size() - 1);
     }
 
-    private static final int[] FAILED_SINGLE_EVENT = new int[] {0};
 
     @POST
     @ApiOperation(notes = "Returns 1 if the events are collected.", value = "Collect multiple events", request = EventList.class, response = Integer.class)
