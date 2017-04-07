@@ -17,6 +17,7 @@ event.stream.enabled=true\n\
 event-explorer.enabled=true\n\
 custom-data-source.enabled=true\n\
 user.funnel-analysis.enabled=true\n\
+plugin.user.enable-user-mapping=true\n\
 user.retention-analysis.enabled=true\n\
 plugin.geoip.enabled=true\n\
 plugin.user.storage=postgresql\n\
