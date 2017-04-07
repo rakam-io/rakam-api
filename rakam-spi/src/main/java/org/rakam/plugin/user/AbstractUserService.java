@@ -1,17 +1,14 @@
 package org.rakam.plugin.user;
 
 import com.facebook.presto.sql.tree.Expression;
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
-import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.util.RakamException;
 
@@ -22,7 +19,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import static com.google.common.collect.ImmutableList.of;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
 public abstract class AbstractUserService {
@@ -232,11 +228,11 @@ public abstract class AbstractUserService {
         public static class BatchUserOperations implements ISingleUserBatchOperation
         {
             @JsonProperty("id") public Object id;
-            @JsonProperty(value = "set_properties") public final ObjectNode setProperties;
-            @JsonProperty(value = "set_properties_once") public final ObjectNode setPropertiesOnce;
-            @JsonProperty(value = "increment_properties") public final Map<String, Double> incrementProperties;
-            @JsonProperty(value = "unset_properties") public final List<String> unsetProperties;
-            @JsonProperty(value = "time", required = false) public final Long time;
+            @JsonProperty(value = "set_properties") private final ObjectNode setProperties;
+            @JsonProperty(value = "set_properties_once") private final ObjectNode setPropertiesOnce;
+            @JsonProperty(value = "increment_properties") private final Map<String, Double> incrementProperties;
+            @JsonProperty(value = "unset_properties") private final List<String> unsetProperties;
+            @JsonProperty(value = "time") private Long time;
 
             @JsonCreator
             public BatchUserOperations(

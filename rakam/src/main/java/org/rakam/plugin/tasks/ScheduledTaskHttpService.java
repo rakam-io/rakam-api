@@ -131,8 +131,22 @@ public class ScheduledTaskHttpService
     }
 
     @PostConstruct
-    public void schedule()
+    public void setup()
     {
+        try (Handle handle = dbi.open()) {
+            handle.createStatement("CREATE TABLE IF NOT EXISTS custom_scheduled_tasks (" +
+                    "  id SERIAL PRIMARY KEY," +
+                    "  project VARCHAR(255) NOT NULL," +
+                    "  name VARCHAR(255) NOT NULL," +
+                    "  image TEXT," +
+                    "  code TEXT NOT NULL," +
+                    "  parameters TEXT," +
+                    "  last_executed_at BIGINT," +
+                    "  schedule_interval INT" +
+                    "  )")
+                    .execute();
+        }
+
         scheduler.scheduleAtFixedRate(() -> {
             try (Handle handle = dbi.open()) {
                 List<Task> tasks = handle.createQuery(format("SELECT " +
@@ -182,24 +196,6 @@ public class ScheduledTaskHttpService
                 LOGGER.error(e);
             }
         }, 0, 1, MINUTES);
-    }
-
-    @PostConstruct
-    public void setup()
-    {
-        try (Handle handle = dbi.open()) {
-            handle.createStatement("CREATE TABLE IF NOT EXISTS custom_scheduled_tasks (" +
-                    "  id SERIAL PRIMARY KEY," +
-                    "  project VARCHAR(255) NOT NULL," +
-                    "  name VARCHAR(255) NOT NULL," +
-                    "  image TEXT," +
-                    "  code TEXT NOT NULL," +
-                    "  parameters TEXT," +
-                    "  last_executed_at BIGINT," +
-                    "  schedule_interval INT" +
-                    "  )")
-                    .execute();
-        }
     }
 
     @GET

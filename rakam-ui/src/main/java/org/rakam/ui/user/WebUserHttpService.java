@@ -6,6 +6,7 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.oauth2.Oauth2;
 import com.google.api.services.oauth2.model.Userinfoplus;
 import com.google.inject.Inject;
+import io.airlift.log.Logger;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -64,6 +65,8 @@ import static io.netty.handler.codec.http.cookie.ServerCookieEncoder.STRICT;
 public class WebUserHttpService
         extends HttpService
 {
+    private final static Logger LOGGER = Logger.get(WebUserHttpService.class);
+
     private final WebUserService service;
     private final EncryptionConfig encryptionConfig;
     private final RakamUIConfig config;
@@ -388,6 +391,7 @@ public class WebUserHttpService
             return getLoginResponseForUser(user);
         }
         catch (IOException e) {
+            LOGGER.error(e);
             throw new RakamException("Unable to login", INTERNAL_SERVER_ERROR);
         }
     }

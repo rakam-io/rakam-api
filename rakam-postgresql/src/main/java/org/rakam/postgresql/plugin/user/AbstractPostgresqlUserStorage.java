@@ -150,7 +150,7 @@ public abstract class AbstractPostgresqlUserStorage
         for (Map.Entry<String, JsonNode> entry : fields) {
             String key = stripName(entry.getKey(), "property");
             if (key.equals("id")) {
-                continue;
+                key = "_id";
             }
 
             properties.set(key, entry.getValue());

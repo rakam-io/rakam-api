@@ -21,15 +21,14 @@ public abstract class AbstractRetentionQueryExecutor
         if (dateUnit == DAY) {
             return "cast(%s as date)";
         }
-        else if (dateUnit == WEEK) {
+        if (dateUnit == WEEK) {
             return "cast(date_trunc('week', %s) as date)";
         }
-        else if (dateUnit == MONTH) {
+        if (dateUnit == MONTH) {
             return "cast(date_trunc('month', %s) as date)";
         }
-        else {
-            throw new UnsupportedOperationException();
-        }
+
+        throw new UnsupportedOperationException(dateUnit + " is not supported.");
     }
 
     protected boolean testDeviceIdExists(Optional<RetentionAction> firstAction, Map<String, List<SchemaField>> collections)

@@ -14,6 +14,7 @@ import org.rakam.collection.EventCollectionHttpService;
 import org.rakam.collection.EventCollectionHttpService.HttpRequestParams;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.user.AbstractUserService.BatchUserOperationRequest;
+import org.rakam.plugin.user.AbstractUserService.BatchUserOperationRequest.BatchUserOperations;
 import org.rakam.plugin.user.AbstractUserService.CollectionEvent;
 import org.rakam.plugin.user.AbstractUserService.PreCalculateQuery;
 import org.rakam.plugin.user.AbstractUserService.SingleUserBatchOperationRequest;
@@ -445,7 +446,7 @@ public class UserHttpService
 
         List<Cookie> cookies = null;
         BatchUserOperationRequest op = new BatchUserOperationRequest(req.api,
-                ImmutableList.of(new BatchUserOperationRequest.BatchUserOperations(req.id, req.properties, null, null, null, null)));
+                ImmutableList.of(new BatchUserOperations(req.id, req.properties, null, null, null, null)));
 
         for (UserPropertyMapper mapper : mappers) {
             try {
