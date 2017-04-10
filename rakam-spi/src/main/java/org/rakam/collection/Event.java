@@ -152,13 +152,14 @@ public class Event
 
     public static class EventContext
     {
-        private static final EventContext EMPTY_CONTEXT = new EventContext(null, null, null, null, null);
+        private static final EventContext EMPTY_CONTEXT = new EventContext(null, null, null, null, null, null);
 
         @JsonProperty("api_key") public final String apiKey;
         @JsonProperty(value = "library") public final Library library;
         @JsonProperty(value = "api_version") public final String apiVersion;
         @JsonProperty(value = "upload_time") public final Long uploadTime;
         @JsonProperty(value = "checksum") public final String checksum;
+        @JsonProperty(value = "uuid") public final String uuid;
 
         @JsonCreator
         public EventContext(
@@ -166,18 +167,20 @@ public class Event
                 @ApiParam(value = "library", required = false, description = "Optional library information for statistics") Library library,
                 @ApiParam(value = "api_version", required = false, description = "Optional API version for versioning") String apiVersion,
                 @ApiParam(value = "upload_time", required = false, description = "Optional client upload time for clock synchronization") Long uploadTime,
+                @ApiParam(value = "uuid", required = false, description = "Optional UUID for deduplication") String uuid,
                 @ApiParam(value = "checksum", required = false, description = "Optional checksum for verify the body content") String checksum)
         {
             this.library = library;
             this.apiKey = apiKey;
             this.apiVersion = apiVersion;
             this.uploadTime = uploadTime;
+            this.uuid = uuid;
             this.checksum = checksum;
         }
 
         public static EventContext apiKey(String apiKey)
         {
-            return new EventContext(apiKey, null, null, null, null);
+            return new EventContext(apiKey, null, null, null, null, null);
         }
 
         public static EventContext empty()

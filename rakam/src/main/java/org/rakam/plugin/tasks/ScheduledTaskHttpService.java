@@ -148,13 +148,17 @@ public class ScheduledTaskHttpService
         }
 
         scheduler.scheduleAtFixedRate(() -> {
-            try (Handle handle = dbi.open()) {
-                List<Task> tasks = handle.createQuery(format("SELECT " +
-                        "project, id, name, code, parameters FROM custom_scheduled_tasks " +
-                        "WHERE last_executed_at is null or (last_executed_at + schedule_interval) < %s", timestampToEpoch))
-                        .map((index, r, ctx) -> {
-                            return new Task(r.getString(1), r.getInt(2), r.getString(3), r.getString(4), JsonHelper.read(r.getString(5), new TypeReference<Map<String, Parameter>>() {}));
-                        }).list();
+            try {
+                List<Task> tasks;
+                try (Handle handle = dbi.open()) {
+                    tasks = handle.createQuery(format("SELECT " +
+                            "project, id, name, code, parameters FROM custom_scheduled_tasks " +
+                            "WHERE last_executed_at is null or (last_executed_at + schedule_interval) < %s", timestampToEpoch))
+                            .map((index, r, ctx) -> {
+                                return new Task(r.getString(1), r.getInt(2), r.getString(3), r.getString(4), JsonHelper.read(r.getString(5), new TypeReference<Map<String, Parameter>>() {}));
+                            }).list();
+                }
+
                 for (Task task : tasks) {
                     LockService.Lock lock = lockService.tryLock(String.valueOf(task.id));
 
@@ -177,7 +181,8 @@ public class ScheduledTaskHttpService
                         throw e;
                     }
 
-                    Futures.addCallback(run, new FutureCallback<Void>() {
+                    Futures.addCallback(run, new FutureCallback<Void>()
+                    {
                         @Override
                         public void onSuccess(@Nullable Void result)
                         {
@@ -215,7 +220,8 @@ public class ScheduledTaskHttpService
     @ApiOperation(value = "List tasks", authorizations = @Authorization(value = "master_key"))
     @JsonRequest
     @Path("/get_logs")
-    public List<JSCodeLoggerService.LogEntry> getLogs(@Named("project") String project, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end, @ApiParam("id") int id)
+    public List<JSCodeLoggerService.LogEntry> getLogs(@Named("project") String project, @ApiParam(value = "start", required = false) Instant
+            start, @ApiParam(value = "end", required = false) Instant end, @ApiParam("id") int id)
     {
         LockService.Lock lock = null;
         boolean running;
@@ -235,7 +241,8 @@ public class ScheduledTaskHttpService
     @JsonRequest
     @ApiOperation(value = "Create task", authorizations = @Authorization(value = "master_key"))
     @Path("/create")
-    public long create(@Named("project") String project, @ApiParam("name") String name, @ApiParam("script") String code, @ApiParam("parameters") Map<String, Parameter> parameters, @ApiParam("interval") Duration interval, @ApiParam(value = "image", required = false) String image)
+    public long create(@Named("project") String project, @ApiParam("name") String name, @ApiParam("script") String
+            code, @ApiParam("parameters") Map<String, Parameter> parameters, @ApiParam("interval") Duration interval, @ApiParam(value = "image", required = false) String image)
     {
         try (Handle handle = dbi.open()) {
             GeneratedKeys<Long> longs = handle.createStatement("INSERT INTO custom_scheduled_tasks (project, name, code, schedule_interval, parameters, last_executed_at, image) VALUES (:project, :name, :code, :interval, :parameters, :updated, :image)")
@@ -302,7 +309,8 @@ public class ScheduledTaskHttpService
             throw e;
         }
 
-        Futures.addCallback(future, new FutureCallback<Void>() {
+        Futures.addCallback(future, new FutureCallback<Void>()
+        {
 
             @Override
             public void onSuccess(@Nullable Void result)
@@ -399,7 +407,8 @@ public class ScheduledTaskHttpService
 
         CompletableFuture<Environment> resultFuture = new CompletableFuture<>();
 
-        Futures.addCallback(run, new FutureCallback<Void>() {
+        Futures.addCallback(run, new FutureCallback<Void>()
+        {
             @Override
             public void onSuccess(Void v)
             {
@@ -409,15 +418,17 @@ public class ScheduledTaskHttpService
             @Override
             public void onFailure(Throwable ex)
             {
-                if(ex instanceof CancellationException) {
+                if (ex instanceof CancellationException) {
                     logger.error("Timeouts after 120 seconds (The test execution is limited to 120 seconds)");
-                } else {
+                }
+                else {
                     logger.error(ex.getMessage());
                 }
                 done();
             }
 
-            private void done() {
+            private void done()
+            {
                 List<Event> events = eventStore.getEvents();
 
                 if (events.isEmpty()) {
