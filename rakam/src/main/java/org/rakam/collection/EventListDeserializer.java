@@ -1,26 +1,32 @@
 package org.rakam.collection;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.util.TokenBuffer;
+import com.google.common.primitives.Ints;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
+import javax.xml.bind.DatatypeConverter;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import static com.fasterxml.jackson.core.JsonToken.FIELD_NAME;
 import static com.fasterxml.jackson.core.JsonToken.START_OBJECT;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
 
@@ -52,7 +58,7 @@ public class EventListDeserializer
 
         t = jp.nextToken();
 
-        if(t != FIELD_NAME) {
+        if (t != FIELD_NAME) {
             deserializationContext.reportWrongTokenException(jp, JsonToken.FIELD_NAME, null);
         }
         String fieldName = jp.getCurrentName();
@@ -63,6 +69,7 @@ public class EventListDeserializer
             context = jp.readValueAs(Event.EventContext.class);
         }
         else if (fieldName.equals("events")) {
+            InputStream stream = (InputStream) deserializationContext.getAttribute("stream");
             eventsBuffer = jp.readValueAs(TokenBuffer.class);
         }
         else {
@@ -70,7 +77,7 @@ public class EventListDeserializer
         }
 
         t = jp.nextToken();
-        if(t != FIELD_NAME) {
+        if (t != FIELD_NAME) {
             deserializationContext.reportWrongTokenException(jp, JsonToken.FIELD_NAME, null);
         }
         fieldName = jp.getCurrentName();
@@ -92,7 +99,7 @@ public class EventListDeserializer
         }
         else if (fieldName.equals("events")) {
             if (eventsBuffer != null) {
-                throw new RakamException("multiple 'api' property", BAD_REQUEST);
+                throw new RakamException("multiple 'events' property", BAD_REQUEST);
             }
 
             return readEvents(jp, context, deserializationContext);
@@ -105,6 +112,10 @@ public class EventListDeserializer
     private EventList readEvents(JsonParser jp, Event.EventContext context, DeserializationContext deserializationContext)
             throws IOException
     {
+        Object inputSource = jp.getInputSource();
+
+        long start = jp.getTokenLocation().getByteOffset();
+
         List<Event> list = new ArrayList<>();
 
         if (jp.getCurrentToken() != JsonToken.START_ARRAY) {
@@ -118,7 +129,7 @@ public class EventListDeserializer
         boolean masterKey = false;
 
         if (apiKey == null || apiKey == WRITE_KEY) {
-            if(context == null) {
+            if (context == null) {
                 throw new RakamException("api parameter is required", BAD_REQUEST);
             }
             try {
@@ -148,6 +159,45 @@ public class EventListDeserializer
             list.add(eventDeserializer.deserializeWithProject(jp, project, context, masterKey));
         }
 
+        long end = jp.getTokenLocation().getByteOffset();
+
+        if (context.checksum != null) {
+            Object sourceRef = jp.getTokenLocation().getSourceRef();
+            if (sourceRef instanceof byte[]) {
+                validateChecksum((byte[]) sourceRef, start, end, context);
+            }
+        }
+
         return new EventList(context, project, list);
+    }
+
+    private void validateChecksum(byte[] sourceRef, long start, long end, Event.EventContext context)
+    {
+        MessageDigest md;
+        try {
+            md = MessageDigest.getInstance("MD5");
+        }
+        catch (NoSuchAlgorithmException e) {
+            throw new RakamException(INTERNAL_SERVER_ERROR);
+        }
+
+        if (context.apiKey != null) {
+            md.update(context.apiKey.getBytes(UTF_8));
+        }
+
+        if (context.apiVersion != null) {
+            md.update(context.apiVersion.getBytes(UTF_8));
+        }
+
+        if (context.uploadTime != null) {
+            md.update(String.valueOf(context.uploadTime).getBytes(UTF_8));
+        }
+
+        md.update(sourceRef, Ints.checkedCast(start), Ints.checkedCast(end - start) + 1);
+
+        String md5 = DatatypeConverter.printHexBinary(md.digest());
+        if (!md5.equals(context.checksum.toUpperCase(Locale.ENGLISH))) {
+            throw new RakamException("Checksum is invalid", BAD_REQUEST);
+        }
     }
 }

@@ -233,7 +233,7 @@ public class PostgresqlModule
         {
             for (SchemaField field : fields) {
                 try {
-                    executor.executeRawStatement(String.format("CREATE INDEX %s %s ON %s.%s USING %s(%s)",
+                    executor.executeRawStatement(String.format("CREATE INDEX CONCURRENTLY %s %s ON %s.%s USING %s(%s)",
                             postgresql9_5 ? "IF NOT EXISTS" : "",
                             checkCollection(String.format("%s_%s_%s_auto_index", project, collection, field.getName())),
                             project, checkCollection(collection),

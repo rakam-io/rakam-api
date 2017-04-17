@@ -44,6 +44,7 @@ import static com.fasterxml.jackson.core.JsonToken.END_ARRAY;
 import static com.fasterxml.jackson.core.JsonToken.END_OBJECT;
 import static com.fasterxml.jackson.core.JsonToken.START_OBJECT;
 import static com.fasterxml.jackson.core.JsonToken.VALUE_NULL;
+import static com.fasterxml.jackson.core.JsonToken.VALUE_NUMBER_INT;
 import static com.fasterxml.jackson.core.JsonToken.VALUE_STRING;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
@@ -106,7 +107,7 @@ public class JsonEventDeserializer
                 Boolean.TRUE.equals(masterKey));
     }
 
-    public Event deserializeWithProject(JsonParser jp, String project, EventContext api, boolean masterKey)
+    public Event deserializeWithProject(JsonParser jp, String project, EventContext mainApi, boolean masterKey)
             throws IOException, RakamException
     {
         Map.Entry<List<SchemaField>, GenericData.Record> properties = null;
@@ -116,7 +117,9 @@ public class JsonEventDeserializer
         if (t == JsonToken.START_OBJECT) {
             t = jp.nextToken();
         }
+
         TokenBuffer propertiesBuffer = null;
+        EventContext api = null;
         for (; t == JsonToken.FIELD_NAME; t = jp.nextToken()) {
             String fieldName = jp.getCurrentName();
 
@@ -128,6 +131,11 @@ public class JsonEventDeserializer
                         throw new RakamException("collection parameter must be a string", BAD_REQUEST);
                     }
                     collection = checkCollectionValid(jp.getValueAsString().toLowerCase());
+                    break;
+                case "event_id":
+                    if (t != VALUE_NUMBER_INT) {
+                        throw new RakamException("event_id must be numeric", BAD_REQUEST);
+                    }
                     break;
                 case "api":
                     if (api != null) {
@@ -190,7 +198,7 @@ public class JsonEventDeserializer
                     }
                     break;
                 default:
-                    throw new RakamException(String.format("Unrecognized field '%s' ", fieldName), BAD_REQUEST);
+                    throw new RakamException(String.format("Unrecognized field '%s'. Should be one of (api, collection, properties)", fieldName), BAD_REQUEST);
             }
         }
         if (properties == null) {
@@ -213,7 +221,7 @@ public class JsonEventDeserializer
                 throw new JsonMappingException(jp, "properties is null");
             }
         }
-        return new Event(project, collection, api, properties.getKey(), properties.getValue());
+        return new Event(project, collection, api == null ? mainApi : api, properties.getKey(), properties.getValue());
     }
 
     public Map.Entry<List<SchemaField>, GenericData.Record> parseProperties(String project, String collection, JsonParser jp, boolean masterKey)

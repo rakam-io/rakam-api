@@ -1,1 +1,0 @@
-alter table dashboard_items add column last_updated timestamp;

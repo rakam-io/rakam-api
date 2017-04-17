@@ -1,5 +1,6 @@
 package org.rakam.collection;
 
+import com.facebook.presto.hadoop.$internal.com.google.common.io.ByteStreams;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
@@ -9,12 +10,10 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.cfg.ContextAttributes;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.io.ByteStreams;
 import io.airlift.log.Logger;
 import io.airlift.slice.InputStreamSliceInput;
 import io.netty.buffer.ByteBuf;
@@ -30,14 +29,11 @@ import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.QueryHttpService;
-import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.Event.EventContext;
 import org.rakam.plugin.CopyEvent;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.EventStore.CopyType;
-import org.rakam.report.ChainQueryExecution;
-import org.rakam.report.QueryExecution;
 import org.rakam.server.http.HttpRequestException;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -47,17 +43,13 @@ import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
-import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
-import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.LogUtil;
 import org.rakam.util.RakamException;
 import org.rakam.util.SuccessMessage;
 
 import javax.inject.Inject;
-import javax.inject.Named;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -70,6 +62,7 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -99,7 +92,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.CONFLICT;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
-import static io.netty.handler.codec.http.HttpResponseStatus.PRECONDITION_FAILED;
+import static io.netty.handler.codec.http.HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static io.netty.handler.codec.http.cookie.ServerCookieEncoder.STRICT;
 import static java.util.concurrent.CompletableFuture.completedFuture;
@@ -113,7 +106,7 @@ import static org.rakam.plugin.EventStore.SUCCESSFUL_BATCH;
 import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.encodeAsBytes;
-import static org.rakam.util.StandardErrors.CONFLICT_COMMIT_MESSAGE;
+import static org.rakam.util.JsonHelper.numberNode;
 import static org.rakam.util.StandardErrors.PARTIAL_ERROR_MESSAGE;
 import static org.rakam.util.ValidationUtil.checkCollection;
 
@@ -245,12 +238,6 @@ public class EventCollectionHttpService
             try {
                 Event event = jsonMapper.readValue(buff, Event.class);
 
-                EventContext context = event.api();
-
-                if (context.checksum != null && !validateChecksum(request, context.checksum, buff)) {
-                    return;
-                }
-
                 cookiesFuture = mapEvent(eventMappers, (mapper) -> mapper.mapAsync(event, new HttpRequestParams(request),
                         getRemoteAddress(socketAddress), response.trailingHeaders()));
                 cookiesFuture.thenAccept(v -> eventStore.store(event));
@@ -328,11 +315,13 @@ public class EventCollectionHttpService
         objectNode.put("properties", propertiesNode);
         objectNode.put("api", apiNode);
         for (Map.Entry<String, List<String>> entry : request.params().entrySet()) {
-            if(entry.getKey().startsWith("prop.")) {
+            if (entry.getKey().startsWith("prop.")) {
                 propertiesNode.put(entry.getKey().substring(5), entry.getValue().get(0));
-            } else if(entry.getKey().equals("api.api_key")) {
+            }
+            else if (entry.getKey().equals("api.api_key")) {
                 apiNode.put("api_key", entry.getValue().get(0));
-            } else if(entry.getKey().equals("collection")) {
+            }
+            else if (entry.getKey().equals("collection")) {
                 objectNode.put("collection", entry.getValue().get(0));
             }
         }
@@ -341,12 +330,6 @@ public class EventCollectionHttpService
 
         try {
             Event event = jsonMapper.convertValue(objectNode, Event.class);
-
-            EventContext context = event.api();
-
-            if (context.checksum != null) {
-                return;
-            }
 
             cookiesFuture = mapEvent(eventMappers, (mapper) -> mapper.mapAsync(event, new HttpRequestParams(request),
                     getRemoteAddress(socketAddress), response.trailingHeaders()));
@@ -368,7 +351,7 @@ public class EventCollectionHttpService
             return;
         }
 
-        if(cookiesFuture != null) {
+        if (cookiesFuture != null) {
             cookiesFuture.thenAccept(cookies -> {
                 if (cookies != null) {
                     response.headers().add(SET_COOKIE, STRICT.encode(cookies));
@@ -394,7 +377,7 @@ public class EventCollectionHttpService
     }
 
     @POST
-    @ApiOperation(value = "Collect Bulk events", request = EventList.class, response = SuccessMessage.class, notes = "Bulk API requires master_key as api key and designed to handle big amount of data. " +
+    @ApiOperation(value = "Collect Bulk events", request = EventList.class, response = SuccessMessage.class, notes = "Bulk API requires master_key as api key and built for importing the data without modifying (enrichment / sanitization http://rakam.io/doc/buremba/rakam-wiki/master/Event-Mappers). This endpoint is also more efficient then batch endpoint." +
             "The endpoint also accepts application/avro and text/csv formats. You need need to set 'collection' and 'master_key' query parameters if the content-type is not application/json.")
     @Path("/bulk")
     public void bulkEvents(RakamHttpRequest request)
@@ -621,7 +604,6 @@ public class EventCollectionHttpService
         return strings.get(strings.size() - 1);
     }
 
-
     @POST
     @ApiOperation(notes = "Returns 1 if the events are collected.", value = "Collect multiple events", request = EventList.class, response = Integer.class)
     @ApiResponses(value = {
@@ -630,7 +612,13 @@ public class EventCollectionHttpService
     @Path("/batch")
     public void batchEvents(RakamHttpRequest request)
     {
-        storeEvents(request, buff -> jsonMapper.readValue(buff, EventList.class),
+        storeEvents(request, buff -> {
+                    if(buff.available() > 500000) {
+                        throw new RakamException("The body is too big, use /bulk endpoint.", REQUEST_ENTITY_TOO_LARGE);
+                    }
+                    byte[] bytes = ByteStreams.toByteArray(buff);
+                    return jsonMapper.readerFor(EventList.class).readValue(bytes);
+                },
                 (events, responseHeaders) -> {
                     CompletableFuture<int[]> errorIndexes;
 
@@ -670,7 +658,8 @@ public class EventCollectionHttpService
                                     Unpooled.wrappedBuffer(encodeAsBytes(result)), responseHeaders);
                         }
                     });
-                }, true);
+                }, true
+        );
     }
 
     public void storeEventsSync(RakamHttpRequest request, ThrowableFunction mapper, BiFunction<List<Event>, HttpHeaders, FullHttpResponse> responseFunction, boolean mapEvents)
@@ -692,11 +681,6 @@ public class EventCollectionHttpService
             CompletableFuture<List<Cookie>> entries;
             try {
                 EventList events = mapper.apply(buff);
-
-                EventContext context = events.api;
-                if (context.checksum != null && !validateChecksum(request, context.checksum, buff)) {
-                    return;
-                }
 
                 InetAddress remoteAddress = getRemoteAddress(request.getRemoteAddress());
 
@@ -780,29 +764,6 @@ public class EventCollectionHttpService
             }
         }
         return builder == null ? null : builder.toString();
-    }
-
-    private boolean validateChecksum(RakamHttpRequest request, String checksum, InputStream expected)
-            throws IOException
-    {
-        MessageDigest md;
-        try {
-            md = MessageDigest.getInstance("MD5");
-        }
-        catch (NoSuchAlgorithmException e) {
-            returnError(request, "0", INTERNAL_SERVER_ERROR);
-            return false;
-        }
-
-        byte[] bytes = ByteStreams.toByteArray(expected);
-        expected.reset();
-        if (!DatatypeConverter.printHexBinary(md.digest(bytes))
-                .equals(checksum.toUpperCase(Locale.ENGLISH))) {
-            returnError(request, "Checksum is invalid", BAD_REQUEST);
-            return false;
-        }
-
-        return true;
     }
 
     interface ThrowableFunction

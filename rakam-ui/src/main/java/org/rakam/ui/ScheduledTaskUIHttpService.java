@@ -156,7 +156,6 @@ public class ScheduledTaskUIHttpService
             java.nio.file.Path myPath;
             try {
                 if (uri.getScheme().equals("jar")) {
-
                     fileSystem = FileSystems.newFileSystem(uri, Collections.emptyMap());
                     myPath = fileSystem.getPath("/" + path);
                 }
@@ -171,7 +170,9 @@ public class ScheduledTaskUIHttpService
                 }).collect(Collectors.toList());
             }
             finally {
-                fileSystem.close();
+                if(fileSystem != null) {
+                    fileSystem.close();
+                }
             }
         }
         catch (URISyntaxException e) {

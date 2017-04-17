@@ -37,6 +37,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static java.util.Locale.ENGLISH;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
@@ -82,6 +83,10 @@ public class ProjectHttpService
             throw new RakamException("Lock key is invalid", FORBIDDEN);
         }
         String project = checkProject(name);
+        if (metastore.getProjects().contains(project)) {
+            throw new RakamException("The project already exists.", BAD_REQUEST);
+        }
+
         metastore.createProject(project);
         return transformKeys(apiKeyService.createApiKeys(project));
     }

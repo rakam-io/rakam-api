@@ -139,8 +139,8 @@ public class PostgresqlMetastore
         }
         try (Connection connection = connectionPool.getConnection()) {
             final Statement statement = connection.createStatement();
-            statement.executeUpdate(String.format("CREATE SCHEMA IF NOT EXISTS \"%s\"", checkProject(project)));
-            statement.executeUpdate(format("CREATE OR REPLACE FUNCTION \"%s\".to_unixtime(timestamp) RETURNS double precision AS 'select extract(epoch from $1)' LANGUAGE SQL IMMUTABLE RETURNS NULL ON NULL INPUT", project));
+            statement.executeUpdate(format("CREATE SCHEMA \"%s\"", checkProject(project)));
+            statement.executeUpdate(format("CREATE FUNCTION \"%s\".to_unixtime(timestamp) RETURNS double precision AS 'select extract(epoch from $1)' LANGUAGE SQL IMMUTABLE RETURNS NULL ON NULL INPUT", project));
         }
         catch (SQLException e) {
             throw Throwables.propagate(e);
@@ -285,7 +285,7 @@ public class PostgresqlMetastore
                         .map(f -> format("%s %s NULL", checkTableColumn(f.getName()), toSql(f.getType())))
                         .collect(Collectors.joining(", "));
 
-                if(!queryEnd.isEmpty()) {
+                if (!queryEnd.isEmpty()) {
                     queryEnd += ", ";
                 }
 
@@ -397,7 +397,7 @@ public class PostgresqlMetastore
     {
         checkProject(project);
         try (Connection conn = connectionPool.getConnection()) {
-            conn.createStatement().execute(String.format("DROP SCHEMA %s CASCADE", checkProject(project)));
+            conn.createStatement().execute(format("DROP SCHEMA %s CASCADE", checkProject(project)));
         }
         catch (SQLException e) {
             throw Throwables.propagate(e);

@@ -1,1 +1,0 @@
-alter table web_user add column stripe_id varchar(50);

@@ -143,28 +143,6 @@ public class ScheduledEmailService
     }
 
     @PostConstruct
-    public void setup()
-    {
-        try (Handle handle = dbi.open()) {
-            handle.createStatement("CREATE TABLE IF NOT EXISTS scheduled_email (" +
-                    "  id SERIAL PRIMARY KEY," +
-                    "  project_id INTEGER REFERENCES web_user_project(id),\n" +
-                    "  user_id INTEGER REFERENCES web_user(id),\n" +
-                    "  name VARCHAR(255) NOT NULL," +
-                    "  date_interval VARCHAR(100) NOT NULL," +
-                    "  hour_of_day INTEGER NOT NULL," +
-                    "  type VARCHAR(100)," +
-                    "  type_id BIGINT," +
-                    "  created_at timestamp without time zone default (now() at time zone 'utc')," +
-                    "  last_executed_at timestamp without time zone," +
-                    "  enabled BOOL NOT NULL DEFAULT true," +
-                    "  emails VARCHAR(100)[]" +
-                    "  )")
-                    .execute();
-        }
-    }
-
-    @PostConstruct
     public void schedule()
     {
         long initialDelay = millisToNextHour();

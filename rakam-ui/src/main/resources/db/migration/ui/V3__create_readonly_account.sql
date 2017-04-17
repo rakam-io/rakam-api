@@ -1,1 +1,0 @@
-alter table web_user add column read_only boolean default false;
