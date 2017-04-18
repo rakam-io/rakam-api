@@ -1,6 +1,5 @@
 package org.rakam.event;
 
-import com.amazonaws.services.dynamodbv2.local.server.DynamoDBProxyServer;
 import com.facebook.presto.rakam.RakamRaptorPlugin;
 import com.facebook.presto.rakam.stream.StreamPlugin;
 import com.facebook.presto.rakam.stream.metadata.ForMetadata;
@@ -60,7 +59,6 @@ public class TestingEnvironment
     private static JDBCPoolDataSource metastore;
     private static Process kinesisProcess;
     private final S3ProxyLaunchInfo s3ProxyLaunchInfo;
-    DynamoDBProxyServer dynamoDBServer;
     private Process dynamodbServer;
 
     public TestingEnvironment()
@@ -224,9 +222,6 @@ public class TestingEnvironment
         }
         if (kinesisProcess != null) {
             kinesisProcess.destroy();
-        }
-        if (dynamoDBServer != null) {
-            dynamodbServer.destroy();
         }
     }
 

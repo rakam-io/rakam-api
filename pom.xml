@@ -43,11 +43,6 @@
             <name>bintray</name>
             <url>http://dl.bintray.com/buremba/maven</url>
         </repository>
-        <repository>
-            <id>dynamodb-local</id>
-            <name>DynamoDB Local Release Repository</name>
-            <url>https://s3-us-west-2.amazonaws.com/dynamodb-local/release</url>
-        </repository>
     </repositories>
 
     <licenses>
@@ -598,66 +593,66 @@
                 <version>1.0.392</version>
             </dependency>
 
-            <dependency>
-                <groupId>com.amazonaws</groupId>
-                <artifactId>DynamoDBLocal</artifactId>
-                <version>1.10.5.1</version>
-                <scope>test</scope>
-                <exclusions>
-                    <exclusion>
-                        <groupId>org.eclipse.jetty</groupId>
-                        <artifactId>jetty-client</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>org.eclipse.jetty</groupId>
-                        <artifactId>jetty-server</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>com.amazonaws</groupId>
-                        <artifactId>aws-java-sdk-core</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>org.eclipse.jetty.orbit</groupId>
-                        <artifactId>javax.servlet</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>org.apache.commons</groupId>
-                        <artifactId>commons-lang3</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>org.antlr</groupId>
-                        <artifactId>antlr4-runtime</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>com.amazonaws</groupId>
-                        <artifactId>aws-java-sdk-dynamodb</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>com.amazonaws</groupId>
-                        <artifactId>aws-java-sdk-kms</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>com.amazonaws</groupId>
-                        <artifactId>aws-java-sdk-s3</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>com.fasterxml.jackson.core</groupId>
-                        <artifactId>jackson-annotations</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>com.fasterxml.jackson.core</groupId>
-                        <artifactId>jackson-core</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>com.fasterxml.jackson.core</groupId>
-                        <artifactId>jackson-databind</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>org.mockito</groupId>
-                        <artifactId>mockito-core</artifactId>
-                    </exclusion>
-                </exclusions>
-            </dependency>
+            <!--<dependency>-->
+                <!--<groupId>com.amazonaws</groupId>-->
+                <!--<artifactId>DynamoDBLocal</artifactId>-->
+                <!--<version>1.10.5.1</version>-->
+                <!--<scope>test</scope>-->
+                <!--<exclusions>-->
+                    <!--<exclusion>-->
+                        <!--<groupId>org.eclipse.jetty</groupId>-->
+                        <!--<artifactId>jetty-client</artifactId>-->
+                    <!--</exclusion>-->
+                    <!--<exclusion>-->
+                        <!--<groupId>org.eclipse.jetty</groupId>-->
+                        <!--<artifactId>jetty-server</artifactId>-->
+                    <!--</exclusion>-->
+                    <!--<exclusion>-->
+                        <!--<groupId>com.amazonaws</groupId>-->
+                        <!--<artifactId>aws-java-sdk-core</artifactId>-->
+                    <!--</exclusion>-->
+                    <!--<exclusion>-->
+                        <!--<groupId>org.eclipse.jetty.orbit</groupId>-->
+                        <!--<artifactId>javax.servlet</artifactId>-->
+                    <!--</exclusion>-->
+                    <!--<exclusion>-->
+                        <!--<groupId>org.apache.commons</groupId>-->
+                        <!--<artifactId>commons-lang3</artifactId>-->
+                    <!--</exclusion>-->
+                    <!--<exclusion>-->
+                        <!--<groupId>org.antlr</groupId>-->
+                        <!--<artifactId>antlr4-runtime</artifactId>-->
+                    <!--</exclusion>-->
+                    <!--<exclusion>-->
+                        <!--<groupId>com.amazonaws</groupId>-->
+                        <!--<artifactId>aws-java-sdk-dynamodb</artifactId>-->
+                    <!--</exclusion>-->
+                    <!--<exclusion>-->
+                        <!--<groupId>com.amazonaws</groupId>-->
+                        <!--<artifactId>aws-java-sdk-kms</artifactId>-->
+                    <!--</exclusion>-->
+                    <!--<exclusion>-->
+                        <!--<groupId>com.amazonaws</groupId>-->
+                        <!--<artifactId>aws-java-sdk-s3</artifactId>-->
+                    <!--</exclusion>-->
+                    <!--<exclusion>-->
+                        <!--<groupId>com.fasterxml.jackson.core</groupId>-->
+                        <!--<artifactId>jackson-annotations</artifactId>-->
+                    <!--</exclusion>-->
+                    <!--<exclusion>-->
+                        <!--<groupId>com.fasterxml.jackson.core</groupId>-->
+                        <!--<artifactId>jackson-core</artifactId>-->
+                    <!--</exclusion>-->
+                    <!--<exclusion>-->
+                        <!--<groupId>com.fasterxml.jackson.core</groupId>-->
+                        <!--<artifactId>jackson-databind</artifactId>-->
+                    <!--</exclusion>-->
+                    <!--<exclusion>-->
+                        <!--<groupId>org.mockito</groupId>-->
+                        <!--<artifactId>mockito-core</artifactId>-->
+                    <!--</exclusion>-->
+                <!--</exclusions>-->
+            <!--</dependency>-->
 
             <dependency>
                 <groupId>org.rakam</groupId>

@@ -1,6 +1,6 @@
 package org.rakam.collection;
 
-import com.facebook.presto.hadoop.$internal.com.google.common.io.ByteStreams;
+import com.google.common.io.ByteStreams;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
