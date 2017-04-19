@@ -78,7 +78,7 @@ public class PostgresqlFunnelQueryExecutor
     public String getTemplate()
     {
         return "select %s get_funnel_step(steps) step, count(*) total from (\n" +
-                "select %s array_agg(step order by " + checkTableColumn(projectConfig.getTimeColumn(), '`') + ") as steps from (%s) t WHERE " + checkTableColumn(projectConfig.getTimeColumn(), '`') + " between timestamp '%s' and timestamp '%s'\n" +
+                "select %s array_agg(step order by " + checkTableColumn(projectConfig.getTimeColumn()) + ") as steps from (%s) t WHERE " + checkTableColumn(projectConfig.getTimeColumn()) + " between timestamp '%s' and timestamp '%s'\n" +
                 "group by %s %s\n" +
                 ") t group by 1 %s order by 1";
     }
