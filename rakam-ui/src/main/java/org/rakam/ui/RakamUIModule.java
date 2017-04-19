@@ -111,7 +111,9 @@ public class RakamUIModule
         httpServices.addBinding().to(CustomEventMapperUIHttpService.class);
         httpServices.addBinding().to(ClusterService.class);
         httpServices.addBinding().to(UIRecipeHttpService.class);
-        httpServices.addBinding().to(ScheduledEmailService.class);
+        if(rakamUIConfig.getScreenCaptureService() != null) {
+            httpServices.addBinding().to(ScheduledEmailService.class);
+        }
         if (rakamUIConfig.getStripeKey() != null) {
             httpServices.addBinding().to(UserSubscriptionHttpService.class);
         }

@@ -3,15 +3,13 @@ package org.rakam;
 import com.google.common.eventbus.EventBus;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.InMemoryQueryMetadataStore;
-import org.rakam.analysis.TestContinuousQueryService;
 import org.rakam.analysis.metadata.Metastore;
-import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.config.ProjectConfig;
 import org.rakam.event.TestingEnvironment;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
-import org.rakam.presto.analysis.PrestoMetastore;
+import org.rakam.presto.analysis.PrestoRakamRaptorMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.report.realtime.RealTimeConfig;
-import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
 @Test(enabled=false)
@@ -24,12 +22,12 @@ public class TestPrestoContinuousQueryService  {
     public void setUp() throws Exception {
         testEnvironment = new TestingEnvironment();
 
-        metastore = new PrestoMetastore(testEnvironment.getPrestoMetastore(), new EventBus(), testEnvironment.getPrestoConfig());
+        metastore = new PrestoRakamRaptorMetastore(testEnvironment.getPrestoMetastore(), new EventBus(), new ProjectConfig(), testEnvironment.getPrestoConfig());
         metastore.setup();
 
         InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();
 
-        PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(testEnvironment.getPrestoConfig(), null, null, metastore);
+        PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(new ProjectConfig(), testEnvironment.getPrestoConfig(), null, null, metastore);
 
         continuousQueryService = new PrestoContinuousQueryService(queryMetadataStore, new RealTimeConfig(),
                 prestoQueryExecutor, testEnvironment.getPrestoConfig());

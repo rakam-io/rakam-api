@@ -20,6 +20,7 @@ import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
+import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.report.AbstractRetentionQueryExecutor;
 import org.rakam.report.DelegateQueryExecution;
@@ -66,13 +67,18 @@ public class PrestoRetentionQueryExecutor
     private final ContinuousQueryService continuousQueryService;
     private final QueryExecutorService executor;
     private final boolean userMappingEnabled;
+    private final ProjectConfig projectConfig;
 
     @Inject
-    public PrestoRetentionQueryExecutor(QueryExecutorService executor, Metastore metastore,
+    public PrestoRetentionQueryExecutor(
+            ProjectConfig projectConfig,
+            QueryExecutorService executor,
+            Metastore metastore,
             MaterializedViewService materializedViewService,
             UserPluginConfig userPluginConfig,
             ContinuousQueryService continuousQueryService)
     {
+        this.projectConfig = projectConfig;
         this.executor = executor;
         this.metastore = metastore;
         this.materializedViewService = materializedViewService;
@@ -305,13 +311,14 @@ public class PrestoRetentionQueryExecutor
         String timePredicate = String.format("between date '%s' and date '%s' + interval '1' day",
                 startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE));
 
-        return format("select %s as date, %s %s from %s as data %s where data._time %s %s",
-                String.format(timeColumn, "data._time"),
+        return format("select %s as date, %s %s from %s as data %s where data.%s %s %s",
+                String.format(timeColumn, "data." + checkTableColumn(projectConfig.getTimeColumn())),
                 dimension.isPresent() ? checkTableColumn(dimension.get(), "data.dimension", '"') + " as dimension, " : "",
                 (userMappingEnabled && mappingEnabled) ? String.format("(case when data.%s is not null then data.%s else coalesce(mapping._user, data._device_id) end) as %s", userField, userField, userField) : ("data." + userField),
                 checkCollection(collection),
-                (userMappingEnabled && mappingEnabled) ? String.format("left join %s mapping on (data._user is null and mapping.created_at >= date '%s' and mapping.merged_at <= date '%s' and mapping.id = data._user)",
-                        checkCollection(ANONYMOUS_ID_MAPPING), startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE)) : "",
+                (userMappingEnabled && mappingEnabled) ? String.format("left join %s mapping on (data.%s is null and mapping.created_at >= date '%s' and mapping.merged_at <= date '%s' and mapping.id = data._user)",
+                        checkCollection(ANONYMOUS_ID_MAPPING), checkTableColumn(projectConfig.getUserColumn()), startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE)) : "",
+                checkTableColumn(projectConfig.getTimeColumn()),
                 timePredicate,
                 filter.isPresent() ? "and " + formatExpression(filter.get(), reference -> {
                     throw new UnsupportedOperationException();

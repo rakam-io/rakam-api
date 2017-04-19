@@ -12,6 +12,7 @@ import org.rakam.util.RakamException;
 
 import javax.annotation.PostConstruct;
 
+import java.net.URI;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -79,8 +80,18 @@ public class JDBCApiKeyService
     {
         try (Connection connection = connectionPool.getConnection()) {
             Statement statement = connection.createStatement();
+            URI uri = URI.create(connectionPool.getConfig().getUrl().replaceAll("^jdbc:", ""));
+            String primaryKey;
+            if(uri.getScheme().equals("mysql")) {
+                primaryKey = "  id MEDIUMINT NOT NULL AUTO_INCREMENT,\n";
+            } else
+            if(uri.getScheme().equals("postgresql")) {
+                primaryKey = "  id SERIAL,\n";
+            } else {
+                throw new IllegalStateException();
+            }
             statement.execute("CREATE TABLE IF NOT EXISTS api_key (" +
-                    "  id MEDIUMINT NOT NULL AUTO_INCREMENT,\n" +
+                    primaryKey +
                     "  project VARCHAR(255) NOT NULL,\n" +
                     "  read_key VARCHAR(255) NOT NULL,\n" +
                     "  write_key VARCHAR(255) NOT NULL,\n" +

@@ -1,8 +1,12 @@
 package org.rakam.presto.analysis;
 
+import com.facebook.presto.hadoop.$internal.com.google.common.base.Joiner;
+import com.facebook.presto.hadoop.$internal.com.google.common.collect.ImmutableList;
+import com.google.common.base.Splitter;
 import io.airlift.configuration.Config;
 
 import java.net.URI;
+import java.util.List;
 
 public class PrestoConfig {
     private URI address;
@@ -11,6 +15,7 @@ public class PrestoConfig {
     private String streamingConnector = "streaming";
     private String userConnector = "user";
     private String bulkConnector = "middleware";
+    private List<String> existingProjects;
 
     @Config("presto.address")
     public PrestoConfig setAddress(URI address)
@@ -26,6 +31,20 @@ public class PrestoConfig {
 
         this.userConnector = userConnector;
         return this;
+    }
+
+    @Config("presto.existing-schemas")
+    public PrestoConfig setExistingProjects(String existingProjects)
+    {
+        this.existingProjects = existingProjects != null ?
+                ImmutableList.copyOf(Splitter.on(",").trimResults()
+                        .split(existingProjects)) : null;
+        return this;
+    }
+
+    public List<String> getExistingProjects()
+    {
+        return existingProjects;
     }
 
     @Config("presto.bulk-connector")

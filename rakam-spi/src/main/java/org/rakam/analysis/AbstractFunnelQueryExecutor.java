@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
+import org.rakam.config.ProjectConfig;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
@@ -46,9 +47,11 @@ public abstract class AbstractFunnelQueryExecutor
     private static final String CONNECTOR_FIELD = "_user";
     private final QueryExecutor executor;
     private final Metastore metastore;
+    protected final ProjectConfig projectConfig;
 
-    public AbstractFunnelQueryExecutor(Metastore metastore, QueryExecutor executor)
+    public AbstractFunnelQueryExecutor(ProjectConfig projectConfig, Metastore metastore, QueryExecutor executor)
     {
+        this.projectConfig = projectConfig;
         this.metastore = metastore;
         this.executor = executor;
     }
@@ -71,7 +74,7 @@ public abstract class AbstractFunnelQueryExecutor
 
         String ctes = IntStream.range(0, steps.size())
                 .mapToObj(i -> convertFunnel(
-                        project, testDeviceIdExists(steps.get(i), collections) ? "coalesce(cast(%s._user as varchar), _device_id)" : "_user", i,
+                        project, testDeviceIdExists(steps.get(i), collections) ? "coalesce(cast(%s." + checkTableColumn(projectConfig.getUserColumn()) + " as varchar), _device_id)" : "_user", i,
                         steps.get(i), dimension, startDate, endDate))
                 .collect(Collectors.joining(" UNION ALL "));
 

@@ -7,6 +7,7 @@ import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
+import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.postgresql.plugin.user.AbstractPostgresqlUserStorage;
@@ -21,6 +22,7 @@ import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
+
 import java.time.Duration;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -39,68 +41,80 @@ import static org.rakam.report.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
-public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStorage {
+public class PrestoExternalUserStorageAdapter
+        extends AbstractPostgresqlUserStorage
+{
     private final PrestoQueryExecutor executor;
     private final UserPluginConfig config;
     private final MaterializedViewService materializedViewService;
     private final PrestoConfig prestoConfig;
     private final Metastore metastore;
     private final QueryExecutorService executorService;
+    private final ProjectConfig projectConfig;
 
     @Inject
-    public PrestoExternalUserStorageAdapter(MaterializedViewService materializedViewService,
-                                            PrestoQueryExecutor executor,
-                                            QueryExecutorService executorService,
-                                            PrestoConfig prestoConfig,
-                                            ConfigManager configManager,
-                                            UserPluginConfig config,
-                                            PostgresqlQueryExecutor queryExecutor,
-                                            Metastore metastore) {
+    public PrestoExternalUserStorageAdapter(
+            ProjectConfig projectConfig,
+            MaterializedViewService materializedViewService,
+            PrestoQueryExecutor executor,
+            QueryExecutorService executorService,
+            PrestoConfig prestoConfig,
+            ConfigManager configManager,
+            UserPluginConfig config,
+            PostgresqlQueryExecutor queryExecutor,
+            Metastore metastore)
+    {
         super(executorService, queryExecutor, configManager);
+        this.projectConfig = projectConfig;
         this.executor = executor;
         this.executorService = executorService;
         this.config = config;
         this.prestoConfig = prestoConfig;
         this.materializedViewService = materializedViewService;
         queryExecutor.executeRawStatement("CREATE SCHEMA IF NOT EXISTS users").getResult().thenAccept(result -> {
-            if(result.isFailed()) {
-                throw new IllegalStateException("Unable to create schema for users: "+result.getError().toString());
-            };
+            if (result.isFailed()) {
+                throw new IllegalStateException("Unable to create schema for users: " + result.getError().toString());
+            }
+            ;
         });
         this.metastore = metastore;
     }
 
     @Override
     public CompletableFuture<QueryResult> searchUsers(String project,
-                                                 List<String> selectColumns,
-                                                 Expression filterExpression,
-                                                 List<EventFilter> eventFilter,
-                                                 Sorting sortColumn, long limit,
-                                                 String offset) {
+            List<String> selectColumns,
+            Expression filterExpression,
+            List<EventFilter> eventFilter,
+            Sorting sortColumn, long limit,
+            String offset)
+    {
         if (filterExpression != null && eventFilter != null && !eventFilter.isEmpty()) {
             return super.searchUsers(project, selectColumns, filterExpression, eventFilter, sortColumn, limit, offset);
         }
 
         String query;
         if (eventFilter != null && !eventFilter.isEmpty()) {
-            query = String.format("select distinct _user as %s from (%s) ",
+            query = String.format("select distinct %s as %s from (%s) ",
+                    checkTableColumn(projectConfig.getUserColumn()),
                     config.getIdentifierColumn(),
                     eventFilter.stream().map(f -> String.format(getEventFilterQuery(project, f), checkCollection(f.collection)))
                             .collect(Collectors.joining(" union all ")));
-        } else {
+        }
+        else {
             List<Map.Entry<String, List<SchemaField>>> collections = metastore.getCollections(project)
                     .entrySet().stream()
                     .filter(c -> c.getValue().stream().anyMatch(a -> a.getName().equals("_user")))
                     .collect(Collectors.toList());
 
-            if(collections.isEmpty()) {
+            if (collections.isEmpty()) {
                 return QueryExecution.completedQueryExecution(null, QueryResult.empty()).getResult();
             }
 
-            query = String.format("select distinct _user as %s from (%s)",
+            query = String.format("select distinct %s as %s from (%s)",
+                    checkTableColumn(projectConfig.getUserColumn()),
                     config.getIdentifierColumn(),
-                    collections.stream().map(c -> String.format("select %s from %s collection where collection._user is not null", "_user",
-                            checkCollection(c.getKey()))).collect(Collectors.joining(" union all ")));
+                    collections.stream().map(c -> String.format("select %s from %s collection where collection.%s is not null", "_user",
+                            checkCollection(c.getKey()), checkTableColumn(projectConfig.getUserColumn()))).collect(Collectors.joining(" union all ")));
         }
 
 //        if(sortColumn == null) {
@@ -113,13 +127,16 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
     }
 
     @Override
-    public void createSegment(String project, String name, String tableName, Expression filterExpression, List<EventFilter> eventFilter, Duration interval) {
+    public void createSegment(String project, String name, String tableName, Expression filterExpression, List<EventFilter> eventFilter, Duration interval)
+    {
 
         String query;
         if (filterExpression == null) {
-            query = String.format("select distinct _user as id from (%s) t",
+            query = String.format("select distinct %s as id from (%s) t",
+                    checkTableColumn(projectConfig.getUserColumn()),
                     eventFilter.stream().map(f -> String.format(getEventFilterQuery(project, f), f.collection)).collect(Collectors.joining(" UNION ALL ")));
-        } else {
+        }
+        else {
 
             throw new RakamException("User segment must have at least one event filter", BAD_REQUEST);
         }
@@ -130,18 +147,21 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
     }
 
     @Override
-    public QueryExecutorService getExecutorForWithEventFilter() {
+    public QueryExecutorService getExecutorForWithEventFilter()
+    {
         return executorService;
     }
 
     @Override
-    public List<String> getEventFilterPredicate(String project, List<EventFilter> eventFilter) {
+    public List<String> getEventFilterPredicate(String project, List<EventFilter> eventFilter)
+    {
         return eventFilter.stream().map(f -> String.format("id in (%s)",
                 String.format(getEventFilterQuery(project, f), executor.formatTableReference(project, QualifiedName.of(f.collection), Optional.empty(), ImmutableMap.of(), "collection"))))
                 .collect(Collectors.toList());
     }
 
-    public String getEventFilterQuery(String project, EventFilter filter) {
+    public String getEventFilterQuery(String project, EventFilter filter)
+    {
         StringBuilder builder = new StringBuilder();
 
         builder.append("select ")
@@ -156,22 +176,24 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
         }
         if (filter.timeframe != null) {
             if (filter.timeframe.start != null) {
-                filterList.add(String.format("collection._time > cast('%s' as timestamp)",
-                         PRESTO_TIMESTAMP_FORMAT.format(filter.timeframe.start.atZone(ZoneId.of("UTC")))));
+                filterList.add(String.format("collection.%s > cast('%s' as timestamp)",
+                        checkTableColumn(projectConfig.getTimeColumn()),
+                        PRESTO_TIMESTAMP_FORMAT.format(filter.timeframe.start.atZone(ZoneId.of("UTC")))));
             }
             if (filter.timeframe.end != null) {
-                filterList.add(String.format("collection._time < cast('%s' as timestamp)",
+                filterList.add(String.format("collection.%s < cast('%s' as timestamp)",
+                        checkTableColumn(projectConfig.getTimeColumn()),
                         PRESTO_TIMESTAMP_FORMAT.format(filter.timeframe.end.atZone(ZoneId.of("UTC")))));
             }
         }
 
         if (config.getEnableUserMapping() && getHasDeviceId(project, filter.collection)) {
             // mapping.created_at <= max and mapping.merged_at > min
-            builder.append(String.format(" left join %s mapping on (collection._user is null and mapping.id = collection._device_id)",
-                    checkCollection(ANONYMOUS_ID_MAPPING)));
+            builder.append(String.format(" left join %s mapping on (collection.%s is null and mapping.id = collection._device_id)",
+                    checkCollection(ANONYMOUS_ID_MAPPING), checkTableColumn(projectConfig.getUserColumn())));
         }
 
-        builder.append(" where ").append(" collection._user is not null ");
+        builder.append(" where ").append(" collection." + checkTableColumn(projectConfig.getUserColumn()) + " is not null ");
 
         if (!filterList.isEmpty()) {
             builder.append("and ")
@@ -183,13 +205,15 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
             String field;
             if (filter.aggregation.type == COUNT && filter.aggregation.field == null) {
                 field = "collection._user";
-            } else {
-                field = "collection.\"" + checkTableColumn(filter.aggregation.field, "aggregation field", '"')+"\"";
+            }
+            else {
+                field = "collection.\"" + checkTableColumn(filter.aggregation.field, "aggregation field", '"') + "\"";
             }
 
             if (config.getEnableUserMapping()) {
                 builder.append(" group by mapping._user, collection._user, collection._device_id");
-            } else {
+            }
+            else {
                 builder.append(" group by collection._user");
             }
             if (filter.aggregation.minimum != null || filter.aggregation.maximum != null) {
@@ -216,7 +240,8 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
     }
 
     @Override
-    public String getUserTable(String project, boolean isEventFilterActive) {
+    public String getUserTable(String project, boolean isEventFilterActive)
+    {
         if (isEventFilterActive) {
             return prestoConfig.getUserConnector() + ".users." + project;
         }

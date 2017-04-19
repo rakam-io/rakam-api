@@ -21,6 +21,9 @@ import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
+import org.rakam.config.ProjectConfig;
+
+import javax.inject.Inject;
 
 import java.net.InetAddress;
 import java.time.Instant;
@@ -28,26 +31,33 @@ import java.util.List;
 
 import static com.google.common.collect.ImmutableList.of;
 
-@Mapper(name = "Timestamp mapper", description = "Attaches or re-configures _time attribute of events.")
+@Mapper(name = "Timestamp mapper", description = "Attaches or re-configures time attribute of events.")
 public class TimestampEventMapper
         implements SyncEventMapper
 {
     private static final int HASHCODE = TimestampEventMapper.class.getName().hashCode();
+    private final ProjectConfig projectConfig;
+
+    @Inject
+    public TimestampEventMapper(ProjectConfig projectConfig)
+    {
+        this.projectConfig = projectConfig;
+    }
 
     @Override
     public List<Cookie> map(Event event, RequestParams extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders)
     {
         GenericRecord properties = event.properties();
-        Object time = properties.get("_time");
+        Object time = properties.get(projectConfig.getTimeColumn());
         if (time == null) {
             long serverTime = Instant.now().getEpochSecond();
 
-            properties.put("_time", serverTime * 1000);
+            properties.put(projectConfig.getTimeColumn(), serverTime * 1000);
         }
         else if (time instanceof Number && event.api() != null && event.api().uploadTime != null) {
             // match server time and client time and get an estimate
             long fixedTime = ((Number) time).longValue() + ((Instant.now().getEpochSecond() - (event.api().uploadTime / 1000)) * 1000);
-            properties.put("_time", fixedTime);
+            properties.put(projectConfig.getTimeColumn(), fixedTime);
         }
         return null;
     }
@@ -55,7 +65,7 @@ public class TimestampEventMapper
     @Override
     public void addFieldDependency(FieldDependencyBuilder builder)
     {
-        builder.addFields(of(new SchemaField("_time", FieldType.TIMESTAMP)));
+        builder.addFields(of(new SchemaField(projectConfig.getTimeColumn(), FieldType.TIMESTAMP)));
     }
 
     @Override

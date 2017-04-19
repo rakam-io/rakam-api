@@ -18,6 +18,7 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.JsonEventDeserializer;
 import org.rakam.collection.SchemaField;
+import org.rakam.config.ProjectConfig;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 import org.testng.annotations.AfterMethod;
@@ -52,7 +53,7 @@ public class TestEventJsonParser
         metastore = new InMemoryMetastore(apiKeyService);
 
         SchemaChecker schemaChecker = new SchemaChecker(metastore, fieldDependency);
-        eventDeserializer = new JsonEventDeserializer(metastore, apiKeyService, new TestingConfigManager(), schemaChecker, fieldDependency);
+        eventDeserializer = new JsonEventDeserializer(metastore, apiKeyService, new TestingConfigManager(), schemaChecker, new ProjectConfig(), fieldDependency);
         EventListDeserializer eventListDeserializer = new EventListDeserializer(apiKeyService, eventDeserializer);
 
         mapper = JsonHelper.getMapper();

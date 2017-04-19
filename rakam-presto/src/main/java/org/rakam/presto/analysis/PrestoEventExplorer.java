@@ -16,6 +16,7 @@ package org.rakam.presto.analysis;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.config.ProjectConfig;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.eventexplorer.AbstractEventExplorer;
 import org.rakam.report.realtime.AggregationType;
@@ -42,9 +43,9 @@ public class PrestoEventExplorer extends AbstractEventExplorer {
             .build();
 
     @Inject
-    public PrestoEventExplorer(QueryExecutorService executor, ContinuousQueryService continuousQueryService,
+    public PrestoEventExplorer(ProjectConfig projectConfig, QueryExecutorService executor, ContinuousQueryService continuousQueryService,
                                MaterializedViewService materializedViewService) {
-        super(executor, materializedViewService, continuousQueryService, timestampMapping);
+        super(projectConfig, executor, materializedViewService, continuousQueryService, timestampMapping);
     }
 
     @Override

@@ -10,6 +10,7 @@ import org.rakam.aws.kinesis.AWSKinesisEventStore;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.config.JDBCConfig;
+import org.rakam.config.ProjectConfig;
 import org.rakam.event.TestingEnvironment;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
@@ -17,7 +18,7 @@ import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
 import org.rakam.presto.analysis.PrestoEventExplorer;
 import org.rakam.presto.analysis.PrestoMaterializedViewService;
-import org.rakam.presto.analysis.PrestoMetastore;
+import org.rakam.presto.analysis.PrestoRakamRaptorMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.presto.plugin.EventExplorerListener;
 import org.rakam.report.QueryExecutorService;
@@ -32,7 +33,7 @@ public class TestPrestoEventExplorer
 {
     private EventExplorer eventExplorer;
     private TestingEnvironment testingEnvironment;
-    private PrestoMetastore metastore;
+    private PrestoRakamRaptorMetastore metastore;
     private PrestoQueryExecutor prestoQueryExecutor;
     private InMemoryQueryMetadataStore queryMetadataStore;
     private JDBCPoolDataSource metastoreDataSource;
@@ -51,10 +52,10 @@ public class TestPrestoEventExplorer
         metastoreDataSource = JDBCPoolDataSource.getOrCreateDataSource(postgresqlConfig);
         queryMetadataStore = new InMemoryQueryMetadataStore();
 
-        metastore = new PrestoMetastore(testingEnvironment.getPrestoMetastore(), new EventBus(), prestoConfig);
+        metastore = new PrestoRakamRaptorMetastore(testingEnvironment.getPrestoMetastore(), new EventBus(), new ProjectConfig(), prestoConfig);
         metastore.setup();
 
-        prestoQueryExecutor = new PrestoQueryExecutor(prestoConfig, null, null, metastore);
+        prestoQueryExecutor = new PrestoQueryExecutor(new ProjectConfig(), prestoConfig, null, null, metastore);
 
         continuousQueryService = new PrestoContinuousQueryService(queryMetadataStore, new RealTimeConfig(),
                 prestoQueryExecutor, prestoConfig);
@@ -63,10 +64,10 @@ public class TestPrestoEventExplorer
                 prestoQueryExecutor, metastore, queryMetadataStore);
         QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, metastore, materializedViewService, Clock.systemUTC(), '"');
 
-        eventExplorer = new PrestoEventExplorer(queryExecutorService, continuousQueryService, materializedViewService);
+        eventExplorer = new PrestoEventExplorer(new ProjectConfig(), queryExecutorService, continuousQueryService, materializedViewService);
         setupInline();
         super.setup();
-        new EventExplorerListener(continuousQueryService).onCreateProject(new ProjectCreatedEvent(PROJECT_NAME));
+        new EventExplorerListener(new ProjectConfig(), continuousQueryService).onCreateProject(new ProjectCreatedEvent(PROJECT_NAME));
         // todo find a better way of handling this
         Thread.sleep(15000);
     }

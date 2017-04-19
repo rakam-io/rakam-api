@@ -66,6 +66,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_GATEWAY;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.EXPECTATION_FAILED;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_IMPLEMENTED;
 import static io.netty.handler.codec.http.HttpResponseStatus.PRECONDITION_REQUIRED;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
@@ -82,7 +83,6 @@ public class WebUserService
     private final RakamUIConfig config;
     private final EncryptionConfig encryptionConfig;
     private final EventBus eventBus;
-    private MailSender mailSender;
     private final EmailClientConfig mailConfig;
 
     private static final Mustache resetPasswordHtmlCompiler;
@@ -280,8 +280,15 @@ public class WebUserService
             }
         }
 
-        sendMail(welcomeTitleCompiler, welcomeTxtCompiler,
-                welcomeHtmlCompiler, email, ImmutableMap.of("name", Optional.ofNullable(name).orElse("there")));
+        try {
+            sendMail(welcomeTitleCompiler, welcomeTxtCompiler,
+                    welcomeHtmlCompiler, email, ImmutableMap.of("name", Optional.ofNullable(name).orElse("there")));
+        }
+        catch (RakamException e) {
+            if(e.getStatusCode() != NOT_IMPLEMENTED) {
+                throw e;
+            }
+        }
 
         return webuser;
     }
@@ -447,12 +454,7 @@ public class WebUserService
         writer = new StringWriter();
         titleCompiler.execute(writer, data);
         String title = writer.toString();
-
-        if (mailSender == null) {
-            synchronized (this) {
-                mailSender = mailConfig.getMailSender();
-            }
-        }
+        MailSender mailSender = mailConfig.getMailSender();
 
         return CompletableFuture.runAsync(() -> {
             try {

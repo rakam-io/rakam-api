@@ -4,6 +4,7 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.EventExplorer;
+import org.rakam.config.ProjectConfig;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
@@ -11,6 +12,7 @@ import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 import org.rakam.report.realtime.AggregationType;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 
@@ -45,7 +47,6 @@ import static org.rakam.analysis.EventExplorer.TimestampTransformation.fromStrin
 import static org.rakam.clickhouse.analysis.ClickHouseQueryExecution.DATE_TIME_FORMATTER;
 import static org.rakam.collection.SchemaField.stripName;
 import static org.rakam.report.eventexplorer.AbstractEventExplorer.checkReference;
-import static org.rakam.report.eventexplorer.AbstractEventExplorer.getColumnReference;
 import static org.rakam.report.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkLiteral;
@@ -73,12 +74,14 @@ public class ClickHouseEventExplorer
     private final QueryExecutor executor;
     private final QueryExecutorService service;
     private static final SqlParser sqlParser = new SqlParser();
+    private final ProjectConfig projectConfig;
 
     @Inject
-    public ClickHouseEventExplorer(QueryExecutor executor, QueryExecutorService service)
+    public ClickHouseEventExplorer(QueryExecutor executor, ProjectConfig projectConfig, QueryExecutorService service)
     {
         this.executor = executor;
         this.service = service;
+        this.projectConfig = projectConfig;
     }
 
     @Override
@@ -102,7 +105,8 @@ public class ClickHouseEventExplorer
                 .collect(Collectors.joining(", "));
         String groupBy = groups.isEmpty() ? "" : ("GROUP BY " + groups + " WITH TOTALS");
 
-        String timeFilter = format(" _time between toDateTime('%s') and toDateTime('%s')",
+        String timeFilter = format(" %s between toDateTime('%s') and toDateTime('%s')",
+                checkTableColumn(projectConfig.getTimeColumn()),
                 DATE_TIME_FORMATTER.format(startDate), DATE_TIME_FORMATTER.format(endDate.plus(1, DAYS)));
 
         if (filterExpression != null) {
@@ -191,12 +195,14 @@ public class ClickHouseEventExplorer
             checkReference(timestampMapping, dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
         }
 
-        String timePredicate = format("_time between toDateTime('%s') and toDateTime('%s')",
+        String timePredicate = format("%s between toDateTime('%s') and toDateTime('%s')",
+                ValidationUtil.checkCollection(projectConfig.getTimeColumn()),
                 DATE_TIME_FORMATTER.format(startDate),
                 DATE_TIME_FORMATTER.format(endDate.plus(1, DAYS)));
 
         String collectionQuery = collections.map(v -> "(" + v.stream()
-                .map(col -> String.format("SELECT _time, cast('%s' as string) as \"$collection\" FROM %s",
+                .map(col -> String.format("SELECT %s, cast('%s' as string) as \"$collection\" FROM %s",
+                        checkTableColumn(projectConfig.getTimeColumn()),
                         col, checkCollection(col, '`'))).collect(Collectors.joining(", ")) + ") ")
                 .orElse("_all");
 
@@ -207,7 +213,7 @@ public class ClickHouseEventExplorer
                 throw new RakamException(BAD_REQUEST);
             }
 
-            String function = format(timestampMapping.get(aggregationMethod.get()), "_time");
+            String function = format(timestampMapping.get(aggregationMethod.get()), projectConfig.getTimeColumn());
             query = format("select \"$collection\" as collection, %s as %s, count(*) from %s where %s group by \"$collection\", %s order by %s desc",
                     function,
                     aggregationMethod.get(), collectionQuery, timePredicate,
@@ -265,7 +271,7 @@ public class ClickHouseEventExplorer
             case COLUMN:
                 return format ? checkTableColumn(ref.value, '`') : ref.value;
             case REFERENCE:
-                return format(timestampMapping.get(fromString(ref.value.replace(" ", "_"))), "_time");
+                return format(timestampMapping.get(fromString(ref.value.replace(" ", "_"))), projectConfig.getTimeColumn());
             default:
                 throw new IllegalArgumentException("Unknown reference type: " + ref.value);
         }
@@ -280,5 +286,17 @@ public class ClickHouseEventExplorer
                     .add(transformation.getPrettyName());
         }
         return builder;
+    }
+
+    public String getColumnReference(Reference ref)
+    {
+        switch (ref.type) {
+            case COLUMN:
+                return ref.value;
+            case REFERENCE:
+                return projectConfig.getTimeColumn();
+            default:
+                throw new IllegalArgumentException("Unknown reference type: " + ref.value);
+        }
     }
 }

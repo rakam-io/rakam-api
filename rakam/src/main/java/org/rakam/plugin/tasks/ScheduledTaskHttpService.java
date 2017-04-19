@@ -22,6 +22,7 @@ import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.JsonEventDeserializer;
+import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventStore;
 import org.rakam.server.http.HttpService;
@@ -92,9 +93,11 @@ public class ScheduledTaskHttpService
     private final ImmutableList<EventMapper> eventMappers;
     private final String timestampToEpoch;
     private final JSCodeLoggerService service;
+    private final ProjectConfig projectConfig;
 
     @Inject
     public ScheduledTaskHttpService(
+            ProjectConfig projectConfig,
             @Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
             JsonEventDeserializer eventDeserializer,
             JSCodeCompiler jsCodeCompiler,
@@ -108,6 +111,7 @@ public class ScheduledTaskHttpService
     {
         this.dbi = new DBI(dataSource);
         this.service = service;
+        this.projectConfig = projectConfig;
         this.scheduler = Executors.newScheduledThreadPool(1, new ThreadFactoryBuilder()
                 .setNameFormat("scheduled-task-scheduler")
                 .setUncaughtExceptionHandler((t, e) -> LOGGER.error(e))
@@ -169,7 +173,7 @@ public class ScheduledTaskHttpService
                     ListenableFuture<Void> run;
                     JSCodeLoggerService.PersistentLogger logger;
                     try {
-                        String prefix = "scheduled-task." + task.id;
+                            String prefix = "scheduled-task." + task.id;
                         JSConfigManager jsConfigManager = new JSConfigManager(configManager, task.project, prefix);
                         logger = service.createLogger(task.project, prefix);
 
@@ -386,10 +390,12 @@ public class ScheduledTaskHttpService
         InMemoryApiKeyService apiKeyService = new InMemoryApiKeyService();
         InMemoryMetastore metastore = new InMemoryMetastore(apiKeyService);
         SchemaChecker schemaChecker = new SchemaChecker(metastore, new FieldDependencyBuilder().build());
-        JsonEventDeserializer testingEventDeserializer = new JsonEventDeserializer(metastore,
+        JsonEventDeserializer testingEventDeserializer = new JsonEventDeserializer(
+                metastore,
                 apiKeyService,
                 testingConfigManager,
                 schemaChecker,
+                projectConfig,
                 fieldDependency);
         InMemoryEventStore eventStore = new InMemoryEventStore();
         metastore.createProject(project);

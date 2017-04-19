@@ -65,6 +65,9 @@ public class RakamUIWebService
     public RakamUIWebService(RakamUIConfig config)
     {
         directory = config.getUIDirectory();
+        if(directory == null) {
+            throw new IllegalStateException("ui.directory config is not set");
+        }
     }
 
     @Path("/favicon.ico")
@@ -188,12 +191,6 @@ public class RakamUIWebService
             sendError(request, NOT_FOUND);
             return;
         }
-
-//        String accept = request.headers().get(ACCEPT);
-//        if(accept != null && accept.contains("application/json") && !accept.contains("text/html")) {
-//            sendError(request, NOT_FOUND);
-//            return;
-//        }
 
         final String uri = request.path();
 

@@ -19,6 +19,7 @@ import org.rakam.analysis.datasource.RemoteTable;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.JDBCConfig;
+import org.rakam.config.ProjectConfig;
 import org.rakam.postgresql.report.PostgresqlQueryExecution;
 import org.rakam.presto.PrestoModule.UserConfig;
 import org.rakam.analysis.datasource.CustomDataSource;
@@ -51,10 +52,12 @@ import static java.time.ZoneOffset.UTC;
 import static java.util.Base64.getDecoder;
 import static java.util.Base64.getEncoder;
 import static org.rakam.postgresql.report.PostgresqlQueryExecutor.dbSeparator;
+import static org.rakam.presto.PrestoPseudoContinuousQueryService.CONTINUOUS_QUERY_PREFIX;
 import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
-import static org.rakam.presto.analysis.PrestoMetastore.toType;
+import static org.rakam.presto.analysis.PrestoRakamRaptorMetastore.toType;
 import static org.rakam.util.JsonHelper.encodeAsBytes;
 import static org.rakam.util.ValidationUtil.checkCollection;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 @Singleton
 public class PrestoQueryExecutor
@@ -65,16 +68,19 @@ public class PrestoQueryExecutor
     private final Metastore metastore;
     private final CustomDataSourceService customDataSource;
     private final JDBCConfig userJdbcConfig;
+    private final ProjectConfig projectConfig;
     private ClientSession defaultSession;
     private SqlParser sqlParser = new SqlParser();
 
     @Inject
     public PrestoQueryExecutor(
+            ProjectConfig projectConfig,
             PrestoConfig prestoConfig,
             @Nullable CustomDataSourceService customDataSource,
             @Nullable @UserConfig com.google.common.base.Optional<JDBCConfig> userJdbcConfig,
             Metastore metastore)
     {
+        this.projectConfig = projectConfig;
         this.prestoConfig = prestoConfig;
         this.metastore = metastore;
         this.customDataSource = customDataSource;
@@ -211,9 +217,14 @@ public class PrestoQueryExecutor
         String prefix = node.getPrefix().map(e -> e.toString()).orElse(null);
         String suffix = node.getSuffix();
         if ("continuous".equals(prefix)) {
-            return prestoConfig.getStreamingConnector() + "." +
-                    checkCollection(project) + "." +
-                    checkCollection(suffix);
+            if (prestoConfig.getColdStorageConnector().equals("rakam_raptor")) {
+                return prestoConfig.getStreamingConnector() + "." +
+                        checkCollection(project) + "." +
+                        checkCollection(suffix);
+            }
+            else {
+                return prestoConfig.getColdStorageConnector() + "." + checkCollection(CONTINUOUS_QUERY_PREFIX + suffix);
+            }
         }
         else if ("materialized".equals(prefix)) {
             return getTableReference(project, MATERIALIZED_VIEW_PREFIX + suffix, sample);
@@ -266,7 +277,7 @@ public class PrestoQueryExecutor
                             .collect(Collectors.joining(" union all ")) + ") _all";
                 }
                 else {
-                    return "(select null as \"$collection\", null as _user, null as _time limit 0) _all";
+                    return "(select null as \"$collection\", null as _user, null as " + checkTableColumn(projectConfig.getTimeColumn()) + " limit 0) _all";
                 }
             }
             else {

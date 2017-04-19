@@ -20,6 +20,7 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.collection.Event.EventContext;
 import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
+import org.rakam.config.ProjectConfig;
 import org.rakam.util.AvroUtil;
 import org.rakam.util.DateTimeUtils;
 import org.rakam.util.JsonHelper;
@@ -78,18 +79,21 @@ public class JsonEventDeserializer
     private final ApiKeyService apiKeyService;
     private final ConfigManager configManager;
     private final SchemaChecker schemaChecker;
+    private final ProjectConfig projectConfig;
 
     @Inject
     public JsonEventDeserializer(Metastore metastore,
             ApiKeyService apiKeyService,
             ConfigManager configManager,
             SchemaChecker schemaChecker,
+            ProjectConfig projectConfig,
             FieldDependency fieldDependency)
     {
         this.metastore = metastore;
         this.conditionalMagicFields = fieldDependency.dependentFields;
         this.apiKeyService = apiKeyService;
         this.schemaChecker = schemaChecker;
+        this.projectConfig = projectConfig;
         this.configManager = configManager;
         this.constantFields = fieldDependency.constantFields;
     }
@@ -264,7 +268,7 @@ public class JsonEventDeserializer
                             newFields = new ArrayList<>();
                         }
 
-                        if (fieldName.equals("_user")) {
+                        if (fieldName.equals(projectConfig.getUserColumn())) {
                             // the type of magic _user field must be consistent between collections
                             if (type.isArray() || type.isMap()) {
                                 throw new RakamException("_user field must be numeric or string.", BAD_REQUEST);
@@ -397,7 +401,7 @@ public class JsonEventDeserializer
         }
     }
 
-    private static Object getValue(JsonParser jp, FieldType type, Schema.Field field, boolean passInitialToken)
+    private Object getValue(JsonParser jp, FieldType type, Schema.Field field, boolean passInitialToken)
             throws IOException
     {
         if (type == null) {
@@ -446,8 +450,8 @@ public class JsonEventDeserializer
                         return DateTimeUtils.parseTimestamp(jp.getValueAsString());
                     }
                     catch (Exception e) {
-                        if (field.name().equals("_time")) {
-                            throw new RakamException(String.format("Unable to parse TIMESTAMP value '%s' in _time column", jp.getValueAsString()),
+                        if (field.name().equals(projectConfig.getTimeColumn())) {
+                            throw new RakamException(String.format("Unable to parse TIMESTAMP value '%s' in time column", jp.getValueAsString()),
                                     BAD_REQUEST);
                         }
                         return null;
@@ -460,8 +464,8 @@ public class JsonEventDeserializer
                         return DateTimeUtils.parseDate(jp.getValueAsString());
                     }
                     catch (Exception e) {
-                        if (field.name().equals("_time")) {
-                            throw new RakamException(String.format("Unable to parse DATE value '%s' in _time column", jp.getValueAsString()),
+                        if (field.name().equals(projectConfig.getTimeColumn())) {
+                            throw new RakamException(String.format("Unable to parse DATE value '%s' in time column", jp.getValueAsString()),
                                     BAD_REQUEST);
                         }
                         return null;

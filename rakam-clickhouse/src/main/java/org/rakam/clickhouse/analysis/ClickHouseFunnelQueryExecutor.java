@@ -5,6 +5,7 @@ import com.google.inject.Inject;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
+import org.rakam.config.ProjectConfig;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
@@ -32,10 +33,12 @@ public class ClickHouseFunnelQueryExecutor
         implements FunnelQueryExecutor
 {
     private final QueryExecutor queryExecutor;
+    private final ProjectConfig projectConfig;
 
     @Inject
-    public ClickHouseFunnelQueryExecutor(QueryExecutor queryExecutor)
+    public ClickHouseFunnelQueryExecutor(ProjectConfig projectConfig, QueryExecutor queryExecutor)
     {
+        this.projectConfig = projectConfig;
         this.queryExecutor = queryExecutor;
     }
 
@@ -78,10 +81,13 @@ public class ClickHouseFunnelQueryExecutor
             FunnelStep funnelStep = steps.get(step);
             String collection = funnelStep.getCollection();
 
-            return format("SELECT %d as step, _user, _time %s FROM %s WHERE _time BETWEEN CAST(toDate('%s') AS DateTime) AND CAST(toDate('%s') AS DateTime) %s",
+            return format("SELECT %d as step, %s, %s %s FROM %s WHERE %s BETWEEN CAST(toDate('%s') AS DateTime) AND CAST(toDate('%s') AS DateTime) %s",
                     step + 1,
+                    checkTableColumn(projectConfig.getUserColumn()),
+                    checkTableColumn(projectConfig.getTimeColumn()),
                     dimension.map(v -> ", " + checkTableColumn(v, '`') + " as dimension").orElse(""),
                     project + "." + checkCollection(collection, '`'),
+                    checkTableColumn(projectConfig.getTimeColumn()),
                     startDate.format(ISO_DATE),
                     endDate.plusDays(1).format(ISO_DATE),
                     funnelStep.getExpression().map(exp -> "AND " + ClickhouseExpressionFormatter.formatExpression(exp,

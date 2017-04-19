@@ -87,7 +87,7 @@ public class MailBoxWebSocketService extends WebSocketService {
 
     @Override
     @ApiOperation(value = "Realtime mailbox notification service",
-            notes = "Websocket service for sending and receiving mail notification",
+            notes = "Websocket service for sending and receiving mail noti  fication",
             response = WSMessage.class,
             request = String.class,
             responseContainer = "List",

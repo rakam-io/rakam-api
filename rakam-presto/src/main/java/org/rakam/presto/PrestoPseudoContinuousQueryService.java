@@ -1,4 +1,4 @@
-package org.rakam.postgresql.report;
+package org.rakam.presto;
 
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.ParsingException;
@@ -10,17 +10,17 @@ import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
+import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
 
-import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.AbstractMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -29,18 +29,18 @@ import java.util.stream.Stream;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_IMPLEMENTED;
-import static org.rakam.postgresql.report.PostgresqlQueryExecutor.CONTINUOUS_QUERY_PREFIX;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
 
-public class PostgresqlPseudoContinuousQueryService
-        extends ContinuousQueryService
+public class PrestoPseudoContinuousQueryService  extends ContinuousQueryService
 {
-    private final PostgresqlQueryExecutor executor;
+    public final static String CONTINUOUS_QUERY_PREFIX = "$view_";
+
+    private final PrestoQueryExecutor executor;
     private final QueryExecutorService service;
 
     @Inject
-    public PostgresqlPseudoContinuousQueryService(QueryMetadataStore database, QueryExecutorService service, PostgresqlQueryExecutor executor)
+    public PrestoPseudoContinuousQueryService(QueryMetadataStore database, QueryExecutorService service, PrestoQueryExecutor executor)
     {
         super(database);
         this.executor = executor;
@@ -80,8 +80,8 @@ public class PostgresqlPseudoContinuousQueryService
     @Override
     public Map<String, List<SchemaField>> getSchemas(String project)
     {
-        Stream<Entry<ContinuousQuery, QueryExecution>> continuous = database.getContinuousQueries(project).stream()
-                .map(c -> new SimpleImmutableEntry<>(c, executor.executeRawQuery("SELECT * FROM " +
+        Stream<Map.Entry<ContinuousQuery, QueryExecution>> continuous = database.getContinuousQueries(project).stream()
+                .map(c -> new AbstractMap.SimpleImmutableEntry<>(c, executor.executeRawQuery("SELECT * FROM " +
                         executor.formatTableReference(project, QualifiedName.of("continuous", c.tableName), Optional.empty(), ImmutableMap.of(), "collection") + " limit 0")));
         return continuous
                 .collect(Collectors.toMap(entry -> entry.getKey().tableName, entry -> {

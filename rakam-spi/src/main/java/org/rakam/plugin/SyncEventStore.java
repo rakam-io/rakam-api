@@ -1,6 +1,5 @@
 package org.rakam.plugin;
 
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.Event;
 import org.rakam.util.RakamException;
 
@@ -8,7 +7,6 @@ import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 

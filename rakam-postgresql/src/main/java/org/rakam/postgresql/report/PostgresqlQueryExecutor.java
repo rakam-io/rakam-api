@@ -15,6 +15,7 @@ import org.rakam.analysis.datasource.JDBCSchemaConfig;
 import org.rakam.analysis.datasource.SupportedCustomDatabase;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
+import org.rakam.config.ProjectConfig;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QuerySampling;
@@ -55,15 +56,18 @@ public class PostgresqlQueryExecutor
     private final Metastore metastore;
     private final boolean userServiceIsPostgresql;
     private final CustomDataSourceService customDataSource;
+    private final ProjectConfig projectConfig;
     private SqlParser sqlParser = new SqlParser();
 
     @Inject
     public PostgresqlQueryExecutor(
+            ProjectConfig projectConfig,
             @Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool,
             Metastore metastore,
             @Nullable CustomDataSourceService customDataSource,
             @Named("user.storage.postgresql") boolean userServiceIsPostgresql)
     {
+        this.projectConfig = projectConfig;
         this.connectionPool = connectionPool;
         this.customDataSource = customDataSource;
         this.metastore = metastore;
@@ -169,7 +173,8 @@ public class PostgresqlQueryExecutor
                         .collect(Collectors.joining(" union all \n")) + ") _all";
             }
             else {
-                return "(select cast(null as text) as \"$collection\", cast(null as text) as _user, cast(null as timestamp) as _time limit 0) _all";
+                return String.format("(select cast(null as text) as \"$collection\", cast(null as text) as _user, cast(null as timestamp) as %s limit 0) _all",
+                        checkTableColumn(projectConfig.getTimeColumn()));
             }
         }
         else {

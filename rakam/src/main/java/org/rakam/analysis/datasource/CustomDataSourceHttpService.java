@@ -9,14 +9,13 @@ import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import org.rakam.collection.SchemaField;
-import org.rakam.presto.analysis.PrestoMetastore;
+import org.rakam.presto.analysis.PrestoRakamRaptorMetastore;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
-import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.SuccessMessage;
@@ -47,7 +46,7 @@ public class CustomDataSourceHttpService
                     public Type deserialize(JsonParser jp, DeserializationContext ctxt)
                             throws IOException
                     {
-                        return new PrestoMetastore.SignatureReferenceType(parseTypeSignature(jp.getValueAsString()), null);
+                        return new PrestoRakamRaptorMetastore.SignatureReferenceType(parseTypeSignature(jp.getValueAsString()), null);
                     }
                 }).addSerializer(Type.class, new JsonSerializer<Type>()
                 {

@@ -20,6 +20,7 @@ import org.rakam.analysis.AbstractFunnelQueryExecutor;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
+import org.rakam.config.ProjectConfig;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
@@ -37,6 +38,7 @@ import java.util.stream.Collectors;
 
 import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
 import static java.lang.String.format;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PostgresqlFunnelQueryExecutor
         extends AbstractFunnelQueryExecutor
@@ -44,9 +46,9 @@ public class PostgresqlFunnelQueryExecutor
     private final PostgresqlQueryExecutor executor;
 
     @Inject
-    public PostgresqlFunnelQueryExecutor(Metastore metastore, PostgresqlQueryExecutor executor)
+    public PostgresqlFunnelQueryExecutor(ProjectConfig projectConfig, Metastore metastore, PostgresqlQueryExecutor executor)
     {
-        super(metastore, executor);
+        super(projectConfig, metastore, executor);
         this.executor = executor;
     }
 
@@ -76,7 +78,7 @@ public class PostgresqlFunnelQueryExecutor
     public String getTemplate()
     {
         return "select %s get_funnel_step(steps) step, count(*) total from (\n" +
-                "select %s array_agg(step order by _time) as steps from (%s) t WHERE _time between timestamp '%s' and timestamp '%s'\n" +
+                "select %s array_agg(step order by " + checkTableColumn(projectConfig.getTimeColumn(), '`') + ") as steps from (%s) t WHERE " + checkTableColumn(projectConfig.getTimeColumn(), '`') + " between timestamp '%s' and timestamp '%s'\n" +
                 "group by %s %s\n" +
                 ") t group by 1 %s order by 1";
     }
@@ -89,8 +91,12 @@ public class PostgresqlFunnelQueryExecutor
                 name -> formatIdentifier("step" + idx, '"') + "." + name.getParts().stream()
                         .map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")), '"'));
 
-        String format = format("SELECT %s %s as _user, %d as step, _time from %s %s %s",
-                dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ",").orElse(""), format(connectorField, "step" + idx), idx + 1, table,
+        String format = format("SELECT %s %s as _user, %d as step, %s from %s %s %s",
+                dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ",").orElse(""),
+                format(connectorField, "step" + idx),
+                idx + 1,
+                checkTableColumn(projectConfig.getTimeColumn()),
+                table,
                 "step" + idx,
                 filterExp.map(v -> "where " + v).orElse(""));
         return format;

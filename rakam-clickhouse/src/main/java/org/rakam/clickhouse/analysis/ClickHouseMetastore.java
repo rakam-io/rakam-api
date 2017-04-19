@@ -8,6 +8,7 @@ import org.rakam.clickhouse.ClickHouseConfig;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
+import org.rakam.config.ProjectConfig;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
@@ -25,6 +26,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
 import static org.rakam.clickhouse.analysis.ClickHouseQueryExecution.parseClickhouseType;
+import static org.rakam.collection.FieldType.TIMESTAMP;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
@@ -32,12 +34,14 @@ public class ClickHouseMetastore
         extends AbstractMetastore
 {
     private final ClickHouseConfig config;
+    private final ProjectConfig projectConfig;
 
     @Inject
-    public ClickHouseMetastore(ClickHouseConfig config, EventBus eventBus)
+    public ClickHouseMetastore(ClickHouseConfig config, ProjectConfig projectConfig, EventBus eventBus)
     {
         super(eventBus);
         this.config = config;
+        this.projectConfig = projectConfig;
     }
 
     @Override
@@ -126,9 +130,9 @@ public class ClickHouseMetastore
             if (queryEnd.isEmpty()) {
                 return currentFields;
             }
-            boolean timeActive = fields.stream().anyMatch(f -> f.getName().equals("_time") && f.getType() == FieldType.TIMESTAMP);
+            boolean timeActive = fields.stream().anyMatch(f -> f.getName().equals(projectConfig.getTimeColumn()) && f.getType() == TIMESTAMP);
             if(!timeActive) {
-                throw new RakamException("ClickHouse requires _time property", BAD_REQUEST);
+                throw new RakamException("ClickHouse requires time property", BAD_REQUEST);
             }
 
             Optional<SchemaField> userColumn = fields.stream().filter(f -> f.getName().equals("_user")).findAny();

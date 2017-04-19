@@ -8,6 +8,7 @@ import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
+import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
@@ -36,6 +37,7 @@ import static org.apache.avro.Schema.Type.NULL;
 import static org.apache.avro.Schema.Type.STRING;
 import static org.rakam.collection.FieldType.BINARY;
 import static org.rakam.util.ValidationUtil.checkProject;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class ClickHouseUserService extends AbstractUserService
 {
@@ -51,15 +53,17 @@ public class ClickHouseUserService extends AbstractUserService
     private final Metastore metastore;
     private final UserPluginConfig config;
     private final EventStore eventStore;
+    private final ProjectConfig projectConfig;
 
     @Inject
-    public ClickHouseUserService(UserStorage storage, EventStore eventStore, UserPluginConfig config, QueryExecutor executor, Metastore metastore)
+    public ClickHouseUserService(ProjectConfig projectConfig, UserStorage storage, EventStore eventStore, UserPluginConfig config, QueryExecutor executor, Metastore metastore)
     {
         super(storage);
         this.metastore = metastore;
         this.executor = executor;
         this.config = config;
         this.eventStore = eventStore;
+        this.projectConfig = projectConfig;
     }
 
     @Override
@@ -71,8 +75,8 @@ public class ClickHouseUserService extends AbstractUserService
 
         AtomicReference<FieldType> userType = new AtomicReference<>();
         String sqlQuery = metastore.getCollections(project).entrySet().stream()
-                .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals("_user")))
-                .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals("_time")))
+                .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals(projectConfig.getUserColumn())))
+                .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals(projectConfig.getTimeColumn())))
                 .map(entry ->
                         format("select '%s' as collection, concat('{", entry.getKey()) + entry.getValue().stream()
                                 .filter(field -> {
@@ -95,17 +99,18 @@ public class ClickHouseUserService extends AbstractUserService
                                     return format("\"%1$s\": \"', COALESCE(replace(try_cast(%1$s as varchar), '\n', '\\n'), 'null'), '\"", field.getName());
                                 })
                                 .collect(Collectors.joining(", ")) +
-                                format(" }') as json, _time from %s where _user = %s %s",
+                                format(" }') as json, %s from %s where _user = %s %s",
+                                        checkTableColumn(projectConfig.getTimeColumn()),
                                         ".\"" + project + "\"." + ValidationUtil.checkCollection(entry.getKey(), '`'),
                                         userType.get().isNumeric() ? user : "'" + user + "'",
-                                        beforeThisTime == null ? "" : format("and _time < toDateTime('%s')", beforeThisTime.toString())))
+                                        beforeThisTime == null ? "" : format("and %s < toDateTime('%s')", checkTableColumn(projectConfig.getTimeColumn()), beforeThisTime.toString())))
                 .collect(Collectors.joining(" union all "));
 
         if(sqlQuery.isEmpty()) {
             return CompletableFuture.completedFuture(ImmutableList.of());
         }
 
-        return executor.executeRawQuery(format("select collection, json from (%s) order by _time desc limit %d", sqlQuery, limit))
+        return executor.executeRawQuery(format("select collection, json from (%s) order by %s desc limit %d", sqlQuery, checkTableColumn(projectConfig.getTimeColumn()), limit))
                 .getResult()
                 .thenApply(result -> {
                     if (result.isFailed()) {

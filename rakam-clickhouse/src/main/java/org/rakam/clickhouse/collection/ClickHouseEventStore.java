@@ -21,6 +21,7 @@ import org.rakam.clickhouse.ClickHouseConfig;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
+import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.EventStore;
 import org.rakam.report.QueryExecution;
 import org.rakam.util.ProjectCollection;
@@ -72,12 +73,14 @@ public class ClickHouseEventStore
 
     final Map<ProjectCollection, List<Event>> queuedEvents;
     private final ClickHouseConfig config;
+    private final ProjectConfig projectConfig;
     Map<ProjectCollection, CompletableFuture<Void>> currentFutureSingle;
 
     @Inject
-    public ClickHouseEventStore(ClickHouseConfig config)
+    public ClickHouseEventStore(ProjectConfig projectConfig, ClickHouseConfig config)
     {
         this.config = config;
+        this.projectConfig = projectConfig;
         queuedEvents = new ConcurrentHashMap<>();
         currentFutureSingle = new ConcurrentHashMap<>();
 
@@ -260,7 +263,7 @@ public class ClickHouseEventStore
         output.write((byte) value);
     }
 
-    private static class BinaryRawGenerator
+    private class BinaryRawGenerator
             implements BodyGenerator
     {
         private final List<Event> value;
@@ -280,7 +283,7 @@ public class ClickHouseEventStore
 
             for (Event event : value) {
                 GenericRecord record = event.properties();
-                Object time = record.get("_time");
+                Object time = record.get(projectConfig.getTimeColumn());
                 writeValue(time == null ? 0 : ((int) (((long) time) / 86400)), DATE, out);
 
                 for (int i = 0; i < schema.size(); i++) {

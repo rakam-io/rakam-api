@@ -20,6 +20,7 @@ import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.EventExplorer.OLAPTable;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.QueryHttpService;
+import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.report.QueryResult;
 import org.rakam.report.realtime.AggregationType;
@@ -33,6 +34,7 @@ import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -52,6 +54,8 @@ import java.util.stream.Collectors;
 import static org.rakam.report.realtime.AggregationType.COUNT;
 import static org.rakam.report.realtime.AggregationType.SUM;
 import static org.rakam.util.ValidationUtil.checkArgument;
+import static org.rakam.util.ValidationUtil.checkCollection;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 @Path("/event-explorer")
 @Api(value = "/event-explorer", nickname = "eventExplorer", description = "Event explorer module", tags = "event-explorer")
@@ -61,15 +65,18 @@ public class EventExplorerHttpService
     private final EventExplorer eventExplorer;
     private final QueryHttpService queryService;
     private final MaterializedViewService materializedViewService;
+    private final ProjectConfig projectConfig;
 
     @Inject
     public EventExplorerHttpService(
             EventExplorer eventExplorer,
             MaterializedViewService materializedViewService,
+            ProjectConfig projectConfig,
             QueryHttpService queryService)
     {
         this.eventExplorer = eventExplorer;
         this.queryService = queryService;
+        this.projectConfig = projectConfig;
         this.materializedViewService = materializedViewService;
     }
 
@@ -109,8 +116,8 @@ public class EventExplorerHttpService
     public CompletableFuture<QueryResult> analyzeEvents(@Named("project") String project, @BodyParam AnalyzeRequest analyzeRequest)
     {
         checkArgument(!analyzeRequest.collections.isEmpty(), "collections array is empty");
-        checkArgument(Optional.ofNullable(analyzeRequest.measure).map(e -> e.column).map(e -> !e.equals("_time")).orElse(true),
-                "measure column value cannot be '_time'");
+        checkArgument(Optional.ofNullable(analyzeRequest.measure).map(e -> e.column).map(e -> !e.equals(projectConfig.getTimeColumn())).orElse(true),
+                "measure column value cannot be time column");
 
         return eventExplorer.analyze(project, analyzeRequest.collections,
                 analyzeRequest.measure, analyzeRequest.grouping,
@@ -144,8 +151,9 @@ public class EventExplorerHttpService
                 .collect(Collectors.joining(", "));
 
         String dimensions = table.dimensions.stream().collect(Collectors.joining(", "));
-        String subQuery = table.collections.stream().map(collection -> String.format("SELECT cast('%s' as varchar) as _collection, _time %s %s FROM %s",
+        String subQuery = table.collections.stream().map(collection -> String.format("SELECT cast('%s' as varchar) as _collection, %s %s %s FROM %s",
                 collection,
+                checkTableColumn(projectConfig.getTimeColumn()),
                 dimensions.isEmpty() ? "" : ", " + dimensions,
                 table.measures.isEmpty() ? "" : ", " + table.measures.stream().collect(Collectors.joining(", ")), collection))
                 .collect(Collectors.joining(" UNION ALL "));
@@ -153,9 +161,16 @@ public class EventExplorerHttpService
         String name = "Dimensions";
 
         String dimensionColumns = !dimensions.isEmpty() ? (dimensions + ",") : "";
-        String query = String.format("SELECT %s _time, %s %s FROM (SELECT %s CAST(_time AS DATE) as _time, %s %s FROM (%s) data) data GROUP BY CUBE (_time %s %s) ORDER BY 1 ASC",
-                "_collection,", dimensionColumns, metrics,
-                "_collection,", dimensionColumns, table.measures.stream().collect(Collectors.joining(", ")),
+        String query = String.format("SELECT %s %s, %s %s FROM (SELECT %s CAST(%s AS DATE) as %s, %s %s FROM (%s) data) data GROUP BY CUBE (%s %s %s) ORDER BY 1 ASC",
+                "_collection,",
+                checkTableColumn(projectConfig.getTimeColumn()),
+                dimensionColumns, metrics,
+                "_collection,",
+                checkTableColumn(projectConfig.getTimeColumn()),
+                checkTableColumn(projectConfig.getTimeColumn()),
+                dimensionColumns,
+                table.measures.stream().collect(Collectors.joining(", ")),
+                checkCollection(projectConfig.getTimeColumn()),
                 subQuery,
                 ", _collection", dimensions.isEmpty() ? "" : "," + dimensions);
 
@@ -203,7 +218,7 @@ public class EventExplorerHttpService
         queryService.handleServerSentQueryExecution(request, AnalyzeRequest.class, (project, analyzeRequest) -> {
             checkArgument(!analyzeRequest.collections.isEmpty(), "collections array is empty");
             if (analyzeRequest.measure.column != null) {
-                checkArgument(!analyzeRequest.measure.column.equals("_time"), "measure column value cannot be '_time'");
+                checkArgument(!analyzeRequest.measure.column.equals(projectConfig.getTimeColumn()), "measure column value cannot be time column");
             }
 
             return eventExplorer.analyze(project, analyzeRequest.collections,

@@ -30,7 +30,7 @@ public class RakamUIConfig {
     private boolean hashPassword;
     private String googleClientId;
     private String stripeKey;
-    private URL screenCaptureService = new URL("http://46.101.145.48:8050");
+    private URL screenCaptureService;
 
     public RakamUIConfig()
             throws MalformedURLException
@@ -76,7 +76,7 @@ public class RakamUIConfig {
         return stripeKey;
     }
 
-    @Config("screen-capture-service-url")
+    @Config("ui.screen-capture-service-url")
     public RakamUIConfig setScreenCaptureService(URL screenCaptureService) {
         this.screenCaptureService = screenCaptureService;
         return this;

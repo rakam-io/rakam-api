@@ -15,6 +15,7 @@ import org.rakam.aws.AWSConfig;
 import org.rakam.aws.kinesis.KinesisUtils;
 import org.rakam.clickhouse.ClickHouseConfig;
 import org.rakam.collection.Event;
+import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.SyncEventStore;
 
@@ -41,10 +42,11 @@ public class AWSKinesisClickhouseEventStore
     private final AWSConfig config;
     private static final int BATCH_SIZE = 500;
     private final ClickHouseEventStore bulkClient;
+    private final ProjectConfig projectConfig;
 //    private final KinesisProducer producer;
 
     @Inject
-    public AWSKinesisClickhouseEventStore(AWSConfig config, ClickHouseConfig clickHouseConfig)
+    public AWSKinesisClickhouseEventStore(AWSConfig config, ProjectConfig projectConfig, ClickHouseConfig clickHouseConfig)
     {
         kinesis = new AmazonKinesisClient(config.getCredentials());
         kinesis.setRegion(config.getAWSRegion());
@@ -52,7 +54,8 @@ public class AWSKinesisClickhouseEventStore
             kinesis.setEndpoint(config.getKinesisEndpoint());
         }
         this.config = config;
-        this.bulkClient = new ClickHouseEventStore(clickHouseConfig);
+        this.projectConfig = projectConfig;
+        this.bulkClient = new ClickHouseEventStore(projectConfig, clickHouseConfig);
 
         KinesisProducerConfiguration producerConfiguration = new KinesisProducerConfiguration()
                 .setRegion(config.getRegion())
@@ -170,7 +173,7 @@ public class AWSKinesisClickhouseEventStore
         LittleEndianDataOutputStream out = new LittleEndianDataOutputStream(buffer);
 
         GenericRecord record = event.properties();
-        Object time = record.get("_time");
+        Object time = record.get(projectConfig.getTimeColumn());
         try {
             int size = event.schema().size();
             writeVarInt(size, out);

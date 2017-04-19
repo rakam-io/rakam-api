@@ -5,6 +5,7 @@ import org.rakam.TestingEnvironment;
 import org.rakam.analysis.datasource.CustomDataSourceService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.EventStore;
 import org.rakam.postgresql.analysis.PostgresqlEventStore;
 import org.rakam.postgresql.analysis.PostgresqlFunnelQueryExecutor;
@@ -29,9 +30,9 @@ public class TestPostgresqlFunnelQueryExecutor extends TestFunnelQueryExecutor {
         FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
         metastore = new PostgresqlMetastore(dataSource, new EventBus());
 
-        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, new CustomDataSourceService(dataSource), false);
+        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(new ProjectConfig(), dataSource, metastore, new CustomDataSourceService(dataSource), false);
         eventStore = new PostgresqlEventStore(dataSource, build);
-        funnelQueryExecutor = new PostgresqlFunnelQueryExecutor(metastore, queryExecutor);
+        funnelQueryExecutor = new PostgresqlFunnelQueryExecutor(new ProjectConfig(), metastore, queryExecutor);
         funnelQueryExecutor.setup();
         super.setup();
     }

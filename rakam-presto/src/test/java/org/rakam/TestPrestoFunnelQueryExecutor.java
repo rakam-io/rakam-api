@@ -5,7 +5,7 @@ import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.InMemoryQueryMetadataStore;
 import org.rakam.analysis.TestFunnelQueryExecutor;
 import org.rakam.analysis.metadata.Metastore;
-import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.config.ProjectConfig;
 import org.rakam.event.TestingEnvironment;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.user.UserPluginConfig;
@@ -13,7 +13,7 @@ import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
 import org.rakam.presto.analysis.PrestoFunnelQueryExecutor;
 import org.rakam.presto.analysis.PrestoMaterializedViewService;
-import org.rakam.presto.analysis.PrestoMetastore;
+import org.rakam.presto.analysis.PrestoRakamRaptorMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.presto.plugin.EventExplorerListener;
 import org.rakam.report.QueryExecutorService;
@@ -28,7 +28,7 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
     private FunnelQueryExecutor funnelQueryExecutor;
     private TestingPrestoEventStore testingPrestoEventStore;
     private TestingEnvironment testingEnvironment;
-    private PrestoMetastore metastore;
+    private PrestoRakamRaptorMetastore metastore;
 
     @BeforeSuite
     @Override
@@ -40,21 +40,21 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
 
         EventBus eventBus = new EventBus();
 
-        metastore = new PrestoMetastore(testingEnvironment.getPrestoMetastore(), eventBus, prestoConfig);
+        metastore = new PrestoRakamRaptorMetastore(testingEnvironment.getPrestoMetastore(), eventBus, new ProjectConfig(), prestoConfig);
         metastore.setup();
 
-        PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(prestoConfig, null, null, metastore);
+        PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(new ProjectConfig(), prestoConfig, null, null, metastore);
 
         PrestoContinuousQueryService continuousQueryService = new PrestoContinuousQueryService(inMemoryQueryMetadataStore, new RealTimeConfig(),
                 prestoQueryExecutor, prestoConfig);
-        eventBus.register(new EventExplorerListener(continuousQueryService));
+        eventBus.register(new EventExplorerListener(new ProjectConfig(), continuousQueryService));
 
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(
                 prestoQueryExecutor, metastore, inMemoryQueryMetadataStore);
         QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, metastore,
                 materializedViewService, Clock.system(ZoneId.of("UTC")), '"');
 
-        funnelQueryExecutor = new PrestoFunnelQueryExecutor(metastore, queryExecutorService,
+        funnelQueryExecutor = new PrestoFunnelQueryExecutor(new ProjectConfig(), metastore, queryExecutorService,
                 prestoQueryExecutor, materializedViewService,
                 continuousQueryService, new UserPluginConfig());
         testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);

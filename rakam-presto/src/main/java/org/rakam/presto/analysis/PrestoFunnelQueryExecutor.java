@@ -23,6 +23,7 @@ import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.AbstractFunnelQueryExecutor;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.PreComputedTableSubQueryVisitor;
@@ -48,6 +49,7 @@ import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.rakam.presto.analysis.PrestoUserService.ANONYMOUS_ID_MAPPING;
 import static org.rakam.util.ValidationUtil.checkCollection;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PrestoFunnelQueryExecutor
         extends AbstractFunnelQueryExecutor
@@ -60,6 +62,7 @@ public class PrestoFunnelQueryExecutor
 
     @Inject
     public PrestoFunnelQueryExecutor(
+            ProjectConfig projectConfig,
             Metastore metastore,
             QueryExecutorService executorService,
             QueryExecutor executor,
@@ -67,7 +70,7 @@ public class PrestoFunnelQueryExecutor
             ContinuousQueryService continuousQueryService,
             UserPluginConfig userPluginConfig)
     {
-        super(metastore, executor);
+        super(projectConfig, metastore, executor);
         this.materializedViewService = materializedViewService;
         this.continuousQueryService = continuousQueryService;
         this.executorService = executorService;
@@ -78,7 +81,9 @@ public class PrestoFunnelQueryExecutor
     public String getTemplate()
     {
         return "select %s get_funnel_step(steps) step, count(*) total from (\n" +
-                "select %s array_agg(step) as steps from (select * from (%s) order by _time) t WHERE _time between timestamp '%s' and timestamp '%s'\n" +
+                "select %s array_agg(step) as steps from (select * from (%s) order by "
+                + checkTableColumn(projectConfig.getTimeColumn()) + ") t WHERE "
+                + checkTableColumn(projectConfig.getTimeColumn()) + " between timestamp '%s' and timestamp '%s'\n" +
                 "group by %s %s\n" +
                 ") t group by 1 %s order by 1";
     }
@@ -157,10 +162,12 @@ public class PrestoFunnelQueryExecutor
                     idx, dimension.map(v -> "step" + idx + ".dimension, ").orElse(""), idx, connectorField, idx - 1, connectorField, connectorField);
             return format("step%d AS (select %s FROM (%s) step%d %s)",
                     idx, idx == 0 ? ("step" + idx + ".*") : merged,
-                    format("SELECT cast(_time as date) as date, %s set(%s) as %s_set from %s where _time %s %s group by 1 %s",
+                    format("SELECT cast(%s as date) as date, %s set(%s) as %s_set from %s where %s %s %s group by 1 %s",
+                            checkTableColumn(projectConfig.getTimeColumn()),
                             dimension.map(value -> value + " as dimension,").orElse(""),
                             connectorField, connectorField,
                             checkCollection(funnelStep.getCollection()),
+                            checkTableColumn(projectConfig.getTimeColumn()),
                             timePredicate, filterExp.orElse(""), dimension.map(value -> ", 2").orElse("")),
                     idx,
                     joinPreviousStep.map(v -> v + " GROUP BY 1" + dimension.map(val -> ", 2").orElse("")).orElse(""));
@@ -270,17 +277,18 @@ public class PrestoFunnelQueryExecutor
                 name -> formatIdentifier("step" + idx, '"') + "." + name.getParts().stream()
                         .map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")), '"'));
 
-        String format = format("SELECT %s %s, %d as step, %s._time from %s %s %s %s",
+        String format = format("SELECT %s %s, %d as step, %s.%s from %s %s %s %s",
                 dimension.map(ValidationUtil::checkTableColumn).map(v -> "step" + idx + "." + v + ",").orElse(""),
                 userMappingEnabled ? format("coalesce(mapping._user, %s._user, %s) as _user", "step" + idx, format(connectorField, "step" + idx)) : ("step" + idx + "._user"),
                 idx + 1,
                 "step" + idx,
+                checkTableColumn(projectConfig.getTimeColumn()),
                 project + "." + checkCollection(funnelStep.getCollection()),
                 "step" + idx,
-                userMappingEnabled ? format("left join %s.%s mapping on (%s._user is null and mapping.created_at >= date '%s' and mapping.merged_at <= date '%s' and mapping.id = %s._user)",
+                userMappingEnabled ? format("left join %s.%s mapping on (%s.%s is null and mapping.created_at >= date '%s' and mapping.merged_at <= date '%s' and mapping.id = %s.%s)",
                         project, checkCollection(ANONYMOUS_ID_MAPPING),
-                        "step" + idx, startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE),
-                        "step" + idx) : "",
+                        "step" + idx, checkTableColumn(projectConfig.getUserColumn()), startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE),
+                        "step" + idx, checkTableColumn(projectConfig.getUserColumn())) : "",
                 filterExp.map(v -> "where " + v).orElse(""));
         return format;
     }

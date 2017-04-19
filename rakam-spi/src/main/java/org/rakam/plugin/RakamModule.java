@@ -7,6 +7,7 @@ import io.airlift.configuration.ConfigurationAwareModule;
 import io.airlift.configuration.ConfigurationFactory;
 
 import javax.validation.constraints.NotNull;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -16,8 +17,9 @@ import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
-
-public abstract class RakamModule implements ConfigurationAwareModule {
+public abstract class RakamModule
+        implements ConfigurationAwareModule
+{
     private ConfigurationFactory configurationFactory;
     private Binder binder;
 
@@ -66,7 +68,8 @@ public abstract class RakamModule implements ConfigurationAwareModule {
             Field instance = invoke.getClass().getDeclaredField("instance");
             instance.setAccessible(true);
             return (T) instance.get(invoke);
-        } catch (NoSuchMethodException|IllegalAccessException|InvocationTargetException|NoSuchFieldException e) {
+        }
+        catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | NoSuchFieldException e) {
             throw new IllegalStateException("Internal error related to airlift.configuration library", e);
         }
     }

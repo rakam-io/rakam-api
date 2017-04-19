@@ -110,9 +110,6 @@ public class UserSubscriptionHttpService
         try {
             Map<String, Object> customerParams = new HashMap<>();
             customerParams.put("email", webUser.get().email);
-            if (plan != null && !plan.isEmpty()) {
-                customerParams.put("plan", plan);
-            }
             customerParams.put("source", token);
 
             if (userStripeId != null) {

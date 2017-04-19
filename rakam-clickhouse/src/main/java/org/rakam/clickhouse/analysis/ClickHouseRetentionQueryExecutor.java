@@ -5,6 +5,7 @@ import com.facebook.presto.sql.tree.Expression;
 import com.google.inject.Inject;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.config.ProjectConfig;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
@@ -28,10 +29,12 @@ public class ClickHouseRetentionQueryExecutor
 {
     private final QueryExecutor executor;
     private final Metastore metastore;
+    private final ProjectConfig projectConfig;
 
     @Inject
-    public ClickHouseRetentionQueryExecutor(QueryExecutor executor, Metastore metastore)
+    public ClickHouseRetentionQueryExecutor(ProjectConfig projectConfig, QueryExecutor executor, Metastore metastore)
     {
+        this.projectConfig = projectConfig;
         this.executor = executor;
         this.metastore = metastore;
     }
@@ -58,11 +61,13 @@ public class ClickHouseRetentionQueryExecutor
         int startEpoch = (int) startDate.toEpochDay();
         int endEpoch = (int) endDate.toEpochDay();
 
-        String firstActionQuery = firstAction.map(action -> format("SELECT `$date`, _user, _time %s FROM %s.%s %s",
+        String firstActionQuery = firstAction.map(action -> format("SELECT `$date`, %s, %s %s FROM %s.%s %s",
+                checkTableColumn(projectConfig.getUserColumn(), '`'), checkTableColumn(projectConfig.getTimeColumn(), '`'),
                 dimension.map(e -> "," + e).orElse(""), project, ValidationUtil.checkCollection(action.collection(), '`'),
                 action.filter().map(f -> "WHERE " + formatExpression(f)).orElse("")))
                 .orElseGet(() -> metastore.getCollectionNames(project).stream()
-                        .map(collection -> format("SELECT `$date`, _user, _time %s FROM %s.%s",
+                        .map(collection -> format("SELECT `$date`, %s, %s %s FROM %s.%s",
+                                checkTableColumn(projectConfig.getUserColumn(), '`'), checkTableColumn(projectConfig.getTimeColumn(), '`'),
                                 dimension.map(e -> "," + e).orElse(""), project, ValidationUtil.checkCollection(collection, '`')))
                         .collect(Collectors.joining(" UNION ALL ")));
 

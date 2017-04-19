@@ -13,6 +13,7 @@ import org.rakam.analysis.InMemoryMetastore;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.config.ProjectConfig;
 import org.rakam.util.javascript.JSCodeLoggerService;
 import org.rakam.collection.JsonEventDeserializer;
 import org.rakam.util.javascript.JSCodeCompiler;
@@ -48,10 +49,12 @@ public class TestScheduledTask
         InMemoryApiKeyService apiKeyService = new InMemoryApiKeyService();
         InMemoryMetastore metastore = new InMemoryMetastore(apiKeyService);
         SchemaChecker schemaChecker = new SchemaChecker(metastore, new FieldDependencyBuilder().build());
-        JsonEventDeserializer testingEventDeserializer = new JsonEventDeserializer(metastore,
+        JsonEventDeserializer testingEventDeserializer = new JsonEventDeserializer(
+                metastore,
                 apiKeyService,
                 testingConfigManager,
                 schemaChecker,
+                new ProjectConfig(),
                 fieldDependency);
         metastore.createProject("test");
         String metadataDatabase = Files.createTempDir().getAbsolutePath();

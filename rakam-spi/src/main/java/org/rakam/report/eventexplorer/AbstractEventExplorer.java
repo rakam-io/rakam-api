@@ -8,6 +8,7 @@ import io.airlift.log.Logger;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.config.ProjectConfig;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
@@ -59,12 +60,16 @@ public abstract class AbstractEventExplorer
     private final Map<TimestampTransformation, String> timestampMapping;
     private final MaterializedViewService materializedViewService;
     private final ContinuousQueryService continuousQueryService;
+    private final ProjectConfig projectConfig;
 
-    public AbstractEventExplorer(QueryExecutorService executor,
+    public AbstractEventExplorer(
+            ProjectConfig projectConfig,
+            QueryExecutorService executor,
             MaterializedViewService materializedViewService,
             ContinuousQueryService continuousQueryService,
             Map<TimestampTransformation, String> timestampMapping)
     {
+        this.projectConfig = projectConfig;
         this.executor = executor;
         this.timestampMapping = timestampMapping;
         this.materializedViewService = materializedViewService;
@@ -104,25 +109,25 @@ public abstract class AbstractEventExplorer
         }
     }
 
-    public static String getColumnValue(Map<TimestampTransformation, String> timestampMapping, Reference ref, boolean format)
+    public String getColumnValue(Map<TimestampTransformation, String> timestampMapping, Reference ref, boolean format)
     {
         switch (ref.type) {
             case COLUMN:
                 return format ? checkTableColumn(ref.value) : ref.value;
             case REFERENCE:
-                return format(timestampMapping.get(fromString(ref.value.replace(" ", "_"))), "_time");
+                return format(timestampMapping.get(fromString(ref.value.replace(" ", "_"))), projectConfig.getTimeColumn());
             default:
                 throw new IllegalArgumentException("Unknown reference type: " + ref.value);
         }
     }
 
-    public static String getColumnReference(Reference ref)
+    public String getColumnReference(Reference ref)
     {
         switch (ref.type) {
             case COLUMN:
                 return ref.value;
             case REFERENCE:
-                return "_time";
+                return projectConfig.getTimeColumn();
             default:
                 throw new IllegalArgumentException("Unknown reference type: " + ref.value);
         }
@@ -200,7 +205,8 @@ public abstract class AbstractEventExplorer
                     .map(view -> new AbstractMap.SimpleImmutableEntry<>(view, "continuous." + checkCollection(view.tableName)));
         }
 
-        String timeFilter = format(" _time between timestamp '%s' and timestamp '%s' + interval '1' day",
+        String timeFilter = format(" %s between timestamp '%s' and timestamp '%s' + interval '1' day",
+                checkTableColumn(projectConfig.getTimeColumn()),
                 TIMESTAMP_FORMATTER.format(startDate), TIMESTAMP_FORMATTER.format(endDate));
 
         String groupBy;
@@ -404,8 +410,7 @@ public abstract class AbstractEventExplorer
     }
 
     @Override
-    public CompletableFuture<QueryResult>
-    getEventStatistics(String project,
+    public CompletableFuture<QueryResult> getEventStatistics(String project,
             Optional<Set<String>> collections,
             Optional<String> dimension, Instant startDate, Instant endDate)
     {
@@ -420,8 +425,9 @@ public abstract class AbstractEventExplorer
         }
 
         String timePredicate = format("\"week\" between cast(date_trunc('week', timestamp '%s') as date) and cast(date_trunc('week', timestamp '%s') as date) and \n" +
-                        "\"_time\" between timestamp '%s' and timestamp '%s' + interval '1' day",
+                        "%s between timestamp '%s' and timestamp '%s' + interval '1' day",
                 TIMESTAMP_FORMATTER.format(startDate), TIMESTAMP_FORMATTER.format(endDate),
+                checkTableColumn(projectConfig.getTimeColumn()),
                 TIMESTAMP_FORMATTER.format(startDate), TIMESTAMP_FORMATTER.format(endDate));
 
         String query;
@@ -432,7 +438,7 @@ public abstract class AbstractEventExplorer
             }
 
             query = format("select collection, %s as %s, sum(total) from continuous._event_explorer_metrics where %s group by 1, 2 order by 2 desc",
-                    aggregationMethod.get() == HOUR ? "_time" : format(timestampMapping.get(aggregationMethod.get()), "_time"),
+                    aggregationMethod.get() == HOUR ? projectConfig.getTimeColumn() : format(timestampMapping.get(aggregationMethod.get()), projectConfig.getTimeColumn()),
                     aggregationMethod.get(), timePredicate);
         }
         else {

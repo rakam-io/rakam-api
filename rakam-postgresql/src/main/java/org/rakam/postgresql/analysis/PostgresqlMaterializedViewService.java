@@ -7,6 +7,7 @@ import com.facebook.presto.sql.tree.Query;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.QueryMetadataStore;
+import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.DelegateQueryExecution;
@@ -33,16 +34,19 @@ import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static java.lang.String.format;
 import static org.rakam.postgresql.report.PostgresqlQueryExecutor.MATERIALIZED_VIEW_PREFIX;
 import static org.rakam.util.ValidationUtil.checkCollection;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PostgresqlMaterializedViewService extends MaterializedViewService {
     private final SqlParser parser = new SqlParser();
 
     private final PostgresqlQueryExecutor queryExecutor;
     private final QueryMetadataStore database;
+    private final ProjectConfig projectConfig;
 
     @Inject
-    public PostgresqlMaterializedViewService(PostgresqlQueryExecutor queryExecutor, QueryMetadataStore database) {
+    public PostgresqlMaterializedViewService(ProjectConfig projectConfig, PostgresqlQueryExecutor queryExecutor, QueryMetadataStore database) {
         super(database, queryExecutor, '"');
+        this.projectConfig = projectConfig;
         this.queryExecutor = queryExecutor;
         this.database = database;
     }
@@ -154,7 +158,8 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
                 String query = formatSql(statement,
                         name -> format("(SELECT * FROM %s %s",
                                 queryExecutor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of(), "collection"),
-                                lastUpdated == null ? "" : String.format("WHERE _time > to_timestamp(%d)",
+                                lastUpdated == null ? "" : String.format("WHERE %s > to_timestamp(%d)",
+                                        checkTableColumn(projectConfig.getTimeColumn()),
                                         lastUpdated)), '"');
 
                 reference = format("(SELECT * from %s UNION ALL %s)", materializedTableReference, query);

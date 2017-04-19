@@ -2,7 +2,9 @@ package org.rakam.report;
 
 import com.google.common.base.Throwables;
 import io.airlift.configuration.Config;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.util.MailSender;
+import org.rakam.util.RakamException;
 
 import javax.mail.Authenticator;
 import javax.mail.PasswordAuthentication;
@@ -10,6 +12,8 @@ import javax.mail.Session;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Properties;
+
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_IMPLEMENTED;
 
 public class EmailClientConfig {
     private String host;
@@ -109,7 +113,7 @@ public class EmailClientConfig {
      */
     public MailSender getMailSender() {
         if(getHost() == null || getUser() == null) {
-            throw new IllegalStateException("mail.smtp.host or mail.smtp.username is not set.");
+            throw new RakamException("mail.smtp.host or mail.smtp.username is not set.", NOT_IMPLEMENTED);
         }
         Properties props = new Properties();
         props.put("mail.smtp.auth", "true");

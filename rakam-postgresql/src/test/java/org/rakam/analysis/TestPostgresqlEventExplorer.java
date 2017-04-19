@@ -5,6 +5,7 @@ import org.rakam.TestingEnvironment;
 import org.rakam.analysis.datasource.CustomDataSourceService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.EventStore;
 import org.rakam.postgresql.analysis.PostgresqlEventStore;
 import org.rakam.postgresql.analysis.PostgresqlMaterializedViewService;
@@ -40,15 +41,16 @@ public class TestPostgresqlEventExplorer
         EventBus eventBus = new EventBus();
 
         metastore = new PostgresqlMetastore(dataSource, eventBus);
-        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, new CustomDataSourceService(dataSource), false);
+        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(new ProjectConfig(), dataSource, metastore, new CustomDataSourceService(dataSource), false);
 
         QueryExecutorService executorService = new QueryExecutorService(queryExecutor, metastore,
-                new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore), Clock.systemUTC(), '"');
+                new PostgresqlMaterializedViewService(new ProjectConfig(), queryExecutor, queryMetadataStore), Clock.systemUTC(), '"');
         PostgresqlPseudoContinuousQueryService continuousQueryService = new PostgresqlPseudoContinuousQueryService(queryMetadataStore, executorService, queryExecutor);
 
         eventStore = new PostgresqlEventStore(dataSource, build);
-        PostgresqlMaterializedViewService materializedViewService = new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore);
+        PostgresqlMaterializedViewService materializedViewService = new PostgresqlMaterializedViewService(new ProjectConfig(), queryExecutor, queryMetadataStore);
         eventExplorer = new PostgresqlEventExplorer(
+                new ProjectConfig(),
                 new QueryExecutorService(queryExecutor, metastore, materializedViewService, Clock.systemUTC(), '"'),
                 materializedViewService,
                 continuousQueryService);

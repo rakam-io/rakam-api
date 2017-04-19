@@ -17,12 +17,14 @@ import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.config.ProjectConfig;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 import org.rakam.report.eventexplorer.AbstractEventExplorer;
 import org.rakam.report.realtime.AggregationType;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 
@@ -39,6 +41,7 @@ import static org.rakam.analysis.EventExplorer.TimestampTransformation.*;
 import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PostgresqlEventExplorer
         extends AbstractEventExplorer
@@ -59,13 +62,15 @@ public class PostgresqlEventExplorer
             .put(YEAR, "date_trunc('year', %s)")
             .build();
     private final QueryExecutorService executorService;
+    private final ProjectConfig projectConfig;
 
     @Inject
-    public PostgresqlEventExplorer(QueryExecutorService service, MaterializedViewService materializedViewService,
+    public PostgresqlEventExplorer(ProjectConfig projectConfig, QueryExecutorService service, MaterializedViewService materializedViewService,
             ContinuousQueryService continuousQueryService)
     {
-        super(service, materializedViewService, continuousQueryService, timestampMapping);
+        super(projectConfig, service, materializedViewService, continuousQueryService, timestampMapping);
         this.executorService = service;
+        this.projectConfig = projectConfig;
     }
 
     @Override
@@ -81,11 +86,11 @@ public class PostgresqlEventExplorer
             checkReference(timestampMapping, dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
         }
 
-        String timePredicate = format("\"_time\" between timestamp '%s' and timestamp '%s' + interval '1' day",
-                TIMESTAMP_FORMATTER.format(startDate), TIMESTAMP_FORMATTER.format(endDate));
+        String timePredicate = format("%s between timestamp '%s' and timestamp '%s' + interval '1' day",
+                checkTableColumn(projectConfig.getTimeColumn()), TIMESTAMP_FORMATTER.format(startDate), TIMESTAMP_FORMATTER.format(endDate));
 
         String collectionQuery = collections.map(v -> "(" + v.stream()
-                .map(col -> String.format("SELECT _time, cast('%s' as text) as \"$collection\" FROM %s", col, checkCollection(col))).collect(Collectors.joining(" union all ")) + ") data")
+                .map(col -> format("SELECT %s, cast('%s' as text) as \"$collection\" FROM %s", checkTableColumn(projectConfig.getTimeColumn()), col, checkCollection(col))).collect(Collectors.joining(" union all ")) + ") data")
                 .orElse("_all");
 
         String query;
@@ -96,11 +101,11 @@ public class PostgresqlEventExplorer
             }
 
             query = format("select \"$collection\", %s as %s, count(*) from %s where %s group by 1, 2 order by 2 desc",
-                    format(timestampMapping.get(aggregationMethod.get()), "_time"),
+                    format(timestampMapping.get(aggregationMethod.get()), projectConfig.getTimeColumn()),
                     aggregationMethod.get(), collectionQuery, timePredicate);
         }
         else {
-            query = String.format("select \"$collection\", count(*) total \n" +
+            query = format("select \"$collection\", count(*) total \n" +
                     " from %s where %s group by 1", collectionQuery, timePredicate);
         }
 
@@ -143,7 +148,7 @@ public class PostgresqlEventExplorer
     {
         String column = convertSqlFunction(intermediate);
         if (intermediate == AggregationType.SUM && main == AggregationType.COUNT) {
-            return String.format("cast(%s as bigint)", column);
+            return format("cast(%s as bigint)", column);
         }
 
         return column;

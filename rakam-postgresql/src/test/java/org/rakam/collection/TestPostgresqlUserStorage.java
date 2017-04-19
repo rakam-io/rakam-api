@@ -8,6 +8,7 @@ import org.rakam.analysis.InMemoryQueryMetadataStore;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.datasource.CustomDataSourceService;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.postgresql.PostgresqlConfigManager;
@@ -43,15 +44,15 @@ public class TestPostgresqlUserStorage
         EventBus eventBus = new EventBus();
         metastore = new PostgresqlMetastore(dataSource, eventBus);
 
-        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, new CustomDataSourceService(dataSource), false);
+        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(new ProjectConfig(), dataSource, metastore, new CustomDataSourceService(dataSource), false);
 
-        PostgresqlMaterializedViewService materializedViewService = new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore);
+        PostgresqlMaterializedViewService materializedViewService = new PostgresqlMaterializedViewService(new ProjectConfig(), queryExecutor, queryMetadataStore);
 
         QueryExecutorService queryExecutorService = new QueryExecutorService(queryExecutor, metastore, materializedViewService, Clock.systemUTC(), '"');
         configManager = new PostgresqlConfigManager(dataSource);
         configManager.setup();
         PostgresqlUserStorage userStorage = new PostgresqlUserStorage(queryExecutorService, materializedViewService, configManager, queryExecutor);
-        userService = new PostgresqlUserService(userStorage, metastore, queryExecutor);
+        userService = new PostgresqlUserService(new ProjectConfig(), userStorage, metastore, queryExecutor);
         super.setUp();
     }
 

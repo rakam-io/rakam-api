@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableList;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
+import org.rakam.config.ProjectConfig;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.AbstractRetentionQueryExecutor;
 import org.rakam.report.DelegateQueryExecution;
@@ -62,12 +63,14 @@ public class PostgresqlRetentionQueryExecutor
 {
     private final PostgresqlQueryExecutor executor;
     private final Metastore metastore;
+    private final ProjectConfig projectConfig;
 
     @Inject
-    public PostgresqlRetentionQueryExecutor(PostgresqlQueryExecutor executor, Metastore metastore)
+    public PostgresqlRetentionQueryExecutor(ProjectConfig projectConfig, PostgresqlQueryExecutor executor, Metastore metastore)
     {
         this.executor = executor;
         this.metastore = metastore;
+        this.projectConfig = projectConfig;
     }
 
     @PostConstruct
@@ -98,7 +101,9 @@ public class PostgresqlRetentionQueryExecutor
             }
 
             try {
-                conn.createStatement().execute("CREATE TYPE retention_action AS (is_first boolean, _time timestamp)");
+                conn.createStatement().execute(String.format("CREATE TYPE retention_action AS " +
+                                "(is_first boolean, %s timestamp)",
+                        checkTableColumn(projectConfig.getTimeColumn())));
             }
             catch (SQLException e) {
                 if (!e.getSQLState().equals("42710")) {
@@ -184,14 +189,14 @@ public class PostgresqlRetentionQueryExecutor
                     dimension.map(v -> "dimension").map(v -> v + ", ").orElse(""),
                     CONNECTOR_FIELD,
                     // if we're calculating by dimension, take the first event data for each user
-                    dimension.map(val -> format("array[min(%s)]", format(timeColumn, "_time")))
-                            .orElseGet(() -> format("array_agg(%s::date order by %s::date)", format(timeColumn, "_time"), format(timeColumn, "_time"))),
+                    dimension.map(val -> format("array[min(%s)]", format(timeColumn, projectConfig.getTimeColumn())))
+                            .orElseGet(() -> format("array_agg(%s::date order by %s::date)", format(timeColumn, projectConfig.getTimeColumn()), format(timeColumn, projectConfig.getTimeColumn()))),
                     firstActionQuery,
                     dimension.map(v -> ", 2").orElse(""),
 
                     dimension.map(v -> "dimension").map(v -> v + ", ").orElse(""),
                     CONNECTOR_FIELD,
-                    format(timeColumn, "_time"), format(timeColumn, "_time"),
+                    format(timeColumn, projectConfig.getTimeColumn()), format(timeColumn, projectConfig.getTimeColumn()),
                     returningActionQuery,
                     dimension.map(v -> ", 2").orElse(""),
 
@@ -221,14 +226,14 @@ public class PostgresqlRetentionQueryExecutor
                     dimension.map(v -> "dimension").map(v -> v + ", ").orElse(""),
                     CONNECTOR_FIELD,
                     // if we're calculating by dimension, take the first event data for each user
-                    dimension.map(val -> format("array[min(%s)]", format(timeColumn, "_time")))
-                            .orElseGet(() -> format("array_agg(%s::date order by %s::date)", format(timeColumn, "_time"), format(timeColumn, "_time"))),
+                    dimension.map(val -> format("array[min(%s)]", format(timeColumn, projectConfig.getTimeColumn())))
+                            .orElseGet(() -> format("array_agg(%s::date order by %s::date)", format(timeColumn, projectConfig.getTimeColumn()), format(timeColumn, projectConfig.getTimeColumn()))),
                     firstActionQuery,
                     dimension.map(v -> ", 2").orElse(""),
 
                     dimension.map(v -> "dimension").map(v -> v + ", ").orElse(""),
                     CONNECTOR_FIELD,
-                    format(timeColumn, "_time"), format(timeColumn, "_time"),
+                    format(timeColumn, projectConfig.getTimeColumn()), format(timeColumn, projectConfig.getTimeColumn()),
                     returningActionQuery,
                     dimension.map(v -> ", 2").orElse(""),
                     dimension.map(v -> " and first.dimension = ret.dimension").orElse(""),
@@ -259,8 +264,6 @@ public class PostgresqlRetentionQueryExecutor
         });
     }
 
-
-
     private String generateQuery(
             Map<String, List<SchemaField>> collections,
             String project,
@@ -277,7 +280,8 @@ public class PostgresqlRetentionQueryExecutor
 
         if (!retentionAction.isPresent()) {
             if (!collections.entrySet().stream().anyMatch(e -> e.getValue().stream().anyMatch(s -> s.getName().equals("_user")))) {
-                return format("select _time, %s null as %s",
+                return format("select %s, %s null as %s",
+                        checkTableColumn(projectConfig.getTimeColumn()),
                         dimension.isPresent() ? checkTableColumn(dimension.get(), "dimension", '"') + " as dimension, " : "",
                         connectorField);
             }
@@ -306,10 +310,12 @@ public class PostgresqlRetentionQueryExecutor
             String timePredicate,
             Optional<Expression> filter)
     {
-        return format("select _time, %s %s from %s where _time %s %s",
+        return format("select %s, %s %s from %s where %s %s %s",
+                checkTableColumn(projectConfig.getTimeColumn()),
                 dimension.isPresent() ? checkTableColumn(dimension.get(), "dimension", '"') + " as dimension, " : "",
                 connectorField,
                 project + "." + checkCollection(collection),
+                checkTableColumn(projectConfig.getTimeColumn()),
                 timePredicate,
                 filter.isPresent() ? "and " + formatExpression(filter.get(), reference -> {
                     throw new UnsupportedOperationException();

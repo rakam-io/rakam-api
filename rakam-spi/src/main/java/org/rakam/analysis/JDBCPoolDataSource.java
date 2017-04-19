@@ -140,4 +140,9 @@ public class JDBCPoolDataSource
     {
         return dataSource.isWrapperFor(iface);
     }
+
+    public JDBCConfig getConfig()
+    {
+        return config;
+    }
 }

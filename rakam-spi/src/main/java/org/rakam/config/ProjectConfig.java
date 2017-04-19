@@ -8,6 +8,8 @@ import java.net.URISyntaxException;
 public class ProjectConfig {
     private String lockKey;
     private String passphrase;
+    private String timeColumn = "_time";
+    private String userColumn = "_user";
 
     @Config("lock-key")
     @ConfigDescription("A key that is required only for creating projects")
@@ -28,5 +30,25 @@ public class ProjectConfig {
 
     public String getPassphrase() {
         return passphrase;
+    }
+
+    @Config("time-column")
+    public ProjectConfig setTimeColumn(String timeColumn) {
+        this.timeColumn = timeColumn;
+        return this;
+    }
+
+    public String getTimeColumn() {
+        return timeColumn;
+    }
+
+    @Config("user-column")
+    public ProjectConfig setUserColumn(String userColumn) {
+        this.userColumn = userColumn;
+        return this;
+    }
+
+    public String getUserColumn() {
+        return userColumn;
     }
 }

@@ -9,6 +9,7 @@ import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
+import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.realtime.AggregationType;
@@ -56,9 +57,10 @@ public abstract class RealtimeService
     private final Duration window;
     private final List<AggregationType> aggregationTypes;
     private final char escapeIdentifier;
+    private final ProjectConfig projectConfig;
 
     @Inject
-    public RealtimeService(ContinuousQueryService service, QueryExecutor executor, @RealtimeAggregations List<AggregationType> aggregationTypes, RealTimeConfig config, @TimestampToEpochFunction String timestampToEpochFunction, @EscapeIdentifier char escapeIdentifier)
+    public RealtimeService(ProjectConfig projectConfig, ContinuousQueryService service, QueryExecutor executor, @RealtimeAggregations List<AggregationType> aggregationTypes, RealTimeConfig config, @TimestampToEpochFunction String timestampToEpochFunction, @EscapeIdentifier char escapeIdentifier)
     {
         this.service = service;
         this.timestampToEpochFunction = timestampToEpochFunction;
@@ -67,6 +69,7 @@ public abstract class RealtimeService
         this.slide = realTimeConfig.getSlideInterval();
         this.aggregationTypes = aggregationTypes;
         this.executor = executor;
+        this.projectConfig = projectConfig;
         this.escapeIdentifier = escapeIdentifier;
     }
 
@@ -81,10 +84,10 @@ public abstract class RealtimeService
         }
 
         String sqlQuery = new StringBuilder().append("select ")
-                .append(format("(cast(" + timestampToEpochFunction + "(" + checkTableColumn(timeColumn(), escapeIdentifier) + ") as bigint) / %d) as time, ", slide.roundTo(TimeUnit.SECONDS)))
+                .append(format("(cast(" + timestampToEpochFunction + "(" + checkTableColumn(projectConfig.getTimeColumn(), escapeIdentifier) + ") as bigint) / %d) as time, ", slide.roundTo(TimeUnit.SECONDS)))
                 .append(createFinalSelect(report.measures, report.dimensions))
                 .append(" FROM (" + report.collections.stream().map(col -> String.format("SELECT %s FROM %s ",
-                        Stream.of(checkTableColumn(timeColumn(), escapeIdentifier), report.dimensions.stream().map(e -> checkTableColumn(e)).collect(Collectors.joining(", ")),
+                        Stream.of(checkTableColumn(projectConfig.getTimeColumn(), escapeIdentifier), report.dimensions.stream().map(e -> checkTableColumn(e)).collect(Collectors.joining(", ")),
                                 report.measures.stream().map(e -> checkTableColumn(e.column)).distinct().collect(Collectors.joining(", "))).filter(e -> !e.isEmpty()).collect(Collectors.joining(", ")), checkCollection(col)
                 )).collect(Collectors.joining(" UNION ALL ")) + ") data ")
                 .append(report.filter == null ? "" : " where " + report.filter)
@@ -102,11 +105,6 @@ public abstract class RealtimeService
 
         return service.create(project, query, false).getResult()
                 .thenApply(SuccessMessage::map);
-    }
-
-    public String timeColumn()
-    {
-        return "_time";
     }
 
     public CompletableFuture<Boolean> delete(String project, String tableName)

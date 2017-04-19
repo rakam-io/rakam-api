@@ -31,6 +31,7 @@ import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.aws.kinesis.ForStreamer;
 import org.rakam.config.JDBCConfig;
 import org.rakam.config.MetadataConfig;
+import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.CopyEvent;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
@@ -50,6 +51,7 @@ import org.rakam.presto.analysis.PrestoEventStream;
 import org.rakam.presto.analysis.PrestoFunnelQueryExecutor;
 import org.rakam.presto.analysis.PrestoMaterializedViewService;
 import org.rakam.presto.analysis.PrestoMetastore;
+import org.rakam.presto.analysis.PrestoRakamRaptorMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.presto.analysis.PrestoRetentionQueryExecutor;
 import org.rakam.presto.analysis.PrestoUserService;
@@ -83,39 +85,53 @@ import static org.rakam.report.realtime.AggregationType.COUNT;
 import static org.rakam.report.realtime.AggregationType.MAXIMUM;
 import static org.rakam.report.realtime.AggregationType.MINIMUM;
 import static org.rakam.report.realtime.AggregationType.SUM;
+import static org.rakam.util.ValidationUtil.checkCollection;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "store.adapter", value = "presto")
-public class PrestoModule extends RakamModule {
+public class PrestoModule
+        extends RakamModule
+{
     @Override
-    protected void setup(Binder binder) {
+    protected void setup(Binder binder)
+    {
         configBinder(binder).bindConfig(MetadataConfig.class);
         configBinder(binder).bindConfig(PrestoConfig.class);
+        PrestoConfig prestoConfig = buildConfigObject(PrestoConfig.class);
 
         binder.bind(QueryExecutor.class).to(PrestoQueryExecutor.class);
         binder.bind(char.class).annotatedWith(EscapeIdentifier.class).toInstance('"');
-        binder.bind(ContinuousQueryService.class).to(PrestoContinuousQueryService.class);
         binder.bind(MaterializedViewService.class).to(PrestoMaterializedViewService.class);
         binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class).toInstance("to_unixtime");
 
-        if (buildConfigObject(EventStreamConfig.class).getEventStreamEnabled()) {
-            httpClientBinder(binder).bindHttpClient("streamer", ForStreamer.class);
-            binder.bind(EventStream.class).to(PrestoEventStream.class).in(Scopes.SINGLETON);
-        }
-
         OptionalBinder.newOptionalBinder(binder, CopyEvent.class)
                 .setBinding().to(PrestoCopyEvent.class);
-        JDBCPoolDataSource metadataDataSource = bindJDBCConfig(binder, "presto.metastore.jdbc");
+
+        JDBCPoolDataSource metadataDataSource;
+        if ("rakam_raptor".equals(prestoConfig.getColdStorageConnector())) {
+            binder.bind(ContinuousQueryService.class).to(PrestoContinuousQueryService.class);
+
+            metadataDataSource = bindJDBCConfig(binder, "presto.metastore.jdbc");
+
+            if (buildConfigObject(EventStreamConfig.class).getEventStreamEnabled()) {
+                httpClientBinder(binder).bindHttpClient("streamer", ForStreamer.class);
+                binder.bind(EventStream.class).to(PrestoEventStream.class).in(Scopes.SINGLETON);
+            }
+        } else {
+            metadataDataSource = bindJDBCConfig(binder, "report.metadata.store.jdbc");
+            binder.bind(ContinuousQueryService.class).to(PrestoPseudoContinuousQueryService.class);
+        }
 
         binder.bind(ApiKeyService.class).toInstance(new JDBCApiKeyService(metadataDataSource));
-        binder.bind(new TypeLiteral<List<AggregationType>>(){}).annotatedWith(RealtimeAggregations.class)
+
+        binder.bind(new TypeLiteral<List<AggregationType>>() {}).annotatedWith(RealtimeAggregations.class)
                 .toInstance(ImmutableList.of(
                         COUNT, SUM, MINIMUM, MAXIMUM, APPROXIMATE_UNIQUE));
 
         binder.bind(RealtimeService.class).to(PrestoRealtimeService.class);
 
         // use same jdbc pool if report.metadata.store is not set explicitly.
-        if(getConfig("report.metadata.store") == null) {
+        if (getConfig("report.metadata.store") == null && metadataDataSource != null) {
             binder.bind(JDBCPoolDataSource.class)
                     .annotatedWith(Names.named("report.metadata.store.jdbc"))
                     .toInstance(metadataDataSource);
@@ -126,7 +142,13 @@ public class PrestoModule extends RakamModule {
         }
 
         OptionalBinder<JDBCConfig> userConfig = OptionalBinder.newOptionalBinder(binder, Key.get(JDBCConfig.class, UserConfig.class));
-        binder.bind(Metastore.class).to(PrestoMetastore.class).in(Scopes.SINGLETON);
+        if ("rakam_raptor".equals(prestoConfig.getColdStorageConnector()) || "raptor".equals(prestoConfig.getColdStorageConnector())) {
+            binder.bind(Metastore.class).to(PrestoRakamRaptorMetastore.class).in(Scopes.SINGLETON);
+        }
+        else {
+            binder.bind(Metastore.class).to(PrestoMetastore.class).in(Scopes.SINGLETON);
+        }
+
         if ("postgresql".equals(getConfig("plugin.user.storage"))) {
             binder.bind(AbstractPostgresqlUserStorage.class).to(PrestoExternalUserStorageAdapter.class)
                     .in(Scopes.SINGLETON);
@@ -142,7 +164,7 @@ public class PrestoModule extends RakamModule {
         }
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
 
-        if(userPluginConfig.getEnableUserMapping()) {
+        if (userPluginConfig.getEnableUserMapping()) {
             binder.bind(UserMergeTableHook.class).asEagerSingleton();
         }
 
@@ -159,16 +181,19 @@ public class PrestoModule extends RakamModule {
     }
 
     @Override
-    public String name() {
+    public String name()
+    {
         return "PrestoDB backend for Rakam";
     }
 
     @Override
-    public String description() {
+    public String description()
+    {
         return "Rakam backend for high-throughput systems.";
     }
 
-    private JDBCPoolDataSource bindJDBCConfig(Binder binder, String config) {
+    private JDBCPoolDataSource bindJDBCConfig(Binder binder, String config)
+    {
         JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(
                 buildConfigObject(JDBCConfig.class, config));
         binder.bind(JDBCPoolDataSource.class)
@@ -177,19 +202,25 @@ public class PrestoModule extends RakamModule {
         return dataSource;
     }
 
-    public static class UserMergeTableHook {
+    public static class UserMergeTableHook
+    {
         private final PrestoQueryExecutor executor;
+        private final ProjectConfig projectConfig;
 
         @Inject
-        public UserMergeTableHook(PrestoQueryExecutor executor) {
+        public UserMergeTableHook(ProjectConfig projectConfig, PrestoQueryExecutor executor)
+        {
+            this.projectConfig = projectConfig;
             this.executor = executor;
         }
 
         @Subscribe
-        public void onCreateProject(ProjectCreatedEvent event) {
-            executor.executeRawStatement(String.format("CREATE TABLE %s(id VARCHAR, _user VARCHAR, " +
-                    "created_at TIMESTAMP, merged_at TIMESTAMP)",
-                    executor.formatTableReference(event.project, QualifiedName.of(ANONYMOUS_ID_MAPPING), Optional.empty(), ImmutableMap.of(), "collection")));
+        public void onCreateProject(ProjectCreatedEvent event)
+        {
+            executor.executeRawStatement(String.format("CREATE TABLE %s(id VARCHAR, %s VARCHAR, " +
+                            "created_at TIMESTAMP, merged_at TIMESTAMP)",
+                    executor.formatTableReference(event.project, QualifiedName.of(ANONYMOUS_ID_MAPPING), Optional.empty(), ImmutableMap.of(), "collection"),
+                    checkCollection(projectConfig.getUserColumn())));
         }
     }
 
@@ -197,19 +228,14 @@ public class PrestoModule extends RakamModule {
             extends RealtimeService
     {
         @Inject
-        public PrestoRealtimeService(ContinuousQueryService service, QueryExecutor executor, @RealtimeAggregations List<AggregationType> aggregationTypes, RealTimeConfig config, @TimestampToEpochFunction String timestampToEpochFunction, @EscapeIdentifier char escapeIdentifier)
+        public PrestoRealtimeService(ProjectConfig projectConfig, ContinuousQueryService service, QueryExecutor executor, @RealtimeAggregations List<AggregationType> aggregationTypes, RealTimeConfig config, @TimestampToEpochFunction String timestampToEpochFunction, @EscapeIdentifier char escapeIdentifier)
         {
-            super(service, executor, aggregationTypes, config, timestampToEpochFunction, escapeIdentifier);
+            super(projectConfig, service, executor, aggregationTypes, config, timestampToEpochFunction, escapeIdentifier);
         }
 
         @Override
-        public String timeColumn()
+        public String getIntermediateFunction(AggregationType type)
         {
-            return "_time";
-        }
-
-        @Override
-        public String getIntermediateFunction(AggregationType type) {
             String format;
             switch (type) {
                 case MAXIMUM:
@@ -236,6 +262,7 @@ public class PrestoModule extends RakamModule {
 
             return format;
         }
+
         @Override
         public String combineFunction(AggregationType aggregationType)
         {
@@ -258,6 +285,7 @@ public class PrestoModule extends RakamModule {
     }
 
     @BindingAnnotation
-    @Target({FIELD, PARAMETER, METHOD }) @Retention(RUNTIME)
+    @Target({FIELD, PARAMETER, METHOD})
+    @Retention(RUNTIME)
     public @interface UserConfig {}
 }

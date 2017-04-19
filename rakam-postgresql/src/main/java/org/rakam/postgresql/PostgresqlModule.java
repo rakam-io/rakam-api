@@ -29,6 +29,7 @@ import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.JDBCConfig;
+import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
@@ -199,12 +200,14 @@ public class PostgresqlModule
     private static class CollectionFieldIndexerListener
     {
         private final PostgresqlQueryExecutor executor;
+        private final ProjectConfig projectConfig;
         boolean postgresql9_5;
 
         @Inject
-        public CollectionFieldIndexerListener(PostgresqlQueryExecutor executor)
+        public CollectionFieldIndexerListener(ProjectConfig projectConfig, PostgresqlQueryExecutor executor)
         {
             this.executor = executor;
+            this.projectConfig = projectConfig;
             try {
                 String version = executor.executeRawQuery("SHOW server_version")
                         .getResult().join().getResult().get(0).get(0).toString();
@@ -238,7 +241,7 @@ public class PostgresqlModule
                             checkCollection(String.format("%s_%s_%s_auto_index", project, collection, field.getName())),
                             project, checkCollection(collection),
 //                            (postgresql9_5 && brinSupportedTypes.contains(field.getType())) ? "BRIN" : "BTREE",
-                            (postgresql9_5 && field.getName().equals("_time")) ? "BRIN" : "BTREE",
+                            (postgresql9_5 && field.getName().equals(projectConfig.getTimeColumn())) ? "BRIN" : "BTREE",
                             checkTableColumn(field.getName())));
                 }
                 catch (Exception e) {
@@ -258,21 +261,15 @@ public class PostgresqlModule
             extends RealtimeService
     {
         @Inject
-        public PostgresqlRealtimeService(ContinuousQueryService service, QueryExecutor executor, @RealtimeAggregations List<AggregationType> aggregationTypes, RealTimeConfig config, @TimestampToEpochFunction String timestampToEpochFunction, @EscapeIdentifier char escapeIdentifier)
+        public PostgresqlRealtimeService(ProjectConfig projectConfig, ContinuousQueryService service, QueryExecutor executor, @RealtimeAggregations List<AggregationType> aggregationTypes, RealTimeConfig config, @TimestampToEpochFunction String timestampToEpochFunction, @EscapeIdentifier char escapeIdentifier)
         {
-            super(service, executor, aggregationTypes, config, timestampToEpochFunction, escapeIdentifier);
+            super(projectConfig, service, executor, aggregationTypes, config, timestampToEpochFunction, escapeIdentifier);
             executor.executeRawStatement("CREATE EXTENSION IF NOT EXISTS intarray").getResult().join();
             executor.executeRawStatement("CREATE AGGREGATE array_agg_int (int[]) (\n" +
                     "    SFUNC    = _int_union\n" +
                     "   ,STYPE    = int[]\n" +
                     "   ,INITCOND = '{}'\n" +
                     ");").getResult().join();
-        }
-
-        @Override
-        public String timeColumn()
-        {
-            return "_time";
         }
 
         @Override

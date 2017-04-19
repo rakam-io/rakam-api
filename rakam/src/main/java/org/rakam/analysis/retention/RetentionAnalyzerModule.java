@@ -59,27 +59,4 @@ public class RetentionAnalyzerModule
     {
         return "Analyzes events of each user and allows you to improve your user acquisition and retention activities.";
     }
-
-    public static class RetentionAnalyzerListener
-    {
-        private static final String QUERY = "select cast(_time as date) as date, _user from \"%s\" group by 1, 2";
-        private final ContinuousQueryService continuousQueryService;
-
-        @Inject
-        public RetentionAnalyzerListener(ContinuousQueryService continuousQueryService)
-        {
-            this.continuousQueryService = continuousQueryService;
-        }
-
-        @Subscribe
-        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event)
-        {
-            ContinuousQuery report = new ContinuousQuery(
-                    "_users_" + event.collection,
-                    "Users who did "+event.collection+" event",
-                    String.format(QUERY, event.collection),
-                    ImmutableList.of("date"), ImmutableMap.of("description", "Daily distinct users " + event.collection));
-            continuousQueryService.create(event.project, report, false);
-        }
-    }
 }

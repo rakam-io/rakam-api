@@ -5,6 +5,7 @@ import org.rakam.TestingEnvironment;
 import org.rakam.analysis.datasource.CustomDataSourceService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.config.ProjectConfig;
 import org.rakam.postgresql.analysis.PostgresqlMaterializedViewService;
 import org.rakam.postgresql.analysis.PostgresqlMetastore;
 import org.rakam.postgresql.report.PostgresqlPseudoContinuousQueryService;
@@ -29,9 +30,9 @@ public class TestPostgresqlContinuousQueryService extends TestContinuousQuerySer
 
         metastore = new PostgresqlMetastore(dataSource, new EventBus());
 
-        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, new CustomDataSourceService(dataSource), false);
+        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(new ProjectConfig(), dataSource, metastore, new CustomDataSourceService(dataSource), false);
         QueryExecutorService executorService = new QueryExecutorService(queryExecutor, metastore,
-                new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore), Clock.systemUTC(), '"');
+                new PostgresqlMaterializedViewService(new ProjectConfig(), queryExecutor, queryMetadataStore), Clock.systemUTC(), '"');
         continuousQueryService = new PostgresqlPseudoContinuousQueryService(queryMetadataStore, executorService, queryExecutor);
     }
 

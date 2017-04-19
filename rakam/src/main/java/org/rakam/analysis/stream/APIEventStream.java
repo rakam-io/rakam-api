@@ -1,26 +1,13 @@
 package org.rakam.analysis.stream;
 
-import com.facebook.presto.spi.type.BigintType;
-import com.facebook.presto.spi.type.BooleanType;
-import com.facebook.presto.spi.type.DateType;
-import com.facebook.presto.spi.type.DecimalType;
-import com.facebook.presto.spi.type.DoubleType;
-import com.facebook.presto.spi.type.IntegerType;
-import com.facebook.presto.spi.type.TimeType;
-import com.facebook.presto.spi.type.TimestampType;
 import com.facebook.presto.spi.type.Type;
-import com.facebook.presto.spi.type.VarbinaryType;
-import com.facebook.presto.spi.type.VarcharType;
 import com.facebook.presto.sql.parser.SqlParser;
-import com.facebook.presto.type.ArrayType;
-import com.facebook.presto.type.MapType;
 import com.google.common.collect.ImmutableList;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.stream.APIEventStreamModule.CollectionStreamHolder;
 import org.rakam.analysis.stream.APIEventStreamModule.CollectionStreamHolder.CollectionFilter;
 import org.rakam.collection.Event;
-import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.stream.CollectionStreamQuery;
 import org.rakam.plugin.stream.EventStream;
@@ -38,7 +25,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static org.rakam.presto.analysis.PrestoMetastore.toType;
+import static org.rakam.presto.analysis.PrestoRakamRaptorMetastore.toType;
 
 public class APIEventStream
         implements EventStream

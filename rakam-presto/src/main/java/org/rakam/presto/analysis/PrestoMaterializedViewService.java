@@ -13,6 +13,7 @@ import com.facebook.presto.sql.tree.SingleColumn;
 import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
@@ -45,12 +46,12 @@ public class PrestoMaterializedViewService
     public final static SqlParser sqlParser = new SqlParser();
     protected final QueryMetadataStore database;
     protected final QueryExecutor queryExecutor;
-    private final PrestoMetastore metastore;
+    private final Metastore metastore;
 
     @Inject
     public PrestoMaterializedViewService(
             QueryExecutor queryExecutor,
-            PrestoMetastore metastore,
+            Metastore metastore,
             QueryMetadataStore database)
     {
         super(database, queryExecutor, '"');
@@ -62,8 +63,8 @@ public class PrestoMaterializedViewService
     @Override
     public Map<String, List<SchemaField>> getSchemas(String project, Optional<List<String>> names)
     {
-        Stream<Map.Entry<String, List<SchemaField>>> views = metastore.getTables(project,
-                tableColumn -> tableColumn.getTable().getTableName().startsWith(MATERIALIZED_VIEW_PREFIX)).entrySet().stream();
+        Stream<Map.Entry<String, List<SchemaField>>> views = metastore.getCollections(project).entrySet()
+                .stream().filter(e -> e.getKey().startsWith(MATERIALIZED_VIEW_PREFIX));
         if (names.isPresent()) {
             views = views.filter(e -> names.get().contains(e.getKey()));
         }

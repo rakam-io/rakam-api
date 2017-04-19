@@ -5,6 +5,7 @@ import com.google.inject.Inject;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.clickhouse.analysis.ClickHouseQueryExecution;
 import org.rakam.collection.SchemaField;
+import org.rakam.config.ProjectConfig;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
@@ -25,10 +26,12 @@ public class ClickHouseQueryExecutor implements QueryExecutor
 {
     private final ClickHouseConfig config;
     private final Metastore metastore;
+    private final ProjectConfig projectConfig;
 
     @Inject
-    public ClickHouseQueryExecutor(ClickHouseConfig config, Metastore metastore)
+    public ClickHouseQueryExecutor(ProjectConfig projectConfig, ClickHouseConfig config, Metastore metastore)
     {
+        this.projectConfig = projectConfig;
         this.config = config;
         this.metastore = metastore;
     }
@@ -81,7 +84,7 @@ public class ClickHouseQueryExecutor implements QueryExecutor
                                 getTableReference(project, QualifiedName.of(collection))))
                         .collect(Collectors.joining(" union all ")) + ") ";
             } else {
-                return "(select '' as `$collection`, '' as _user, now() as _time limit 0)";
+                return String.format("(select '' as `$collection`, '' as _user, now() as %s limit 0)", checkTableColumn(projectConfig.getTimeColumn(), '`'));
             }
 
         } else {
