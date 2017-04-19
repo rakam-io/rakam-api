@@ -19,7 +19,7 @@ import java.util.logging.Logger;
 public class LogModule
         extends RakamModule
 {
-    private static final String SENTRY_DSN = "https://b507ce9416da4799a8379ddf93ec4056:10c3db26414240489f124f65b360601e@app.getsentry.com/62493";
+    private static final String SENTRY_DSN = "https://b507ce9416da4799a8379ddf93ec4056:10c3db26414240489f124f65b360601e@app.getsentry.com/62493?raven.sample.rate=0.4";
 
     @Override
     protected void setup(Binder binder)

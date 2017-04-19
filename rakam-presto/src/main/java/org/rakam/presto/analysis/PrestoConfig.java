@@ -1,7 +1,6 @@
 package org.rakam.presto.analysis;
 
-import com.facebook.presto.hadoop.$internal.com.google.common.base.Joiner;
-import com.facebook.presto.hadoop.$internal.com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableList;
 import com.google.common.base.Splitter;
 import io.airlift.configuration.Config;
 
