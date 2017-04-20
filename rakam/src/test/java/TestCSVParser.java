@@ -16,6 +16,7 @@ import org.rakam.collection.Event;
 import org.rakam.collection.EventList;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.SchemaField;
+import org.rakam.config.ProjectConfig;
 import org.rakam.util.AvroUtil;
 import org.testng.annotations.Test;
 
@@ -34,7 +35,7 @@ public class TestCSVParser {
         FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
         Metastore metastore = new InMemoryMetastore(new InMemoryApiKeyService(), new EventBus());
         mapper.registerModule(new SimpleModule().addDeserializer(EventList.class,
-                new CsvEventDeserializer(metastore, new TestingConfigManager(), new SchemaChecker(metastore, build), build)));
+                new CsvEventDeserializer(metastore, new ProjectConfig(), new TestingConfigManager(), new SchemaChecker(metastore, build), build)));
 
         metastore.createProject("project");
         metastore.getOrCreateCollectionFieldList("project", "collection",
