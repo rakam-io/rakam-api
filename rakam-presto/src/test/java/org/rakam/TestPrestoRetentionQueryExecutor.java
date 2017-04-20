@@ -39,6 +39,7 @@ public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor
 
         PrestoQueryExecutor queryExecutor = new PrestoQueryExecutor(new ProjectConfig(), prestoConfig, null, null, metastore);
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(
+                new PrestoConfig(),
                 queryExecutor, metastore, queryMetadataStore);
         PrestoContinuousQueryService continuousQueryService = new PrestoContinuousQueryService(queryMetadataStore, new RealTimeConfig(), queryExecutor, prestoConfig);
 
