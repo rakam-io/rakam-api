@@ -21,6 +21,7 @@ import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 
@@ -38,6 +39,7 @@ import static com.facebook.presto.sql.RakamSqlFormatter.formatSql;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PrestoMaterializedViewService
         extends MaterializedViewService
@@ -47,15 +49,18 @@ public class PrestoMaterializedViewService
     protected final QueryMetadataStore database;
     protected final QueryExecutor queryExecutor;
     private final Metastore metastore;
+    private final PrestoConfig prestoConfig;
 
     @Inject
     public PrestoMaterializedViewService(
+            PrestoConfig prestoConfig,
             QueryExecutor queryExecutor,
             Metastore metastore,
             QueryMetadataStore database)
     {
         super(database, queryExecutor, '"');
         this.database = database;
+        this.prestoConfig = prestoConfig;
         this.queryExecutor = queryExecutor;
         this.metastore = metastore;
     }
@@ -180,8 +185,10 @@ public class PrestoMaterializedViewService
                                     lastUpdated.getEpochSecond(), now.getEpochSecond()) :
                                     String.format(" < from_unixtime(%d)", now.getEpochSecond());
 
-                            return format("(SELECT * FROM %s WHERE _shard_time %s)",
-                                    queryExecutor.formatTableReference(project, name, Optional.empty(), sessionProperties, "collection"), predicate);
+                            return format("(SELECT * FROM %s WHERE %s %s)",
+                                    queryExecutor.formatTableReference(project, name, Optional.empty(), sessionProperties, "collection"),
+                                    checkTableColumn(prestoConfig.getCheckpointColumn()),
+                                    predicate);
                         }, '"');
 
                 queryExecution = queryExecutor.executeRawStatement(format("INSERT INTO %s %s", materializedTableReference, query), sessionProperties);
@@ -200,7 +207,8 @@ public class PrestoMaterializedViewService
                 String query = formatSql(statement,
                         name -> format("(SELECT * FROM %s %s",
                                 queryExecutor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of(), "collection"),
-                                lastUpdated == null ? "" : String.format("WHERE _shard_time > from_unixtime(%d)",
+                                lastUpdated == null ? "" : String.format("WHERE %s > from_unixtime(%d)",
+                                        checkTableColumn(prestoConfig.getCheckpointColumn()),
                                         lastUpdated)), '"');
 
                 reference = format("(SELECT * from %s UNION ALL %s)", materializedTableReference, query);

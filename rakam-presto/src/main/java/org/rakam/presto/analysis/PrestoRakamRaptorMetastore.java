@@ -90,6 +90,7 @@ import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZ
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkLiteral;
 import static org.rakam.util.ValidationUtil.checkProject;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PrestoRakamRaptorMetastore
         extends AbstractMetastore
@@ -346,7 +347,7 @@ public class PrestoRakamRaptorMetastore
     public List<SchemaField> getCollection(String project, String collection)
     {
         return dao.listTableColumns(project, collection).stream()
-                .filter(a -> !a.getColumnName().startsWith("$") && !a.getColumnName().equals("_shard_time"))
+                .filter(a -> !a.getColumnName().startsWith("$") && !a.getColumnName().equals(prestoConfig.getCheckpointColumn()))
                 .map(column -> {
                     TypeSignature typeSignature = column.getDataType().getTypeSignature();
 
@@ -486,7 +487,7 @@ public class PrestoRakamRaptorMetastore
     {
         HashMap<String, List<SchemaField>> map = new HashMap<>();
         for (TableColumn tableColumn : dao.listTableColumns(project, null)) {
-            if (tableColumn.getColumnName().startsWith("$") || tableColumn.getColumnName().equals("_shard_time") || !filter.test(tableColumn)) {
+            if (tableColumn.getColumnName().startsWith("$") || tableColumn.getColumnName().equals(prestoConfig.getCheckpointColumn()) || !filter.test(tableColumn)) {
                 continue;
             }
             TypeSignature typeSignature = tableColumn.getDataType().getTypeSignature();

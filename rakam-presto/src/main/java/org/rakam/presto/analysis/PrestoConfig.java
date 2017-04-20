@@ -9,11 +9,12 @@ import java.util.List;
 
 public class PrestoConfig {
     private URI address;
-    private String dataConnectorName;
-    private String hotStorageConnectorName;
+    private String coldStorageConnector;
+    private String hotStorageConnector;
     private String streamingConnector = "streaming";
     private String userConnector = "user";
     private String bulkConnector = "middleware";
+    private String checkpointColumn = "_shard_time";
     private List<String> existingProjects;
 
     @Config("presto.address")
@@ -63,9 +64,9 @@ public class PrestoConfig {
     }
 
     @Config("presto.cold-storage-connector")
-    public PrestoConfig setColdStorageConnector(String connectorName)
+    public PrestoConfig setColdStorageConnector(String coldStorageConnector)
     {
-        this.dataConnectorName = connectorName;
+        this.coldStorageConnector = coldStorageConnector;
         return this;
     }
 
@@ -76,23 +77,35 @@ public class PrestoConfig {
         return this;
     }
 
+    @Config("presto.checkpoint-column")
+    public PrestoConfig setCheckpointColumn(String checkpointColumn)
+    {
+        this.checkpointColumn = checkpointColumn;
+        return this;
+    }
+
+    public String getCheckpointColumn()
+    {
+        return checkpointColumn;
+    }
+
     public String getStreamingConnector() {
         return streamingConnector;
     }
 
     public String getColdStorageConnector() {
-        return dataConnectorName;
+        return coldStorageConnector;
     }
 
     @Config("presto.hot-storage-connector")
     public PrestoConfig setHotStorageConnector(String streamConnectorName)
     {
-        this.hotStorageConnectorName = streamConnectorName;
+        this.hotStorageConnector = streamConnectorName;
         return this;
     }
 
     public String getHotStorageConnector() {
-        return hotStorageConnectorName;
+        return hotStorageConnector;
     }
 
     public String getBulkConnector() {
