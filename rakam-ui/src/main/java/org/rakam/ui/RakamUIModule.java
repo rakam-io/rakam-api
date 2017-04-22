@@ -20,6 +20,7 @@ import org.rakam.plugin.InjectionHook;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.stream.EventStreamConfig;
 import org.rakam.plugin.user.UserPluginConfig;
+import org.rakam.report.EmailClientConfig;
 import org.rakam.report.eventexplorer.EventExplorerConfig;
 import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.server.http.HttpRequestHandler;
@@ -44,6 +45,7 @@ import org.rakam.util.NotFoundHandler;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.util.IntegerMapper;
+import sun.net.www.protocol.mailto.MailToURLConnection;
 
 import javax.inject.Inject;
 
@@ -60,6 +62,7 @@ public class RakamUIModule
     @Override
     protected void setup(Binder binder)
     {
+        configBinder(binder).bindConfig(EmailClientConfig.class);
         configBinder(binder).bindConfig(EncryptionConfig.class);
         configBinder(binder).bindConfig(UserPluginConfig.class);
         configBinder(binder).bindConfig(RealTimeConfig.class);

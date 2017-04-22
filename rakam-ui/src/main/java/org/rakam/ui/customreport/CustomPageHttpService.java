@@ -138,7 +138,7 @@ public class CustomPageHttpService
             @ApiParam("name") String name)
     {
         if (!database.isPresent()) {
-            throw new RakamException(NOT_IMPLEMENTED);
+            throw new RakamException("Custom page feature is not implemented", NOT_IMPLEMENTED);
         }
 
         database.get().delete(project.project, name);
@@ -160,7 +160,7 @@ public class CustomPageHttpService
             @ApiParam("slug") String slug)
     {
         if (!database.isPresent()) {
-            throw new RakamException(NOT_IMPLEMENTED);
+            throw new RakamException("Custom page feature is not implemented", NOT_IMPLEMENTED);
         }
         return database.get().get(project.project, slug);
     }
@@ -170,7 +170,7 @@ public class CustomPageHttpService
     public void display(RakamHttpRequest request)
     {
         if (!database.isPresent()) {
-            throw new RakamException(NOT_IMPLEMENTED);
+            throw new RakamException("Custom page feature is not implemented", NOT_IMPLEMENTED);
         }
         String path = request.path().substring(21);
         String[] projectCustomPage = path.split("/", 3);
