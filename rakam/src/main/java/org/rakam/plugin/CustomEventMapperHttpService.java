@@ -32,6 +32,9 @@ import org.rakam.collection.Event;
 import org.rakam.collection.EventCollectionHttpService;
 import org.rakam.collection.EventList;
 import org.rakam.collection.FieldType;
+import org.rakam.report.QueryExecution;
+import org.rakam.report.QueryExecutorService;
+import org.rakam.report.QueryResult;
 import org.rakam.util.javascript.JSCodeLoggerService;
 import org.rakam.collection.SchemaField;
 import org.rakam.util.javascript.JSCodeCompiler;
@@ -51,6 +54,7 @@ import org.rakam.util.SuccessMessage;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.GeneratedKeys;
 import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 
 import javax.annotation.Nullable;
 import javax.annotation.PostConstruct;
@@ -62,13 +66,11 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 
 import java.net.InetAddress;
+import java.sql.SQLException;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
@@ -81,6 +83,7 @@ import static java.util.Optional.ofNullable;
 import static java.util.concurrent.TimeUnit.HOURS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.rakam.report.QueryExecutorService.DEFAULT_QUERY_RESULT_COUNT;
 import static org.rakam.util.AvroUtil.generateAvroSchema;
 
 @Path("/custom-event-mapper")
@@ -96,13 +99,48 @@ public class CustomEventMapperHttpService
     private final JSCodeCompiler jsCodeCompiler;
     private final Metastore metastore;
     private final JSCodeLoggerService loggerService;
+    private final QueryExecutorService queryExecutorService;
+
+    public class JSSQLExecutor {
+
+        private final String project;
+
+        public JSSQLExecutor(String project){
+            this.project = project;
+        }
+
+        public Object getOne(String queryString) throws SQLException {
+            List<List<Object>> result = execute(queryString);
+            return null == result ? null :
+                    result.stream().findFirst().orElse(Collections.EMPTY_LIST)
+                    .stream().findFirst().orElse(null);
+        }
+
+        public List<List<Object>> execute(String queryString) throws SQLException {
+            QueryExecution queryExecution =
+                    queryExecutorService.executeQuery(project, queryString,
+                    null, "collection", DEFAULT_QUERY_RESULT_COUNT);
+            try {
+                QueryResult queryResult =  queryExecution.getResult().get();
+                if (queryResult.isFailed()){
+                    throw new SQLException(queryResult.getError().message);
+                }
+                return queryResult.getResult();
+            } catch (InterruptedException e) {
+                throw new SQLException(e.getCause());
+            } catch (ExecutionException e) {
+                throw new SQLException(e.getCause());
+            }
+        }
+    }
 
     @Inject
     public CustomEventMapperHttpService(
             @Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
             Metastore metastore,
             JSCodeCompiler jsCodeCompiler,
-            JSCodeLoggerService loggerService)
+            JSCodeLoggerService loggerService,
+            QueryExecutorService queryExecutorService)
     {
         this.dbi = new DBI(dataSource);
         this.jsCodeCompiler = jsCodeCompiler;
@@ -118,6 +156,7 @@ public class CustomEventMapperHttpService
                 .expireAfterWrite(2, MINUTES)
                 .expireAfterAccess(1, HOURS)
                 .build(new MapperCodeCacheLoader());
+        this.queryExecutorService = queryExecutorService;
     }
 
     @PostConstruct
@@ -256,6 +295,7 @@ public class CustomEventMapperHttpService
                         new EventCollectionHttpService.HttpRequestParams(request),
                         EventCollectionHttpService.getRemoteAddress(request.getRemoteAddress()),
                         responseHeaders,
+                        new JSSQLExecutor(project),
                         parameters);
 
                 if (mapper == null) {
@@ -276,6 +316,9 @@ public class CustomEventMapperHttpService
             }
             catch (NoSuchMethodException e) {
                 throw new RakamException("There must be a function called 'mapper'.", BAD_REQUEST);
+            }
+            catch (Exception e){
+                throw new RakamException("Error executing JavaScript: " + e.getMessage(), BAD_REQUEST);
             }
         }, executor);
     }
@@ -412,6 +455,7 @@ public class CustomEventMapperHttpService
                             requestParams,
                             sourceAddress,
                             responseHeaders,
+                            new JSSQLExecutor(project),
                             compiledCode.parameters);
                 }
                 catch (ScriptException e) {
