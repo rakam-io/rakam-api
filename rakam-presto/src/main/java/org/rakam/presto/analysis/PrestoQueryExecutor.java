@@ -217,7 +217,7 @@ public class PrestoQueryExecutor
         String prefix = node.getPrefix().map(e -> e.toString()).orElse(null);
         String suffix = node.getSuffix();
         if ("continuous".equals(prefix)) {
-            if (prestoConfig.getColdStorageConnector().equals("rakam_raptor")) {
+            if (prestoConfig.getColdStorageConnector().equals("rakam_raptor") && prestoConfig.getEnableStreaming()) {
                 return prestoConfig.getStreamingConnector() + "." +
                         checkCollection(project) + "." +
                         checkCollection(suffix);
