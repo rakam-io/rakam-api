@@ -76,6 +76,7 @@ import java.util.Optional;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static java.lang.String.format;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
@@ -107,6 +108,9 @@ public class PrestoModule
 
         OptionalBinder.newOptionalBinder(binder, CopyEvent.class)
                 .setBinding().to(PrestoCopyEvent.class);
+
+        buildConfigObject(JDBCConfig.class, "report.metadata.store.jdbc");
+
 
         JDBCPoolDataSource metadataDataSource;
         if ("rakam_raptor".equals(prestoConfig.getColdStorageConnector())) {
@@ -141,17 +145,22 @@ public class PrestoModule
                     .annotatedWith(Names.named("report.metadata.store.jdbc"))
                     .toInstance(metadataDataSource);
 
-            if(metadataDataSource.getConfig().getUrl().startsWith("jdbc:mysql")) {
+            String url = metadataDataSource.getConfig().getUrl();
+            if(url.startsWith("jdbc:mysql")) {
                 binder.bind(ConfigManager.class).to(MysqlConfigManager.class);
-            } else {
+            } else
+            if(url.startsWith("jdbc:postgresql")) {
                 binder.bind(ConfigManager.class).to(PostgresqlConfigManager.class);
+            } else {
+                throw new IllegalStateException(format("Invalid report metadata database: %s", url));
             }
+
             binder.bind(QueryMetadataStore.class).to(JDBCQueryMetadata.class)
                     .in(Scopes.SINGLETON);
         }
 
         OptionalBinder<JDBCConfig> userConfig = OptionalBinder.newOptionalBinder(binder, Key.get(JDBCConfig.class, UserConfig.class));
-        if ("rakam_raptor".equals(prestoConfig.getColdStorageConnector()) || "raptor".equals(prestoConfig.getColdStorageConnector())) {
+        if ("rakam_raptor".equals(prestoConfig.getColdStorageConnector())) {
             binder.bind(Metastore.class).to(PrestoRakamRaptorMetastore.class).in(Scopes.SINGLETON);
         }
         else {
@@ -226,7 +235,7 @@ public class PrestoModule
         @Subscribe
         public void onCreateProject(ProjectCreatedEvent event)
         {
-            executor.executeRawStatement(String.format("CREATE TABLE %s(id VARCHAR, %s VARCHAR, " +
+            executor.executeRawStatement(format("CREATE TABLE %s(id VARCHAR, %s VARCHAR, " +
                             "created_at TIMESTAMP, merged_at TIMESTAMP)",
                     executor.formatTableReference(event.project, QualifiedName.of(ANONYMOUS_ID_MAPPING), Optional.empty(), ImmutableMap.of(), "collection"),
                     checkCollection(projectConfig.getUserColumn())));
