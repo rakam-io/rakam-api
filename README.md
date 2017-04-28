@@ -86,7 +86,7 @@ Cloudformation is the recommended way to deploy Rakam in production because AWS 
 
 ### Custom
 
-Download latest version from [Bintray](https://dl.bintray.com/buremba/maven/org/rakam/rakam), ([VERSION]/rakam-[VERSION]-.bundle.tar.gz) extract package, modify `etc/config.properties` file and run `bin/launcher start`.
+Download latest version from [Bintray](https://dl.bintray.com/buremba/maven/org/rakam/rakam), ([VERSION]/rakam-[VERSION]-.bundle.tar.gz) extract package, modify `etc/config.properties` (here is the example configuration for Postgresql deployment type: https://gist.github.com/buremba/ada247b0ce837cfd3a81a92a98629f1d) file and run `bin/launcher start`.
 The launcher script can take the following arguments: `start|restart|stop|status|run`. 
 `bin/launcher run` will start Rakam in foreground.
 

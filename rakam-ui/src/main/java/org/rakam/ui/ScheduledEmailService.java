@@ -103,6 +103,7 @@ public class ScheduledEmailService
     private final ListeningExecutorService executorService;
     private final WebUserHttpService webUserHttpService;
     private final URL screenCaptureService;
+    private final String siteHost;
 
     static {
         MustacheFactory mf = new DefaultMustacheFactory();
@@ -128,6 +129,7 @@ public class ScheduledEmailService
         this.webUserHttpService = webUserHttpService;
         this.screenCaptureService = rakamUIConfig.getScreenCaptureService();
         this.mailSender = emailConfig.getMailSender();
+        this.siteHost = emailConfig.getSiteUrl().getHost() + (emailConfig.getPort() == null ? "" : (":" + emailConfig.getPort()));
         this.scheduler = Executors.newScheduledThreadPool(1, new ThreadFactoryBuilder()
                 .setNameFormat("scheduled-email-scheduler")
                 .setUncaughtExceptionHandler((t, e) -> LOGGER.error(e))
@@ -243,7 +245,7 @@ public class ScheduledEmailService
                     .bind("id", task.project_id).first();
         }
         template.execute(writer, of(
-                "domain", "app.rakam.io",
+                "domain", this.siteHost,
                 "session", webUserHttpService.getCookieForUser(task.user_id),
                 "active_project", URLEncoder.encode(encode(of("name", project.get("project"), "apiUrl", project.get("api_url"))), "UTF-8"),
                 "path", path));
@@ -286,7 +288,7 @@ public class ScheduledEmailService
 
                 mailSender.sendMail(task.emails, title,
                         "Please view HTML version of the email, it contains the dashboard screenshot that is sent from Rakam UI.",
-                        Optional.of("<a href=\"https://app.rakam.io" + path + "\"> " +
+                        Optional.of("<a href=\"https://" + siteHost + path + "\"> " +
                                 "<img alt=\"Rakam dashboard screenshot\" src=\"cid:" + imageId + "\" /></a>" +
                                 " <div style=\"color: white;\">Inline dashboard</div> <!-- This div allows the screenshot to be resized in android gmail, and shows as preview text. -->"),
                         Stream.of(screenPart));

@@ -14,6 +14,8 @@ import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
 import io.airlift.log.Logger;
 import io.airlift.slice.InputStreamSliceInput;
 import io.netty.buffer.ByteBuf;
@@ -27,6 +29,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.generic.GenericData;
+import org.apache.commons.lang.math.NumberUtils;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.QueryHttpService;
 import org.rakam.collection.Event.EventContext;
@@ -65,6 +68,7 @@ import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
@@ -315,14 +319,24 @@ public class EventCollectionHttpService
         objectNode.put("properties", propertiesNode);
         objectNode.put("api", apiNode);
         for (Map.Entry<String, List<String>> entry : request.params().entrySet()) {
+            String value = entry.getValue().get(0);
             if (entry.getKey().startsWith("prop.")) {
-                propertiesNode.put(entry.getKey().substring(5), entry.getValue().get(0));
+                String attribute = entry.getKey().substring(5);
+                if (attribute.equals("_time")) {
+                    Long longVal = Longs.tryParse(value);
+                    if (longVal != null) {
+                        propertiesNode.put(attribute, longVal);
+                        continue;
+                    }
+                }
+
+                propertiesNode.put(attribute, value);
             }
             else if (entry.getKey().equals("api.api_key")) {
-                apiNode.put("api_key", entry.getValue().get(0));
+                apiNode.put("api_key", value);
             }
             else if (entry.getKey().equals("collection")) {
-                objectNode.put("collection", entry.getValue().get(0));
+                objectNode.put("collection", value);
             }
         }
 
@@ -613,7 +627,7 @@ public class EventCollectionHttpService
     public void batchEvents(RakamHttpRequest request)
     {
         storeEvents(request, buff -> {
-                    if(buff.available() > 500000) {
+                    if (buff.available() > 500000) {
                         throw new RakamException("The body is too big, use /bulk endpoint.", REQUEST_ENTITY_TOO_LARGE);
                     }
                     byte[] bytes = ByteStreams.toByteArray(buff);

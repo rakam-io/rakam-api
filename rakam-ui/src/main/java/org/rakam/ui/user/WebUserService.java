@@ -281,10 +281,13 @@ public class WebUserService
 
         try {
             sendMail(welcomeTitleCompiler, welcomeTxtCompiler,
-                    welcomeHtmlCompiler, email, ImmutableMap.of("name", Optional.ofNullable(name).orElse("there")));
+                    welcomeHtmlCompiler, email,
+                    ImmutableMap.of(
+                            "name", Optional.ofNullable(name).orElse("there"),
+                            "siteUrl", mailConfig.getSiteUrl().toExternalForm()));
         }
         catch (RakamException e) {
-            if(e.getStatusCode() != NOT_IMPLEMENTED) {
+            if (e.getStatusCode() != NOT_IMPLEMENTED) {
                 throw e;
             }
         }
