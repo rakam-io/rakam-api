@@ -106,16 +106,14 @@ public class PrestoModule
 
         OptionalBinder.newOptionalBinder(binder, CopyEvent.class)
                 .setBinding().to(PrestoCopyEvent.class);
-
-        JDBCPoolDataSource metadataDataSource;
+        
+        JDBCPoolDataSource metadataDataSource = bindJDBCConfig(binder, "presto.metastore.jdbc");
         if ("rakam_raptor".equals(prestoConfig.getColdStorageConnector())) {
             if(prestoConfig.getEnableStreaming()) {
                 binder.bind(ContinuousQueryService.class).to(PrestoContinuousQueryService.class);
             } else {
                 binder.bind(ContinuousQueryService.class).to(PrestoPseudoContinuousQueryService.class);
             }
-
-            metadataDataSource = bindJDBCConfig(binder, "presto.metastore.jdbc");
 
             if (buildConfigObject(EventStreamConfig.class).getEventStreamEnabled()) {
                 httpClientBinder(binder).bindHttpClient("streamer", ForStreamer.class);
