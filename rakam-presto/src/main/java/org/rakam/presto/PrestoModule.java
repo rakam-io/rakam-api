@@ -111,6 +111,8 @@ public class PrestoModule
         if ("rakam_raptor".equals(prestoConfig.getColdStorageConnector())) {
             if(prestoConfig.getEnableStreaming()) {
                 binder.bind(ContinuousQueryService.class).to(PrestoContinuousQueryService.class);
+            } else {
+                binder.bind(ContinuousQueryService.class).to(PrestoPseudoContinuousQueryService.class);
             }
 
             metadataDataSource = bindJDBCConfig(binder, "presto.metastore.jdbc");
