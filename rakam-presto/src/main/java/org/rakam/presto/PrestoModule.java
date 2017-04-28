@@ -41,6 +41,7 @@ import org.rakam.plugin.stream.EventStream;
 import org.rakam.plugin.stream.EventStreamConfig;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
+import org.rakam.postgresql.PostgresqlConfigManager;
 import org.rakam.postgresql.analysis.JDBCApiKeyService;
 import org.rakam.postgresql.plugin.user.AbstractPostgresqlUserStorage;
 import org.rakam.presto.analysis.MysqlConfigManager;
@@ -106,14 +107,16 @@ public class PrestoModule
 
         OptionalBinder.newOptionalBinder(binder, CopyEvent.class)
                 .setBinding().to(PrestoCopyEvent.class);
-        
-        JDBCPoolDataSource metadataDataSource = bindJDBCConfig(binder, "presto.metastore.jdbc");
+
+        JDBCPoolDataSource metadataDataSource;
         if ("rakam_raptor".equals(prestoConfig.getColdStorageConnector())) {
             if(prestoConfig.getEnableStreaming()) {
                 binder.bind(ContinuousQueryService.class).to(PrestoContinuousQueryService.class);
             } else {
                 binder.bind(ContinuousQueryService.class).to(PrestoPseudoContinuousQueryService.class);
             }
+
+            metadataDataSource = bindJDBCConfig(binder, "presto.metastore.jdbc");
 
             if (buildConfigObject(EventStreamConfig.class).getEventStreamEnabled()) {
                 httpClientBinder(binder).bindHttpClient("streamer", ForStreamer.class);
@@ -133,12 +136,16 @@ public class PrestoModule
         binder.bind(RealtimeService.class).to(PrestoRealtimeService.class);
 
         // use same jdbc pool if report.metadata.store is not set explicitly.
-        if (getConfig("report.metadata.store") == null && metadataDataSource != null) {
+        if (getConfig("report.metadata.store") == null) {
             binder.bind(JDBCPoolDataSource.class)
                     .annotatedWith(Names.named("report.metadata.store.jdbc"))
                     .toInstance(metadataDataSource);
 
-            binder.bind(ConfigManager.class).to(MysqlConfigManager.class);
+            if(metadataDataSource.getConfig().getUrl().startsWith("jdbc:mysql")) {
+                binder.bind(ConfigManager.class).to(MysqlConfigManager.class);
+            } else {
+                binder.bind(ConfigManager.class).to(PostgresqlConfigManager.class);
+            }
             binder.bind(QueryMetadataStore.class).to(JDBCQueryMetadata.class)
                     .in(Scopes.SINGLETON);
         }
