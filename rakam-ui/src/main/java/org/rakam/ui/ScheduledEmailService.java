@@ -129,7 +129,7 @@ public class ScheduledEmailService
         this.webUserHttpService = webUserHttpService;
         this.screenCaptureService = rakamUIConfig.getScreenCaptureService();
         this.mailSender = emailConfig.getMailSender();
-        this.siteHost = emailConfig.getSiteUrl().getHost() + (emailConfig.getPort() == null ? "" : (":" + emailConfig.getPort()));
+        this.siteHost = emailConfig.getSiteUrl().getHost() + (emailConfig.getSiteUrl().getPort() == -1 ? "" : (":" + emailConfig.getSiteUrl().getPort()));
         this.scheduler = Executors.newScheduledThreadPool(1, new ThreadFactoryBuilder()
                 .setNameFormat("scheduled-email-scheduler")
                 .setUncaughtExceptionHandler((t, e) -> LOGGER.error(e))
