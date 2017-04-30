@@ -95,8 +95,9 @@ public class PrestoRetentionQueryExecutor
             Optional<Integer> period,
             LocalDate startDate, LocalDate endDate,
             ZoneId zoneId,
-            boolean approximate)
+            boolean approximateVal)
     {
+        boolean approximate = true;
         period.ifPresent(e -> checkArgument(e >= 0, "Period must be 0 or a positive value"));
 
         String timeColumn = getTimeExpression(dateUnit);
