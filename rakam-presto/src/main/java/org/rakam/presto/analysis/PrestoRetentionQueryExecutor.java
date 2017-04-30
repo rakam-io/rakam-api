@@ -152,7 +152,7 @@ public class PrestoRetentionQueryExecutor
                         "  %s\n" +
                         ") \n" +
                         "select %s, cast(null as bigint) as lead, cardinality(%s(%s_set)) count from first_action data %s union all\n" +
-                        "SELECT * FROM (select %s, %s - 1, cardinality_intersection(%s(data.%s_set), %s(returning_action.%s_set)) count \n" +
+                        "SELECT * FROM (select %s, %s - 1, greatest(0, cardinality_intersection(%s(data.%s_set), %s(returning_action.%s_set))) count \n" +
                         "from first_action data join returning_action on (data.date < returning_action.date %s) \n" +
                         "%s) ORDER BY 1, 2 NULLS FIRST",
                 firstActionQuery, returningActionQuery, dimensionColumn, mergeSetAggregation,

@@ -78,7 +78,7 @@ public class PrestoFunnelQueryExecutor
     }
 
     @Override
-    public String getTemplate()
+    public String getTemplate(List<FunnelStep> steps, Optional<String> dimension, Optional<FunnelWindow> window)
     {
         return "select %s get_funnel_step(steps) step, count(*) total from (\n" +
                 "select %s array_agg(step) as steps from (select * from (%s) order by "

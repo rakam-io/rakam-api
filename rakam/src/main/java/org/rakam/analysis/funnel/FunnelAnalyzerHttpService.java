@@ -88,7 +88,7 @@ public class FunnelAnalyzerHttpService
                     query.timezone);
             execution.getResult().thenAccept(data -> {
                 if (data.isFailed()) {
-                    LOGGER.error("Error running funnel query", new RuntimeException(JsonHelper.encode(query) + " : " + data.getError().toString()));
+                    LOGGER.error(new RuntimeException(JsonHelper.encode(query) + " : " + data.getError().toString()), "Error running funnel query");
                 }
             });
             return execution;
@@ -112,7 +112,8 @@ public class FunnelAnalyzerHttpService
                 query.timezone).getResult();
         result.thenAccept(data -> {
             if (data.isFailed()) {
-                LOGGER.error("Error running funnel query", new RuntimeException(JsonHelper.encode(query) + " : " + data.getError().toString()));
+                LOGGER.error(new RuntimeException(JsonHelper.encode(query) + " : " + data.getError().toString()),
+                        "Error running funnel query");
             }
         });
         return result;

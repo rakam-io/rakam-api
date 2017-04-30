@@ -42,6 +42,7 @@ import org.rakam.plugin.stream.EventStreamConfig;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.postgresql.PostgresqlConfigManager;
+import org.rakam.postgresql.analysis.FastPostgresqlFunnelQueryExecutor;
 import org.rakam.postgresql.analysis.JDBCApiKeyService;
 import org.rakam.postgresql.plugin.user.AbstractPostgresqlUserStorage;
 import org.rakam.presto.analysis.MysqlConfigManager;
@@ -111,12 +112,12 @@ public class PrestoModule
 
         buildConfigObject(JDBCConfig.class, "report.metadata.store.jdbc");
 
-
         JDBCPoolDataSource metadataDataSource;
         if ("rakam_raptor".equals(prestoConfig.getColdStorageConnector())) {
-            if(prestoConfig.getEnableStreaming()) {
+            if (prestoConfig.getEnableStreaming()) {
                 binder.bind(ContinuousQueryService.class).to(PrestoContinuousQueryService.class);
-            } else {
+            }
+            else {
                 binder.bind(ContinuousQueryService.class).to(PrestoPseudoContinuousQueryService.class);
             }
 
@@ -126,7 +127,8 @@ public class PrestoModule
                 httpClientBinder(binder).bindHttpClient("streamer", ForStreamer.class);
                 binder.bind(EventStream.class).to(PrestoEventStream.class).in(Scopes.SINGLETON);
             }
-        } else {
+        }
+        else {
             metadataDataSource = bindJDBCConfig(binder, "report.metadata.store.jdbc");
             binder.bind(ContinuousQueryService.class).to(PrestoPseudoContinuousQueryService.class);
         }
@@ -146,12 +148,13 @@ public class PrestoModule
                     .toInstance(metadataDataSource);
 
             String url = metadataDataSource.getConfig().getUrl();
-            if(url.startsWith("jdbc:mysql")) {
+            if (url.startsWith("jdbc:mysql")) {
                 binder.bind(ConfigManager.class).to(MysqlConfigManager.class);
-            } else
-            if(url.startsWith("jdbc:postgresql")) {
+            }
+            else if (url.startsWith("jdbc:postgresql")) {
                 binder.bind(ConfigManager.class).to(PostgresqlConfigManager.class);
-            } else {
+            }
+            else {
                 throw new IllegalStateException(format("Invalid report metadata database: %s", url));
             }
 
@@ -187,7 +190,7 @@ public class PrestoModule
         }
 
         if (userPluginConfig.isFunnelAnalysisEnabled()) {
-            binder.bind(FunnelQueryExecutor.class).to(PrestoFunnelQueryExecutor.class);
+            binder.bind(FunnelQueryExecutor.class).to(FastPostgresqlFunnelQueryExecutor.class);
         }
 
         if (userPluginConfig.isRetentionAnalysisEnabled()) {

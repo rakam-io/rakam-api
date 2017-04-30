@@ -15,14 +15,10 @@ package org.rakam.postgresql.analysis;
 
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.google.common.base.Throwables;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.AbstractFunnelQueryExecutor;
-import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.metadata.Metastore;
-import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
-import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
 import javax.annotation.PostConstruct;
@@ -32,7 +28,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -75,7 +70,7 @@ public class PostgresqlFunnelQueryExecutor
     }
 
     @Override
-    public String getTemplate()
+    public String getTemplate(List<FunnelStep> steps, Optional<String> dimension, Optional<FunnelWindow> window)
     {
         return "select %s get_funnel_step(steps) step, count(*) total from (\n" +
                 "select %s array_agg(step order by " + checkTableColumn(projectConfig.getTimeColumn()) + ") as steps from (%s) t WHERE " + checkTableColumn(projectConfig.getTimeColumn()) + " between timestamp '%s' and timestamp '%s'\n" +

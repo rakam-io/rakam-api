@@ -223,7 +223,9 @@ public class PrestoQueryExecutor
                         checkCollection(suffix);
             }
             else {
-                return prestoConfig.getColdStorageConnector() + "." + checkCollection(CONTINUOUS_QUERY_PREFIX + suffix);
+                return prestoConfig.getColdStorageConnector() + "." +
+                        checkCollection(project) + "." +
+                        checkCollection(CONTINUOUS_QUERY_PREFIX + suffix);
             }
         }
         else if ("materialized".equals(prefix)) {

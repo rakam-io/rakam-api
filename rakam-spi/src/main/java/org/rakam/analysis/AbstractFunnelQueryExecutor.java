@@ -56,7 +56,7 @@ public abstract class AbstractFunnelQueryExecutor
         this.executor = executor;
     }
 
-    public abstract String getTemplate();
+    public abstract String getTemplate(List<FunnelStep> steps, Optional<String> dimension, Optional<FunnelWindow> window);
 
     public abstract String convertFunnel(String project, String connectorField, int idx, FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate);
 
@@ -79,7 +79,7 @@ public abstract class AbstractFunnelQueryExecutor
                 .collect(Collectors.joining(" UNION ALL "));
 
         String dimensionCol = dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ", ").orElse("");
-        String query = format(getTemplate(), dimensionCol, dimensionCol, ctes,
+        String query = format(getTemplate(steps, dimension, window), dimensionCol, dimensionCol, ctes,
                 TIMESTAMP_FORMATTER.format(startDate.atStartOfDay(zoneId)),
                 TIMESTAMP_FORMATTER.format(endDate.plusDays(1).atStartOfDay(zoneId)),
                 dimensionCol, CONNECTOR_FIELD,
