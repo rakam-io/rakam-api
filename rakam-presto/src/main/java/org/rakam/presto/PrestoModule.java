@@ -100,6 +100,7 @@ public class PrestoModule
         configBinder(binder).bindConfig(MetadataConfig.class);
         configBinder(binder).bindConfig(PrestoConfig.class);
         PrestoConfig prestoConfig = buildConfigObject(PrestoConfig.class);
+        OptionalBinder<JDBCConfig> userConfig = OptionalBinder.newOptionalBinder(binder, Key.get(JDBCConfig.class, UserConfig.class));
 
         binder.bind(QueryExecutor.class).to(PrestoQueryExecutor.class);
         binder.bind(char.class).annotatedWith(EscapeIdentifier.class).toInstance('"');
@@ -161,7 +162,6 @@ public class PrestoModule
                     .in(Scopes.SINGLETON);
         }
 
-        OptionalBinder<JDBCConfig> userConfig = OptionalBinder.newOptionalBinder(binder, Key.get(JDBCConfig.class, UserConfig.class));
         if ("rakam_raptor".equals(prestoConfig.getColdStorageConnector())) {
             binder.bind(Metastore.class).to(PrestoRakamRaptorMetastore.class).in(Scopes.SINGLETON);
         }

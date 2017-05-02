@@ -5,10 +5,10 @@ import com.google.common.collect.ImmutableList;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
-import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
+import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 
 import javax.inject.Inject;
@@ -32,10 +32,10 @@ public class FastGenericFunnelQueryExecutor
         implements FunnelQueryExecutor
 {
     private final ProjectConfig projectConfig;
-    private final QueryExecutor executor;
+    private final QueryExecutorService executor;
 
     @Inject
-    public FastGenericFunnelQueryExecutor(QueryExecutor executor, ProjectConfig projectConfig)
+    public FastGenericFunnelQueryExecutor(QueryExecutorService executor, ProjectConfig projectConfig)
     {
         this.projectConfig = projectConfig;
         this.executor = executor;
@@ -55,12 +55,11 @@ public class FastGenericFunnelQueryExecutor
 
             selects.add(format("sum(case when ts_event%d is not null then 1 else 0 end) as event%d_count", i, i));
             insideSelect.add(format("min(case when step = %d then %s end) as ts_event%d", i, checkTableColumn(projectConfig.getTimeColumn()), i));
-            mainSelect.add(format("select %s %d as step, %s, %s from %s.%s where %s between timestamp '%s' and timestamp '%s' and %s",
+            mainSelect.add(format("select %s %d as step, %s, %s from %s where %s between timestamp '%s' and timestamp '%s' and %s",
                     dimension.map(v -> v + ", ").orElse(""),
                     i,
                     checkTableColumn(projectConfig.getUserColumn()),
                     checkTableColumn(projectConfig.getTimeColumn()),
-                    project,
                     checkCollection(steps.get(i).getCollection()),
                     checkTableColumn(projectConfig.getTimeColumn()),
                     TIMESTAMP_FORMATTER.format(startDate.atStartOfDay(zoneId)),
@@ -86,7 +85,7 @@ public class FastGenericFunnelQueryExecutor
                 checkTableColumn(projectConfig.getUserColumn()),
                 dimension.map(v -> " group by 1").orElse(""));
 
-        QueryExecution queryExecution = executor.executeRawQuery(query);
+        QueryExecution queryExecution = executor.executeQuery(project, query);
 
         return new DelegateQueryExecution(queryExecution,
                 result -> {
