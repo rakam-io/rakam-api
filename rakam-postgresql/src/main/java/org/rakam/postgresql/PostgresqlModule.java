@@ -35,10 +35,9 @@ import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
-import org.rakam.postgresql.analysis.FastPostgresqlFunnelQueryExecutor;
+import org.rakam.postgresql.analysis.FastGenericFunnelQueryExecutor;
 import org.rakam.postgresql.analysis.PostgresqlConfig;
 import org.rakam.postgresql.analysis.PostgresqlEventStore;
-import org.rakam.postgresql.analysis.PostgresqlFunnelQueryExecutor;
 import org.rakam.postgresql.analysis.PostgresqlMaterializedViewService;
 import org.rakam.postgresql.analysis.PostgresqlMetastore;
 import org.rakam.postgresql.analysis.PostgresqlRetentionQueryExecutor;
@@ -128,7 +127,7 @@ public class PostgresqlModule
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
 
         if (userPluginConfig.isFunnelAnalysisEnabled()) {
-            binder.bind(FunnelQueryExecutor.class).to(FastPostgresqlFunnelQueryExecutor.class);
+            binder.bind(FunnelQueryExecutor.class).to(FastGenericFunnelQueryExecutor.class);
         }
 
         if (userPluginConfig.isRetentionAnalysisEnabled()) {

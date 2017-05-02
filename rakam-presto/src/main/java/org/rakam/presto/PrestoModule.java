@@ -42,7 +42,7 @@ import org.rakam.plugin.stream.EventStreamConfig;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.postgresql.PostgresqlConfigManager;
-import org.rakam.postgresql.analysis.FastPostgresqlFunnelQueryExecutor;
+import org.rakam.postgresql.analysis.FastGenericFunnelQueryExecutor;
 import org.rakam.postgresql.analysis.JDBCApiKeyService;
 import org.rakam.postgresql.plugin.user.AbstractPostgresqlUserStorage;
 import org.rakam.presto.analysis.MysqlConfigManager;
@@ -50,7 +50,6 @@ import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
 import org.rakam.presto.analysis.PrestoEventExplorer;
 import org.rakam.presto.analysis.PrestoEventStream;
-import org.rakam.presto.analysis.PrestoFunnelQueryExecutor;
 import org.rakam.presto.analysis.PrestoMaterializedViewService;
 import org.rakam.presto.analysis.PrestoMetastore;
 import org.rakam.presto.analysis.PrestoRakamRaptorMetastore;
@@ -190,7 +189,7 @@ public class PrestoModule
         }
 
         if (userPluginConfig.isFunnelAnalysisEnabled()) {
-            binder.bind(FunnelQueryExecutor.class).to(FastPostgresqlFunnelQueryExecutor.class);
+            binder.bind(FunnelQueryExecutor.class).to(FastGenericFunnelQueryExecutor.class);
         }
 
         if (userPluginConfig.isRetentionAnalysisEnabled()) {

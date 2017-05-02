@@ -28,14 +28,14 @@ import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
-public class FastPostgresqlFunnelQueryExecutor
+public class FastGenericFunnelQueryExecutor
         implements FunnelQueryExecutor
 {
     private final ProjectConfig projectConfig;
     private final QueryExecutor executor;
 
     @Inject
-    public FastPostgresqlFunnelQueryExecutor(PostgresqlQueryExecutor executor, ProjectConfig projectConfig)
+    public FastGenericFunnelQueryExecutor(QueryExecutor executor, ProjectConfig projectConfig)
     {
         this.projectConfig = projectConfig;
         this.executor = executor;
