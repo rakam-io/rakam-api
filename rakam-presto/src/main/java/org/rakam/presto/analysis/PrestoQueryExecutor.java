@@ -30,6 +30,7 @@ import org.rakam.report.QueryExecutor;
 import org.rakam.report.QuerySampling;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
@@ -57,6 +58,7 @@ import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZ
 import static org.rakam.presto.analysis.PrestoRakamRaptorMetastore.toType;
 import static org.rakam.util.JsonHelper.encodeAsBytes;
 import static org.rakam.util.ValidationUtil.checkCollection;
+import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 @Singleton
@@ -223,6 +225,16 @@ public class PrestoQueryExecutor
                         checkCollection(suffix);
             }
             else {
+                if(suffix.equals("_event_explorer_metrics")) {
+                    String collect = metastore.getCollectionNames(project).stream()
+                            .map(e -> String.format("select _time as _time, '%s' as \"$collection\" from %s.%s.%s", e,
+                                    prestoConfig.getColdStorageConnector(), checkProject(project), checkCollection(e)))
+                            .collect(Collectors.joining(" union all "));
+
+                    return String.format("(select date_trunc('week', cast(_time as date)) as week, \"$collection\" as collection, date_trunc('hour', _time) as _time, count(*) as total \n" +
+                            "from (%s) group by 1, 2, 3)", collect);
+                }
+
                 return prestoConfig.getColdStorageConnector() + "." +
                         checkCollection(project) + "." +
                         checkCollection(CONTINUOUS_QUERY_PREFIX + suffix);
