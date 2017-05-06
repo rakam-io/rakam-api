@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.config.ProjectConfig;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
@@ -65,16 +66,16 @@ public class PostgresqlEventExplorer
     private final ProjectConfig projectConfig;
 
     @Inject
-    public PostgresqlEventExplorer(ProjectConfig projectConfig, QueryExecutorService service, MaterializedViewService materializedViewService,
+    public PostgresqlEventExplorer(ProjectConfig projectConfig, Metastore metastore, QueryExecutorService service, MaterializedViewService materializedViewService,
             ContinuousQueryService continuousQueryService)
     {
-        super(projectConfig, service, materializedViewService, continuousQueryService, timestampMapping);
+        super(projectConfig, service, metastore, materializedViewService, continuousQueryService, timestampMapping);
         this.executorService = service;
         this.projectConfig = projectConfig;
     }
 
-    @Override
-    public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, Instant startDate, Instant endDate)
+//    @Override
+    public CompletableFuture<QueryResult> gektEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, Instant startDate, Instant endDate)
     {
         checkProject(project);
 

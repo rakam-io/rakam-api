@@ -226,6 +226,8 @@ public class QueryExecutorService
                 if (materializedViewExecution == null) {
                     throw new IllegalStateException();
                 }
+
+                return materializedViewExecution.computeQuery ;
             }
 
             return executor.formatTableReference(project, node, sample, sessionParameters, defaultSchema);

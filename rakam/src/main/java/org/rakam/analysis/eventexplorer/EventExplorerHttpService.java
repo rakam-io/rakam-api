@@ -175,7 +175,7 @@ public class EventExplorerHttpService
                 ", _collection", dimensions.isEmpty() ? "" : "," + dimensions);
 
         return materializedViewService.create(project, new MaterializedView(table.tableName, "Olap table", query,
-                Duration.ofHours(1), null, ImmutableMap.of("olap_table", table)))
+                Duration.ofHours(1), null, null, ImmutableMap.of("olap_table", table)))
                 .thenApply(v -> new PrecalculatedTable(name, table.tableName));
     }
 

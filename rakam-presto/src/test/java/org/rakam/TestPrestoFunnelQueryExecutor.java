@@ -13,9 +13,8 @@ import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
 import org.rakam.presto.analysis.PrestoFunnelQueryExecutor;
 import org.rakam.presto.analysis.PrestoMaterializedViewService;
-import org.rakam.presto.analysis.PrestoRakamRaptorMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
-import org.rakam.presto.plugin.EventExplorerListener;
+import org.rakam.presto.analysis.PrestoRakamRaptorMetastore;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.realtime.RealTimeConfig;
 import org.testng.annotations.BeforeSuite;
@@ -47,7 +46,7 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
 
         PrestoContinuousQueryService continuousQueryService = new PrestoContinuousQueryService(inMemoryQueryMetadataStore, new RealTimeConfig(),
                 prestoQueryExecutor, prestoConfig);
-        eventBus.register(new EventExplorerListener(new ProjectConfig(), continuousQueryService));
+//        eventBus.register(new EventExplorerListener(new ProjectConfig(), null));
 
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(
                 new PrestoConfig(),

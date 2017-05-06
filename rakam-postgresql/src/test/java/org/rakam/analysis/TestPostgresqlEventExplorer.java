@@ -51,6 +51,7 @@ public class TestPostgresqlEventExplorer
         PostgresqlMaterializedViewService materializedViewService = new PostgresqlMaterializedViewService(new ProjectConfig(), queryExecutor, queryMetadataStore);
         eventExplorer = new PostgresqlEventExplorer(
                 new ProjectConfig(),
+                metastore,
                 new QueryExecutorService(queryExecutor, metastore, materializedViewService, Clock.systemUTC(), '"'),
                 materializedViewService,
                 continuousQueryService);

@@ -8,6 +8,7 @@ import io.airlift.log.Logger;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.config.ProjectConfig;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
@@ -43,6 +44,7 @@ import static org.rakam.collection.SchemaField.stripName;
 import static org.rakam.report.realtime.AggregationType.COUNT;
 import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
 import static org.rakam.util.ValidationUtil.checkCollection;
+import static org.rakam.util.ValidationUtil.checkLiteral;
 import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
@@ -61,16 +63,19 @@ public abstract class AbstractEventExplorer
     private final MaterializedViewService materializedViewService;
     private final ContinuousQueryService continuousQueryService;
     private final ProjectConfig projectConfig;
+    private final Metastore metastore;
 
     public AbstractEventExplorer(
             ProjectConfig projectConfig,
             QueryExecutorService executor,
+            Metastore metastore,
             MaterializedViewService materializedViewService,
             ContinuousQueryService continuousQueryService,
             Map<TimestampTransformation, String> timestampMapping)
     {
         this.projectConfig = projectConfig;
         this.executor = executor;
+        this.metastore = metastore;
         this.timestampMapping = timestampMapping;
         this.materializedViewService = materializedViewService;
         this.continuousQueryService = continuousQueryService;
@@ -226,7 +231,7 @@ public abstract class AbstractEventExplorer
             String filters = preComputedTable.get().getKey().dimensions.stream()
                     .filter(dim -> (grouping == null || grouping.type == REFERENCE && !grouping.value.equals(dim) &&
                             (segment == null || segment.type == REFERENCE && !segment.value.equals(dim))))
-                    .map(dim -> String.format("%s is null", dim))
+                    .map(dim -> format("%s is null", dim))
                     .collect(Collectors.joining(" and "));
 
             computeQuery = format("SELECT %s %s %s as value FROM %s WHERE %s %s",
@@ -424,9 +429,7 @@ public abstract class AbstractEventExplorer
             checkReference(timestampMapping, dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
         }
 
-        String timePredicate = format("\"week\" between cast(date_trunc('week', timestamp '%s') as date) and cast(date_trunc('week', timestamp '%s') as date) and \n" +
-                        "%s between timestamp '%s' and timestamp '%s' + interval '1' day",
-                TIMESTAMP_FORMATTER.format(startDate), TIMESTAMP_FORMATTER.format(endDate),
+        String timePredicate = format("%s between timestamp '%s' and timestamp '%s' + interval '1' day",
                 checkTableColumn(projectConfig.getTimeColumn()),
                 TIMESTAMP_FORMATTER.format(startDate), TIMESTAMP_FORMATTER.format(endDate));
 
@@ -437,13 +440,15 @@ public abstract class AbstractEventExplorer
                 throw new RakamException(BAD_REQUEST);
             }
 
-            query = format("select collection, %s as %s, sum(total) from continuous._event_explorer_metrics where %s group by 1, 2 order by 2 desc",
+            query = format("select collection, %s as %s, sum(total) from (%s) data where %s group by 1, 2 order by 2 desc",
                     aggregationMethod.get() == HOUR ? projectConfig.getTimeColumn() : format(timestampMapping.get(aggregationMethod.get()), projectConfig.getTimeColumn()),
-                    aggregationMethod.get(), timePredicate);
+                    aggregationMethod.get(),
+                    sourceTable(project, collections),
+                    timePredicate);
         }
         else {
-            query = String.format("select collection, coalesce(sum(total), 0) as total \n" +
-                    " from continuous._event_explorer_metrics where %s group by 1", timePredicate);
+            query = format("select collection, coalesce(sum(total), 0) as total \n" +
+                    " from (%s) data where %s group by 1", sourceTable(project, collections), timePredicate);
         }
 
         QueryExecution collection = executor.executeQuery(project, query, Optional.empty(), "collection", 20000);
@@ -456,6 +461,25 @@ public abstract class AbstractEventExplorer
 
         return collection.getResult();
     }
+
+    public String sourceTable(String project, Optional<Set<String>> collections)
+    {
+
+        String collect = collections.orElseGet(() -> metastore.getCollectionNames(project))
+                .stream()
+                .map(c -> format("select _time, total, cast('%s' as varchar) as collection from materialized.%s",
+                        checkLiteral(c), checkCollection("_event_explorer_metrics - " + c)))
+                .collect(Collectors.joining(" union all "));
+        if(collect.isEmpty()) {
+            return "select now() as _time, 0 as total, cast(null as varchar) as collection";
+        }
+        return collect;
+    }
+
+
+//    public String sourceTable(Optional<Set<String>> collections) {
+//        return "continuous._event_explorer_metrics";
+//    }
 
     @Override
     public Map<String, List<String>> getExtraDimensions(String project)

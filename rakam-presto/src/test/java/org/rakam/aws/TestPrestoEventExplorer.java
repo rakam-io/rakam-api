@@ -13,14 +13,12 @@ import org.rakam.config.JDBCConfig;
 import org.rakam.config.ProjectConfig;
 import org.rakam.event.TestingEnvironment;
 import org.rakam.plugin.EventStore;
-import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
 import org.rakam.presto.analysis.PrestoEventExplorer;
 import org.rakam.presto.analysis.PrestoMaterializedViewService;
-import org.rakam.presto.analysis.PrestoRakamRaptorMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
-import org.rakam.presto.plugin.EventExplorerListener;
+import org.rakam.presto.analysis.PrestoRakamRaptorMetastore;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.realtime.RealTimeConfig;
 import org.testng.annotations.BeforeSuite;
@@ -65,10 +63,10 @@ public class TestPrestoEventExplorer
                 prestoQueryExecutor, metastore, queryMetadataStore);
         QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, metastore, materializedViewService, Clock.systemUTC(), '"');
 
-        eventExplorer = new PrestoEventExplorer(new ProjectConfig(), queryExecutorService, continuousQueryService, materializedViewService);
+        eventExplorer = new PrestoEventExplorer(new ProjectConfig(), queryExecutorService, metastore, continuousQueryService, materializedViewService);
         setupInline();
         super.setup();
-        new EventExplorerListener(new ProjectConfig(), continuousQueryService).onCreateProject(new ProjectCreatedEvent(PROJECT_NAME));
+//        new EventExplorerListener(new ProjectConfig(), null).onCreateCollection(new ProjectCreatedEvent(PROJECT_NAME));
         // todo find a better way of handling this
         Thread.sleep(15000);
     }

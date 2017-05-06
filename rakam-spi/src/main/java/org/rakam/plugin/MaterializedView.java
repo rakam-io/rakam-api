@@ -23,6 +23,7 @@ public class MaterializedView {
     @JsonProperty("table_name") public final String tableName;
     @JsonProperty("query") public final String query;
     @JsonProperty("incremental") public final boolean incremental;
+    @JsonProperty("real_time") public final boolean realTime;
     @JsonProperty("update_interval") public final Duration updateInterval;
     @JsonProperty("last_update") public transient Instant lastUpdate;
     @JsonProperty("name") public String name;
@@ -34,11 +35,13 @@ public class MaterializedView {
                             @ApiParam(value = "query", description="The sql query that will be executed and materialized") String query,
                             @ApiParam(value = "update_interval", required = false) Duration updateInterval,
                             @ApiParam(value = "incremental", required = false) Boolean incremental,
+                            @ApiParam(value = "real_time", required = false) Boolean realTime,
                             @ApiParam(value = "options", required = false) Map<String, Object> options) {
         this.tableName = checkNotNull(tableName, "table_name is required");
         this.name = checkNotNull(name, "name is required");
         this.query = checkNotNull(query, "query is required");
         this.incremental = incremental == null ? false : incremental;
+        this.realTime = realTime == null ? false : realTime;
         this.updateInterval = updateInterval;
         this.options = options;
         validateQuery();
@@ -54,10 +57,6 @@ public class MaterializedView {
                 "The query of materialized view can't contain LIMIT statement");
         checkState(!(((QuerySpecification) ((Query) query).getQueryBody()).getLimit().isPresent()),
                 "The query of materialized view can't contain LIMIT statement");
-        checkArgument(this.tableName.matches("^[A-Za-z]+[A-Za-z0-9_]*"),
-                "table_name must only contain alphanumeric characters and _");
-        checkArgument(this.tableName.matches("^[A-Za-z0-9_]*"),
-                "table_name must only contain alphanumeric characters and _");
     }
 
     public boolean needsUpdate(Clock clock) {
@@ -79,6 +78,9 @@ public class MaterializedView {
         if (incremental != that.incremental) {
             return false;
         }
+        if (realTime != that.realTime) {
+            return false;
+        }
         if (!tableName.equals(that.tableName)) {
             return false;
         }
@@ -97,6 +99,7 @@ public class MaterializedView {
         int result = tableName.hashCode();
         result = 31 * result + query.hashCode();
         result = 31 * result + (incremental ? 1 : 0);
+        result = 31 * result + (realTime ? 1 : 0);
         result = 31 * result + (updateInterval != null ? updateInterval.hashCode() : 0);
         result = 31 * result + (options != null ? options.hashCode() : 0);
         return result;

@@ -52,12 +52,11 @@ import org.rakam.presto.analysis.PrestoEventExplorer;
 import org.rakam.presto.analysis.PrestoEventStream;
 import org.rakam.presto.analysis.PrestoMaterializedViewService;
 import org.rakam.presto.analysis.PrestoMetastore;
-import org.rakam.presto.analysis.PrestoRakamRaptorMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
+import org.rakam.presto.analysis.PrestoRakamRaptorMetastore;
 import org.rakam.presto.analysis.PrestoRetentionQueryExecutor;
 import org.rakam.presto.analysis.PrestoUserService;
 import org.rakam.presto.collection.PrestoCopyEvent;
-import org.rakam.presto.plugin.EventExplorerListener;
 import org.rakam.presto.plugin.user.PrestoExternalUserStorageAdapter;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.eventexplorer.EventExplorerConfig;
@@ -178,8 +177,8 @@ public class PrestoModule
             userConfig.setBinding().toInstance(buildConfigObject(JDBCConfig.class, "store.adapter.postgresql"));
         }
 
-        if (buildConfigObject(EventExplorerConfig.class).isEventExplorerEnabled()) {
-            binder.bind(EventExplorerListener.class).asEagerSingleton();
+        EventExplorerConfig eventExplorerConfig = buildConfigObject(EventExplorerConfig.class);
+        if (eventExplorerConfig.isEventExplorerEnabled()) {
             binder.bind(EventExplorer.class).to(PrestoEventExplorer.class);
         }
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);

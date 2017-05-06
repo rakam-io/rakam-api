@@ -9,6 +9,7 @@ import org.rakam.config.MetadataConfig;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.TimestampEventMapper;
+import org.rakam.report.eventexplorer.EventExplorerConfig;
 import org.rakam.server.http.HttpService;
 import org.rakam.util.ConditionalModule;
 
@@ -25,6 +26,11 @@ public class EventExplorerModule extends RakamModule {
 
         Multibinder<Tag> tags = Multibinder.newSetBinder(binder, Tag.class);
         tags.addBinding().toInstance(new Tag().name("event-explorer").description("Event Explorer").externalDocs(MetadataConfig.centralDocs));
+
+        EventExplorerConfig eventExplorerConfig = buildConfigObject(EventExplorerConfig.class);
+        if (eventExplorerConfig.getPreComputed()) {
+            binder.bind(EventExplorerListener.class).asEagerSingleton();
+        }
     }
 
     @Override

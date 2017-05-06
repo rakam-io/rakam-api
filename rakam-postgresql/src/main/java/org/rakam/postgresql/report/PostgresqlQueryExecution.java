@@ -152,8 +152,7 @@ public class PostgresqlQueryExecution
                 }
                 catch (UnsupportedOperationException e) {
                     LOGGER.warn(e.getMessage());
-                    columns.add(null);
-                    continue;
+                    type = FieldType.STRING;
                 }
 
                 columns.add(new SchemaField(metaData.getColumnName(i), type));

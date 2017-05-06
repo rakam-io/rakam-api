@@ -21,7 +21,7 @@ public abstract class TestQueryMetastore
             throws Exception
     {
         MaterializedView materializedView = new MaterializedView("test", "test",
-                "select 1", null, false, ImmutableMap.of());
+                "select 1", null, false, false, ImmutableMap.of());
         getQuerymetastore().createMaterializedView(PROJECT_NAME, materializedView);
 
         assertEquals(getQuerymetastore().getMaterializedView(PROJECT_NAME, "test"),

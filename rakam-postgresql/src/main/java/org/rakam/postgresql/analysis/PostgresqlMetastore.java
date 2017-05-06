@@ -92,15 +92,12 @@ public class PostgresqlMetastore
                                             "    WHERE n.nspname = '%s' and c.relkind IN ('r', '') and i.inhrelid is null\n" +
                                             "    AND n.nspname <> 'pg_catalog'\n" +
                                             "    AND n.nspname <> 'information_schema'\n" +
-                                            "    AND n.nspname !~ '^pg_toast'",
+                                            "    AND n.nspname !~ '^pg_toast' AND c.relname != '_users' and c.relname not like '\\$%%' ESCAPE '\\'",
                                     checkLiteral(project)));
 
                     ImmutableSet.Builder<String> builder = ImmutableSet.builder();
                     while (resultSet.next()) {
                         String tableName = resultSet.getString(1);
-                        if (tableName.startsWith("_")) {
-                            continue;
-                        }
                         builder.add(tableName);
                     }
                     return builder.build();
@@ -231,7 +228,7 @@ public class PostgresqlMetastore
                         "    AND n.nspname <> 'pg_catalog'\n" +
                         "    AND n.nspname <> 'information_schema'\n" +
                         "    AND n.nspname !~ '^pg_toast'     \n" +
-                        "    AND a.attnum > 0 AND NOT a.attisdropped AND c.relname != '_users' AND a.attname != '$server_time'",
+                        "    AND a.attnum > 0 AND NOT a.attisdropped AND c.relname not like '\\$%%' ESCAPE '\\' and c.relname != '_users' AND a.attname != '$server_time'",
                 checkLiteral(project)));
 
         while (resultSet.next()) {

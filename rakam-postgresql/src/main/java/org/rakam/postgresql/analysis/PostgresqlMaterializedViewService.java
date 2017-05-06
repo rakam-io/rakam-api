@@ -70,8 +70,16 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
                     }
                 }, "collection"), '"').process(statement, 1);
 
-        QueryResult result = queryExecutor.executeRawStatement(format("CREATE MATERIALIZED VIEW %s.%s AS %s WITH NO DATA",
-                ValidationUtil.checkProject(project), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName), builder.toString())).getResult().join();
+        String format;
+        if(!materializedView.incremental) {
+            format = format("CREATE MATERIALIZED VIEW %s.%s AS %s WITH NO DATA",
+                    ValidationUtil.checkProject(project), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName), builder.toString());
+        } else {
+            format = format("CREATE TABLE %s.%s AS %s",
+                    ValidationUtil.checkProject(project), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName), builder.toString());
+        }
+
+        QueryResult result = queryExecutor.executeRawStatement(format).getResult().join();
         if (result.isFailed()) {
             throw new RakamException("Couldn't created table: " + result.getError().toString(), BAD_REQUEST);
         }
@@ -134,12 +142,13 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
             if (needsUpdate && database.updateMaterializedView(project, materializedView, f)) {
                 String query = formatSql(statement,
                         name -> {
-                            String predicate = lastUpdated != null ? String.format("between to_timestamp(%d) and to_timestamp(%d)",
+                            String predicate = lastUpdated != null ? format("between timezone('UTC', to_timestamp(%d)) and  timezone('UTC', to_timestamp(%d))",
                                     lastUpdated.getEpochSecond(), now.getEpochSecond()) :
-                                    String.format(" < to_timestamp(%d)", now.getEpochSecond());
+                                    format(" < timezone('UTC', to_timestamp(%d))", now.getEpochSecond());
 
-                            return format("(SELECT * FROM %s WHERE \"$server_time\" %s)",
-                                    queryExecutor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of(), "collection"), predicate);
+                            return format("(SELECT * FROM %s WHERE \"$server_time\" %s) data",
+                                    queryExecutor.formatTableReference(project, name, Optional.empty(),
+                                            ImmutableMap.of(), "collection"), predicate);
                         }, '"');
 
                 queryExecution = queryExecutor.executeRawStatement(format("INSERT INTO %s %s", materializedTableReference, query), sessionProperties);
@@ -151,18 +160,21 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
             }
 
             String reference;
-            if (!needsUpdate || true) {
+            if (!needsUpdate && !materializedView.realTime) {
                 reference = materializedTableReference;
             }
             else {
                 String query = formatSql(statement,
-                        name -> format("(SELECT * FROM %s %s",
-                                queryExecutor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of(), "collection"),
-                                lastUpdated == null ? "" : String.format("WHERE %s > to_timestamp(%d)",
-                                        checkTableColumn(projectConfig.getTimeColumn()),
-                                        lastUpdated)), '"');
+                        name -> {
+                            String collection = format("(SELECT * FROM %s %s) data",
+                                    queryExecutor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of(), "collection"),
+                                    lastUpdated == null ? "" : format("WHERE %s > to_timestamp(%d)",
+                                            checkTableColumn(projectConfig.getTimeColumn()),
+                                            lastUpdated.getEpochSecond()));
+                            return collection;
+                        }, '"');
 
-                reference = format("(SELECT * from %s UNION ALL %s)", materializedTableReference, query);
+                reference = format("(SELECT * from %s UNION ALL %s) data", materializedTableReference, query);
             }
 
             return new MaterializedViewExecution(queryExecution, reference);

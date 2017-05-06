@@ -200,7 +200,7 @@ public class PrestoMaterializedViewService
             }
 
             String reference;
-            if (true) {
+            if (!materializedView.realTime) {
                 reference = materializedTableReference;
             }
             else {

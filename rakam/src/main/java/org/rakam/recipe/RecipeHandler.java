@@ -64,7 +64,7 @@ public class RecipeHandler
             return new Recipe.CollectionDefinition(map);
         }));
         final List<MaterializedView> materializedViews = materializedViewService.list(project).stream()
-                .map(m -> new MaterializedView(m.tableName, m.name, m.query, m.updateInterval, m.incremental, m.options))
+                .map(m -> new MaterializedView(m.tableName, m.name, m.query, m.updateInterval, m.incremental, m.realTime, m.options))
                 .collect(Collectors.toList());
         final List<ContinuousQuery> continuousQueryBuilders = continuousQueryService.list(project).stream()
                 .map(m -> new ContinuousQuery(m.tableName, m.name, m.query, m.partitionKeys, m.options))

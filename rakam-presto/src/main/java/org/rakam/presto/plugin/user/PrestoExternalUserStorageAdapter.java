@@ -143,7 +143,7 @@ public class PrestoExternalUserStorageAdapter
 
         materializedViewService.create(project, new MaterializedView(tableName,
                 "Users who did " + (tableName == null ? "at least one event" : tableName + " event"),
-                query, interval, null, ImmutableMap.of()));
+                query, interval, null, null, ImmutableMap.of()));
     }
 
     @Override

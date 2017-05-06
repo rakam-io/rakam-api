@@ -122,6 +122,6 @@ public class PostgresqlUserStorage
 
         materializedViewService.create(project, new MaterializedView(tableName,
                 "Users who did " + (tableName == null ? "at least one event" : tableName + " event"),
-                builder.toString(), interval, null, ImmutableMap.of()));
+                builder.toString(), interval, null, null, ImmutableMap.of()));
     }
 }

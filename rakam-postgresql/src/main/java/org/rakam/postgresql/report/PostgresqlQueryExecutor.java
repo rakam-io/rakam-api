@@ -129,7 +129,6 @@ public class PostgresqlQueryExecutor
                         throw new RakamException("remotefile schema doesn't exist in Postgresql deployment", BAD_REQUEST);
                     }
 
-
                     CustomDataSource dataSource;
                     try {
                         dataSource = customDataSource.getDatabase(project, prefix);

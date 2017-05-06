@@ -55,6 +55,7 @@ public class JDBCQueryMetadata
         MaterializedView materializedView = new MaterializedView(r.getString("table_name"), r.getString("name"), r.getString("query"),
                 update_interval != null ? Duration.ofMillis(update_interval) : null,
                 r.getBoolean("incremental"),
+                r.getBoolean("real_time"),
                 r.getString("options") == null ? null : JsonHelper.read(r.getString("options"), Map.class));
         Long last_updated = r.getLong("last_updated");
         if (last_updated != null && last_updated != 0) {
@@ -81,7 +82,7 @@ public class JDBCQueryMetadata
                     throws Exception
             {
                 try (Handle handle = dbi.open()) {
-                    MaterializedView first = handle.createQuery("SELECT project, name, query, table_name, update_interval, last_updated, incremental, options " +
+                    MaterializedView first = handle.createQuery("SELECT project, name, query, table_name, update_interval, last_updated, incremental, real_time, options " +
                             "from materialized_views WHERE project = :project AND table_name = :name")
                             .bind("project", key.project)
                             .bind("name", key.collection)
@@ -111,6 +112,14 @@ public class JDBCQueryMetadata
                     "  PRIMARY KEY (project, table_name)" +
                     "  )")
                     .execute();
+            try {
+                handle.createStatement("ALTER TABLE materialized_views ADD COLUMN real_time BOOLEAN DEFAULT FALSE")
+                        .execute();
+            }
+            catch (Exception e) {
+                // already exists
+            }
+
             handle.createStatement("CREATE TABLE IF NOT EXISTS continuous_query_metadata (" +
                     "  project VARCHAR(255) NOT NULL," +
                     "  name VARCHAR(255) NOT NULL," +
@@ -129,7 +138,7 @@ public class JDBCQueryMetadata
     {
         try (Handle handle = dbi.open()) {
             try {
-                handle.createStatement("INSERT INTO materialized_views (project, name, query, table_name, update_interval, incremental, options) " +
+                handle.createStatement("INSERT INTO materialized_views (project, name, query, table_name, update_interval, incremental, real_time, options) " +
                         "VALUES (:project, :name, :query, :table_name, :update_interval, :incremental, :options)")
                         .bind("project", project)
                         .bind("name", materializedView.name)
@@ -137,6 +146,7 @@ public class JDBCQueryMetadata
                         .bind("query", materializedView.query)
                         .bind("update_interval", materializedView.updateInterval != null ? materializedView.updateInterval.toMillis() : null)
                         .bind("incremental", materializedView.incremental)
+                        .bind("real_time", materializedView.realTime)
                         .bind("options", JsonHelper.encode(materializedView.options))
                         .execute();
             }
@@ -284,7 +294,7 @@ public class JDBCQueryMetadata
     public List<MaterializedView> getMaterializedViews(String project)
     {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT name, query, table_name, update_interval, last_updated, incremental, options " +
+            return handle.createQuery("SELECT name, query, table_name, update_interval, last_updated, incremental, real_time, options " +
                     "from materialized_views WHERE project = :project")
                     .bind("project", project).map(materializedViewMapper).list();
         }

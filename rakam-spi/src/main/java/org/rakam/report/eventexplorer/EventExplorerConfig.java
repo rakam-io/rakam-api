@@ -18,6 +18,7 @@ import io.airlift.configuration.Config;
 
 public class EventExplorerConfig {
     private boolean enabled = false;
+    private boolean precomputed = true;
 
     @Config("event-explorer.enabled")
     public void setEventExplorerEnabled(boolean enabled) {
@@ -26,5 +27,14 @@ public class EventExplorerConfig {
 
     public boolean isEventExplorerEnabled() {
         return enabled;
+    }
+
+    @Config("event-explorer.pre-computed")
+    public void setPreComputed(boolean precomputed) {
+        this.precomputed = precomputed;
+    }
+
+    public boolean getPreComputed() {
+        return precomputed;
     }
 }
