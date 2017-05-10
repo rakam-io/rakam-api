@@ -139,7 +139,7 @@ public class JDBCQueryMetadata
         try (Handle handle = dbi.open()) {
             try {
                 handle.createStatement("INSERT INTO materialized_views (project, name, query, table_name, update_interval, incremental, real_time, options) " +
-                        "VALUES (:project, :name, :query, :table_name, :update_interval, :incremental, :options)")
+                        "VALUES (:project, :name, :query, :table_name, :update_interval, :incremental, :real_time, :options)")
                         .bind("project", project)
                         .bind("name", materializedView.name)
                         .bind("table_name", materializedView.tableName)
@@ -156,7 +156,7 @@ public class JDBCQueryMetadata
                 }
                 catch (RakamException e1) {
                     if (e1.getStatusCode() == NOT_FOUND) {
-                        return;
+                        throw Throwables.propagate(e1);
                     }
                 }
 

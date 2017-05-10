@@ -89,7 +89,7 @@ public class PrestoFunnelQueryExecutor
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId)
+    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors)
     {
         if (dimension.isPresent() && CONNECTOR_FIELD.equals(dimension.get())) {
             throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
@@ -102,7 +102,7 @@ public class PrestoFunnelQueryExecutor
                 .collect(Collectors.joining(", "));
 
         if (calculatedUserSets.size() == steps.size()) {
-            return super.query(project, steps, dimension, startDate, endDate, window, zoneId);
+            return super.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors);
         }
 
         String query;

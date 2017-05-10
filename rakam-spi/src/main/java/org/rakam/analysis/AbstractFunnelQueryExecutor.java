@@ -64,10 +64,10 @@ public abstract class AbstractFunnelQueryExecutor
     public QueryExecution query(String project,
             List<FunnelStep> steps,
             Optional<String> dimension, LocalDate startDate,
-            LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId)
+            LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors)
     {
-        if (dimension.isPresent() && CONNECTOR_FIELD.equals(dimension.get())) {
-            throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
+        if(connectors.isPresent()) {
+            throw new RakamException("Custom connectors are not supported", HttpResponseStatus.BAD_REQUEST);
         }
 
         Map<String, List<SchemaField>> collections = metastore.getCollections(project);

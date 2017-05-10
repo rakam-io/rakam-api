@@ -5,10 +5,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
-import com.stripe.exception.APIConnectionException;
-import com.stripe.exception.APIException;
-import com.stripe.exception.AuthenticationException;
-import com.stripe.exception.CardException;
 import com.stripe.exception.InvalidRequestException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Coupon;
@@ -16,15 +12,14 @@ import com.stripe.model.Customer;
 import com.stripe.model.Plan;
 import com.stripe.net.RequestOptions;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.config.EncryptionConfig;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.CookieParam;
 import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.ProtectEndpoint;
 import org.rakam.ui.RakamUIConfig;
+import org.rakam.ui.UIPermissionParameterProvider;
 import org.rakam.util.RakamException;
 
 import javax.ws.rs.Path;
@@ -40,7 +35,6 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
-import static org.rakam.ui.user.WebUserHttpService.extractUserFromCookie;
 
 // TODO: CSRF!
 @Path("/ui/subscription")
@@ -49,26 +43,22 @@ public class UserSubscriptionHttpService
         extends HttpService
 {
     private final WebUserService service;
-    private final EncryptionConfig encryptionConfig;
     private final RequestOptions requestOptions;
 
     @Inject
-    public UserSubscriptionHttpService(WebUserService service, RakamUIConfig config, EncryptionConfig encryptionConfig)
+    public UserSubscriptionHttpService(WebUserService service, RakamUIConfig config)
     {
         this.service = service;
-        this.encryptionConfig = encryptionConfig;
         requestOptions = new RequestOptions.RequestOptionsBuilder()
                 .setApiKey(config.getStripeKey()).build();
     }
 
     @JsonRequest
-    @ProtectEndpoint(writeOperation = true)
+    @ProtectEndpoint(writeOperation = true, requiresProject = false)
     @Path("/plans")
-    public List<RakamPlan> listPlans(@CookieParam("session") String session)
+    public List<RakamPlan> listPlans(@javax.inject.Named("user_id") UIPermissionParameterProvider.Project project)
     {
-        int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
-
-        Optional<WebUser> webUser = service.getUser(id);
+        Optional<WebUser> webUser = service.getUser(project.userId);
         if (!webUser.isPresent()) {
             throw new RakamException(FORBIDDEN);
         }
@@ -84,27 +74,25 @@ public class UserSubscriptionHttpService
     }
 
     @JsonRequest
-    @ProtectEndpoint(writeOperation = true)
+    @ProtectEndpoint(writeOperation = true, requiresProject = false)
     @Path("/create")
     public List<UserSubscription> create(
             @ApiParam("token") String token,
             @ApiParam(value = "coupon", required = false) String coupon,
             @ApiParam("plan") String plan,
-            @CookieParam("session") String session,
+            @javax.inject.Named("user_id") UIPermissionParameterProvider.Project project,
             @HeaderParam("X-Requested-With") String csrfHeader)
     {
         if (!"XMLHttpRequest".equals(csrfHeader)) {
             throw new RakamException(FORBIDDEN);
         }
 
-        int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
-
-        Optional<WebUser> webUser = service.getUser(id);
+        Optional<WebUser> webUser = service.getUser(project.userId);
         if (!webUser.isPresent() || webUser.get().readOnly) {
             throw new RakamException("User is not allowed to perform this operation", UNAUTHORIZED);
         }
 
-        String userStripeId = service.getUserStripeId(id);
+        String userStripeId = service.getUserStripeId(project.userId);
 
         Customer customer;
         try {
@@ -158,24 +146,22 @@ public class UserSubscriptionHttpService
     }
 
     @JsonRequest
-    @ProtectEndpoint(writeOperation = true)
+    @ProtectEndpoint(writeOperation = true, requiresProject = false)
     @Path("/me")
     public List<UserSubscription> me(
             @HeaderParam("X-Requested-With") String csrfHeader,
-            @CookieParam("session") String session)
+            @javax.inject.Named("user_id") UIPermissionParameterProvider.Project project)
     {
         if (!"XMLHttpRequest".equals(csrfHeader)) {
             throw new RakamException(FORBIDDEN);
         }
 
-        int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
-
-        Optional<WebUser> webUser = service.getUser(id);
+        Optional<WebUser> webUser = service.getUser(project.userId);
         if (!webUser.isPresent() || webUser.get().readOnly) {
             throw new RakamException("User is not allowed to perform this operation", UNAUTHORIZED);
         }
 
-        String userStripeId = service.getUserStripeId(id);
+        String userStripeId = service.getUserStripeId(project.userId);
 
         if (userStripeId == null) {
             return ImmutableList.of();
@@ -203,20 +189,18 @@ public class UserSubscriptionHttpService
     }
 
     @JsonRequest
-    @ProtectEndpoint(writeOperation = true)
+    @ProtectEndpoint(writeOperation = true, requiresProject = false)
     @Path("/coupon")
     public RakamCoupon checkCoupon(
             @ApiParam("coupon") String coupon,
             @HeaderParam("X-Requested-With") String csrfHeader,
-            @CookieParam("session") String session)
+            @javax.inject.Named("user_id") UIPermissionParameterProvider.Project project)
     {
         if (!"XMLHttpRequest".equals(csrfHeader)) {
             throw new RakamException(FORBIDDEN);
         }
 
-        int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
-
-        Optional<WebUser> webUser = service.getUser(id);
+        Optional<WebUser> webUser = service.getUser(project.userId);
         if (!webUser.isPresent() || webUser.get().readOnly) {
             throw new RakamException("User is not allowed to perform this operation", UNAUTHORIZED);
         }

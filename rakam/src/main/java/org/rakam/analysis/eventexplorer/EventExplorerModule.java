@@ -5,6 +5,7 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.swagger.models.Tag;
+import org.rakam.analysis.EventExplorerListener;
 import org.rakam.config.MetadataConfig;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;

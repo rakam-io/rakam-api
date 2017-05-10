@@ -17,6 +17,7 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.util.LogUtil;
+import org.rakam.util.MaterializedViewNotExists;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
 
@@ -108,7 +109,7 @@ public class QueryExecutorService
                         return new DelegateQueryExecution(queryExecution.queryExecution,
                                 materializedQueryUpdateResult -> {
                                     QueryError error = materializedQueryUpdateResult.getError();
-                                    String message = String.format("Error while updating materialized table '%s': %s", queryExecution.computeQuery, error.message);
+                                    String message = format("Error while updating materialized table '%s': %s", queryExecution.computeQuery, error.message);
                                     QueryError error1 = new QueryError(message, error.sqlState, error.errorCode, error.errorLine, error.charPositionInLine);
                                     LogUtil.logQueryError(query, error1, executor.getClass());
                                     return QueryResult.errorResult(error1, query);
@@ -217,7 +218,7 @@ public class QueryExecutorService
                     materializedView = materializedViewService.get(project, node.getSuffix());
                 }
                 catch (NotExistsException e) {
-                    throw new RakamException(String.format("Referenced materialized table %s is not exist", node.getSuffix()), BAD_REQUEST);
+                    throw new MaterializedViewNotExists(node.getSuffix());
                 }
 
                 MaterializedViewExecution materializedViewExecution = materializedViews.computeIfAbsent(materializedView,

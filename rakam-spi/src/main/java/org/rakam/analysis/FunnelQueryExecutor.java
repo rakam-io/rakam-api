@@ -21,7 +21,7 @@ public interface FunnelQueryExecutor
     QueryExecution query(String project,
             List<FunnelStep> steps,
             Optional<String> dimension, LocalDate startDate,
-            LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId);
+            LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors);
 
     enum WindowType
     {

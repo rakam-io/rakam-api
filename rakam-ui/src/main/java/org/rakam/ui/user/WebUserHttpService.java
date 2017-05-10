@@ -87,80 +87,72 @@ public class WebUserHttpService
     {
         // TODO: implement captcha https://github.com/VividCortex/angular-recaptcha https://developers.google.com/recaptcha/docs/verify
         // keep a counter for ip in local nodes
-        final WebUser user = service.createUser(email, password, name, null, null, null);
+        final WebUser user = service.createUser(email, password, name, null, null, null, false);
         return getLoginResponseForUser(user);
     }
 
     @JsonRequest
-    @ProtectEndpoint(writeOperation = true)
+    @ProtectEndpoint(writeOperation = true, requiresProject = false)
     @Path("/update/password")
     public SuccessMessage updatePassword(@ApiParam("oldPassword") String oldPassword,
             @ApiParam("newPassword") String newPassword,
-            @CookieParam("session") String session)
+            @javax.inject.Named("user_id") Project project)
     {
-        int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
-
-        Optional<WebUser> webUser = service.getUser(id);
+        Optional<WebUser> webUser = service.getUser(project.userId);
         if (webUser.get().readOnly) {
             throw new RakamException("User is not allowed to perform this operation", UNAUTHORIZED);
         }
 
-        service.updateUserPassword(id, oldPassword, newPassword);
+        service.updateUserPassword(project.userId, oldPassword, newPassword);
         return SuccessMessage.success();
     }
 
     @JsonRequest
-    @ProtectEndpoint(writeOperation = true)
+    @ProtectEndpoint(writeOperation = true, requiresProject = false)
     @Path("/update/info")
     public SuccessMessage update(
             @ApiParam("name") String name,
-            @CookieParam("session") String session)
+            @javax.inject.Named("user_id") Project project)
     {
-        int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
-
-        Optional<WebUser> webUser = service.getUser(id);
+        Optional<WebUser> webUser = service.getUser(project.userId);
         if (webUser.get().readOnly) {
             throw new RakamException("User is not allowed to perform this operation", UNAUTHORIZED);
         }
 
-        service.updateUserInfo(id, name);
+        service.updateUserInfo(project.userId, name);
         return SuccessMessage.success();
     }
 
     @JsonRequest
-    @ProtectEndpoint(writeOperation = true)
+    @ProtectEndpoint(writeOperation = true, requiresProject = false)
     @Path("/get-lock-key")
     public String getLockKey(@ApiParam("api_url") String apiUrl,
-            @CookieParam("session") String session)
+            @javax.inject.Named("user_id") Project project)
     {
-        int user = extractUserFromCookie(session, encryptionConfig.getSecretKey());
-
-        Optional<WebUser> webUser = service.getUser(user);
+        Optional<WebUser> webUser = service.getUser(project.userId);
         if (webUser.get().readOnly) {
             throw new RakamException("User is not allowed to create projects", UNAUTHORIZED);
         }
 
-        return service.getLockKeyForAPI(user, apiUrl);
+        return service.getLockKeyForAPI(project.userId, apiUrl);
     }
 
     @JsonRequest
-    @ProtectEndpoint(writeOperation = true)
+    @ProtectEndpoint(writeOperation = true, requiresProject = false)
     @Path("/register-project")
     public UserApiKey registerProject(@ApiParam("name") String name,
             @ApiParam("api_url") String apiUrl,
             @ApiParam(value = "read_key") String readKey,
             @ApiParam(value = "write_key", required = false) String writeKey,
             @ApiParam(value = "master_key", required = false) String masterKey,
-            @CookieParam("session") String session)
+            @javax.inject.Named("user_id") Project project)
     {
-        int user = extractUserFromCookie(session, encryptionConfig.getSecretKey());
-
-        Optional<WebUser> webUser = service.getUser(user);
+        Optional<WebUser> webUser = service.getUser(project.userId);
         if (webUser.get().readOnly) {
             throw new RakamException("User is not allowed to register projects", UNAUTHORIZED);
         }
 
-        return service.registerProject(user, apiUrl, name, readKey, writeKey, masterKey);
+        return service.registerProject(project.userId, apiUrl, name, readKey, writeKey, masterKey);
     }
 
     @JsonRequest
@@ -387,7 +379,9 @@ public class WebUserHttpService
             WebUser user = userByEmail.orElseGet(() ->
                     service.createUser(userinfo.getEmail(),
                             null, userinfo.getGivenName(),
-                            userinfo.getGender(), userinfo.getLocale(), userinfo.getId()));
+                            userinfo.getGender(),
+                            userinfo.getLocale(),
+                            userinfo.getId(), false));
             return getLoginResponseForUser(user);
         }
         catch (IOException e) {

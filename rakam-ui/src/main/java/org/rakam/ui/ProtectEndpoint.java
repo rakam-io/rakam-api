@@ -10,4 +10,6 @@ import java.lang.annotation.Target;
 public @interface ProtectEndpoint
 {
     boolean writeOperation() default false;
+
+    boolean requiresProject() default true;
 }

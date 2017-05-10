@@ -2,14 +2,16 @@ package org.rakam.postgresql.analysis;
 
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.google.common.collect.ImmutableList;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
-import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
+import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 
@@ -42,11 +44,19 @@ public class FastGenericFunnelQueryExecutor
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId)
+    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors)
     {
+        if (dimension.isPresent() && connectors.isPresent() && connectors.get().contains(dimension)) {
+            throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
+        }
+
         List<String> selects = new ArrayList<>();
         List<String> insideSelect = new ArrayList<>();
         List<String> mainSelect = new ArrayList<>();
+
+        String connectorString = connectors.map(item -> item.stream().map(ValidationUtil::checkTableColumn).collect(Collectors.joining(", ")))
+                .orElse(checkTableColumn(projectConfig.getUserColumn()));
+
         for (int i = 0; i < steps.size(); i++) {
             Optional<String> filterExp = steps.get(i).getExpression().map(value -> RakamSqlFormatter.formatExpression(value,
                     name -> name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
@@ -58,7 +68,7 @@ public class FastGenericFunnelQueryExecutor
             mainSelect.add(format("select %s %d as step, %s, %s from %s where %s between timestamp '%s' and timestamp '%s' and %s",
                     dimension.map(v -> v + ", ").orElse(""),
                     i,
-                    checkTableColumn(projectConfig.getUserColumn()),
+                    connectorString,
                     checkTableColumn(projectConfig.getTimeColumn()),
                     checkCollection(steps.get(i).getCollection()),
                     checkTableColumn(projectConfig.getTimeColumn()),
@@ -77,12 +87,12 @@ public class FastGenericFunnelQueryExecutor
                         "    ) t %s",
                 dimension.map(v -> v + ", ").orElse(""),
                 selects.stream().collect(Collectors.joining(",\n")),
-                checkTableColumn(projectConfig.getUserColumn()),
+                connectorString,
                 dimension.map(v -> v + ", ").orElse(""),
                 insideSelect.stream().collect(Collectors.joining(",\n")),
                 mainSelect.stream().collect(Collectors.joining(" UNION ALL\n")),
                 dimension.map(v -> v + ", ").orElse(""),
-                checkTableColumn(projectConfig.getUserColumn()),
+                connectorString,
                 dimension.map(v -> " group by 1").orElse(""));
 
         QueryExecution queryExecution = executor.executeQuery(project, query);

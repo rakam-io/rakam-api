@@ -18,7 +18,6 @@ import io.airlift.configuration.ConfigDescription;
 import org.rakam.ui.RakamUIModule.CustomPageBackend;
 
 import java.io.File;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Locale;
 
@@ -31,10 +30,7 @@ public class RakamUIConfig {
     private String googleClientId;
     private String stripeKey;
     private URL screenCaptureService;
-
-    public RakamUIConfig()
-            throws MalformedURLException
-    {}
+    private String authentication;
 
     @Config("ui.directory")
     public RakamUIConfig setUIDirectory(File uiDirectory) {
@@ -57,6 +53,16 @@ public class RakamUIConfig {
 
     public boolean getEnableUI() {
         return enableUi;
+    }
+
+    @Config("authentication")
+    public RakamUIConfig setAuthentication(String authentication) {
+        this.authentication = authentication;
+        return this;
+    }
+
+    public String getAuthentication() {
+        return authentication;
     }
 
     @Config("ui.enable")

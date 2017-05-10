@@ -7,15 +7,19 @@ import com.facebook.presto.sql.tree.QualifiedNameReference;
 import io.airlift.log.Logger;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EventExplorer;
+import org.rakam.analysis.EventExplorerListener;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.config.ProjectConfig;
+import org.rakam.plugin.MaterializedView;
+import org.rakam.plugin.SystemEvents;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 import org.rakam.report.realtime.AggregationType;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.MaterializedViewNotExists;
 import org.rakam.util.RakamException;
 
 import java.time.Instant;
@@ -451,7 +455,22 @@ public abstract class AbstractEventExplorer
                     " from (%s) data where %s group by 1", sourceTable(project, collections), timePredicate);
         }
 
-        QueryExecution collection = executor.executeQuery(project, query, Optional.empty(), "collection", 20000);
+        QueryExecution collection;
+        try {
+            collection = executor.executeQuery(project, query, Optional.empty(), "collection", 20000);
+        }
+        catch (MaterializedViewNotExists e) {
+            List<MaterializedView> views = materializedViewService.list(project);
+            EventExplorerListener eventExplorerListener = new EventExplorerListener(projectConfig, materializedViewService);
+
+            collections.orElseGet(() -> metastore.getCollectionNames(project))
+                    .stream()
+                    .filter(c -> !views.stream().anyMatch(t -> t.tableName.equals(c)))
+                    .forEach(c -> eventExplorerListener.createTable(project, c));
+
+            collection = executor.executeQuery(project, query, Optional.empty(), "collection", 20000);
+        }
+
         collection.getResult().thenAccept(result -> {
             if (result.isFailed()) {
                 LOGGER.error(new RuntimeException(result.getError().toString()),

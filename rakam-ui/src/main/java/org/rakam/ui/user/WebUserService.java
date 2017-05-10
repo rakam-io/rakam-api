@@ -20,6 +20,7 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.report.EmailClientConfig;
 import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.ui.AuthService;
 import org.rakam.ui.RakamUIConfig;
 import org.rakam.ui.UIEvents;
 import org.rakam.util.AlreadyExistsException;
@@ -55,6 +56,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
@@ -64,6 +66,7 @@ import java.util.stream.Stream;
 import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.EXPECTATION_FAILED;
+import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_IMPLEMENTED;
 import static io.netty.handler.codec.http.HttpResponseStatus.PRECONDITION_REQUIRED;
@@ -96,6 +99,24 @@ public class WebUserService
     private static final Mustache userAccessHtmlCompiler;
     private static final Mustache userAccessTxtCompiler;
     private static final Mustache userAccessTitleCompiler;
+    private final AuthService authService;
+
+    @Inject
+    public WebUserService(
+            @Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource,
+            EventBus eventBus,
+            com.google.common.base.Optional<AuthService> authService,
+            RakamUIConfig config,
+            EncryptionConfig encryptionConfig,
+            EmailClientConfig mailConfig)
+    {
+        dbi = new DBI(dataSource);
+        this.eventBus = eventBus;
+        this.authService = authService.orNull();
+        this.config = config;
+        this.encryptionConfig = encryptionConfig;
+        this.mailConfig = mailConfig;
+    }
 
     public ProjectConfiguration getProjectConfigurations(int project)
     {
@@ -166,61 +187,10 @@ public class WebUserService
         }
     }
 
-    static {
-        try {
-            MustacheFactory mf = new DefaultMustacheFactory();
-
-            resetPasswordHtmlCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/resetpassword/resetpassword.html"), UTF_8)), "resetpassword.html");
-            resetPasswordTxtCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/resetpassword/resetpassword.txt"), UTF_8)), "resetpassword.txt");
-            resetPasswordTitleCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/resetpassword/title.txt"), UTF_8)), "resetpassword_title.txt");
-
-            welcomeHtmlCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/welcome/welcome.html"), UTF_8)), "welcome.html");
-            welcomeTxtCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/welcome/welcome.txt"), UTF_8)), "welcome.txt");
-            welcomeTitleCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/welcome/title.txt"), UTF_8)), "welcome_title.txt");
-
-            userAccessNewMemberHtmlCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/teamaccess_newmember/teamaccess.html"), UTF_8)), "welcome.html");
-            userAccessNewMemberTxtCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/teamaccess_newmember/teamaccess.txt"), UTF_8)), "welcome.txt");
-            userAccessNewMemberTitleCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/teamaccess_newmember/title.txt"), UTF_8)), "welcome_title.txt");
-
-            userAccessHtmlCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/teamaccess/teamaccess.html"), UTF_8)), "welcome.html");
-            userAccessTxtCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/teamaccess/teamaccess.txt"), UTF_8)), "welcome.txt");
-            userAccessTitleCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/teamaccess/title.txt"), UTF_8)), "welcome_title.txt");
-        }
-        catch (IOException e) {
-            throw Throwables.propagate(e);
-        }
-    }
-
-    @Inject
-    public WebUserService(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource,
-            EventBus eventBus,
-            RakamUIConfig config,
-            EncryptionConfig encryptionConfig,
-            EmailClientConfig mailConfig)
-    {
-        dbi = new DBI(dataSource);
-        this.eventBus = eventBus;
-        this.config = config;
-        this.encryptionConfig = encryptionConfig;
-        this.mailConfig = mailConfig;
-    }
-
-    public WebUser createUser(String email, String password, String name, String gender, String locale, String googleId)
+    public WebUser createUser(String email, String password, String name, String gender, String locale, String googleId, boolean external)
     {
         final String scrypt;
-        if (password != null) {
+        if (password != null && !external) {
             if (!PASSWORD_PATTERN.matcher(password).matches()) {
                 throw new RakamException("Password is not valid. Your password must contain at least one lowercase character, uppercase character and digit and be at least 8 characters. ", BAD_REQUEST);
             }
@@ -230,6 +200,9 @@ public class WebUserService
             }
             scrypt = SCryptUtil.scrypt(password, 2 << 14, 8, 1);
         }
+        else if (external) {
+            scrypt = password;
+        }
         else {
             if (googleId == null) {
                 throw new RakamException("Password id empty", BAD_REQUEST);
@@ -238,19 +211,24 @@ public class WebUserService
             scrypt = null;
         }
 
-        if (!EMAIL_PATTERN.matcher(email).matches()) {
+        if (!external && !EMAIL_PATTERN.matcher(email).matches()) {
             throw new RakamException("Email is not valid", BAD_REQUEST);
         }
 
         WebUser webuser = null;
 
-        try (Handle handle = dbi.open()) {
+        try (
+                Handle handle = dbi.open()
+        )
+
+        {
             try {
-                int id = handle.createStatement("INSERT INTO web_user (email, password, name, created_at, gender, user_locale, google_id) VALUES (:email, :password, :name, now(), :gender, :locale, :googleId)")
+                int id = handle.createStatement("INSERT INTO web_user (email, password, name, created_at, gender, user_locale, google_id, external) VALUES (:email, :password, :name, now(), :gender, :locale, :googleId, :external)")
                         .bind("email", email)
                         .bind("name", name)
                         .bind("gender", gender)
                         .bind("locale", locale)
+                        .bind("external", external)
                         .bind("googleId", googleId)
                         .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
                 webuser = new WebUser(id, email, name, false, ImmutableList.of());
@@ -279,14 +257,21 @@ public class WebUserService
             }
         }
 
-        try {
+        try
+
+        {
             sendMail(welcomeTitleCompiler, welcomeTxtCompiler,
                     welcomeHtmlCompiler, email,
                     ImmutableMap.of(
                             "name", Optional.ofNullable(name).orElse("there"),
                             "siteUrl", mailConfig.getSiteUrl().toExternalForm()));
         }
-        catch (RakamException e) {
+
+        catch (
+                RakamException e
+                )
+
+        {
             if (e.getStatusCode() != NOT_IMPLEMENTED) {
                 throw e;
             }
@@ -741,24 +726,51 @@ public class WebUserService
         List<WebUser.Project> projects;
 
         final Map<String, Object> data;
-        String hashedPassword;
+        String passwordInDb;
         try (Handle handle = dbi.open()) {
             data = handle
                     .createQuery("SELECT id, name, password, read_only FROM web_user WHERE email = :email")
                     .bind("email", email).first();
+
+            if (authService != null) {
+                boolean login = authService.login(email, password);
+                if (login && data == null) {
+                    WebUser user = createUser(email, password, null, null, null, null, true);
+                    return Optional.of(user);
+                }
+                else if (!login) {
+                    return Optional.empty();
+                }
+            }
+
             if (data == null) {
                 return Optional.empty();
             }
+        }
 
-            hashedPassword = (String) data.get("password");
-            if (hashedPassword == null) {
+        passwordInDb = (String) data.get("password");
+
+        if (config.getAuthentication() != null) {
+            if (!Objects.equals(password, passwordInDb)) {
+                try (Handle handle = dbi.open()) {
+                    int updated = handle
+                            .createStatement("UPDATE web_user SET password = :password WHERE email = :email")
+                            .bind("password", password).execute();
+                    if (updated == 0) {
+                        throw new IllegalStateException();
+                    }
+                }
+            }
+        }
+        else {
+            if (passwordInDb == null) {
                 throw new RakamException("Your password is not set. Please reset your password in order to set it.",
                         PRECONDITION_REQUIRED);
             }
-        }
 
-        if (!SCryptUtil.check(password, hashedPassword)) {
-            return Optional.empty();
+            if (!SCryptUtil.check(password, passwordInDb)) {
+                return Optional.empty();
+            }
         }
 
         try (Handle handle = dbi.open()) {
@@ -896,6 +908,43 @@ public class WebUserService
 
                 throw e;
             }
+        }
+    }
+
+    static {
+        try {
+            MustacheFactory mf = new DefaultMustacheFactory();
+
+            resetPasswordHtmlCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/resetpassword/resetpassword.html"), UTF_8)), "resetpassword.html");
+            resetPasswordTxtCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/resetpassword/resetpassword.txt"), UTF_8)), "resetpassword.txt");
+            resetPasswordTitleCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/resetpassword/title.txt"), UTF_8)), "resetpassword_title.txt");
+
+            welcomeHtmlCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/welcome/welcome.html"), UTF_8)), "welcome.html");
+            welcomeTxtCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/welcome/welcome.txt"), UTF_8)), "welcome.txt");
+            welcomeTitleCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/welcome/title.txt"), UTF_8)), "welcome_title.txt");
+
+            userAccessNewMemberHtmlCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/teamaccess_newmember/teamaccess.html"), UTF_8)), "welcome.html");
+            userAccessNewMemberTxtCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/teamaccess_newmember/teamaccess.txt"), UTF_8)), "welcome.txt");
+            userAccessNewMemberTitleCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/teamaccess_newmember/title.txt"), UTF_8)), "welcome_title.txt");
+
+            userAccessHtmlCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/teamaccess/teamaccess.html"), UTF_8)), "welcome.html");
+            userAccessTxtCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/teamaccess/teamaccess.txt"), UTF_8)), "welcome.txt");
+            userAccessTitleCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/teamaccess/title.txt"), UTF_8)), "welcome_title.txt");
+        }
+        catch (IOException e) {
+            throw Throwables.propagate(e);
         }
     }
 

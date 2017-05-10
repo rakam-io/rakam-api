@@ -1,4 +1,4 @@
-package org.rakam.analysis.eventexplorer;
+package org.rakam.analysis;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.Subscribe;
@@ -30,13 +30,18 @@ public class EventExplorerListener
     @Subscribe
     public void onCreateCollection(CollectionCreatedEvent event)
     {
-        String query = format("select date_trunc('hour', %s) as _time, count(*) as total from %s group by 1",
-                checkTableColumn(projectConfig.getTimeColumn()), checkCollection(event.collection));
+        createTable(event.project, event.collection);
+    }
 
-        MaterializedView report = new MaterializedView("_event_explorer_metrics - " + event.collection,
-                format("Event explorer metrics for %s collection", event.collection),
+    public void createTable(String project, String collection)
+    {
+        String query = format("select date_trunc('hour', %s) as _time, count(*) as total from %s group by 1",
+                checkTableColumn(projectConfig.getTimeColumn()), checkCollection(collection));
+
+        MaterializedView report = new MaterializedView("_event_explorer_metrics - " + collection,
+                format("Event explorer metrics for %s collection", collection),
                 query,
                 Duration.ofHours(1), true, true, ImmutableMap.of());
-        materializedViewService.create(event.project, report).join();
+        materializedViewService.create(project, report).join();
     }
 }

@@ -11,12 +11,10 @@ import com.google.inject.multibindings.OptionalBinder;
 import com.google.inject.name.Named;
 import com.google.inject.name.Names;
 import org.flywaydb.core.Flyway;
-import org.flywaydb.core.api.FlywayException;
 import org.rakam.analysis.CustomParameter;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.config.JDBCConfig;
-import org.rakam.plugin.InjectionHook;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.stream.EventStreamConfig;
 import org.rakam.plugin.user.UserPluginConfig;
@@ -45,7 +43,6 @@ import org.rakam.util.NotFoundHandler;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.util.IntegerMapper;
-import sun.net.www.protocol.mailto.MailToURLConnection;
 
 import javax.inject.Inject;
 
@@ -69,6 +66,8 @@ public class RakamUIModule
         configBinder(binder).bindConfig(EventStreamConfig.class);
         configBinder(binder).bindConfig(EventExplorerConfig.class);
         configBinder(binder).bindConfig(UserPluginConfig.class);
+
+        OptionalBinder.newOptionalBinder(binder, AuthService.class);
 
         RakamUIConfig rakamUIConfig = buildConfigObject(RakamUIConfig.class);
 

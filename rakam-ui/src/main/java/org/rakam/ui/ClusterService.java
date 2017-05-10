@@ -15,6 +15,7 @@ import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.CookieParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.ui.UIPermissionParameterProvider.Project;
 import org.rakam.ui.user.WebUser;
 import org.rakam.ui.user.WebUserService;
 import org.rakam.util.AlreadyExistsException;
@@ -57,28 +58,24 @@ public class ClusterService
         extends HttpService
 {
     private final DBI dbi;
-    private final EncryptionConfig encryptionConfig;
     private final WebUserService webUserService;
 
     @Inject
     public ClusterService(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource,
-            WebUserService webUserService,
-            EncryptionConfig encryptionConfig)
+            WebUserService webUserService)
     {
         dbi = new DBI(dataSource);
         this.webUserService = webUserService;
-        this.encryptionConfig = encryptionConfig;
     }
 
     @JsonRequest
+    @ProtectEndpoint(requiresProject = false)
     @ApiOperation(value = "Register cluster", authorizations = @Authorization(value = "read_key"))
     @Path("/register")
-    public SuccessMessage register(@CookieParam("session") String session,
+    public SuccessMessage register(@javax.inject.Named("user_id") Project project,
             @BodyParam Cluster cluster)
     {
-        int userId = extractUserFromCookie(session, encryptionConfig.getSecretKey());
-
-        Optional<WebUser> webUser = webUserService.getUser(userId);
+        Optional<WebUser> webUser = webUserService.getUser(project.userId);
         if (webUser.get().readOnly) {
             throw new RakamException("User is not allowed to register clusters", UNAUTHORIZED);
         }
@@ -86,13 +83,13 @@ public class ClusterService
         try (Handle handle = dbi.open()) {
             try {
                 handle.createStatement("INSERT INTO rakam_cluster (user_id, api_url, lock_key) VALUES (:userId, :apiUrl, :lockKey)")
-                        .bind("userId", userId)
+                        .bind("userId", project.userId)
                         .bind("apiUrl", cluster.apiUrl)
                         .bind("lockKey", cluster.lockKey).execute();
             }
             catch (Throwable e) {
                 int execute = handle.createStatement("UPDATE rakam_cluster SET lock_key = :lock_key WHERE user_id = :userId AND api_url = :apiUrl")
-                        .bind("userId", userId)
+                        .bind("userId", project.userId)
                         .bind("apiUrl", cluster.apiUrl)
                         .bind("lock_key", cluster.lockKey).execute();
 
@@ -108,32 +105,30 @@ public class ClusterService
     }
 
     @JsonRequest
+    @ProtectEndpoint(requiresProject = false)
     @ApiOperation(value = "Delete cluster", authorizations = @Authorization(value = "read_key"))
     @Path("/get")
-    public SuccessMessage delete(@CookieParam("session") String session,
+    public SuccessMessage delete(@javax.inject.Named("user_id") Project project,
             @ApiParam("api_url") String apiUrl)
     {
-        int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
-
         try (Handle handle = dbi.open()) {
             handle.createStatement("DELETE FROM rakam_cluster WHERE (user_id, api_url) VALUES (:userId, :apiUrl)")
-                    .bind("userId", id)
+                    .bind("userId", project.userId)
                     .bind("apiUrl", apiUrl).execute();
             return SuccessMessage.success();
         }
     }
 
     @JsonRequest
+    @ProtectEndpoint(requiresProject = false)
     @ApiOperation(value = "List cluster", authorizations = @Authorization(value = "read_key"))
     @Path("/list")
     @GET
-    public List<String> list(@CookieParam("session") String session)
+    public List<String> list(@javax.inject.Named("user_id") Project project)
     {
-        int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
-
         try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT api_url FROM rakam_cluster WHERE user_id = :userId")
-                    .bind("userId", id).map(StringMapper.FIRST).list();
+                    .bind("userId", project.userId).map(StringMapper.FIRST).list();
         }
     }
 
