@@ -444,14 +444,14 @@ public abstract class AbstractEventExplorer
                 throw new RakamException(BAD_REQUEST);
             }
 
-            query = format("select collection, %s as %s, sum(total) from (%s) data where %s group by 1, 2 order by 2 desc",
+            query = format("select collection, %s as %s, cast(sum(total) as bigint) from (%s) data where %s group by 1, 2 order by 2 desc",
                     aggregationMethod.get() == HOUR ? projectConfig.getTimeColumn() : format(timestampMapping.get(aggregationMethod.get()), projectConfig.getTimeColumn()),
                     aggregationMethod.get(),
                     sourceTable(project, collections),
                     timePredicate);
         }
         else {
-            query = format("select collection, coalesce(sum(total), 0) as total \n" +
+            query = format("select collection, cast(coalesce(sum(total), 0) as bigint) as total \n" +
                     " from (%s) data where %s group by 1", sourceTable(project, collections), timePredicate);
         }
 

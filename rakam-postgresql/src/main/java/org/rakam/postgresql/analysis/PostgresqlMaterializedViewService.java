@@ -75,7 +75,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
             format = format("CREATE MATERIALIZED VIEW %s.%s AS %s WITH NO DATA",
                     ValidationUtil.checkProject(project), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName), builder.toString());
         } else {
-            format = format("CREATE TABLE %s.%s AS %s",
+            format = format("CREATE TABLE %s.%s AS %s WITH NO DATA",
                     ValidationUtil.checkProject(project), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName), builder.toString());
         }
 
@@ -168,9 +168,9 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
                         name -> {
                             String collection = format("(SELECT * FROM %s %s) data",
                                     queryExecutor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of(), "collection"),
-                                    lastUpdated == null ? "" : format("WHERE %s > to_timestamp(%d)",
+                                    format("WHERE %s > to_timestamp(%d)",
                                             checkTableColumn(projectConfig.getTimeColumn()),
-                                            lastUpdated.getEpochSecond()));
+                                            (lastUpdated != null ? lastUpdated : now).getEpochSecond()));
                             return collection;
                         }, '"');
 
