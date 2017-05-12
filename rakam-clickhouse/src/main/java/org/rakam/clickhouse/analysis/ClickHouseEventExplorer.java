@@ -91,10 +91,10 @@ public class ClickHouseEventExplorer
         Reference segment = segmentValue2 == null ? DEFAULT_SEGMENT : segmentValue2;
 
         if (grouping != null && grouping.type == REFERENCE) {
-            checkReference(timestampMapping, grouping.value, startDate, endDate, collections.size());
+            checkReference(grouping.value, startDate, endDate, collections.size());
         }
         if (segment != null && segment.type == REFERENCE) {
-            checkReference(timestampMapping, segment.value, startDate, endDate, collections.size());
+            checkReference(segment.value, startDate, endDate, collections.size());
         }
 
         String groups = Arrays.asList(
@@ -192,7 +192,7 @@ public class ClickHouseEventExplorer
         }
 
         if (dimension.isPresent()) {
-            checkReference(timestampMapping, dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
+            checkReference(dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
         }
 
         String timePredicate = format("%s between toDateTime('%s') and toDateTime('%s')",
