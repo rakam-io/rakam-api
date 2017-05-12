@@ -85,7 +85,7 @@ public abstract class AbstractEventExplorer
         this.continuousQueryService = continuousQueryService;
     }
 
-    public static void checkReference(Map<TimestampTransformation, String> timestampMapping, String refValue, Instant startDate, Instant endDate, int size)
+    public static void checkReference(String refValue, Instant startDate, Instant endDate, int size)
     {
         switch (fromString(refValue.replace(" ", "_"))) {
             case HOUR_OF_DAY:
@@ -170,10 +170,10 @@ public abstract class AbstractEventExplorer
         Reference segment = segmentValue2 == null ? DEFAULT_SEGMENT : segmentValue2;
 
         if (grouping != null && grouping.type == REFERENCE) {
-            checkReference(timestampMapping, grouping.value, startDate, endDate, collections.size());
+            checkReference(grouping.value, startDate, endDate, collections.size());
         }
         if (segment != null && segment.type == REFERENCE) {
-            checkReference(timestampMapping, segment.value, startDate, endDate, collections.size());
+            checkReference(segment.value, startDate, endDate, collections.size());
         }
 
         Predicate<OLAPTable> groupedMetricsPredicate = options -> {
@@ -430,7 +430,7 @@ public abstract class AbstractEventExplorer
         }
 
         if (dimension.isPresent()) {
-            checkReference(timestampMapping, dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
+            checkReference(dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
         }
 
         String timePredicate = format("%s between timestamp '%s' and timestamp '%s' + interval '1' day",

@@ -84,7 +84,7 @@ public class PostgresqlEventExplorer
         }
 
         if (dimension.isPresent()) {
-            checkReference(timestampMapping, dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
+            checkReference(dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
         }
 
         String timePredicate = format("%s between timestamp '%s' and timestamp '%s' + interval '1' day",
