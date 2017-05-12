@@ -29,6 +29,7 @@ import org.rakam.util.RakamException;
 import org.rakam.util.SuccessMessage;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.tweak.TransactionHandler;
 import org.skife.jdbi.v2.util.IntegerMapper;
 import org.skife.jdbi.v2.util.LongMapper;
 
@@ -43,6 +44,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static java.lang.Boolean.TRUE;
 
 // todo check permissions
@@ -138,41 +140,41 @@ public class DashboardService
                     .bind("project", project.project)
                     .bind("id", id)
                     .map((i, r, statementContext) -> {
-                        return new DashboardPermission(r.getInt(1), r.getTimestamp(3).toInstant());
+                        return new DashboardPermission(r.getInt(1), r.getTimestamp(2).toInstant());
                     }).list();
         }
     }
 
     @JsonRequest
     @ApiOperation(value = "Get dashboard users")
-    @Path("/users/add")
-    public SuccessMessage addUser(@Named("user_id") Project project, @ApiParam("dashboard") int id, @ApiParam("user_id") int user)
+    @Path("/users/set")
+    public SuccessMessage setUsers(@Named("user_id") Project project, @ApiParam("dashboard") int id, @ApiParam("user_ids") int[] users)
     {
+        TransactionHandler transactionHandler = dbi.getTransactionHandler();
         try (Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO dashboard_permission (dashboard, user_id) SELECT :dashboard, :shared_user FROM dashboard WHERE id = :dashboard AND user_id = :dashboard_user AND (select count(*) from dashboard_permission where dashboard = :dashboard and user_id = :shared_user) = 0")
-                    .bind("dashboard", id)
-                    .bind("shared_user", user)
-                    .bind("dashboard_user", project.userId)
-                    .execute();
+            transactionHandler.begin(handle);
+
+            Integer userId = handle.createQuery("SELECT user_id FROM dashboard where id = :id")
+                    .bind("id", id).map(IntegerMapper.FIRST).first();
+            if(project.userId != userId) {
+                throw new RakamException(FORBIDDEN);
+            }
+
+            handle.createStatement("DELETE FROM dashboard_permission WHERE dashboard = :dashboard")
+                    .bind("dashboard", id).execute();
+
+            for (int user : users) {
+                handle.createStatement("INSERT INTO dashboard_permission (dashboard, user_id) VALUES (:dashboard, :user_id) ")
+                        .bind("dashboard", id)
+                        .bind("user_id", user)
+                        .execute();
+            }
+
+            transactionHandler.commit(handle);
             return SuccessMessage.success();
         }
     }
 
-    @JsonRequest
-    @ApiOperation(value = "Get dashboard users")
-    @Path("/users/remove")
-    public SuccessMessage removeUser(@Named("user_id") Project project, @ApiParam("dashboard") int id, @ApiParam("user_id") int user)
-    {
-        try (Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM dashboard_permission WHERE dashboard = :dashboard AND user_id = :user AND (select bool_or(true) from dashboard where user_id = :dashboard_user and id = :dashboard)")
-                    .bind("shared_user", user)
-                    .bind("dashboard", id)
-                    .bind("dashboard_user", project.userId)
-                    .bind("user", user)
-                    .execute();
-            return SuccessMessage.success();
-        }
-    }
 
     @JsonRequest
     @ApiOperation(value = "Cache report data")

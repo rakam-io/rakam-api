@@ -29,6 +29,7 @@ import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.JDBCConfig;
+import org.rakam.config.MetadataConfig;
 import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.RakamModule;
@@ -61,6 +62,10 @@ import java.util.List;
 import java.util.Set;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static org.rakam.report.realtime.AggregationType.APPROXIMATE_UNIQUE;
+import static org.rakam.report.realtime.AggregationType.MAXIMUM;
+import static org.rakam.report.realtime.AggregationType.MINIMUM;
+import static org.rakam.report.realtime.AggregationType.SUM;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
@@ -73,6 +78,8 @@ public class PostgresqlModule
     protected void setup(Binder binder)
     {
         JDBCConfig config = buildConfigObject(JDBCConfig.class, "store.adapter.postgresql");
+        PostgresqlConfig postgresqlConfig = buildConfigObject(PostgresqlConfig.class);
+        MetadataConfig metadataConfig = buildConfigObject(MetadataConfig.class);
 
         JDBCPoolDataSource orCreateDataSource = JDBCPoolDataSource.getOrCreateDataSource(config, "set time zone 'UTC'");
         binder.bind(JDBCPoolDataSource.class)
@@ -91,12 +98,11 @@ public class PostgresqlModule
 
         binder.bind(RealtimeService.class).to(PostgresqlRealtimeService.class);
 
-        binder.bind(EventStore.class).to(PostgresqlEventStore.class).in(Scopes.SINGLETON);
+        if (metadataConfig.getEventStore() == null) {
+            binder.bind(EventStore.class).to(PostgresqlEventStore.class).in(Scopes.SINGLETON);
+        }
         binder.bind(new TypeLiteral<List<AggregationType>>() {}).annotatedWith(RealtimeService.RealtimeAggregations.class).toInstance(ImmutableList.of(AggregationType.COUNT,
-                AggregationType.SUM,
-                AggregationType.MINIMUM,
-                AggregationType.APPROXIMATE_UNIQUE,
-                AggregationType.MAXIMUM));
+                SUM, MINIMUM, APPROXIMATE_UNIQUE, MAXIMUM));
 
         // use same jdbc pool if report.metadata.store is not set explicitly.
         if (getConfig("report.metadata.store") == null) {
@@ -113,7 +119,7 @@ public class PostgresqlModule
             binder.bind(EventExplorer.class).to(PostgresqlEventExplorer.class);
         }
 
-        if (buildConfigObject(PostgresqlConfig.class).isAutoIndexColumns()) {
+        if (postgresqlConfig.isAutoIndexColumns()) {
             binder.bind(CollectionFieldIndexerListener.class).asEagerSingleton();
         }
 

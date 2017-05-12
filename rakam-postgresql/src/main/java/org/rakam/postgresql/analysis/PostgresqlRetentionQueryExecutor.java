@@ -125,6 +125,7 @@ public class PostgresqlRetentionQueryExecutor
         period.ifPresent(e -> checkArgument(e >= 0, "Period must be 0 or a positive value"));
         checkTableColumn(CONNECTOR_FIELD, "connector field", '"');
         if (approximate) {
+            // TODO: should we throw an exception or just show a warning?
 //            throw new RakamException("Approximation is not supported.", HttpResponseStatus.BAD_REQUEST);
         }
 

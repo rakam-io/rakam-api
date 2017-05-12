@@ -126,7 +126,8 @@ public class FastGenericFunnelQueryExecutor
 
                         List<Object> stepCount = result.getResult().get(0);
                         for (int i = 0; i < steps.size(); i++) {
-                            newResult.add(ImmutableList.of("Step " + i, stepCount.get(i)));
+                            Object value = stepCount.get(i);
+                            newResult.add(ImmutableList.of("Step " + i, value == null ? 0 : value));
                         }
                     }
 
