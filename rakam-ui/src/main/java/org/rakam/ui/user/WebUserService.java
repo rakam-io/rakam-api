@@ -257,13 +257,12 @@ public class WebUserService
             }
         }
 
-        try
-
-        {
+        try {
             sendMail(welcomeTitleCompiler, welcomeTxtCompiler,
                     welcomeHtmlCompiler, email,
                     ImmutableMap.of(
                             "name", Optional.ofNullable(name).orElse("there"),
+                            "product_name", "Rakam",
                             "siteUrl", mailConfig.getSiteUrl().toExternalForm()));
         }
 
