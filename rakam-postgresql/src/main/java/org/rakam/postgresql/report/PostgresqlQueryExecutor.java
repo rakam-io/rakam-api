@@ -212,14 +212,7 @@ public class PostgresqlQueryExecutor
         }
         char seperator = dbSeparator(type.type);
 
-        switch (type.type) {
-            case "POSTGRESQL":
-            case "MYSQL":
-                schema = Optional.empty();
-                break;
-            default:
-                return null;
-        }
+        schema = Optional.empty();
 
         StringBuilder builder = new StringBuilder();
         Statement statement = sqlParser.createStatement(query);

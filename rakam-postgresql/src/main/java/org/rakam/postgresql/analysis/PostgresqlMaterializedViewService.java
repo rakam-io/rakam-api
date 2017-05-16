@@ -30,7 +30,6 @@ import java.util.concurrent.CompletableFuture;
 
 import static com.facebook.presto.sql.RakamSqlFormatter.formatSql;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static java.lang.String.format;
 import static org.rakam.postgresql.report.PostgresqlQueryExecutor.MATERIALIZED_VIEW_PREFIX;
 import static org.rakam.util.ValidationUtil.checkCollection;
@@ -153,6 +152,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
 
                 queryExecution = queryExecutor.executeRawStatement(format("INSERT INTO %s %s", materializedTableReference, query), sessionProperties);
                 queryExecution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? now : null));
+
             }
             else {
                 queryExecution = QueryExecution.completedQueryExecution("", QueryResult.empty());
