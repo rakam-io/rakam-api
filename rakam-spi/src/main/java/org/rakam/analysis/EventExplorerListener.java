@@ -38,10 +38,14 @@ public class EventExplorerListener
         String query = format("select date_trunc('hour', %s) as _time, count(*) as total from %s group by 1",
                 checkTableColumn(projectConfig.getTimeColumn()), checkCollection(collection));
 
-        MaterializedView report = new MaterializedView("_event_explorer_metrics - " + collection,
+        MaterializedView report = new MaterializedView(prefix() + collection,
                 format("Event explorer metrics for %s collection", collection),
                 query,
                 Duration.ofHours(1), true, true, ImmutableMap.of());
         materializedViewService.create(project, report).join();
+    }
+
+    public static String prefix() {
+        return "_event_explorer_metrics - ";
     }
 }

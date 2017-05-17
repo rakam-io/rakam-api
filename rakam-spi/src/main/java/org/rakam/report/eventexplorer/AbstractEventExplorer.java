@@ -465,7 +465,10 @@ public abstract class AbstractEventExplorer
 
             collections.orElseGet(() -> metastore.getCollectionNames(project))
                     .stream()
-                    .filter(c -> !views.stream().anyMatch(t -> t.tableName.equals(c)))
+                    .filter(c -> {
+                        boolean b = !views.stream().anyMatch(t -> t.tableName.equals(eventExplorerListener.prefix() + c));
+                        return b;
+                    })
                     .forEach(c -> eventExplorerListener.createTable(project, c));
 
             collection = executor.executeQuery(project, query, Optional.empty(), "collection", 20000);
