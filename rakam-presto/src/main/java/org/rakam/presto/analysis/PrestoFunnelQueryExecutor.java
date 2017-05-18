@@ -25,6 +25,7 @@ import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.user.UserPluginConfig;
+import org.rakam.postgresql.analysis.FastGenericFunnelQueryExecutor;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.PreComputedTableSubQueryVisitor;
 import org.rakam.report.QueryExecution;
@@ -55,14 +56,15 @@ public class PrestoFunnelQueryExecutor
         extends AbstractFunnelQueryExecutor
 {
     private final QueryExecutorService executorService;
-    private static final String CONNECTOR_FIELD = "_user";
     private final MaterializedViewService materializedViewService;
     private final ContinuousQueryService continuousQueryService;
     private final boolean userMappingEnabled;
+    private final FastGenericFunnelQueryExecutor fastPrestoFunnelQueryExecutor;
 
     @Inject
     public PrestoFunnelQueryExecutor(
             ProjectConfig projectConfig,
+            FastGenericFunnelQueryExecutor fastPrestoFunnelQueryExecutor,
             Metastore metastore,
             QueryExecutorService executorService,
             QueryExecutor executor,
@@ -72,6 +74,7 @@ public class PrestoFunnelQueryExecutor
     {
         super(projectConfig, metastore, executor);
         this.materializedViewService = materializedViewService;
+        this.fastPrestoFunnelQueryExecutor = fastPrestoFunnelQueryExecutor;
         this.continuousQueryService = continuousQueryService;
         this.executorService = executorService;
         this.userMappingEnabled = userPluginConfig.getEnableUserMapping();
@@ -80,29 +83,32 @@ public class PrestoFunnelQueryExecutor
     @Override
     public String getTemplate(List<FunnelStep> steps, Optional<String> dimension, Optional<FunnelWindow> window)
     {
-        return "select %s get_funnel_step(steps) step, count(*) total from (\n" +
-                "select %s array_agg(step) as steps from (select * from (%s) order by "
-                + checkTableColumn(projectConfig.getTimeColumn()) + ") t WHERE "
+        return "select %s steps, count(*) total from (\n" +
+                "select %s user_funnel(step, " + checkTableColumn(projectConfig.getTimeColumn()) + ") as steps from (select * from (%s) WHERE "
                 + checkTableColumn(projectConfig.getTimeColumn()) + " between timestamp '%s' and timestamp '%s'\n" +
-                "group by %s %s\n" +
+                ") t group by %s %s\n" +
                 ") t group by 1 %s order by 1";
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors)
+    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, Optional<Boolean> ordered)
     {
-        if (dimension.isPresent() && CONNECTOR_FIELD.equals(dimension.get())) {
+        if (!ordered.orElse(false)) {
+            return fastPrestoFunnelQueryExecutor.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, ordered);
+        }
+
+        if (dimension.isPresent() && projectConfig.getUserColumn().equals(dimension.get())) {
             throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
         }
 
         Set<CalculatedUserSet> calculatedUserSets = new HashSet<>();
 
         String stepQueries = IntStream.range(0, steps.size())
-                .mapToObj(i -> convertFunnel(calculatedUserSets, project, CONNECTOR_FIELD, i, window, steps.get(i), dimension, startDate, endDate))
+                .mapToObj(i -> convertFunnel(calculatedUserSets, project, projectConfig.getUserColumn(), i, window, steps.get(i), dimension, startDate, endDate))
                 .collect(Collectors.joining(", "));
 
         if (calculatedUserSets.size() == steps.size()) {
-            return super.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors);
+            return super.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, ordered);
         }
 
         String query;
@@ -111,13 +117,13 @@ public class PrestoFunnelQueryExecutor
                     .mapToObj(i -> format("(SELECT step, (CASE WHEN rank > 15 THEN 'Others' ELSE cast(dimension as varchar) END) as %s," +
                                     " sum(count) FROM (select 'Step %d' as step, dimension, cardinality(merge_sets(%s_set)) count, row_number() OVER(ORDER BY 3 DESC) rank from " +
                                     "step%s %s ORDER BY 4 ASC) GROUP BY 1, 2)",
-                            dimension.get(), i + 1, CONNECTOR_FIELD, i, dimension.map(v -> "GROUP BY 2").orElse("")))
+                            dimension.get(), i + 1, projectConfig.getUserColumn(), i, dimension.map(v -> "GROUP BY 2").orElse("")))
                     .collect(Collectors.joining(" UNION ALL ")) + " ORDER BY 1 ASC";
         }
         else {
             query = IntStream.range(0, steps.size())
                     .mapToObj(i -> format("(SELECT 'Step %d' as step, coalesce(cardinality(merge_sets(%s_set)), 0) count FROM step%d)",
-                            i + 1, CONNECTOR_FIELD, i))
+                            i + 1, projectConfig.getUserColumn(), i))
                     .collect(Collectors.joining(" UNION ALL ")) + " ORDER BY 1 ASC";
         }
 
@@ -225,7 +231,7 @@ public class PrestoFunnelQueryExecutor
                         return Optional.empty();
                     }
 
-                    return Optional.of("SELECT data.date, data.dimension, data." + CONNECTOR_FIELD + "_set FROM " + schema.get() + "." + tableName + " data " +
+                    return Optional.of("SELECT data.date, data.dimension, data." + ValidationUtil.checkTableColumn(projectConfig.getUserColumn() + "_set") + " FROM " + schema.get() + "." + tableName + " data " +
                             "JOIN (" + query + ") filter ON (filter.date = data.date)");
                 }
                 else {

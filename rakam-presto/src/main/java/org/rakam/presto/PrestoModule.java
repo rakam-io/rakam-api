@@ -50,6 +50,7 @@ import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
 import org.rakam.presto.analysis.PrestoEventExplorer;
 import org.rakam.presto.analysis.PrestoEventStream;
+import org.rakam.presto.analysis.PrestoFunnelQueryExecutor;
 import org.rakam.presto.analysis.PrestoMaterializedViewService;
 import org.rakam.presto.analysis.PrestoMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
@@ -188,7 +189,7 @@ public class PrestoModule
         }
 
         if (userPluginConfig.isFunnelAnalysisEnabled()) {
-            binder.bind(FunnelQueryExecutor.class).to(FastGenericFunnelQueryExecutor.class);
+            binder.bind(FunnelQueryExecutor.class).to(PrestoFunnelQueryExecutor.class);
         }
 
         if (userPluginConfig.isRetentionAnalysisEnabled()) {

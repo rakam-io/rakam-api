@@ -9,6 +9,7 @@ import org.rakam.config.ProjectConfig;
 import org.rakam.event.TestingEnvironment;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.user.UserPluginConfig;
+import org.rakam.postgresql.analysis.FastGenericFunnelQueryExecutor;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
 import org.rakam.presto.analysis.PrestoFunnelQueryExecutor;
@@ -46,7 +47,6 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
 
         PrestoContinuousQueryService continuousQueryService = new PrestoContinuousQueryService(inMemoryQueryMetadataStore, new RealTimeConfig(),
                 prestoQueryExecutor, prestoConfig);
-//        eventBus.register(new EventExplorerListener(new ProjectConfig(), null));
 
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(
                 new PrestoConfig(),
@@ -54,7 +54,8 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
         QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, metastore,
                 materializedViewService, Clock.system(ZoneId.of("UTC")), '"');
 
-        funnelQueryExecutor = new PrestoFunnelQueryExecutor(new ProjectConfig(), metastore, queryExecutorService,
+        FastGenericFunnelQueryExecutor fastGenericFunnelQueryExecutor = new FastGenericFunnelQueryExecutor(queryExecutorService, new ProjectConfig());
+        funnelQueryExecutor = new PrestoFunnelQueryExecutor(new ProjectConfig(), fastGenericFunnelQueryExecutor, metastore, queryExecutorService,
                 prestoQueryExecutor, materializedViewService,
                 continuousQueryService, new UserPluginConfig());
         testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);

@@ -23,6 +23,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static org.rakam.collection.FieldType.LONG;
 import static org.rakam.collection.FieldType.STRING;
@@ -44,10 +45,14 @@ public class FastGenericFunnelQueryExecutor
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors)
+    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, Optional<Boolean> ordered)
     {
+        if(ordered.isPresent() && ordered.get()) {
+            throw new RakamException("Strict ordered funnel query is not supported", BAD_REQUEST);
+        }
+
         if (dimension.isPresent() && connectors.isPresent() && connectors.get().contains(dimension)) {
-            throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
+            throw new RakamException("Dimension and connector field cannot be equal", BAD_REQUEST);
         }
 
         List<String> selects = new ArrayList<>();
@@ -64,6 +69,7 @@ public class FastGenericFunnelQueryExecutor
                             .map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")), '"'));
 
             selects.add(format("sum(case when ts_event%d is not null then 1 else 0 end) as event%d_count", i, i));
+//            selects.add(format("count(case when ts_event%d is not null then 1 else 0 end) as event%d_count", i, i));
             insideSelect.add(format("min(case when step = %d then %s end) as ts_event%d", i, checkTableColumn(projectConfig.getTimeColumn()), i));
             mainSelect.add(format("select %s %d as step, %s, %s from %s where %s between timestamp '%s' and timestamp '%s' and %s",
                     dimension.map(v -> v + ", ").orElse(""),

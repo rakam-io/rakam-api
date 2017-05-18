@@ -86,7 +86,7 @@ public class FunnelAnalyzerHttpService
                     query.endDate,
                     Optional.ofNullable(query.window),
                     query.timezone,
-                    Optional.ofNullable(query.connectors));
+                    Optional.ofNullable(query.connectors), Optional.ofNullable(query.strictOrdering));
             execution.getResult().thenAccept(data -> {
                 if (data.isFailed()) {
                     LOGGER.error(new RuntimeException(JsonHelper.encode(query) + " : " + data.getError().toString()), "Error running funnel query");
@@ -109,8 +109,11 @@ public class FunnelAnalyzerHttpService
                 query.steps,
                 Optional.ofNullable(query.dimension),
                 query.startDate,
-                query.endDate, Optional.ofNullable(query.window),
-                query.timezone, Optional.ofNullable(query.connectors)).getResult();
+                query.endDate,
+                Optional.ofNullable(query.window),
+                query.timezone,
+                Optional.ofNullable(query.connectors),
+                Optional.ofNullable(query.strictOrdering)).getResult();
         result.thenAccept(data -> {
             if (data.isFailed()) {
                 LOGGER.error(new RuntimeException(JsonHelper.encode(query) + " : " + data.getError().toString()),
@@ -128,6 +131,7 @@ public class FunnelAnalyzerHttpService
         public final FunnelWindow window;
         public final LocalDate endDate;
         public final ZoneId timezone;
+        public final Boolean strictOrdering;
         public final List<String> connectors;
 
         @JsonCreator
@@ -136,13 +140,15 @@ public class FunnelAnalyzerHttpService
                 @ApiParam("startDate") LocalDate startDate,
                 @ApiParam(value = "window", required = false) FunnelWindow window,
                 @ApiParam("endDate") LocalDate endDate,
-                @ApiParam("connectors") List<String> connectors,
+                @ApiParam(value = "connectors", required = false) List<String> connectors,
+                @ApiParam(value = "strictOrdering", required = false) Boolean strictOrdering,
                 @ApiParam(value = "timezone", required = false) String timezone)
         {
             this.steps = checkNotNull(steps, "steps field is required");
             this.dimension = dimension;
             this.startDate = startDate;
             this.endDate = endDate;
+            this.strictOrdering = strictOrdering;
             this.connectors = connectors;
             this.window = window;
             try {

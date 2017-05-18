@@ -64,7 +64,7 @@ public abstract class AbstractFunnelQueryExecutor
     public QueryExecution query(String project,
             List<FunnelStep> steps,
             Optional<String> dimension, LocalDate startDate,
-            LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors)
+            LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, Optional<Boolean> ordered)
     {
         if(connectors.isPresent()) {
             throw new RakamException("Custom connectors are not supported", HttpResponseStatus.BAD_REQUEST);
