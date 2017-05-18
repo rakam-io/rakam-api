@@ -35,6 +35,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static com.google.common.collect.ImmutableList.of;
 import static java.lang.String.format;
 import static org.rakam.collection.FieldType.LONG;
 import static org.rakam.collection.FieldType.STRING;
@@ -44,7 +45,6 @@ import static org.rakam.util.ValidationUtil.checkTableColumn;
 public abstract class AbstractFunnelQueryExecutor
         implements FunnelQueryExecutor
 {
-    private static final String CONNECTOR_FIELD = "_user";
     private final QueryExecutor executor;
     private final Metastore metastore;
     protected final ProjectConfig projectConfig;
@@ -66,15 +66,12 @@ public abstract class AbstractFunnelQueryExecutor
             Optional<String> dimension, LocalDate startDate,
             LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, Optional<Boolean> ordered)
     {
-        if(connectors.isPresent()) {
-            throw new RakamException("Custom connectors are not supported", HttpResponseStatus.BAD_REQUEST);
-        }
-
         Map<String, List<SchemaField>> collections = metastore.getCollections(project);
 
         String ctes = IntStream.range(0, steps.size())
                 .mapToObj(i -> convertFunnel(
-                        project, testDeviceIdExists(steps.get(i), collections) ? "coalesce(cast(%s." + checkTableColumn(projectConfig.getUserColumn()) + " as varchar), _device_id)" : "_user", i,
+                        project, connectors.orElse(ImmutableList.of(testDeviceIdExists(steps.get(i), collections) ? "coalesce(cast(%s." + checkTableColumn(projectConfig.getUserColumn()) + " as varchar), _device_id)" : projectConfig.getUserColumn()))
+                                .stream().collect(Collectors.joining(", ")), i,
                         steps.get(i), dimension, startDate, endDate))
                 .collect(Collectors.joining(" UNION ALL "));
 
@@ -82,7 +79,9 @@ public abstract class AbstractFunnelQueryExecutor
         String query = format(getTemplate(steps, dimension, window), dimensionCol, dimensionCol, ctes,
                 TIMESTAMP_FORMATTER.format(startDate.atStartOfDay(zoneId)),
                 TIMESTAMP_FORMATTER.format(endDate.plusDays(1).atStartOfDay(zoneId)),
-                dimensionCol, CONNECTOR_FIELD,
+                dimensionCol,
+                connectors.orElse(of(projectConfig.getUserColumn()))
+                        .stream().collect(Collectors.joining(", ")),
                 dimension.map(v -> ", 2").orElse(""));
         if (dimension.isPresent()) {
             query = String.format("SELECT (CASE WHEN rank > 15 THEN 'Others' ELSE cast(%s as varchar) END) as dimension, step, sum(total) from " +
@@ -118,7 +117,7 @@ public abstract class AbstractFunnelQueryExecutor
                             newResult.addAll(subResult);
                         }
 
-                        metadata = ImmutableList.of(
+                        metadata = of(
                                 new SchemaField("step", STRING),
                                 new SchemaField("dimension", STRING),
                                 new SchemaField("count", LONG));
@@ -135,7 +134,7 @@ public abstract class AbstractFunnelQueryExecutor
                                             ((Number) newResult.get(finalStep).get(1)).longValue() + ((Number) val).longValue()));
                         }
 
-                        metadata = ImmutableList.of(
+                        metadata = of(
                                 new SchemaField("step", STRING),
                                 new SchemaField("count", LONG));
                     }

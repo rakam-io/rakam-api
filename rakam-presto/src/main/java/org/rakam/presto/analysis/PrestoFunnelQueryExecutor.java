@@ -84,7 +84,7 @@ public class PrestoFunnelQueryExecutor
     public String getTemplate(List<FunnelStep> steps, Optional<String> dimension, Optional<FunnelWindow> window)
     {
         return "select %s step, count(*) total from (\n" +
-                "select %s user_funnel(step, " + checkTableColumn(projectConfig.getTimeColumn()) + ") as step from (select * from (%s) WHERE "
+                "select %s funnel_step_time(array_agg(step), array_agg(" + checkTableColumn(projectConfig.getTimeColumn()) + ")) as step from (select * from (%s) WHERE "
                 + checkTableColumn(projectConfig.getTimeColumn()) + " between timestamp '%s' and timestamp '%s'\n" +
                 ") t group by %s %s\n" +
                 ") t group by 1 %s order by 1";
@@ -113,7 +113,7 @@ public class PrestoFunnelQueryExecutor
 
         String format = format("SELECT %s %s, %d as step, %s.%s from %s %s %s %s",
                 dimension.map(ValidationUtil::checkTableColumn).map(v -> "step" + idx + "." + v + ",").orElse(""),
-                userMappingEnabled ? format("coalesce(mapping._user, %s._user, %s) as _user", "step" + idx, format(connectorField, "step" + idx)) : ("step" + idx + "._user"),
+                userMappingEnabled ? format("coalesce(mapping._user, %s._user, %s) as _user", "step" + idx, format(connectorField, "step" + idx)) : connectorField,
                 idx + 1,
                 "step" + idx,
                 checkTableColumn(projectConfig.getTimeColumn()),
