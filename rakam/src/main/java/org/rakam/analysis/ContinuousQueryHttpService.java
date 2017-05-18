@@ -29,6 +29,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -130,7 +131,7 @@ public class ContinuousQueryHttpService extends HttpService {
     public void refreshQuery(RakamHttpRequest request) {
         queryHttpService.handleServerSentQueryExecution(request, RefreshQuery.class,
                 (project, q) -> service.refresh(project, q.table_name),
-                MASTER_KEY, false);
+                MASTER_KEY, false, Optional.empty());
     }
 
     public static class RefreshQuery {

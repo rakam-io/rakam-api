@@ -121,7 +121,8 @@ public class FastGenericFunnelQueryExecutor
                         for (List<Object> objects : result.getResult()) {
                             for (int i = 0; i < steps.size(); i++) {
                                 newResult.add(ImmutableList.of("Step " + (i + 1),
-                                        objects.get(0), objects.get(i + 1)));
+                                        Optional.ofNullable(objects.get(0)).orElse("(not set)"),
+                                        Optional.ofNullable(objects.get(i + 1)).orElse(0)));
                             }
                         }
                     }

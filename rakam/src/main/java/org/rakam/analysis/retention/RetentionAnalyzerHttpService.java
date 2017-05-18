@@ -73,25 +73,17 @@ public class RetentionAnalyzerHttpService
     @Path("/analyze")
     public void analyzeRetention(RakamHttpRequest request)
     {
-        queryService.handleServerSentQueryExecution(request, RetentionQuery.class, (project, query) -> {
-            QueryExecution execution = retentionQueryExecutor.query(project,
-                    Optional.ofNullable(query.firstAction),
-                    Optional.ofNullable(query.returningAction),
-                    query.dateUnit,
-                    Optional.ofNullable(query.dimension),
-                    Optional.ofNullable(query.period),
-                    query.startDate,
-                    query.endDate,
-                    query.timezone,
-                    query.approximate);
-            execution.getResult().thenAccept(data -> {
-                if (data.isFailed()) {
-                    LOGGER.error("Error running retention query",
-                            new RuntimeException(JsonHelper.encode(query) + " : " + data.getError().toString()));
-                }
-            });
-            return execution;
-        });
+        queryService.handleServerSentQueryExecution(request, RetentionQuery.class, (project, query) -> retentionQueryExecutor.query(project,
+                Optional.ofNullable(query.firstAction),
+                Optional.ofNullable(query.returningAction),
+                query.dateUnit,
+                Optional.ofNullable(query.dimension),
+                Optional.ofNullable(query.period),
+                query.startDate,
+                query.endDate,
+                query.timezone,
+                query.approximate),
+                (query, result) -> LOGGER.error(new RuntimeException(JsonHelper.encode(query) + " : " + result.getError().toString()), "Error running retention query"));
     }
 
     @ApiOperation(value = "Execute query",

@@ -78,22 +78,14 @@ public class FunnelAnalyzerHttpService
     @Path("/analyze")
     public void analyzeFunnel(RakamHttpRequest request)
     {
-        queryService.handleServerSentQueryExecution(request, FunnelQuery.class, (project, query) -> {
-            QueryExecution execution = funnelQueryExecutor.query(project,
-                    query.steps,
-                    Optional.ofNullable(query.dimension),
-                    query.startDate,
-                    query.endDate,
-                    Optional.ofNullable(query.window),
-                    query.timezone,
-                    Optional.ofNullable(query.connectors), Optional.ofNullable(query.strictOrdering));
-            execution.getResult().thenAccept(data -> {
-                if (data.isFailed()) {
-                    LOGGER.error(new RuntimeException(JsonHelper.encode(query) + " : " + data.getError().toString()), "Error running funnel query");
-                }
-            });
-            return execution;
-        });
+        queryService.handleServerSentQueryExecution(request, FunnelQuery.class, (project, query) -> funnelQueryExecutor.query(project,
+                query.steps,
+                Optional.ofNullable(query.dimension),
+                query.startDate,
+                query.endDate,
+                Optional.ofNullable(query.window),
+                query.timezone,
+                Optional.ofNullable(query.connectors), Optional.ofNullable(query.strictOrdering)), (query, result) -> LOGGER.error(new RuntimeException(JsonHelper.encode(query) + " : " + result.getError().toString()), "Error running funnel query"));
     }
 
     @ApiOperation(value = "Execute query",

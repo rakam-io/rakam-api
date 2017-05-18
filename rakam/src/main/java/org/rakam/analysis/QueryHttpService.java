@@ -25,6 +25,7 @@ import io.swagger.annotations.ApiModelProperty;
 import org.rakam.collection.SchemaField;
 import org.rakam.http.ForHttpServer;
 import org.rakam.plugin.EventStore.CopyType;
+import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
@@ -60,7 +61,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -165,14 +168,19 @@ public class QueryHttpService
                         query.limit == null ? DEFAULT_QUERY_RESULT_COUNT : query.limit));
     }
 
+    public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction, BiConsumer<T, QueryResult> exceptionCallback)
+    {
+        handleServerSentQueryExecution(request, clazz, executorFunction, READ_KEY, true, Optional.of(exceptionCallback));
+    }
+
     public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction)
     {
-        handleServerSentQueryExecution(request, clazz, executorFunction, READ_KEY, true);
+        handleServerSentQueryExecution(request, clazz, executorFunction, READ_KEY, true, Optional.empty());
     }
 
     private static Duration RETRY_DURATION = Duration.ofSeconds(600);
 
-    public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction, ApiKeyService.AccessKeyType keyType, boolean killOnConnectionClose)
+    public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction, ApiKeyService.AccessKeyType keyType, boolean killOnConnectionClose, Optional<BiConsumer<T, QueryResult>> exceptionCallback)
     {
         if (!Objects.equals(request.headers().get(ACCEPT), "text/event-stream")) {
             request.response("The endpoint only supports text/event-stream as Accept header", HttpResponseStatus.NOT_ACCEPTABLE).end();
@@ -240,16 +248,17 @@ public class QueryHttpService
             return;
         }
 
-        handleServerSentQueryExecutionInternal(response, execute, killOnConnectionClose);
+        handleServerSentQueryExecutionInternal(response, execute, killOnConnectionClose,
+                queryResult -> exceptionCallback.ifPresent(e -> e.accept(query, queryResult)));
     }
 
     public void handleServerSentQueryExecution(RakamHttpRequest request, QueryExecution query, boolean killOnConnectionClose)
     {
         RakamHttpRequest.StreamResponse response = request.streamResponse(RETRY_DURATION);
-        handleServerSentQueryExecutionInternal(response, query, killOnConnectionClose);
+        handleServerSentQueryExecutionInternal(response, query, killOnConnectionClose, (r) -> {});
     }
 
-    private void handleServerSentQueryExecutionInternal(RakamHttpRequest.StreamResponse response, QueryExecution query, boolean killOnConnectionClose)
+    private void handleServerSentQueryExecutionInternal(RakamHttpRequest.StreamResponse response, QueryExecution query, boolean killOnConnectionClose, Consumer<QueryResult> exceptionMapper)
     {
         if (query == null) {
             LOGGER.error("Query execution is null");
@@ -268,6 +277,7 @@ public class QueryHttpService
                                 "Internal error"))).end();
             }
             else if (result.isFailed()) {
+                exceptionMapper.accept(result);
                 response.send("result", encode(jsonObject()
                         .put("success", false)
                         .putPOJO("error", result.getError())

@@ -201,7 +201,7 @@ public class PostgresqlQueryExecutor
 
     private QueryExecution getSingleQueryExecution(String query, CustomDataSource type)
     {
-        Optional<String> schema;
+        Optional<String> schema = Optional.ofNullable(type.options.getSchema());
 
         SupportedCustomDatabase source;
         try {
@@ -211,8 +211,6 @@ public class PostgresqlQueryExecutor
             return null;
         }
         char seperator = dbSeparator(type.type);
-
-        schema = Optional.empty();
 
         StringBuilder builder = new StringBuilder();
         Statement statement = sqlParser.createStatement(query);

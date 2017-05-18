@@ -40,6 +40,7 @@ import java.util.stream.Stream;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static java.time.temporal.ChronoUnit.DAYS;
+import static java.util.Optional.ofNullable;
 import static org.rakam.analysis.EventExplorer.ReferenceType.COLUMN;
 import static org.rakam.analysis.EventExplorer.ReferenceType.REFERENCE;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.HOUR;
@@ -350,7 +351,9 @@ public abstract class AbstractEventExplorer
                 result.setProperty("olapTable", table);
             }
             if (result.isFailed()) {
-                LOGGER.error(new RuntimeException(result.getError().toString()), "Error while running event explorer query");
+                RuntimeException exception = new RuntimeException("Error while running event explorer query", new RuntimeException(result.getError().message,
+                        new RuntimeException(ofNullable(result.getProperties().get("query")).map(Object::toString).orElse("Query could not found")));
+                LOGGER.error(exception);
             }
             return result;
         });
@@ -497,11 +500,6 @@ public abstract class AbstractEventExplorer
         }
         return collect;
     }
-
-
-//    public String sourceTable(Optional<Set<String>> collections) {
-//        return "continuous._event_explorer_metrics";
-//    }
 
     @Override
     public Map<String, List<String>> getExtraDimensions(String project)

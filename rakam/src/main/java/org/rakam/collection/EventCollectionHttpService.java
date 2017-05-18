@@ -508,7 +508,7 @@ public class EventCollectionHttpService
         else {
             queryHttpService.handleServerSentQueryExecution(request, BulkEventRemote.class, (project, convert) ->
                     copyEvent.get().copy(project, convert.collection, convert.urls, convert.type,
-                            convert.compression, convert.options), MASTER_KEY, false);
+                            convert.compression, convert.options), MASTER_KEY, false, Optional.empty());
         }
     }
 

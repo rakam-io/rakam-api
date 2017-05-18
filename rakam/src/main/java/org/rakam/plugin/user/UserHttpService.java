@@ -530,7 +530,7 @@ public class UserHttpService
     public void precalculateUsers(RakamHttpRequest request)
     {
         queryService.handleServerSentQueryExecution(request, PreCalculateQuery.class,
-                service::preCalculate, MASTER_KEY, false);
+                service::preCalculate, MASTER_KEY, false, Optional.empty());
     }
 
     @JsonRequest

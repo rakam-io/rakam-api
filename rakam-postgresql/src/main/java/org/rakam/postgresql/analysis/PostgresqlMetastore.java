@@ -131,8 +131,8 @@ public class PostgresqlMetastore
     @Override
     public void createProject(String project)
     {
-        if (project.equals("information_schema")) {
-            throw new IllegalArgumentException("information_schema is a reserved name for Postgresql backend.");
+        if (ImmutableList.of("public", "information_schema", "pg_catalog").contains(project)) {
+            throw new IllegalArgumentException("The name is a reserved name for Postgresql backend.");
         }
         try (Connection connection = connectionPool.getConnection()) {
             final Statement statement = connection.createStatement();

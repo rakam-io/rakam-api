@@ -30,6 +30,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -155,9 +156,9 @@ public class CustomDataSourceService
     public CustomDataSource getDatabase(@Named("project") String project, String schema)
     {
         try (Handle handle = dbi.open()) {
-            Query<Map<String, Object>> bind = handle.createQuery("SELECT type, options FROM custom_data_source WHERE project = :project AND schema_name = :schema_name")
+            Query<Map<String, Object>> bind = handle.createQuery("SELECT type, options FROM custom_data_source WHERE project = :project AND lower(schema_name) = :schema_name")
                     .bind("project", project)
-                    .bind("schema_name", schema);
+                    .bind("schema_name", schema.toLowerCase(Locale.ENGLISH));
 
             CustomDataSource first = bind.map((index, r, ctx) -> {
                 return new CustomDataSource(r.getString(1), schema, JsonHelper.read(r.getString(2), JDBCSchemaConfig.class));
