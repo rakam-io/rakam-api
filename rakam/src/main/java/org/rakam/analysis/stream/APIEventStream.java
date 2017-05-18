@@ -87,6 +87,10 @@ public class APIEventStream
 
                 boolean isFirst = true;
                 while (message != null) {
+                    if (!isFirst) {
+                        builder.append(",");
+                    }
+
                     builder.append("{\"project\":")
                             .append(JsonHelper.encode(message.project()))
                             .append(", \"collection\":")
@@ -94,9 +98,6 @@ public class APIEventStream
                             .append(", \"properties\": ")
                             .append(message.properties().toString()).append("}");
 
-                    if (!isFirst) {
-                        builder.append(",");
-                    }
                     isFirst = false;
                     message = streamHolder.messageQueue.poll();
                 }
