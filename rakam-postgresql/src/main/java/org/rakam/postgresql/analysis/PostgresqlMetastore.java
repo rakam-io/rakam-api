@@ -279,6 +279,7 @@ public class PostgresqlMetastore
                             currentFields.add(f);
                             return f;
                         })
+                        .filter(f -> !f.getName().equals("$server_time"))
                         .map(f -> format("%s %s NULL", checkTableColumn(f.getName()), toSql(f.getType())))
                         .collect(Collectors.joining(", "));
 
