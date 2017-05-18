@@ -118,7 +118,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
                 f.complete(!result.isFailed() ? Instant.now() : null);
                 return result;
             });
-            return new MaterializedViewExecution(delegateQueryExecution, collection);
+            return new MaterializedViewExecution(delegateQueryExecution, tableName);
         }
         else {
             List<String> referencedCollections = new ArrayList<>();
