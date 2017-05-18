@@ -83,8 +83,8 @@ public class PrestoFunnelQueryExecutor
     @Override
     public String getTemplate(List<FunnelStep> steps, Optional<String> dimension, Optional<FunnelWindow> window)
     {
-        return "select %s steps, count(*) total from (\n" +
-                "select %s user_funnel(step, " + checkTableColumn(projectConfig.getTimeColumn()) + ") as steps from (select * from (%s) WHERE "
+        return "select %s step, count(*) total from (\n" +
+                "select %s user_funnel(step, " + checkTableColumn(projectConfig.getTimeColumn()) + ") as step from (select * from (%s) WHERE "
                 + checkTableColumn(projectConfig.getTimeColumn()) + " between timestamp '%s' and timestamp '%s'\n" +
                 ") t group by %s %s\n" +
                 ") t group by 1 %s order by 1";

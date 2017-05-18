@@ -32,6 +32,7 @@ public abstract class TestFunnelQueryExecutor {
 
     @BeforeSuite
     public void setup() throws Exception {
+//        if(true) return;
         EventBuilder builder = new EventBuilder(PROJECT_NAME, getMetastore());
 
         getMetastore().createProject(PROJECT_NAME);

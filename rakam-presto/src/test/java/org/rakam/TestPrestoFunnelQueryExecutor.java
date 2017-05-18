@@ -3,8 +3,10 @@ package org.rakam;
 import com.google.common.eventbus.EventBus;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.InMemoryQueryMetadataStore;
+import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.TestFunnelQueryExecutor;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.config.JDBCConfig;
 import org.rakam.config.ProjectConfig;
 import org.rakam.event.TestingEnvironment;
 import org.rakam.plugin.EventStore;
@@ -20,6 +22,7 @@ import org.rakam.report.QueryExecutorService;
 import org.rakam.report.realtime.RealTimeConfig;
 import org.testng.annotations.BeforeSuite;
 
+import java.net.URI;
 import java.time.Clock;
 import java.time.ZoneId;
 
@@ -37,10 +40,16 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
         PrestoConfig prestoConfig = testingEnvironment.getPrestoConfig();
 
         InMemoryQueryMetadataStore inMemoryQueryMetadataStore = new InMemoryQueryMetadataStore();
+        JDBCPoolDataSource prestoMetastore = testingEnvironment.getPrestoMetastore();
 
         EventBus eventBus = new EventBus();
 
-        metastore = new PrestoRakamRaptorMetastore(testingEnvironment.getPrestoMetastore(), eventBus, new ProjectConfig(), prestoConfig);
+//        prestoMetastore = JDBCPoolDataSource.getOrCreateDataSource(new JDBCConfig().setUrl("jdbc:mysql://127.0.0.1:3306/presto").setUsername("root").setPassword("hebelek123"));
+//        prestoConfig = new PrestoConfig()
+//                .setAddress(URI.create("http://127.0.0.1:8080"))
+//                .setColdStorageConnector("rakam_raptor");
+
+        metastore = new PrestoRakamRaptorMetastore(prestoMetastore, eventBus, new ProjectConfig(), prestoConfig);
         metastore.setup();
 
         PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(new ProjectConfig(), prestoConfig, null, null, metastore);

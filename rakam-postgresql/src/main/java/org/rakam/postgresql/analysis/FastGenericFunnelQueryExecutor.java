@@ -120,7 +120,7 @@ public class FastGenericFunnelQueryExecutor
 
                         for (List<Object> objects : result.getResult()) {
                             for (int i = 0; i < steps.size(); i++) {
-                                newResult.add(ImmutableList.of("Step " + i,
+                                newResult.add(ImmutableList.of("Step " + (i + 1),
                                         objects.get(0), objects.get(i + 1)));
                             }
                         }
@@ -133,7 +133,7 @@ public class FastGenericFunnelQueryExecutor
                         List<Object> stepCount = result.getResult().get(0);
                         for (int i = 0; i < steps.size(); i++) {
                             Object value = stepCount.get(i);
-                            newResult.add(ImmutableList.of("Step " + i, value == null ? 0 : value));
+                            newResult.add(ImmutableList.of("Step " + (i + 1), value == null ? 0 : value));
                         }
                     }
 
