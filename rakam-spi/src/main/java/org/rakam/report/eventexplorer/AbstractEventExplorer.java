@@ -352,7 +352,7 @@ public abstract class AbstractEventExplorer
             }
             if (result.isFailed()) {
                 RuntimeException exception = new RuntimeException("Error while running event explorer query", new RuntimeException(result.getError().message,
-                        new RuntimeException(ofNullable(result.getProperties().get("query")).map(Object::toString).orElse("Query could not found")));
+                        new RuntimeException(ofNullable(result.getProperties().get("query")).map(Object::toString).orElse("Query could not found"))));
                 LOGGER.error(exception);
             }
             return result;
