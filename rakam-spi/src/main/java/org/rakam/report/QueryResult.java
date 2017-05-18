@@ -77,7 +77,7 @@ public class QueryResult
 
     public Map<String, Object> getProperties()
     {
-        return properties;
+        return properties == null ? ImmutableMap.of() : properties;
     }
 
     public synchronized void setProperty(String key, Object value)
