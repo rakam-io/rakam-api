@@ -47,7 +47,7 @@ public class FastGenericFunnelQueryExecutor
     @Override
     public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, Optional<Boolean> ordered)
     {
-        if(ordered.isPresent() && ordered.get()) {
+        if (ordered.isPresent() && ordered.get()) {
             throw new RakamException("Strict ordered funnel query is not supported", BAD_REQUEST);
         }
 
@@ -68,8 +68,13 @@ public class FastGenericFunnelQueryExecutor
                     name -> name.getParts().stream()
                             .map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")), '"'));
 
-            selects.add(format("sum(case when ts_event%d is not null then 1 else 0 end) as event%d_count", i, i));
-//            selects.add(format("count(case when ts_event%d is not null then 1 else 0 end) as event%d_count", i, i));
+            if (i == 0) {
+                selects.add(format("sum(case when ts_event%d is not null then 1 else 0 end) as event%d_count", i, i));
+            }
+            else {
+                selects.add(format("sum(case when ts_event%d >= ts_event%d then 1 else 0 end) as event%d_count", i, i - 1, i));
+            }
+
             insideSelect.add(format("min(case when step = %d then %s end) as ts_event%d", i, checkTableColumn(projectConfig.getTimeColumn()), i));
             mainSelect.add(format("select %s %d as step, %s, %s from %s where %s between timestamp '%s' and timestamp '%s' and %s",
                     dimension.map(v -> v + ", ").orElse(""),
