@@ -55,7 +55,7 @@ public class RakamUIConfig {
         return enableUi;
     }
 
-    @Config("authentication")
+    @Config("ui.authentication")
     public RakamUIConfig setAuthentication(String authentication) {
         this.authentication = authentication;
         return this;

@@ -10,6 +10,7 @@ public class ProjectConfig {
     private String passphrase;
     private String timeColumn = "_time";
     private String userColumn = "_user";
+    private String companyName;
 
     @Config("lock-key")
     @ConfigDescription("A key that is required only for creating projects")
@@ -50,5 +51,16 @@ public class ProjectConfig {
 
     public String getUserColumn() {
         return userColumn;
+    }
+
+
+    @Config("company-name")
+    public ProjectConfig setCompanyName(String companyName) {
+        this.companyName = companyName;
+        return this;
+    }
+
+    public String getCompanyName() {
+        return companyName;
     }
 }

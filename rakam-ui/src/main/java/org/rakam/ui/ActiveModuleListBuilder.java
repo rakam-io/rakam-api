@@ -2,6 +2,7 @@ package org.rakam.ui;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Optional;
+import org.rakam.config.ProjectConfig;
 import org.rakam.report.eventexplorer.EventExplorerConfig;
 import org.rakam.plugin.stream.EventStreamConfig;
 import org.rakam.report.realtime.RealTimeConfig;
@@ -17,22 +18,26 @@ public class ActiveModuleListBuilder {
     private final EventExplorerConfig eventExplorerConfig;
     private final UserPluginConfig userStorage;
     private final boolean userStorageMailbox;
+    private final ProjectConfig projectConfig;
 
     @Inject
-    public ActiveModuleListBuilder(UserPluginConfig userPluginConfig, Optional<UserMailboxStorage> mailboxStorage, RealTimeConfig realtimeConfig, EventStreamConfig eventStreamConfig, EventExplorerConfig eventExplorerConfig, UserPluginConfig userStorage) {
+    public ActiveModuleListBuilder(UserPluginConfig userPluginConfig, Optional<UserMailboxStorage> mailboxStorage, RealTimeConfig realtimeConfig, EventStreamConfig eventStreamConfig, EventExplorerConfig eventExplorerConfig, UserPluginConfig userStorage, ProjectConfig projectConfig) {
        this.userPluginConfig = userPluginConfig;
        this.realtimeConfig = realtimeConfig;
        this.eventStreamConfig = eventStreamConfig;
        this.eventExplorerConfig = eventExplorerConfig;
        this.userStorage = userStorage;
+       this.projectConfig = projectConfig;
        this.userStorageMailbox = mailboxStorage.isPresent();
     }
 
     public ActiveModuleList build() {
-        return new ActiveModuleList(userPluginConfig, userStorageMailbox, realtimeConfig, eventStreamConfig, eventExplorerConfig, userStorage);
+        return new ActiveModuleList(userPluginConfig, userStorageMailbox, realtimeConfig, eventStreamConfig, eventExplorerConfig, userStorage, projectConfig);
     }
 
     public static class ActiveModuleList {
+        @JsonProperty
+        public final String companyName;
         @JsonProperty
         public final boolean userStorage;
         @JsonProperty
@@ -54,7 +59,7 @@ public class ActiveModuleListBuilder {
         @JsonProperty
         public final boolean userStorageEventFilter;
 
-        private ActiveModuleList(UserPluginConfig userPluginConfig, boolean userStorageMailbox, RealTimeConfig realtimeConfig, EventStreamConfig eventStreamConfig, EventExplorerConfig eventExplorerConfig, UserPluginConfig userStorage) {
+        private ActiveModuleList(UserPluginConfig userPluginConfig, boolean userStorageMailbox, RealTimeConfig realtimeConfig, EventStreamConfig eventStreamConfig, EventExplorerConfig eventExplorerConfig, UserPluginConfig userStorage, ProjectConfig projectConfig) {
             this.userStorage = userPluginConfig.getStorageModule() != null;
             this.userMailbox = userStorageMailbox;
             this.funnelAnalysisEnabled = userPluginConfig.isFunnelAnalysisEnabled();
@@ -65,6 +70,7 @@ public class ActiveModuleListBuilder {
             this.realtime = realtimeConfig.isRealtimeModuleEnabled();
             this.eventStream = eventStreamConfig.getEventStreamEnabled();
             this.userStorageEventFilter = userStorage.getStorageModule() != null;
+            this.companyName = projectConfig.getCompanyName();
         }
     }
 }

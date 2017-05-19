@@ -24,7 +24,7 @@ public class LdapConfig
         return ldapUrl;
     }
 
-    @Config("authentication.ldap.url")
+    @Config("ui.authentication.ldap.url")
     @ConfigDescription("URL of the LDAP server")
     public LdapConfig setLdapUrl(String url)
     {
@@ -38,7 +38,7 @@ public class LdapConfig
         return userBindSearchPattern;
     }
 
-    @Config("authentication.ldap.user-bind-pattern")
+    @Config("ui.authentication.ldap.user-bind-pattern")
     @ConfigDescription("Custom user bind pattern. Example: ${USER}@example.com")
     public LdapConfig setUserBindSearchPattern(String userBindSearchPattern)
     {
@@ -51,7 +51,7 @@ public class LdapConfig
         return groupAuthorizationSearchPattern;
     }
 
-    @Config("authentication.ldap.group-auth-pattern")
+    @Config("ui.authentication.ldap.group-auth-pattern")
     @ConfigDescription("Custom group authorization check query. Example: &(objectClass=user)(memberOf=cn=group)(user=username)")
     public LdapConfig setGroupAuthorizationSearchPattern(String groupAuthorizationSearchPattern)
     {
@@ -64,7 +64,7 @@ public class LdapConfig
         return userBaseDistinguishedName;
     }
 
-    @Config("authentication.ldap.user-base-dn")
+    @Config("ui.authentication.ldap.user-base-dn")
     @ConfigDescription("Base distinguished name of the user. Example: dc=example,dc=com")
     public LdapConfig setUserBaseDistinguishedName(String userBaseDistinguishedName)
     {
@@ -78,7 +78,7 @@ public class LdapConfig
         return ldapCacheTtl;
     }
 
-    @Config("authentication.ldap.cache-ttl")
+    @Config("ui.authentication.ldap.cache-ttl")
     public LdapConfig setLdapCacheTtl(Duration ldapCacheTtl)
     {
         this.ldapCacheTtl = ldapCacheTtl;
