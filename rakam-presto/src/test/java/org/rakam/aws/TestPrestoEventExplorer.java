@@ -66,6 +66,7 @@ public class TestPrestoEventExplorer
         eventExplorer = new PrestoEventExplorer(new ProjectConfig(), queryExecutorService, continuousQueryService, materializedViewService);
         setupInline();
         super.setup();
+        Thread.sleep(10000);
     }
 
     @Override

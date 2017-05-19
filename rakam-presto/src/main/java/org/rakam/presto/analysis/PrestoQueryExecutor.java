@@ -225,16 +225,6 @@ public class PrestoQueryExecutor
                         checkCollection(suffix);
             }
             else {
-                if(suffix.equals("_event_explorer_metrics")) {
-                    String collect = metastore.getCollectionNames(project).stream()
-                            .map(e -> String.format("select _time as _time, '%s' as \"_collection\" from %s.%s.%s", e,
-                                    prestoConfig.getColdStorageConnector(), checkProject(project), checkCollection(e)))
-                            .collect(Collectors.joining(" union all "));
-
-                    return String.format("(select date_trunc('week', cast(_time as date)) as week, \"_collection\" as collection, date_trunc('hour', _time) as _time, count(*) as total \n" +
-                            "from (%s) group by 1, 2, 3)", collect);
-                }
-
                 return prestoConfig.getColdStorageConnector() + "." +
                         checkCollection(project) + "." +
                         checkCollection(CONTINUOUS_QUERY_PREFIX + suffix);
@@ -243,7 +233,7 @@ public class PrestoQueryExecutor
         else if ("materialized".equals(prefix)) {
             return getTableReference(project, MATERIALIZED_VIEW_PREFIX + suffix, sample);
         }
-        else if ("collection".equals(prefix) || (prefix == null && (defaultSchema.equals("collection")) && !"_users".equals(suffix))) {
+        else if ("collection".equals(prefix) || (prefix == null && (defaultSchema.equals("collection")) && !"_users".equals(suffix) && !"_all".equals(suffix))) {
             return getTableReference(project, suffix, sample);
         }
         else {
@@ -284,7 +274,7 @@ public class PrestoQueryExecutor
                             .collect(Collectors.joining(", "));
 
                     return "(" + collections.stream().map(Map.Entry::getKey)
-                            .map(collection -> format("select '%s' as \"_collection\", %s from %s",
+                            .map(collection -> format("select '%s' as _collection, _shard_time, %s from %s",
                                     collection,
                                     sharedColumns.isEmpty() ? "1" : sharedColumns,
                                     getTableReference(project, collection, sample)))
