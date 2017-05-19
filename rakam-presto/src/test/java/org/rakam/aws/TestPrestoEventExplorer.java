@@ -63,12 +63,9 @@ public class TestPrestoEventExplorer
                 prestoQueryExecutor, metastore, queryMetadataStore);
         QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, metastore, materializedViewService, Clock.systemUTC(), '"');
 
-        eventExplorer = new PrestoEventExplorer(new ProjectConfig(), queryExecutorService, metastore, continuousQueryService, materializedViewService);
+        eventExplorer = new PrestoEventExplorer(new ProjectConfig(), queryExecutorService, continuousQueryService, materializedViewService);
         setupInline();
         super.setup();
-//        new EventExplorerListener(new ProjectConfig(), null).onCreateCollection(new ProjectCreatedEvent(PROJECT_NAME));
-        // todo find a better way of handling this
-        Thread.sleep(15000);
     }
 
     @Override

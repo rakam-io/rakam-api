@@ -165,14 +165,14 @@ public class PostgresqlQueryExecutor
                         .collect(Collectors.joining(", "));
 
                 return "(" + collections.stream().map(Map.Entry::getKey)
-                        .map(collection -> format("select cast('%s' as text) as \"$collection\" %s, row_to_json(t) properties from %s t",
+                        .map(collection -> format("select cast('%s' as text) as \"_collection\", \"$server_time\" %s properties from %s t",
                                 checkLiteral(collection),
                                 sharedColumns.isEmpty() ? "" : (", " + sharedColumns),
                                 project + "." + checkCollection(collection)))
                         .collect(Collectors.joining(" union all \n")) + ") _all";
             }
             else {
-                return String.format("(select cast(null as text) as \"$collection\", cast(null as text) as _user, cast(null as timestamp) as %s limit 0) _all",
+                return String.format("(select cast(null as text) as \"_collection\", cast(null as text) as _user, cast(null as timestamp) as %s limit 0) _all",
                         checkTableColumn(projectConfig.getTimeColumn()));
             }
         }

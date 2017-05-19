@@ -78,13 +78,13 @@ public class ClickHouseQueryExecutor implements QueryExecutor
                         .collect(Collectors.joining(", "));
 
                 return "(" + collections.stream().map(Map.Entry::getKey)
-                        .map(collection -> format("select '%s' as `$collection`, %s from %s",
+                        .map(collection -> format("select '%s' as `_collection`, %s from %s",
                                 collection,
                                 sharedColumns.isEmpty() ? "1" : sharedColumns,
                                 getTableReference(project, QualifiedName.of(collection))))
                         .collect(Collectors.joining(" union all ")) + ") ";
             } else {
-                return String.format("(select '' as `$collection`, '' as _user, now() as %s limit 0)", checkTableColumn(projectConfig.getTimeColumn(), '`'));
+                return String.format("(select '' as `_collection`, '' as _user, now() as %s limit 0)", checkTableColumn(projectConfig.getTimeColumn(), '`'));
             }
 
         } else {

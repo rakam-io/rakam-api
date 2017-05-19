@@ -2,10 +2,9 @@ package org.rakam.analysis;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.Subscribe;
-import org.rakam.analysis.MaterializedViewService;
 import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.MaterializedView;
-import org.rakam.plugin.SystemEvents.CollectionCreatedEvent;
+import org.rakam.plugin.SystemEvents;
 
 import javax.inject.Inject;
 
@@ -28,24 +27,24 @@ public class EventExplorerListener
     }
 
     @Subscribe
-    public void onCreateCollection(CollectionCreatedEvent event)
+    public void onCreateProject(SystemEvents.ProjectCreatedEvent event)
     {
-        createTable(event.project, event.collection);
+        createTable(event.project);
     }
 
-    public void createTable(String project, String collection)
+    public void createTable(String project)
     {
-        String query = format("select date_trunc('hour', %s) as _time, count(*) as total from %s group by 1",
-                checkTableColumn(projectConfig.getTimeColumn()), checkCollection(collection));
+        String query = format("select date_trunc('hour', %s) as _time, _collection, count(*) as total from _all group by 1, 2",
+                checkTableColumn(projectConfig.getTimeColumn()));
 
-        MaterializedView report = new MaterializedView(prefix() + collection,
-                format("Event explorer metrics for %s collection", collection),
+        MaterializedView report = new MaterializedView(tableName(),
+                format("Event explorer metrics"),
                 query,
                 Duration.ofHours(1), true, true, ImmutableMap.of());
         materializedViewService.create(project, report).join();
     }
 
-    public static String prefix() {
-        return "_event_explorer_metrics - ";
+    public static String tableName() {
+        return "_event_explorer_metrics";
     }
 }

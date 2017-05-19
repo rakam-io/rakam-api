@@ -66,59 +66,12 @@ public class PostgresqlEventExplorer
     private final ProjectConfig projectConfig;
 
     @Inject
-    public PostgresqlEventExplorer(ProjectConfig projectConfig, Metastore metastore, QueryExecutorService service, MaterializedViewService materializedViewService,
+    public PostgresqlEventExplorer(ProjectConfig projectConfig, QueryExecutorService service, MaterializedViewService materializedViewService,
             ContinuousQueryService continuousQueryService)
     {
-        super(projectConfig, service, metastore, materializedViewService, continuousQueryService, timestampMapping);
+        super(projectConfig, service, materializedViewService, continuousQueryService, timestampMapping);
         this.executorService = service;
         this.projectConfig = projectConfig;
-    }
-
-//    @Override
-    public CompletableFuture<QueryResult> gektEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, Instant startDate, Instant endDate)
-    {
-        checkProject(project);
-
-        if (collections.isPresent() && collections.get().isEmpty()) {
-            return CompletableFuture.completedFuture(QueryResult.empty());
-        }
-
-        if (dimension.isPresent()) {
-            checkReference(dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
-        }
-
-        String timePredicate = format("%s between timestamp '%s' and timestamp '%s' + interval '1' day",
-                checkTableColumn(projectConfig.getTimeColumn()), TIMESTAMP_FORMATTER.format(startDate), TIMESTAMP_FORMATTER.format(endDate));
-
-        String collectionQuery = collections.map(v -> "(" + v.stream()
-                .map(col -> format("SELECT %s, cast('%s' as text) as \"$collection\" FROM %s", checkTableColumn(projectConfig.getTimeColumn()), col, checkCollection(col))).collect(Collectors.joining(" union all ")) + ") data")
-                .orElse("_all");
-
-        String query;
-        if (dimension.isPresent()) {
-            Optional<TimestampTransformation> aggregationMethod = fromPrettyName(dimension.get());
-            if (!aggregationMethod.isPresent()) {
-                throw new RakamException(BAD_REQUEST);
-            }
-
-            query = format("select \"$collection\", %s as %s, count(*) from %s where %s group by 1, 2 order by 2 desc",
-                    format(timestampMapping.get(aggregationMethod.get()), projectConfig.getTimeColumn()),
-                    aggregationMethod.get(), collectionQuery, timePredicate);
-        }
-        else {
-            query = format("select \"$collection\", count(*) total \n" +
-                    " from %s where %s group by 1", collectionQuery, timePredicate);
-        }
-
-        QueryExecution collection = executorService.executeQuery(project, query, Optional.empty(), "collection", 20000);
-        collection.getResult().thenAccept(result -> {
-            if (result.isFailed()) {
-                LOGGER.error(new RuntimeException(result.getError().toString()),
-                        "An error occurred while executing event explorer statistics query.");
-            }
-        });
-
-        return collection.getResult();
     }
 
     @Override

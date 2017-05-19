@@ -46,9 +46,9 @@ public class PrestoEventExplorer extends AbstractEventExplorer {
             .build();
 
     @Inject
-    public PrestoEventExplorer(ProjectConfig projectConfig, QueryExecutorService executor, Metastore metastore, ContinuousQueryService continuousQueryService,
+    public PrestoEventExplorer(ProjectConfig projectConfig, QueryExecutorService executor, ContinuousQueryService continuousQueryService,
                                MaterializedViewService materializedViewService) {
-        super(projectConfig, executor, metastore, materializedViewService, continuousQueryService, timestampMapping);
+        super(projectConfig, executor, materializedViewService, continuousQueryService, timestampMapping);
     }
 
     @Override

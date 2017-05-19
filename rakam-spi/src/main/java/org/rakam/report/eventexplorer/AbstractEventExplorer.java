@@ -12,7 +12,6 @@ import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.MaterializedView;
-import org.rakam.plugin.SystemEvents;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
@@ -21,6 +20,7 @@ import org.rakam.report.realtime.AggregationType;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.MaterializedViewNotExists;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -68,19 +68,16 @@ public abstract class AbstractEventExplorer
     private final MaterializedViewService materializedViewService;
     private final ContinuousQueryService continuousQueryService;
     private final ProjectConfig projectConfig;
-    private final Metastore metastore;
 
     public AbstractEventExplorer(
             ProjectConfig projectConfig,
             QueryExecutorService executor,
-            Metastore metastore,
             MaterializedViewService materializedViewService,
             ContinuousQueryService continuousQueryService,
             Map<TimestampTransformation, String> timestampMapping)
     {
         this.projectConfig = projectConfig;
         this.executor = executor;
-        this.metastore = metastore;
         this.timestampMapping = timestampMapping;
         this.materializedViewService = materializedViewService;
         this.continuousQueryService = continuousQueryService;
@@ -450,12 +447,12 @@ public abstract class AbstractEventExplorer
             query = format("select collection, %s as %s, cast(sum(total) as bigint) from (%s) data where %s group by 1, 2 order by 2 desc",
                     aggregationMethod.get() == HOUR ? projectConfig.getTimeColumn() : format(timestampMapping.get(aggregationMethod.get()), projectConfig.getTimeColumn()),
                     aggregationMethod.get(),
-                    sourceTable(project, collections),
+                    sourceTable(collections),
                     timePredicate);
         }
         else {
             query = format("select collection, cast(coalesce(sum(total), 0) as bigint) as total \n" +
-                    " from (%s) data where %s group by 1", sourceTable(project, collections), timePredicate);
+                    " from (%s) data where %s group by 1", sourceTable(collections), timePredicate);
         }
 
         QueryExecution collection;
@@ -463,17 +460,7 @@ public abstract class AbstractEventExplorer
             collection = executor.executeQuery(project, query, Optional.empty(), "collection", 20000);
         }
         catch (MaterializedViewNotExists e) {
-            List<MaterializedView> views = materializedViewService.list(project);
-            EventExplorerListener eventExplorerListener = new EventExplorerListener(projectConfig, materializedViewService);
-
-            collections.orElseGet(() -> metastore.getCollectionNames(project))
-                    .stream()
-                    .filter(c -> {
-                        boolean b = !views.stream().anyMatch(t -> t.tableName.equals(eventExplorerListener.prefix() + c));
-                        return b;
-                    })
-                    .forEach(c -> eventExplorerListener.createTable(project, c));
-
+            new EventExplorerListener(projectConfig, materializedViewService).createTable(project);
             collection = executor.executeQuery(project, query, Optional.empty(), "collection", 20000);
         }
 
@@ -487,18 +474,11 @@ public abstract class AbstractEventExplorer
         return collection.getResult();
     }
 
-    public String sourceTable(String project, Optional<Set<String>> collections)
+    public String sourceTable(Optional<Set<String>> collections)
     {
-
-        String collect = collections.orElseGet(() -> metastore.getCollectionNames(project))
-                .stream()
-                .map(c -> format("select _time, total, cast('%s' as varchar) as collection from materialized.%s",
-                        checkLiteral(c), checkCollection("_event_explorer_metrics - " + c)))
-                .collect(Collectors.joining(" union all "));
-        if(collect.isEmpty()) {
-            return "select now() as _time, 0 as total, cast(null as varchar) as collection";
-        }
-        return collect;
+        return String.format("select _time, total, _collection as collection from materialized.%s %s",
+                EventExplorerListener.tableName(),
+                collections.map(e -> "WHERE _collection IN (" + e.stream().map(n -> "'"+ValidationUtil.checkLiteral(n)+"'").collect(Collectors.joining(", "))).orElse(""));
     }
 
     @Override

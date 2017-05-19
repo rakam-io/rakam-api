@@ -121,15 +121,6 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
             return new MaterializedViewExecution(delegateQueryExecution, tableName);
         }
         else {
-            List<String> referencedCollections = new ArrayList<>();
-
-            formatSql(statement, name -> {
-                if (name.getPrefix().map(prefix -> prefix.equals("collection")).orElse(true)) {
-                    referencedCollections.add(name.getSuffix());
-                }
-                return null;
-            }, '"');
-
             String materializedTableReference = tableName;
 
             Instant lastUpdated = materializedView.lastUpdate;
@@ -145,9 +136,9 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
                                     lastUpdated.getEpochSecond(), now.getEpochSecond()) :
                                     format(" < timezone('UTC', to_timestamp(%d))", now.getEpochSecond());
 
-                            return format("(SELECT * FROM %s WHERE \"$server_time\" %s) data",
-                                    queryExecutor.formatTableReference(project, name, Optional.empty(),
-                                            ImmutableMap.of(), "collection"), predicate);
+                            String collection = queryExecutor.formatTableReference(project, name, Optional.empty(),
+                                    ImmutableMap.of(), "collection");
+                            return format("(SELECT * FROM %s WHERE \"$server_time\" %s) data", collection, predicate);
                         }, '"');
 
                 queryExecution = queryExecutor.executeRawStatement(format("INSERT INTO %s %s", materializedTableReference, query), sessionProperties);

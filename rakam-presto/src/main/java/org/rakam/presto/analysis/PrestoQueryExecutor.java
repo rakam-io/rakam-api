@@ -227,11 +227,11 @@ public class PrestoQueryExecutor
             else {
                 if(suffix.equals("_event_explorer_metrics")) {
                     String collect = metastore.getCollectionNames(project).stream()
-                            .map(e -> String.format("select _time as _time, '%s' as \"$collection\" from %s.%s.%s", e,
+                            .map(e -> String.format("select _time as _time, '%s' as \"_collection\" from %s.%s.%s", e,
                                     prestoConfig.getColdStorageConnector(), checkProject(project), checkCollection(e)))
                             .collect(Collectors.joining(" union all "));
 
-                    return String.format("(select date_trunc('week', cast(_time as date)) as week, \"$collection\" as collection, date_trunc('hour', _time) as _time, count(*) as total \n" +
+                    return String.format("(select date_trunc('week', cast(_time as date)) as week, \"_collection\" as collection, date_trunc('hour', _time) as _time, count(*) as total \n" +
                             "from (%s) group by 1, 2, 3)", collect);
                 }
 
@@ -284,14 +284,14 @@ public class PrestoQueryExecutor
                             .collect(Collectors.joining(", "));
 
                     return "(" + collections.stream().map(Map.Entry::getKey)
-                            .map(collection -> format("select '%s' as \"$collection\", %s from %s",
+                            .map(collection -> format("select '%s' as \"_collection\", %s from %s",
                                     collection,
                                     sharedColumns.isEmpty() ? "1" : sharedColumns,
                                     getTableReference(project, collection, sample)))
                             .collect(Collectors.joining(" union all ")) + ") _all";
                 }
                 else {
-                    return "(select null as \"$collection\", null as _user, null as " + checkTableColumn(projectConfig.getTimeColumn()) + " limit 0) _all";
+                    return "(select null as \"_collection\", null as _user, null as " + checkTableColumn(projectConfig.getTimeColumn()) + " limit 0) _all";
                 }
             }
             else {

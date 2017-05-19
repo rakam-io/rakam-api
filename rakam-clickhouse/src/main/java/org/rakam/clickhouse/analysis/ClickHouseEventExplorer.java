@@ -201,7 +201,7 @@ public class ClickHouseEventExplorer
                 DATE_TIME_FORMATTER.format(endDate.plus(1, DAYS)));
 
         String collectionQuery = collections.map(v -> "(" + v.stream()
-                .map(col -> String.format("SELECT %s, cast('%s' as string) as \"$collection\" FROM %s",
+                .map(col -> String.format("SELECT %s, cast('%s' as string) as \"_collection\" FROM %s",
                         checkTableColumn(projectConfig.getTimeColumn()),
                         col, checkCollection(col, '`'))).collect(Collectors.joining(", ")) + ") ")
                 .orElse("_all");
@@ -214,14 +214,14 @@ public class ClickHouseEventExplorer
             }
 
             String function = format(timestampMapping.get(aggregationMethod.get()), projectConfig.getTimeColumn());
-            query = format("select \"$collection\" as collection, %s as %s, count(*) from %s where %s group by \"$collection\", %s order by %s desc",
+            query = format("select \"_collection\" as collection, %s as %s, count(*) from %s where %s group by \"_collection\", %s order by %s desc",
                     function,
                     aggregationMethod.get(), collectionQuery, timePredicate,
                     function, function);
         }
         else {
-            query = String.format("select \"$collection\" as collection, count(*) total \n" +
-                    " from %s where %s group by \"$collection\"", collectionQuery, timePredicate);
+            query = String.format("select \"_collection\" as collection, count(*) total \n" +
+                    " from %s where %s group by \"_collection\"", collectionQuery, timePredicate);
         }
 
         return service.executeQuery(project, query).getResult();
