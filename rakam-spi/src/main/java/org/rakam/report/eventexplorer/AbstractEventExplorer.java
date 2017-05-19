@@ -476,9 +476,10 @@ public abstract class AbstractEventExplorer
 
     public String sourceTable(Optional<Set<String>> collections)
     {
-        return String.format("select _time, total, _collection as collection from materialized.%s %s",
-                EventExplorerListener.tableName(),
-                collections.map(e -> "WHERE _collection IN (" + e.stream().map(n -> "'"+ValidationUtil.checkLiteral(n)+"'").collect(Collectors.joining(", "))).orElse(""));
+        String predicate = collections.map(e -> "WHERE _collection IN (" +
+                e.stream().map(n -> "'" + ValidationUtil.checkLiteral(n) + "'").collect(Collectors.joining(", ")) + ")").orElse("");
+        return format("select _time, total, _collection as collection from materialized.%s %s",
+                EventExplorerListener.tableName(), predicate);
     }
 
     @Override

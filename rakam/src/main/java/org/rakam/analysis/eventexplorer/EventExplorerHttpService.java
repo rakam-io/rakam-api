@@ -51,6 +51,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+import static java.lang.String.format;
 import static org.rakam.report.realtime.AggregationType.COUNT;
 import static org.rakam.report.realtime.AggregationType.SUM;
 import static org.rakam.util.ValidationUtil.checkArgument;
@@ -145,34 +146,46 @@ public class EventExplorerHttpService
     @Path("/pre_calculate")
     public CompletableFuture<PrecalculatedTable> createPrecomputedTable(@Named("project") String project, @BodyParam OLAPTable table)
     {
-        String metrics = table.measures.stream().map(column -> table.aggregations.stream()
-                .map(agg -> getAggregationColumn(agg, table.aggregations).map(e -> String.format(e, column) + " as " + column + "_" + agg.name().toLowerCase()))
-                .filter(Optional::isPresent).map(Optional::get).collect(Collectors.joining(", ")))
-                .collect(Collectors.joining(", "));
-
         String dimensions = table.dimensions.stream().collect(Collectors.joining(", "));
-        String subQuery = table.collections.stream().map(collection -> String.format("SELECT cast('%s' as varchar) as _collection, %s %s %s FROM %s",
-                collection,
-                checkTableColumn(projectConfig.getTimeColumn()),
-                dimensions.isEmpty() ? "" : ", " + dimensions,
-                table.measures.isEmpty() ? "" : ", " + table.measures.stream().collect(Collectors.joining(", ")), collection))
-                .collect(Collectors.joining(" UNION ALL "));
+
+        String subQuery;
+        String measures = table.measures.isEmpty() ? "" : (", " + table.measures.stream().collect(Collectors.joining(", ")));
+        String dimension = dimensions.isEmpty() ? "" : ", " + dimensions;
+
+        if (table.collections != null && !table.collections.isEmpty()) {
+            subQuery = table.collections.stream().map(collection ->
+                    format("SELECT cast('%s' as varchar) as _collection, %s %s %s FROM %s",
+                            collection,
+                            checkTableColumn(projectConfig.getTimeColumn()),
+                            dimension,
+                            measures, collection))
+                    .collect(Collectors.joining(" UNION ALL "));
+        }
+        else {
+            subQuery = format("SELECT _collection, %s %s FROM _all",
+                    checkTableColumn(projectConfig.getTimeColumn()), dimension, measures);
+        }
 
         String name = "Dimensions";
 
-        String dimensionColumns = !dimensions.isEmpty() ? (dimensions + ",") : "";
-        String query = String.format("SELECT %s %s, %s %s FROM (SELECT %s CAST(%s AS DATE) as %s, %s %s FROM (%s) data) data GROUP BY CUBE (%s %s %s) ORDER BY 1 ASC",
-                "_collection,",
+        String metrics = table.measures.stream().map(column -> table.aggregations.stream()
+                .map(agg -> getAggregationColumn(agg, table.aggregations).map(e -> format(e, column) + " as " + column + "_" + agg.name().toLowerCase()))
+                .filter(Optional::isPresent).map(Optional::get).collect(Collectors.joining(", ")))
+                .collect(Collectors.joining(", "));
+        if (metrics.isEmpty()) {
+            metrics = "count(*)";
+        }
+
+        String query = format("SELECT _collection, _time %s %s FROM " +
+                        "(SELECT _collection, CAST(%s AS DATE) as _time %s %s FROM (%s) data) data " +
+                        "GROUP BY CUBE (_collection, _time %s) ORDER BY 1 ASC",
+                dimension,
+                ", " + metrics,
                 checkTableColumn(projectConfig.getTimeColumn()),
-                dimensionColumns, metrics,
-                "_collection,",
-                checkTableColumn(projectConfig.getTimeColumn()),
-                checkTableColumn(projectConfig.getTimeColumn()),
-                dimensionColumns,
-                table.measures.stream().collect(Collectors.joining(", ")),
-                checkCollection(projectConfig.getTimeColumn()),
+                dimension,
+                measures,
                 subQuery,
-                ", _collection", dimensions.isEmpty() ? "" : "," + dimensions);
+                dimensions.isEmpty() ? "" : "," + dimensions);
 
         return materializedViewService.create(project, new MaterializedView(table.tableName, "Olap table", query,
                 Duration.ofHours(1), null, null, ImmutableMap.of("olap_table", table)))

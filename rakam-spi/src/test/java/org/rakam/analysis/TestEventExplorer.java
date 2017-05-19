@@ -66,7 +66,8 @@ public abstract class TestEventExplorer
                 .put("testmap", ImmutableMap.of("test" + i, (double) i))
                 .put("testarray", of((double) i))
                 .put("testdate", LocalDate.ofEpochDay(i))
-                .put("_time", Instant.ofEpochSecond(i * 100)).build())).collect(Collectors.toList());
+                .put("_time", Instant.ofEpochSecond(i * 100)).build()))
+                .collect(Collectors.toList());
 
         getEventStore().storeBatch(events);
     }

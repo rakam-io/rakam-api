@@ -165,7 +165,7 @@ public class PostgresqlQueryExecutor
                         .collect(Collectors.joining(", "));
 
                 return "(" + collections.stream().map(Map.Entry::getKey)
-                        .map(collection -> format("select cast('%s' as text) as \"_collection\", \"$server_time\" %s properties from %s t",
+                        .map(collection -> format("select cast('%s' as text) as \"_collection\", \"$server_time\" %s from %s t",
                                 checkLiteral(collection),
                                 sharedColumns.isEmpty() ? "" : (", " + sharedColumns),
                                 project + "." + checkCollection(collection)))
