@@ -252,12 +252,6 @@ public class QueryHttpService
                 queryResult -> exceptionCallback.ifPresent(e -> e.accept(query, queryResult)));
     }
 
-    public void handleServerSentQueryExecution(RakamHttpRequest request, QueryExecution query, boolean killOnConnectionClose)
-    {
-        RakamHttpRequest.StreamResponse response = request.streamResponse(RETRY_DURATION);
-        handleServerSentQueryExecutionInternal(response, query, killOnConnectionClose, (r) -> {});
-    }
-
     private void handleServerSentQueryExecutionInternal(RakamHttpRequest.StreamResponse response, QueryExecution query, boolean killOnConnectionClose, Consumer<QueryResult> exceptionMapper)
     {
         if (query == null) {
@@ -277,7 +271,9 @@ public class QueryHttpService
                                 "Internal error"))).end();
             }
             else if (result.isFailed()) {
-                exceptionMapper.accept(result);
+                if (!response.isClosed()) {
+                    exceptionMapper.accept(result);
+                }
                 response.send("result", encode(jsonObject()
                         .put("success", false)
                         .putPOJO("error", result.getError())

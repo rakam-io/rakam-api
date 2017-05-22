@@ -1,6 +1,5 @@
 package org.rakam.collection;
 
-import com.google.common.io.ByteStreams;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
@@ -14,7 +13,7 @@ import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.primitives.Ints;
+import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Longs;
 import io.airlift.log.Logger;
 import io.airlift.slice.InputStreamSliceInput;
@@ -29,11 +28,8 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.generic.GenericData;
-import org.apache.commons.lang.math.NumberUtils;
 import org.rakam.analysis.ApiKeyService;
-import org.rakam.analysis.QueryHttpService;
 import org.rakam.collection.Event.EventContext;
-import org.rakam.plugin.CopyEvent;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.EventStore.CopyType;
@@ -53,11 +49,9 @@ import org.rakam.util.RakamException;
 import org.rakam.util.SuccessMessage;
 
 import javax.inject.Inject;
-import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.xml.bind.DatatypeConverter;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -65,10 +59,6 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
@@ -108,9 +98,7 @@ import static org.rakam.plugin.EventStore.CopyType.CSV;
 import static org.rakam.plugin.EventStore.CopyType.JSON;
 import static org.rakam.plugin.EventStore.SUCCESSFUL_BATCH;
 import static org.rakam.server.http.HttpServer.errorMessage;
-import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.encodeAsBytes;
-import static org.rakam.util.JsonHelper.numberNode;
 import static org.rakam.util.StandardErrors.PARTIAL_ERROR_MESSAGE;
 import static org.rakam.util.ValidationUtil.checkCollection;
 
@@ -131,17 +119,13 @@ public class EventCollectionHttpService
     private final List<EventMapper> eventMappers;
     private final ApiKeyService apiKeyService;
     private final AvroEventDeserializer avroEventDeserializer;
-    private final QueryHttpService queryHttpService;
-    private final com.google.common.base.Optional<CopyEvent> copyEvent;
     private final JsonEventDeserializer jsonEventDeserializer;
 
     @Inject
     public EventCollectionHttpService(
             EventStore eventStore,
-            com.google.common.base.Optional<CopyEvent> copyEvent,
             ApiKeyService apiKeyService,
             JsonEventDeserializer deserializer,
-            QueryHttpService queryHttpService,
             AvroEventDeserializer avroEventDeserializer,
             EventListDeserializer eventListDeserializer,
             CsvEventDeserializer csvEventDeserializer,
@@ -150,8 +134,6 @@ public class EventCollectionHttpService
         this.eventStore = eventStore;
         this.eventMappers = ImmutableList.copyOf(mappers);
         this.apiKeyService = apiKeyService;
-        this.queryHttpService = queryHttpService;
-        this.copyEvent = copyEvent;
 
         jsonMapper = new ObjectMapper();
         SimpleModule module = new SimpleModule();
@@ -493,23 +475,6 @@ public class EventCollectionHttpService
                             Unpooled.wrappedBuffer(encodeAsBytes(SuccessMessage.success())),
                             responseHeaders);
                 }, mapEvents);
-    }
-
-    @POST
-    @Consumes("text/event-stream")
-    @IgnoreApi
-    @ApiOperation(value = "Copy events from remote", request = BulkEventRemote.class, response = Integer.class)
-    @Path("/copy/remote")
-    public void copyEventsRemote(RakamHttpRequest request)
-    {
-        if (!copyEvent.isPresent()) {
-            bulkEventsRemote(request, false);
-        }
-        else {
-            queryHttpService.handleServerSentQueryExecution(request, BulkEventRemote.class, (project, convert) ->
-                    copyEvent.get().copy(project, convert.collection, convert.urls, convert.type,
-                            convert.compression, convert.options), MASTER_KEY, false, Optional.empty());
-        }
     }
 
     @POST

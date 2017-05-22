@@ -83,7 +83,8 @@ public class RetentionAnalyzerHttpService
                 query.endDate,
                 query.timezone,
                 query.approximate),
-                (query, result) -> LOGGER.error(new RuntimeException(JsonHelper.encode(query) + " : " + result.getError().toString()), "Error running retention query"));
+                (query, result) ->
+                        LOGGER.error(new RuntimeException(JsonHelper.encode(query) + " : " + result.getError().toString()), "Error running retention query"));
     }
 
     @ApiOperation(value = "Execute query",
