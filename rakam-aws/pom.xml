@@ -176,6 +176,29 @@
             </exclusions>
         </dependency>
         <dependency>
+            <artifactId>aws-java-sdk-core</artifactId>
+            <groupId>com.amazonaws</groupId>
+            <version>${aws.library}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>joda-time</groupId>
+                    <artifactId>joda-time</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.core</groupId>
+                    <artifactId>jackson-annotations</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.core</groupId>
+                    <artifactId>jackson-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.core</groupId>
+                    <artifactId>jackson-databind</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
             <artifactId>aws-java-sdk-s3</artifactId>
             <groupId>com.amazonaws</groupId>
             <version>${aws.library}</version>
@@ -260,6 +283,7 @@
                                 <ignoredUnusedDeclaredDependency>org.rakam:rakam-parser</ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>io.airlift:node</ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>joda-time:joda-time</ignoredUnusedDeclaredDependency>
+                                <ignoredUnusedDeclaredDependency>com.amazonaws:aws-java-sdk-core</ignoredUnusedDeclaredDependency>
                             </ignoredUnusedDeclaredDependencies>
 
                             <ignoredUsedUndeclaredDependencies>
