@@ -32,7 +32,6 @@ import org.rakam.aws.kinesis.ForStreamer;
 import org.rakam.config.JDBCConfig;
 import org.rakam.config.MetadataConfig;
 import org.rakam.config.ProjectConfig;
-import org.rakam.plugin.CopyEvent;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
@@ -42,7 +41,6 @@ import org.rakam.plugin.stream.EventStreamConfig;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.postgresql.PostgresqlConfigManager;
-import org.rakam.postgresql.analysis.FastGenericFunnelQueryExecutor;
 import org.rakam.postgresql.analysis.JDBCApiKeyService;
 import org.rakam.postgresql.plugin.user.AbstractPostgresqlUserStorage;
 import org.rakam.presto.analysis.MysqlConfigManager;
@@ -57,7 +55,6 @@ import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.presto.analysis.PrestoRakamRaptorMetastore;
 import org.rakam.presto.analysis.PrestoRetentionQueryExecutor;
 import org.rakam.presto.analysis.PrestoUserService;
-import org.rakam.presto.collection.PrestoCopyEvent;
 import org.rakam.presto.plugin.user.PrestoExternalUserStorageAdapter;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.eventexplorer.EventExplorerConfig;
@@ -106,9 +103,6 @@ public class PrestoModule
         binder.bind(char.class).annotatedWith(EscapeIdentifier.class).toInstance('"');
         binder.bind(MaterializedViewService.class).to(PrestoMaterializedViewService.class);
         binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class).toInstance("to_unixtime");
-
-        OptionalBinder.newOptionalBinder(binder, CopyEvent.class)
-                .setBinding().to(PrestoCopyEvent.class);
 
         buildConfigObject(JDBCConfig.class, "report.metadata.store.jdbc");
 

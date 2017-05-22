@@ -43,7 +43,6 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.collection.WebHookHttpService;
 import org.rakam.config.EncryptionConfig;
-import org.rakam.config.JDBCConfig;
 import org.rakam.config.MetadataConfig;
 import org.rakam.config.ProjectConfig;
 import org.rakam.http.ForHttpServer;
@@ -51,7 +50,6 @@ import org.rakam.http.HttpServerConfig;
 import org.rakam.http.OptionMethodHttpService;
 import org.rakam.http.WebServiceModule;
 import org.rakam.http.WebServiceModule.ProjectPermissionParameterFactory;
-import org.rakam.plugin.CopyEvent;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.InjectionHook;
 import org.rakam.plugin.RAsyncHttpClient;
@@ -62,7 +60,6 @@ import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 import org.rakam.server.http.HttpRequestHandler;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
-import org.rakam.ui.RakamUIModule;
 import org.rakam.util.NotFoundHandler;
 
 import javax.inject.Inject;
@@ -71,12 +68,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.time.Clock;
-import java.time.Duration;
 import java.util.Properties;
 import java.util.ServiceLoader;
 import java.util.Set;
 
-import static com.google.common.primitives.Chars.checkedCast;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static java.lang.String.format;
 
@@ -190,7 +185,6 @@ public final class ServiceStarter
             binder.bind(FieldDependency.class).toProvider(FieldDependencyProvider.class).in(Scopes.SINGLETON);
 
             Multibinder.newSetBinder(binder, EventMapper.class);
-            OptionalBinder.newOptionalBinder(binder, CopyEvent.class);
             Multibinder.newSetBinder(binder, InjectionHook.class);
             OptionalBinder.newOptionalBinder(binder, AbstractUserService.class);
             OptionalBinder.newOptionalBinder(binder, ContinuousQueryService.class);
