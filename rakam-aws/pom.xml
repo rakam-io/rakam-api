@@ -283,7 +283,6 @@
                                 <ignoredUnusedDeclaredDependency>org.rakam:rakam-parser</ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>io.airlift:node</ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>joda-time:joda-time</ignoredUnusedDeclaredDependency>
-                                <ignoredUnusedDeclaredDependency>com.amazonaws:aws-java-sdk-core</ignoredUnusedDeclaredDependency>
                             </ignoredUnusedDeclaredDependencies>
 
                             <ignoredUsedUndeclaredDependencies>
