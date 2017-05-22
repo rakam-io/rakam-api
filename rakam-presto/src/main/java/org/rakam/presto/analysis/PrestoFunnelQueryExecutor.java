@@ -84,7 +84,7 @@ public class PrestoFunnelQueryExecutor
     public String getTemplate(List<FunnelStep> steps, Optional<String> dimension, Optional<FunnelWindow> window)
     {
         return "select %s step, count(*) total from (\n" +
-                "select %s funnel_step_time(array_agg(cast(step as tinyint)), array_agg(to_unixtime(" + checkTableColumn(projectConfig.getTimeColumn()) + "))/1000) as step from (select * from (%s) WHERE "
+                "select %s funnel_step_time(array_agg(cast(step as tinyint)), array_agg(cast((to_unixtime(" + checkTableColumn(projectConfig.getTimeColumn()) + "))/1000) as integer)) as step from (select * from (%s) WHERE "
                 + checkTableColumn(projectConfig.getTimeColumn()) + " between timestamp '%s' and timestamp '%s'\n" +
                 ") t group by %s %s\n" +
                 ") t group by 1 %s order by 1";
