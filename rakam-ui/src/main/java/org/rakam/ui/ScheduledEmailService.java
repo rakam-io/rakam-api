@@ -272,7 +272,7 @@ public class ScheduledEmailService
                 else {
                     bytes = ByteStreams.toByteArray(conn.getErrorStream());
                     throw new RuntimeException("Error while sending scheduled e-mail",
-                            new RuntimeException(new String(bytes)));
+                            new RuntimeException("Id: " + task.id + " -> " + new String(bytes)));
                 }
 
                 ZonedDateTime dateTime = Instant.now().atZone(ZoneOffset.UTC);
