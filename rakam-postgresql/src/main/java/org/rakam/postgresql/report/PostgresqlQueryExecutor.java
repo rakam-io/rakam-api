@@ -225,7 +225,7 @@ public class PostgresqlQueryExecutor
 
         // TODO: remove mssql support
         if(type.type.equals(SupportedCustomDatabase.MSSQL.name())) {
-            sqlQuery = sqlQuery.replaceAll("LIMIT ([0-9]+)$", "OFFSET 0 ROWS FETCH NEXT $1 ROWS ONLY");
+            sqlQuery = sqlQuery.replaceAll("LIMIT ([0-9]+)$", "ORDER BY 1 OFFSET 0 ROWS FETCH NEXT $1 ROWS ONLY");
         }
 
         return new PostgresqlQueryExecution(() ->
