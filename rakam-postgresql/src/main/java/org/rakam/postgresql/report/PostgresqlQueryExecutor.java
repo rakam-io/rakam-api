@@ -33,6 +33,8 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -214,13 +216,19 @@ public class PostgresqlQueryExecutor
 
         StringBuilder builder = new StringBuilder();
         Statement statement = sqlParser.createStatement(query);
-        ((Query) statement).getLimit();
 
         new RakamSqlFormatter.Formatter(builder, qualifiedName -> schema.map(e -> e + "." + qualifiedName.getSuffix())
                 .orElse(qualifiedName.getSuffix()), seperator) {
-
         }.process(statement, 1);
 
-        return new PostgresqlQueryExecution(() -> source.getDataSource().openConnection(type.options), builder.toString(), false);
+        String sqlQuery = builder.toString();
+
+        // TODO: remove mssql support
+        if(type.type.equals(SupportedCustomDatabase.MSSQL.name())) {
+            sqlQuery = sqlQuery.replaceAll("LIMIT ([0-9]+)$", "FETCH NEXT $1 ROWS ONLY");
+        }
+
+        return new PostgresqlQueryExecution(() ->
+                source.getDataSource().openConnection(type.options), sqlQuery, false);
     }
 }
