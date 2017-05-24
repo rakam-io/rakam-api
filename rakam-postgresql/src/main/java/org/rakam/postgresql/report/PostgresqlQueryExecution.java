@@ -37,6 +37,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 import static java.lang.String.format;
+import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.postgresql.analysis.PostgresqlEventStore.UTC_CALENDAR;
 import static org.rakam.postgresql.report.PostgresqlQueryExecutor.QUERY_EXECUTOR;
 import static org.rakam.report.QueryResult.EXECUTION_TIME;
@@ -90,14 +91,13 @@ public class PostgresqlQueryExecution
                     error = new QueryError(e.getMessage(), null, null, null, null);
                 }
                 LOGGER.debug(e, format("Error while executing Postgresql query: \n%s", query));
-                return QueryResult.errorResult(error);
+                return QueryResult.errorResult(error, query);
             }
 
             return queryResult;
         };
 
-        CompletableFuture<QueryResult> future = CompletableFuture.supplyAsync(task, QUERY_EXECUTOR);
-        this.result = future;
+        this.result = CompletableFuture.supplyAsync(task, QUERY_EXECUTOR);
     }
 
     @Override
@@ -152,7 +152,7 @@ public class PostgresqlQueryExecution
                 }
                 catch (UnsupportedOperationException e) {
                     LOGGER.warn(e.getMessage());
-                    type = FieldType.STRING;
+                    type = STRING;
                 }
 
                 columns.add(new SchemaField(metaData.getColumnName(i), type));
@@ -251,14 +251,14 @@ public class PostgresqlQueryExecution
 
             for (int i = 0; i < columns.size(); i++) {
                 if (columns.get(i) == null) {
-                    columns.set(i, new SchemaField(metaData.getColumnName(i + 1), FieldType.STRING));
+                    columns.set(i, new SchemaField(metaData.getColumnName(i + 1), STRING));
                 }
             }
             return new QueryResult(columns, data, ImmutableMap.of(EXECUTION_TIME, executionTimeInMillis, QUERY, query));
         }
         catch (SQLException e) {
             QueryError error = new QueryError(e.getMessage(), e.getSQLState(), e.getErrorCode(), null, null);
-            return QueryResult.errorResult(error);
+            return QueryResult.errorResult(error, query);
         }
     }
 }
