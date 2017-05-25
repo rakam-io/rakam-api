@@ -433,8 +433,7 @@ public abstract class AbstractEventExplorer
             checkReference(dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
         }
 
-        String timePredicate = format("%s between timestamp '%s' and timestamp '%s' + interval '1' day",
-                checkTableColumn(projectConfig.getTimeColumn()),
+        String timePredicate = format("_time between timestamp '%s' and timestamp '%s' + interval '1' day",
                 TIMESTAMP_FORMATTER.format(startDate), TIMESTAMP_FORMATTER.format(endDate));
 
         String query;
