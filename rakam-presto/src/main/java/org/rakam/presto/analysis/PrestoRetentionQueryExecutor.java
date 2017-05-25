@@ -132,9 +132,9 @@ public class PrestoRetentionQueryExecutor
 
         Set<CalculatedUserSet> missingPreComputedTables = new HashSet<>();
 
-        String firstActionQuery = generateQuery(project, firstAction, CONNECTOR_FIELD, timeColumn, dimension,
+        String firstActionQuery = generateQuery(project, firstAction, projectConfig.getUserColumn(), timeColumn, dimension,
                 startDate, endDate, missingPreComputedTables, zoneId, approximate);
-        String returningActionQuery = generateQuery(project, returningAction, CONNECTOR_FIELD, timeColumn, dimension,
+        String returningActionQuery = generateQuery(project, returningAction, projectConfig.getUserColumn(), timeColumn, dimension,
                 startDate, endDate, missingPreComputedTables, zoneId, approximate);
 
         if (firstActionQuery == null || returningActionQuery == null) {
@@ -157,8 +157,8 @@ public class PrestoRetentionQueryExecutor
                         "from first_action data join returning_action on (data.date < returning_action.date %s) \n" +
                         "%s) ORDER BY 1, 2 NULLS FIRST",
                 firstActionQuery, returningActionQuery, dimensionColumn, mergeSetAggregation,
-                CONNECTOR_FIELD, dimension.map(v -> "GROUP BY 1").orElse(""), dimensionColumn, timeSubtraction, mergeSetAggregation, CONNECTOR_FIELD,
-                mergeSetAggregation, CONNECTOR_FIELD,
+                projectConfig.getUserColumn(), dimension.map(v -> "GROUP BY 1").orElse(""), dimensionColumn, timeSubtraction, mergeSetAggregation, projectConfig.getUserColumn(),
+                mergeSetAggregation, projectConfig.getUserColumn(),
                 range.map(v -> String.format("AND data.date + interval '%d' day >= returning_action.date", v)).orElse(""),
                 dimension.map(v -> "GROUP BY 1, 2").orElse(""));
 
@@ -212,7 +212,7 @@ public class PrestoRetentionQueryExecutor
                     approximate ? "approx_set" : "set",
                     connectorField, connectorField,
                     collections.entrySet().stream()
-                            .filter(entry -> entry.getValue().stream().anyMatch(e -> e.getName().equals("_user")))
+                            .filter(entry -> entry.getValue().stream().anyMatch(e -> e.getName().equals(projectConfig.getUserColumn())))
                             .map(collection -> getTableSubQuery(collection.getValue().stream().anyMatch(e -> e.getName().equals("_device_id")), collection.getKey(), connectorField,
                                     Optional.of(isText),
                                     timeColumn, dimension, startDate, endDate, Optional.empty()))
