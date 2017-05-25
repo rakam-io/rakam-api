@@ -30,8 +30,6 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 
 
 public interface RetentionQueryExecutor {
-    String CONNECTOR_FIELD = "_user";
-
     QueryExecution query(String project,
             Optional<RetentionAction> firstAction,
             Optional<RetentionAction> returningAction,

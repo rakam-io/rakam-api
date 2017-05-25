@@ -445,7 +445,7 @@ public abstract class AbstractEventExplorer
             }
 
             query = format("select collection, %s as %s, cast(sum(total) as bigint) from (%s) data where %s group by 1, 2 order by 2 desc",
-                    aggregationMethod.get() == HOUR ? projectConfig.getTimeColumn() : format(timestampMapping.get(aggregationMethod.get()), projectConfig.getTimeColumn()),
+                    aggregationMethod.get() == HOUR ? "_time" : format(timestampMapping.get(aggregationMethod.get()), "_time"),
                     aggregationMethod.get(),
                     sourceTable(collections),
                     timePredicate);
