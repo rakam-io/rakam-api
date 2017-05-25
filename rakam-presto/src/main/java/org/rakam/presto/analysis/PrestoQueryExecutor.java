@@ -271,11 +271,13 @@ public class PrestoQueryExecutor
                     String sharedColumns = collections.get(0).getValue().stream()
                             .filter(col -> collections.stream().allMatch(list -> list.getValue().contains(col)))
                             .map(f -> f.getName())
+                            .filter(f -> !f.equals(prestoConfig.getCheckpointColumn()))
                             .collect(Collectors.joining(", "));
 
                     return "(" + collections.stream().map(Map.Entry::getKey)
-                            .map(collection -> format("select '%s' as _collection, _shard_time, %s from %s",
+                            .map(collection -> format("select '%s' as _collection, %s, %s from %s",
                                     collection,
+                                    checkTableColumn(prestoConfig.getCheckpointColumn()),
                                     sharedColumns.isEmpty() ? "1" : sharedColumns,
                                     getTableReference(project, collection, sample)))
                             .collect(Collectors.joining(" union all ")) + ") _all";
