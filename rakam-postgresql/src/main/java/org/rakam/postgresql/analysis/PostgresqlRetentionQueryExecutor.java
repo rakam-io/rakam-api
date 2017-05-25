@@ -123,7 +123,6 @@ public class PostgresqlRetentionQueryExecutor
             LocalDate startDate, LocalDate endDate, ZoneId zoneId, boolean approximate)
     {
         period.ifPresent(e -> checkArgument(e >= 0, "Period must be 0 or a positive value"));
-        checkTableColumn(CONNECTOR_FIELD, "connector field", '"');
         if (approximate) {
             // TODO: should we throw an exception or just show a warning?
 //            throw new RakamException("Approximation is not supported.", HttpResponseStatus.BAD_REQUEST);
@@ -162,11 +161,11 @@ public class PostgresqlRetentionQueryExecutor
 
         String firstActionQuery = generateQuery(
                 collections, project, firstAction,
-                testDeviceIdExists(firstAction, collections) ? format("coalesce(cast(%s as varchar), _device_id) as %s", CONNECTOR_FIELD, checkTableColumn(CONNECTOR_FIELD)) : CONNECTOR_FIELD,
+                testDeviceIdExists(firstAction, collections) ? format("coalesce(cast(%s as varchar), _device_id) as %s", projectConfig.getUserColumn(), checkTableColumn(projectConfig.getUserColumn())) : projectConfig.getUserColumn(),
                 dimension, startDate, endDate, zoneId);
         String returningActionQuery = generateQuery(
                 collections, project, returningAction,
-                testDeviceIdExists(firstAction, collections) ? format("coalesce(cast(%s as varchar), _device_id) as %s", CONNECTOR_FIELD, checkTableColumn(CONNECTOR_FIELD)) : CONNECTOR_FIELD,
+                testDeviceIdExists(firstAction, collections) ? format("coalesce(cast(%s as varchar), _device_id) as %s", projectConfig.getUserColumn(), checkTableColumn(projectConfig.getUserColumn())) : projectConfig.getUserColumn(),
                 dimension, startDate, endDate, zoneId);
 
         String query;
@@ -188,7 +187,7 @@ public class PostgresqlRetentionQueryExecutor
                     dateUnit.getTemporalUnit().getDuration().toMillis(),
 
                     dimension.map(v -> "dimension").map(v -> v + ", ").orElse(""),
-                    CONNECTOR_FIELD,
+                    projectConfig.getUserColumn(),
                     // if we're calculating by dimension, take the first event data for each user
                     dimension.map(val -> format("array[min(%s)]", format(timeColumn, projectConfig.getTimeColumn())))
                             .orElseGet(() -> format("array_agg(%s::date order by %s::date)", format(timeColumn, projectConfig.getTimeColumn()), format(timeColumn, projectConfig.getTimeColumn()))),
@@ -196,7 +195,7 @@ public class PostgresqlRetentionQueryExecutor
                     dimension.map(v -> ", 2").orElse(""),
 
                     dimension.map(v -> "dimension").map(v -> v + ", ").orElse(""),
-                    CONNECTOR_FIELD,
+                    projectConfig.getUserColumn(),
                     format(timeColumn, projectConfig.getTimeColumn()), format(timeColumn, projectConfig.getTimeColumn()),
                     returningActionQuery,
                     dimension.map(v -> ", 2").orElse(""),
@@ -225,7 +224,7 @@ public class PostgresqlRetentionQueryExecutor
                     dateUnit.getTemporalUnit().getDuration().toMillis(),
 
                     dimension.map(v -> "dimension").map(v -> v + ", ").orElse(""),
-                    CONNECTOR_FIELD,
+                    projectConfig.getUserColumn(),
                     // if we're calculating by dimension, take the first event data for each user
                     dimension.map(val -> format("array[min(%s)]", format(timeColumn, projectConfig.getTimeColumn())))
                             .orElseGet(() -> format("array_agg(%s::date order by %s::date)", format(timeColumn, projectConfig.getTimeColumn()), format(timeColumn, projectConfig.getTimeColumn()))),
@@ -233,7 +232,7 @@ public class PostgresqlRetentionQueryExecutor
                     dimension.map(v -> ", 2").orElse(""),
 
                     dimension.map(v -> "dimension").map(v -> v + ", ").orElse(""),
-                    CONNECTOR_FIELD,
+                    projectConfig.getUserColumn(),
                     format(timeColumn, projectConfig.getTimeColumn()), format(timeColumn, projectConfig.getTimeColumn()),
                     returningActionQuery,
                     dimension.map(v -> ", 2").orElse(""),
