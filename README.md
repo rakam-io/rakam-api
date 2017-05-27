@@ -112,7 +112,7 @@ Since we already use Maven, you can import Rakam to your IDE using the root pom.
 
 ```
 Main Class: org.rakam.ServiceStarter
-VM Options: -ea -Xmx2G -Dconfig=etc/config.properties -Dlog.levels-file=etc/log.properties
+VM Options: -ea -Xmx2G -Dconfig=YOUR_CONFIG_DIRECTORY/config.properties -Dlog.levels-file=etc/log.properties
 Working directory: $MODULE_DIR$
 Use classpath of module: rakam
 ```
