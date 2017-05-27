@@ -108,17 +108,6 @@ Note that you need to modify `config.properties` file in order to be able to sta
 
 ##### Running Rakam in your IDE
 
-- Java 8
-- Maven 3.2.3+ (for building)
-
-Download and build Rakam using the following snippet.
-
-```sh
-git clone https://github.com/rakam-io/rakam.git
-cd rakam
-mvn clean install package -DskipTests
-```
-
 Since we already use Maven, you can import Rakam to your IDE using the root pom.xml file. We recommend using Intellij IDEA since the core team uses it when developing Rakam. Here is a sample configuration for executing Rakam in your IDE:
 
 ```
