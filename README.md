@@ -86,7 +86,7 @@ Cloudformation is the recommended way to deploy Rakam in production because AWS 
 
 ### Custom
 
-Download latest version from [Bintray](https://dl.bintray.com/buremba/maven/org/rakam/rakam), ([VERSION]/rakam-[VERSION]-.bundle.tar.gz) extract package, modify `etc/config.properties` (here is the example configuration for Postgresql deployment type: https://gist.github.com/buremba/ada247b0ce837cfd3a81a92a98629f1d) file and run `bin/launcher start`.
+Download latest version from [Bintray](https://dl.bintray.com/buremba/maven/org/rakam/rakam), ([VERSION]/rakam-[VERSION]-.bundle.tar.gz) extract package, modify `etc/config.properties` [(sample for Postgresql deployment type)](https://gist.github.com/buremba/ada247b0ce837cfd3a81a92a98629f1d) file and run `bin/launcher start`.
 The launcher script can take the following arguments: `start|restart|stop|status|run`. 
 `bin/launcher run` will start Rakam in foreground.
 
@@ -104,9 +104,21 @@ mvn clean install package -DskipTests
 rakam/target/rakam-*-bundle/rakam-*/bin/launcher.py run --config rakam/target/rakam-*-bundle/rakam-*/etc/config.properties
 ```
 
-Note that you need to modify `config.properties` file in order to be able to start Rakam. You can find an example configuration in `/Dockerfile`
+Note that you need to modify `config.properties` file in order to be able to start Rakam. [(sample for Postgresql deployment type)](https://gist.github.com/buremba/ada247b0ce837cfd3a81a92a98629f1d)
 
 ##### Running Rakam in your IDE
+
+- Java 8
+- Maven 3.2.3+ (for building)
+
+Download and build Rakam using the following snippet.
+
+```sh
+git clone https://github.com/rakam-io/rakam.git
+cd rakam
+mvn clean install package -DskipTests
+```
+
 Since we already use Maven, you can import Rakam to your IDE using the root pom.xml file. We recommend using Intellij IDEA since the core team uses it when developing Rakam. Here is a sample configuration for executing Rakam in your IDE:
 
 ```
