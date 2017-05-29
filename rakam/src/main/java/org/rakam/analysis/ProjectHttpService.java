@@ -80,7 +80,10 @@ public class ProjectHttpService
     public ProjectApiKeys createProject(@ApiParam(value = "lock_key", required = false) String lockKey, @ApiParam("name") String name)
     {
         if (!Objects.equals(projectConfig.getLockKey(), lockKey)) {
-            throw new RakamException("Lock key is invalid", FORBIDDEN);
+            lockKey = lockKey == null ? "" : (lockKey.isEmpty() ? null : lockKey);
+            if (!Objects.equals(projectConfig.getLockKey(), lockKey)) {
+                throw new RakamException("Lock key is invalid", FORBIDDEN);
+            }
         }
         String project = checkProject(name);
         if (metastore.getProjects().contains(project)) {
