@@ -15,10 +15,13 @@ package org.rakam.postgresql.analysis;
 
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.google.common.base.Throwables;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.AbstractFunnelQueryExecutor;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.config.ProjectConfig;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
+import org.rakam.report.QueryExecution;
+import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
 import javax.annotation.PostConstruct;
@@ -27,6 +30,7 @@ import javax.inject.Inject;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -39,12 +43,14 @@ public class PostgresqlFunnelQueryExecutor
         extends AbstractFunnelQueryExecutor
 {
     private final PostgresqlQueryExecutor executor;
+    private final FastGenericFunnelQueryExecutor fastExecutor;
 
     @Inject
-    public PostgresqlFunnelQueryExecutor(ProjectConfig projectConfig, Metastore metastore, PostgresqlQueryExecutor executor)
+    public PostgresqlFunnelQueryExecutor(FastGenericFunnelQueryExecutor fastExecutor, ProjectConfig projectConfig, Metastore metastore, PostgresqlQueryExecutor executor)
     {
         super(projectConfig, metastore, executor);
         this.executor = executor;
+        this.fastExecutor = fastExecutor;
     }
 
     @PostConstruct
@@ -70,6 +76,20 @@ public class PostgresqlFunnelQueryExecutor
     }
 
     @Override
+    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, Optional<Boolean> ordered)
+    {
+        if (!ordered.orElse(false)) {
+            return fastExecutor.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, ordered);
+        }
+
+        if (dimension.isPresent() && projectConfig.getUserColumn().equals(dimension.get())) {
+            throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
+        }
+
+        return super.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, ordered);
+    }
+
+    @Override
     public String getTemplate(List<FunnelStep> steps, Optional<String> dimension, Optional<FunnelWindow> window)
     {
         return "select %s get_funnel_step(steps) step, count(*) total from (\n" +
@@ -86,7 +106,7 @@ public class PostgresqlFunnelQueryExecutor
                 name -> formatIdentifier("step" + idx, '"') + "." + name.getParts().stream()
                         .map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")), '"'));
 
-        String format = format("SELECT %s %s as _user, %d as step, %s from %s %s %s",
+        String format = format("SELECT %s %s, %d as step, %s from %s %s %s",
                 dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ",").orElse(""),
                 format(connectorField, "step" + idx),
                 idx + 1,
