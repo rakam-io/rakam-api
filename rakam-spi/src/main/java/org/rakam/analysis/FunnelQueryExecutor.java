@@ -65,7 +65,7 @@ public interface FunnelQueryExecutor
                 @JsonProperty("filterExpression") Optional<String> filterExpression) {
             checkCollection(collection);
             this.collection = collection;
-            this.filterExpression = filterExpression == null ? Optional.<String>empty() : filterExpression;
+            this.filterExpression = filterExpression == null ? Optional.empty() : filterExpression;
         }
 
         public String getCollection() {
