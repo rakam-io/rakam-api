@@ -1,9 +1,7 @@
 package org.rakam.analysis.realtime;
 
 import com.google.inject.Singleton;
-import org.rakam.analysis.RealtimeService;
-import org.rakam.analysis.RealtimeService.RealTimeQueryResult;
-import org.rakam.plugin.ContinuousQuery;
+import org.rakam.analysis.realtime.RealtimeService.RealTimeQueryResult;
 import org.rakam.report.realtime.RealTimeReport;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
@@ -14,8 +12,8 @@ import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.util.SuccessMessage;
 import org.rakam.util.RakamException;
+import org.rakam.util.SuccessMessage;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -26,11 +24,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 @Singleton
 @Api(value = "/realtime", nickname = "realtime", description = "Realtime module", tags = "realtime")
@@ -62,14 +57,20 @@ public class RealTimeHttpService
     @Path("/create")
     public CompletableFuture<SuccessMessage> createTable(@Named("project") String project, @BodyParam RealTimeReport report)
     {
-        return realtimeService.create(project, report);
+        return  realtimeService.create(project, report).thenApply(error -> {
+            if(error == null) {
+                return SuccessMessage.success();
+            }
+
+            return SuccessMessage.success(error.message);
+        });
     }
 
     @JsonRequest
     @ApiOperation(value = "List queries", authorizations = @Authorization(value = "read_key"))
 
     @Path("/list")
-    public List<ContinuousQuery> listTables(@Named("project") String project)
+    public List<RealTimeReport> listTables(@Named("project") String project)
     {
         return realtimeService.list(project);
     }
@@ -98,13 +99,12 @@ public class RealTimeHttpService
     public CompletableFuture<SuccessMessage> deleteTable(@Named("project") String project,
             @ApiParam("table_name") String tableName)
     {
-        // TODO: Check if it's a real-time report.
         return realtimeService.delete(project, tableName).thenApply(result -> {
-            if (result) {
+            if (result == null) {
                 return SuccessMessage.success();
             }
             else {
-                throw new RakamException("Couldn't delete report. It doesn't exist", BAD_REQUEST);
+                throw new RakamException(result.message, BAD_REQUEST);
             }
         });
     }

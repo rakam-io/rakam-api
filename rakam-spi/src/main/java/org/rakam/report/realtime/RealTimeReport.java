@@ -19,16 +19,16 @@ public class RealTimeReport {
     @NotNull public final String table_name;
     public final Set<String> collections;
     public final String filter;
-    public final Set<Measure> measures;
-    public final Set<String> dimensions;
+    public final List<Measure> measures;
+    public final List<String> dimensions;
 
     @JsonCreator
     public RealTimeReport(@ApiParam("name") String name,
-                          @ApiParam("measures") Set<Measure> measures,
+                          @ApiParam("measures") List<Measure> measures,
                           @ApiParam("table_name") String tableName,
                           @ApiParam("collections") Set<String> collections,
                           @ApiParam(value = "filter", required = false) String filter,
-                          @ApiParam(value = "dimensions", required = false) Set<String> dimensions) {
+                          @ApiParam(value = "dimensions", required = false) List<String> dimensions) {
         this.name = checkNotNull(name, "name is required");
         this.table_name = checkNotNull(tableName, "table_name is required");
         this.collections = checkNotNull(collections, "collections is required");

@@ -32,7 +32,9 @@ public interface EventMapper
             }
 
             CompletableFuture<List<Cookie>> future = map.thenApply(value -> {
-                cookies.addAll(value);
+                if(value != null) {
+                    cookies.addAll(value);
+                }
                 return cookies;
             });
 

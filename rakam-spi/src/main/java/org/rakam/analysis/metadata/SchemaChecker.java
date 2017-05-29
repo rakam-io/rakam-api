@@ -33,7 +33,8 @@ public class SchemaChecker
         this.fieldDependency = fieldDependency;
     }
 
-    public HashSet<SchemaField> checkNewFields(String collection, Set<SchemaField> newFields) {
+    public HashSet<SchemaField> checkNewFields(String collection, Set<SchemaField> newFields)
+    {
         HashSet<SchemaField> fields = new HashSet<>(newFields);
 
         Iterator<SchemaField> it = fields.iterator();
@@ -52,6 +53,9 @@ public class SchemaChecker
                                 BAD_REQUEST);
                     }
                 }
+            }
+            if (newField.getName().equals("$server_time")) {
+                throw new RakamException("$server_time is reserved as a system attribute", BAD_REQUEST);
             }
         }
         fieldDependency.constantFields.forEach(field -> addModuleField(fields, field));
@@ -85,7 +89,7 @@ public class SchemaChecker
         fields.add(newField);
     }
 
-//    @PostConstruct
+    //    @PostConstruct
     protected void checkExistingSchema()
     {
         for (String project : metastore.getProjects()) {

@@ -2,6 +2,7 @@ package org.rakam.analysis.realtime;
 
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
+import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.swagger.models.Tag;
 import org.rakam.config.MetadataConfig;
@@ -27,6 +28,7 @@ public class RealTimeModule extends RakamModule {
 
         Multibinder<EventMapper> mappers = Multibinder.newSetBinder(binder, EventMapper.class);
         mappers.permitDuplicates().addBinding().to(TimestampEventMapper.class);
+        mappers.addBinding().to(RealtimeEventProcessor.class).in(Scopes.SINGLETON);
 
         Multibinder.newSetBinder(binder, Tag.class).addBinding()
                 .toInstance( new Tag().name("realtime").description("Realtime")

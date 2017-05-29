@@ -21,8 +21,6 @@ import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.MaterializedViewService;
-import org.rakam.analysis.RealtimeService;
-import org.rakam.analysis.RealtimeService.RealtimeAggregations;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.TimestampToEpochFunction;
 import org.rakam.analysis.metadata.JDBCQueryMetadata;
@@ -129,12 +127,6 @@ public class PrestoModule
 
         binder.bind(ApiKeyService.class).toInstance(new JDBCApiKeyService(metadataDataSource));
 
-        binder.bind(new TypeLiteral<List<AggregationType>>() {}).annotatedWith(RealtimeAggregations.class)
-                .toInstance(ImmutableList.of(
-                        COUNT, SUM, MINIMUM, MAXIMUM, APPROXIMATE_UNIQUE));
-
-        binder.bind(RealtimeService.class).to(PrestoRealtimeService.class);
-
         // use same jdbc pool if report.metadata.store is not set explicitly.
         if (getConfig("report.metadata.store") == null) {
             binder.bind(JDBCPoolDataSource.class)
@@ -235,66 +227,6 @@ public class PrestoModule
                             "created_at TIMESTAMP, merged_at TIMESTAMP)",
                     executor.formatTableReference(event.project, QualifiedName.of(ANONYMOUS_ID_MAPPING), Optional.empty(), ImmutableMap.of(), "collection"),
                     checkCollection(projectConfig.getUserColumn())));
-        }
-    }
-
-    public static class PrestoRealtimeService
-            extends RealtimeService
-    {
-        @Inject
-        public PrestoRealtimeService(ProjectConfig projectConfig, ContinuousQueryService service, QueryExecutor executor, @RealtimeAggregations List<AggregationType> aggregationTypes, RealTimeConfig config, @TimestampToEpochFunction String timestampToEpochFunction, @EscapeIdentifier char escapeIdentifier)
-        {
-            super(projectConfig, service, executor, aggregationTypes, config, timestampToEpochFunction, escapeIdentifier);
-        }
-
-        @Override
-        public String getIntermediateFunction(AggregationType type)
-        {
-            String format;
-            switch (type) {
-                case MAXIMUM:
-                    format = "max(%s)";
-                    break;
-                case MINIMUM:
-                    format = "min(%s)";
-                    break;
-                case COUNT:
-                    format = "count(%s)";
-                    break;
-                case SUM:
-                    format = "sum(%s)";
-                    break;
-                case APPROXIMATE_UNIQUE:
-                    format = "approx_set(%s)";
-                    break;
-                case COUNT_UNIQUE:
-                    format = "set(%s)";
-                    break;
-                default:
-                    throw new RakamException("Aggregation type couldn't found.", BAD_REQUEST);
-            }
-
-            return format;
-        }
-
-        @Override
-        public String combineFunction(AggregationType aggregationType)
-        {
-            switch (aggregationType) {
-                case COUNT:
-                case SUM:
-                    return "sum(%s)";
-                case MINIMUM:
-                    return "min(%s)";
-                case MAXIMUM:
-                    return "max(%s)";
-                case APPROXIMATE_UNIQUE:
-                    return "cardinality(merge(%s))";
-                case COUNT_UNIQUE:
-                    return "cardinality(merge(%s))";
-                default:
-                    throw new RakamException("Aggregation type couldn't found.", BAD_REQUEST);
-            }
         }
     }
 

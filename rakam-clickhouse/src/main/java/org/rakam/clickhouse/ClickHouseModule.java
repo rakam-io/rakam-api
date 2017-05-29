@@ -6,28 +6,17 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.Multibinder;
-import com.google.inject.name.Names;
-import org.rakam.analysis.ApiKeyService;
-import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EscapeIdentifier;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.FunnelQueryExecutor;
-import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.MaterializedViewService;
-import org.rakam.analysis.RealtimeService.RealtimeAggregations;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.TimestampToEpochFunction;
-import org.rakam.analysis.metadata.JDBCQueryMetadata;
-import org.rakam.analysis.metadata.Metastore;
-import org.rakam.analysis.metadata.QueryMetadataStore;
-import org.rakam.aws.dynamodb.metastore.DynamodbMetastore;
 import org.rakam.clickhouse.analysis.ClickHouseEventExplorer;
 import org.rakam.clickhouse.analysis.ClickHouseFunnelQueryExecutor;
-import org.rakam.clickhouse.analysis.ClickHouseMetastore;
 import org.rakam.clickhouse.analysis.ClickHouseRetentionQueryExecutor;
 import org.rakam.clickhouse.collection.AWSKinesisClickhouseEventStore;
-import org.rakam.clickhouse.collection.ClickHouseEventStore;
 import org.rakam.config.MetadataConfig;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventStore;
@@ -35,7 +24,6 @@ import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.TimestampEventMapper;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
-import org.rakam.plugin.user.UserStorage;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.eventexplorer.EventExplorerConfig;
 import org.rakam.report.realtime.AggregationType;
@@ -71,15 +59,15 @@ public class ClickHouseModule
         binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class)
                 .toInstance("toUnixTimestamp");
 
-        binder.bind(new TypeLiteral<List<AggregationType>>() {})
-                .annotatedWith(RealtimeAggregations.class)
-                .toInstance(ImmutableList.of(
-                        COUNT,
-                        SUM,
-                        MINIMUM,
-                        MAXIMUM,
-                        APPROXIMATE_UNIQUE,
-                        COUNT_UNIQUE));
+//        binder.bind(new TypeLiteral<List<AggregationType>>() {})
+//                .annotatedWith(RealtimeAggregations.class)
+//                .toInstance(ImmutableList.of(
+//                        COUNT,
+//                        SUM,
+//                        MINIMUM,
+//                        MAXIMUM,
+//                        APPROXIMATE_UNIQUE,
+//                        COUNT_UNIQUE));
 
         binder.bind(AbstractUserService.class).to(ClickHouseUserService.class)
                 .in(Scopes.SINGLETON);

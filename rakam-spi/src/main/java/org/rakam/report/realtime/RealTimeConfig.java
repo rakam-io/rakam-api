@@ -8,7 +8,7 @@ import io.airlift.units.MinDuration;
 public class RealTimeConfig {
     private boolean enabled;
     private Duration windowInterval = Duration.valueOf("120s");
-    private Duration slideInterval = Duration.valueOf("5s");
+    private Duration slideInterval = Duration.valueOf("10s");
 
     @Config("real-time.enabled")
     public RealTimeConfig setRealtimeModuleEnabled(boolean enabled) {

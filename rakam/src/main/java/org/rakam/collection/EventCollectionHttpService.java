@@ -84,6 +84,7 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.ORIGIN;
 import static io.netty.handler.codec.http.HttpHeaders.Names.SET_COOKIE;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.CONFLICT;
+import static io.netty.handler.codec.http.HttpResponseStatus.INSUFFICIENT_STORAGE;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE;
@@ -605,11 +606,8 @@ public class EventCollectionHttpService
                         boolean single = events.size() == 1;
                         try {
                             if (single) {
-                                errorIndexes = EventStore.COMPLETED_FUTURE_BATCH;
-                                if (events.size() == 1) {
-                                    errorIndexes = eventStore.storeAsync(events.get(0))
-                                            .handle((result, ex) -> (ex != null) ? FAILED_SINGLE_EVENT : SUCCESSFUL_BATCH);
-                                }
+                                errorIndexes = eventStore.storeAsync(events.get(0))
+                                        .handle((result, ex) -> (ex != null) ? FAILED_SINGLE_EVENT : SUCCESSFUL_BATCH);
                             }
                             else {
                                 errorIndexes = eventStore.storeBatchAsync(events);
@@ -718,15 +716,19 @@ public class EventCollectionHttpService
                 }
             });
 
-            response.thenAccept(resp -> {
-                if (entries.isDone()) {
-                    List<Cookie> join = entries.join();
-                    if (join != null) {
-                        responseHeaders.add(SET_COOKIE, STRICT.encode(join));
+            response.thenAccept(resp -> entries.whenComplete((value, ex) -> {
+                if(ex != null) {
+                    String message = "Error while processing event mappers";
+                    LOGGER.error(ex, message);
+                    request.response(JsonHelper.encode(errorMessage(message, INTERNAL_SERVER_ERROR)),
+                            INTERNAL_SERVER_ERROR);
+                } else {
+                    if (value != null) {
+                        responseHeaders.add(SET_COOKIE, STRICT.encode(value));
                     }
+                    request.response(resp).end();
                 }
-                request.response(resp).end();
-            });
+            }));
         });
     }
 

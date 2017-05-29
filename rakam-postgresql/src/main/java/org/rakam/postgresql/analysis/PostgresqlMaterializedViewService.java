@@ -159,8 +159,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
                         name -> {
                             String collection = format("(SELECT * FROM %s %s) data",
                                     queryExecutor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of(), "collection"),
-                                    format("WHERE %s > to_timestamp(%d)",
-                                            checkTableColumn(projectConfig.getTimeColumn()),
+                                    format("WHERE \"$server_time\" > to_timestamp(%d)",
                                             (lastUpdated != null ? lastUpdated : now).getEpochSecond()));
                             return collection;
                         }, '"');

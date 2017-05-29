@@ -7,11 +7,15 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.EventStore;
+import org.rakam.postgresql.analysis.FastGenericFunnelQueryExecutor;
 import org.rakam.postgresql.analysis.PostgresqlEventStore;
 import org.rakam.postgresql.analysis.PostgresqlFunnelQueryExecutor;
 import org.rakam.postgresql.analysis.PostgresqlMetastore;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
+import org.rakam.report.QueryExecutorService;
 import org.testng.annotations.BeforeSuite;
+
+import java.time.Clock;
 
 public class TestPostgresqlFunnelQueryExecutor extends TestFunnelQueryExecutor {
 
@@ -32,7 +36,9 @@ public class TestPostgresqlFunnelQueryExecutor extends TestFunnelQueryExecutor {
 
         PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(new ProjectConfig(), dataSource, metastore, new CustomDataSourceService(dataSource), false);
         eventStore = new PostgresqlEventStore(dataSource, build);
-        funnelQueryExecutor = new PostgresqlFunnelQueryExecutor(new ProjectConfig(), metastore, queryExecutor);
+        FastGenericFunnelQueryExecutor exec = new FastGenericFunnelQueryExecutor(new QueryExecutorService(queryExecutor, metastore, null, Clock.systemUTC(), '"'),
+                new ProjectConfig());
+        funnelQueryExecutor = new PostgresqlFunnelQueryExecutor(exec, new ProjectConfig(), metastore, queryExecutor);
         funnelQueryExecutor.setup();
         super.setup();
     }

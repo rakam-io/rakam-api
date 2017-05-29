@@ -194,7 +194,8 @@ public class PostgresqlMetastore
                         "    AND n.nspname <> 'pg_catalog'\n" +
                         "    AND n.nspname <> 'information_schema'\n" +
                         "    AND n.nspname !~ '^pg_toast'     \n" +
-                        "    AND a.attnum > 0 AND NOT a.attisdropped",
+                        "    AND a.attnum > 0 AND NOT a.attisdropped " +
+                        "    AND a.attname != '$server_time'",
                 checkLiteral(project), checkLiteral(collection)));
 
         while (resultSet.next()) {
@@ -261,12 +262,14 @@ public class PostgresqlMetastore
 
         try (Connection connection = connectionPool.getConnection()) {
             connection.setAutoCommit(false);
-            ResultSet columns = connection.getMetaData().getColumns("", project, collection.replaceAll("%", "\\\\%").replaceAll("_", "\\\\_"), null);
             HashSet<String> strings = new HashSet<>();
-            while (columns.next()) {
-                String colName = columns.getString("COLUMN_NAME");
-                strings.add(colName);
-                currentFields.add(new SchemaField(colName, fromSql(columns.getInt("DATA_TYPE"), columns.getString("TYPE_NAME"))));
+            List<SchemaField> schema = getSchema(connection, project, collection);
+
+            if(schema != null) {
+                for (SchemaField field : schema) {
+                    strings.add(field.getName());
+                    currentFields.add(field);
+                }
             }
 
             List<SchemaField> schemaFields = fields.stream().filter(f -> !strings.contains(f.getName())).collect(Collectors.toList());

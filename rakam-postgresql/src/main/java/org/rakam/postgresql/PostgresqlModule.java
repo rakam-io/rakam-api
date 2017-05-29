@@ -2,14 +2,12 @@ package org.rakam.postgresql;
 
 import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Provider;
 import com.google.inject.Scopes;
-import com.google.inject.TypeLiteral;
 import com.google.inject.name.Names;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import org.rakam.analysis.ApiKeyService;
@@ -20,7 +18,6 @@ import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.MaterializedViewService;
-import org.rakam.analysis.RealtimeService;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.TimestampToEpochFunction;
 import org.rakam.analysis.metadata.JDBCQueryMetadata;
@@ -39,6 +36,7 @@ import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.postgresql.analysis.FastGenericFunnelQueryExecutor;
 import org.rakam.postgresql.analysis.PostgresqlConfig;
 import org.rakam.postgresql.analysis.PostgresqlEventStore;
+import org.rakam.postgresql.analysis.PostgresqlFunnelQueryExecutor;
 import org.rakam.postgresql.analysis.PostgresqlMaterializedViewService;
 import org.rakam.postgresql.analysis.PostgresqlMetastore;
 import org.rakam.postgresql.analysis.PostgresqlRetentionQueryExecutor;
@@ -50,10 +48,7 @@ import org.rakam.postgresql.report.PostgresqlPseudoContinuousQueryService;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.eventexplorer.EventExplorerConfig;
-import org.rakam.report.realtime.AggregationType;
-import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.util.ConditionalModule;
-import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 
@@ -61,11 +56,6 @@ import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Set;
 
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static org.rakam.report.realtime.AggregationType.APPROXIMATE_UNIQUE;
-import static org.rakam.report.realtime.AggregationType.MAXIMUM;
-import static org.rakam.report.realtime.AggregationType.MINIMUM;
-import static org.rakam.report.realtime.AggregationType.SUM;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
@@ -96,13 +86,11 @@ public class PostgresqlModule
         binder.bind(ContinuousQueryService.class).to(PostgresqlPseudoContinuousQueryService.class).in(Scopes.SINGLETON);
         binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class).toInstance("to_unixtime");
 
-        binder.bind(RealtimeService.class).to(PostgresqlRealtimeService.class);
-
         if (metadataConfig.getEventStore() == null) {
             binder.bind(EventStore.class).to(PostgresqlEventStore.class).in(Scopes.SINGLETON);
         }
-        binder.bind(new TypeLiteral<List<AggregationType>>() {}).annotatedWith(RealtimeService.RealtimeAggregations.class).toInstance(ImmutableList.of(AggregationType.COUNT,
-                SUM, MINIMUM, APPROXIMATE_UNIQUE, MAXIMUM));
+//        binder.bind(new TypeLiteral<List<AggregationType>>() {}).annotatedWith(RealtimeService.RealtimeAggregations.class).toInstance(ImmutableList.of(AggregationType.COUNT,
+//                SUM, MINIMUM, APPROXIMATE_UNIQUE, MAXIMUM));
 
         // use same jdbc pool if report.metadata.store is not set explicitly.
         if (getConfig("report.metadata.store") == null) {
@@ -133,7 +121,7 @@ public class PostgresqlModule
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
 
         if (userPluginConfig.isFunnelAnalysisEnabled()) {
-            binder.bind(FunnelQueryExecutor.class).to(FastGenericFunnelQueryExecutor.class);
+            binder.bind(FunnelQueryExecutor.class).to(PostgresqlFunnelQueryExecutor.class);
         }
 
         if (userPluginConfig.isRetentionAnalysisEnabled()) {
@@ -261,66 +249,5 @@ public class PostgresqlModule
         private Set<FieldType> brinSupportedTypes = ImmutableSet.of(FieldType.DATE, FieldType.DECIMAL,
                 FieldType.DOUBLE, FieldType.INTEGER, FieldType.LONG,
                 FieldType.STRING, FieldType.TIMESTAMP, FieldType.TIME);
-    }
-
-    public static class PostgresqlRealtimeService
-            extends RealtimeService
-    {
-        @Inject
-        public PostgresqlRealtimeService(ProjectConfig projectConfig, ContinuousQueryService service, QueryExecutor executor, @RealtimeAggregations List<AggregationType> aggregationTypes, RealTimeConfig config, @TimestampToEpochFunction String timestampToEpochFunction, @EscapeIdentifier char escapeIdentifier)
-        {
-            super(projectConfig, service, executor, aggregationTypes, config, timestampToEpochFunction, escapeIdentifier);
-            executor.executeRawStatement("CREATE EXTENSION IF NOT EXISTS intarray").getResult().join();
-            executor.executeRawStatement("CREATE AGGREGATE array_agg_int (int[]) (\n" +
-                    "    SFUNC    = _int_union\n" +
-                    "   ,STYPE    = int[]\n" +
-                    "   ,INITCOND = '{}'\n" +
-                    ");").getResult().join();
-        }
-
-        @Override
-        public String getIntermediateFunction(AggregationType type)
-        {
-            String format;
-            switch (type) {
-                case MAXIMUM:
-                    format = "max(%s)";
-                    break;
-                case MINIMUM:
-                    format = "min(%s)";
-                    break;
-                case COUNT:
-                    format = "count(%s)";
-                    break;
-                case SUM:
-                    format = "sum(%s)";
-                    break;
-                case APPROXIMATE_UNIQUE:
-                    format = "array_agg(distinct hashtext(%s))";
-                    break;
-                default:
-                    throw new RakamException("Aggregation type couldn't found.", BAD_REQUEST);
-            }
-
-            return format;
-        }
-
-        @Override
-        public String combineFunction(AggregationType aggregationType)
-        {
-            switch (aggregationType) {
-                case COUNT:
-                case SUM:
-                    return "sum(%s)";
-                case MINIMUM:
-                    return "min(%s)";
-                case MAXIMUM:
-                    return "max(%s)";
-                case APPROXIMATE_UNIQUE:
-                    return "array_length(array_agg_int(%s), 1)";
-                default:
-                    throw new RakamException("Aggregation type couldn't found.", BAD_REQUEST);
-            }
-        }
     }
 }

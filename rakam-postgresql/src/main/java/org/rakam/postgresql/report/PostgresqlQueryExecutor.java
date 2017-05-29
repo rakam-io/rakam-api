@@ -174,7 +174,7 @@ public class PostgresqlQueryExecutor
                         .collect(Collectors.joining(" union all \n")) + ") _all";
             }
             else {
-                return String.format("(select cast(null as text) as \"_collection\", cast(null as text) as _user, cast(null as timestamp) as %s limit 0) _all",
+                return String.format("(select cast(null as text) as \"_collection\", now() as \"$server_time\", cast(null as text) as _user, cast(now() as timestamp) as %s limit 0) _all",
                         checkTableColumn(projectConfig.getTimeColumn()));
             }
         }
