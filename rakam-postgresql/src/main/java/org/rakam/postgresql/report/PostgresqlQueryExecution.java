@@ -55,9 +55,9 @@ public class PostgresqlQueryExecution
     private final String query;
     private Statement statement;
 
-    public PostgresqlQueryExecution(ConnectionFactory connectionPool, String sqlQuery, boolean update)
+    public PostgresqlQueryExecution(ConnectionFactory connectionPool, String query, boolean update)
     {
-        this.query = sqlQuery;
+        this.query = query;
 
         // TODO: unnecessary threads will be spawn
         Supplier<QueryResult> task = () -> {
@@ -65,7 +65,7 @@ public class PostgresqlQueryExecution
             try (Connection connection = connectionPool.openConnection()) {
                 statement = connection.createStatement();
                 if (update) {
-                    statement.executeUpdate(sqlQuery);
+                    statement.executeUpdate(query);
                     // CREATE TABLE queries doesn't return any value and
                     // fail when using executeQuery so we fake the result data
                     queryResult = new QueryResult(ImmutableList.of(new SchemaField("result", FieldType.BOOLEAN)),
@@ -73,7 +73,7 @@ public class PostgresqlQueryExecution
                 }
                 else {
                     long beforeExecuted = System.currentTimeMillis();
-                    ResultSet resultSet = statement.executeQuery(sqlQuery);
+                    ResultSet resultSet = statement.executeQuery(query);
                     statement = null;
                     queryResult = resultSetToQueryResult(resultSet,
                             System.currentTimeMillis() - beforeExecuted);
