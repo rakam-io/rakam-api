@@ -300,7 +300,7 @@ public class DashboardService
             @ApiParam("dashboard") int dashboard,
             @ApiParam("name") String itemName,
             @ApiParam("directive") String directive,
-            @ApiParam(value = "refresh_interval", required = false) Duration refreshInterval,
+            @ApiParam(value = "refreshInterval", required = false) Duration refreshInterval,
             @ApiParam("options") Map options)
     {
         try (Handle handle = dbi.open()) {
