@@ -122,7 +122,7 @@ public class UIPermissionParameterProvider
                                     " SELECT false " +
                                     "FROM web_user_api_key_permission permission \n" +
                                     "JOIN web_user_api_key api_key ON (permission.api_key_id = api_key.id) \n" +
-                                    "WHERE permission.user_id = :user AND api_key.project_id = :id AND permission.master_permission")
+                                    "WHERE permission.user_id = :user AND api_key.project_id = :id AND (permission.master_permission OR permission.read_permission)")
                                     .map(BooleanMapper.FIRST)
                                     .bind("user", userId)
                                     .bind("id", project)
