@@ -100,7 +100,7 @@ public class JDBCCustomReportMetadata implements CustomReportMetadata {
     @Override
     public Map<String, List<CustomReport>> list(int project) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT r.report_type, r.name, r.data, r.user_id, email FROM custom_reports r" +
+            return handle.createQuery("SELECT r.report_type, r.name, r.data, r.user_id, email FROM custom_reports r     " +
                     "JOIN web_user ON (web_user.id = user_id) WHERE project_id = :project")
                     .bind("project", project)
                     .map((i, resultSet, statementContext) -> {
