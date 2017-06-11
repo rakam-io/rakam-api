@@ -32,8 +32,9 @@ public class JDBCReportMetadata implements ReportMetadata {
         if(r.getMetaData().getColumnCount() >= 8) {
             report.setPermission(r.getBoolean(9));
         }
-        if(r.getMetaData().getColumnCount() == 9 && r.getObject(9) != null) {
+        if(r.getMetaData().getColumnCount() >= 9) {
             report.setUserId(r.getInt(9));
+            report.setUserEmail(r.getString(10));
         }
         return report;
     };
@@ -43,9 +44,10 @@ public class JDBCReportMetadata implements ReportMetadata {
         dbi = new DBI(dataSource);
     }
 
-    public List<Report> getReports(Integer requestedUserId, int project) {
+    public List<Report> list(Integer requestedUserId, int project) {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT reports.project_id, reports.slug, reports.category, reports.name, reports.query, reports.options, reports.query_options, reports.shared, reports.user_id FROM reports " +
+            return handle.createQuery("SELECT reports.project_id, reports.slug, reports.category, reports.name, reports.query, reports.options, reports.query_options, reports.shared, reports.user_id, web_user.email FROM reports " +
+                    " JOIN web_user ON (web_user.id = reports.user_id)" +
                     " WHERE reports.project_id = :project " +
                     " ORDER BY reports.created_at")
                     .bind("project", project)
@@ -93,8 +95,9 @@ public class JDBCReportMetadata implements ReportMetadata {
 
     public Report get(Integer requestedUserId, int project, String slug) {
         try (Handle handle = dbi.open()) {
-            Report report = handle.createQuery("SELECT r.project_id, r.slug, r.category, r.name, query, r.options, r.query_options, r.shared, r.user_id FROM reports r " +
+            Report report = handle.createQuery("SELECT r.project_id, r.slug, r.category, r.name, query, r.options, r.query_options, r.shared, r.user_id, web_user.email FROM reports r " +
                     " LEFT JOIN web_user_api_key permission ON (permission.project_id = r.project_id)" +
+                    " JOIN web_user ON (web_user.id = r.user_id)" +
                     " WHERE r.project_id = :project AND r.slug = :slug AND (" +
                     "((permission.master_key IS NOT NULL OR r.shared OR r.user_id = :requestedUser)))")
                     .bind("project", project)
@@ -109,7 +112,7 @@ public class JDBCReportMetadata implements ReportMetadata {
 
     public Report update(Integer userId, int project, Report report) {
         try (Handle handle = dbi.open()) {
-            int execute = handle.createStatement("UPDATE reports SET name = :name, query = :query, category = :category, options = :options WHERE project_id = :project AND slug = :slug")
+            int execute = handle.createStatement("UPDATE reports SET name = :name, query = :query, category = :category, options = :options WHERE project_id = :project AND slug = :slug AND user_id = :user")
                     .bind("project", project)
                     .bind("name", report.name)
                     .bind("query", report.query)
@@ -119,7 +122,7 @@ public class JDBCReportMetadata implements ReportMetadata {
                     .bind("options", JsonHelper.encode(report.options, false))
                     .execute();
             if (execute == 0) {
-                throw new RakamException("Report does not exist", BAD_REQUEST);
+                throw new RakamException("Report does not exist or the user doesn't own the report", BAD_REQUEST);
             }
         }
         return report;

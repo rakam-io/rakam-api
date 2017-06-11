@@ -54,6 +54,7 @@ import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
 import java.sql.JDBCType;
+import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -233,7 +234,10 @@ public class PrestoRakamRaptorMetastore
                         }
                         catch (Exception e) {
                             if (e.getMessage().equals("Failed to perform metadata operation")) {
-                                getOrCreateCollectionFields(project, collection, ImmutableSet.of(f), 1);
+                                if(tryCount == 0) {
+                                    throw e;
+                                }
+                                getOrCreateCollectionFields(project, collection, ImmutableSet.of(f), tryCount - 1);
                             }
                             else if (!e.getMessage().contains("exists")) {
                                 throw new IllegalStateException(e.getMessage());
@@ -278,7 +282,7 @@ public class PrestoRakamRaptorMetastore
 
         daoTransaction(dbi, MetadataDao.class, dao -> {
             dao.insertColumn(table.getTableId(), columnId, columnName, ordinalPosition, type, null, null);
-//            dao.updateTableVersion(table.getTableId(), session.getStartTime());
+            dao.updateTableVersion(table.getTableId(), System.currentTimeMillis());
         });
 
         String columnType = sqlColumnType(fieldType);

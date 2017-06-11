@@ -6,7 +6,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.ui.DashboardService;
 import org.rakam.ui.ReportMetadata;
-import org.rakam.ui.UIPermissionParameterProvider;
 import org.rakam.ui.UIPermissionParameterProvider.Project;
 import org.rakam.ui.customreport.CustomReport;
 import org.rakam.ui.customreport.CustomReportMetadata;
@@ -47,7 +46,7 @@ public class UIRecipeHandler
         final List<Report> reports;
         if (reportMetadata.isPresent()) {
             reports = reportMetadata.get()
-                    .getReports(null, project).stream()
+                    .list(null, project).stream()
                     .map(r -> new Report(r.slug, r.category, r.name, r.query, r.options, r.queryOptions, r.shared))
                     .collect(Collectors.toList());
         }

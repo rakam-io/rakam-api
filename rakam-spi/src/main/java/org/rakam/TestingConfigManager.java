@@ -19,7 +19,11 @@ public class TestingConfigManager
 
     @Override
     public synchronized  <T> void setConfig(String project, String configName, T clazz) {
-        table.put(project, configName, clazz);
+        if(clazz == null) {
+            table.remove(project, configName);
+        } else {
+            table.put(project, configName, clazz);
+        }
     }
 
     @Override

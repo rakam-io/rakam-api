@@ -13,6 +13,7 @@
  */
 package org.rakam.ui.customreport;
 
+import org.glassfish.jersey.internal.inject.Custom;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.ApiOperation;
@@ -33,15 +34,17 @@ import javax.ws.rs.Path;
 
 import java.util.List;
 
-
 @Path("/ui/custom-report")
 @IgnoreApi
-public class CustomReportHttpService extends HttpService {
+public class CustomReportHttpService
+        extends HttpService
+{
 
     private final CustomReportMetadata metadata;
 
     @Inject
-    public CustomReportHttpService(CustomReportMetadata metadata) {
+    public CustomReportHttpService(CustomReportMetadata metadata)
+    {
         this.metadata = metadata;
     }
 
@@ -49,7 +52,8 @@ public class CustomReportHttpService extends HttpService {
     @Path("/list")
     @ApiOperation(value = "List reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
     public List<CustomReport> list(@ApiParam("report_type") String reportType,
-            @Named("user_id") Project project) {
+            @Named("user_id") Project project)
+    {
         return metadata.list(reportType, project.project);
     }
 
@@ -57,17 +61,18 @@ public class CustomReportHttpService extends HttpService {
     @Path("/types")
     @JsonRequest
     @ApiOperation(value = "List report types", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
-    public List<String> types(@Named("user_id") Project project) {
+    public List<String> types(@Named("user_id") Project project)
+    {
         return metadata.types(project.project);
     }
-
 
     @ApiOperation(value = "Create reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"),
             response = SuccessMessage.class, request = CustomReport.class)
     @JsonRequest
     @ProtectEndpoint(writeOperation = true)
     @Path("/create")
-    public SuccessMessage create(@Named("user_id") Project project, @BodyParam CustomReport report) {
+    public SuccessMessage create(@Named("user_id") Project project, @BodyParam CustomReport report)
+    {
         metadata.save(project.userId, project.project, report);
         return SuccessMessage.success();
     }
@@ -76,7 +81,8 @@ public class CustomReportHttpService extends HttpService {
     @Path("/update")
     @ProtectEndpoint(writeOperation = true)
     @ApiOperation(value = "Update reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
-    public SuccessMessage update(@Named("user_id") Project project, @BodyParam CustomReport report) {
+    public SuccessMessage update(@Named("user_id") Project project, @BodyParam CustomReport report)
+    {
         metadata.update(project.project, report);
         return SuccessMessage.success();
     }
@@ -86,8 +92,9 @@ public class CustomReportHttpService extends HttpService {
     @ApiOperation(value = "Delete reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
     @ProtectEndpoint(writeOperation = true)
     public SuccessMessage delete(@Named("user_id") Project project,
-                               @ApiParam("report_type") String reportType,
-                               @ApiParam("name") String name) {
+            @ApiParam("report_type") String reportType,
+            @ApiParam("name") String name)
+    {
         metadata.delete(reportType, project.project, name);
 
         return SuccessMessage.success();
@@ -96,9 +103,10 @@ public class CustomReportHttpService extends HttpService {
     @JsonRequest
     @Path("/get")
     @ApiOperation(value = "Get reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
-    public Object get(@ApiParam("report_type") String reportType,
+    public CustomReport get(@ApiParam("report_type") String reportType,
             @Named("user_id") Project project,
-                      @ApiParam(value = "name") String name) {
+            @ApiParam(value = "name") String name)
+    {
         return metadata.get(reportType, project.project, name);
     }
 }

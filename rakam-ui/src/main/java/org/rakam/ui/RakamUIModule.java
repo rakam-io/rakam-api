@@ -200,7 +200,7 @@ public class RakamUIModule
                     customPageDatabase.delete(event.project, page.slug);
                 }
             }
-            for (Report report : reportMetadata.getReports(null, event.project)) {
+            for (Report report : reportMetadata.list(null, event.project)) {
                 reportMetadata.delete(null, event.project, report.slug);
             }
             for (Map.Entry<String, List<CustomReport>> types : customReportMetadata.list(event.project).entrySet()) {

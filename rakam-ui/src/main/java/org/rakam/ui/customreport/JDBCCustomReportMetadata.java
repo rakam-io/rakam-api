@@ -84,11 +84,12 @@ public class JDBCCustomReportMetadata implements CustomReportMetadata {
     @Override
     public List<CustomReport> list(String reportType, int project) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT name, data, user_id FROM custom_reports WHERE report_type = :reportType AND project_id = :project")
+            return handle.createQuery("SELECT r.name, r.data, r.user_id, email FROM custom_reports r " +
+                    "JOIN web_user ON (web_user.id = user_id) WHERE report_type = :reportType AND project_id = :project")
                     .bind("reportType", reportType)
                     .bind("project", project)
                     .map((i, resultSet, statementContext) -> {
-                        return new CustomReport(reportType, resultSet.getString(1), resultSet.getInt(3), JsonHelper.read(resultSet.getString(2)));
+                        return new CustomReport(reportType, resultSet.getString(1), resultSet.getInt(3), resultSet.getString(4), JsonHelper.read(resultSet.getString(2)));
                     }).list();
         }
     }
@@ -96,10 +97,11 @@ public class JDBCCustomReportMetadata implements CustomReportMetadata {
     @Override
     public Map<String, List<CustomReport>> list(int project) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT report_type, name, data, user_id FROM custom_reports WHERE project_id = :project")
+            return handle.createQuery("SELECT r.report_type, r.name, r.data, r.user_id, email FROM custom_reports r" +
+                    "JOIN web_user ON (web_user.id = user_id) WHERE project_id = :project")
                     .bind("project", project)
                     .map((i, resultSet, statementContext) -> {
-                        return new CustomReport(resultSet.getString(1), resultSet.getString(2), resultSet.getInt(4), JsonHelper.read(resultSet.getString(3)));
+                        return new CustomReport(resultSet.getString(1), resultSet.getString(2), resultSet.getInt(4), resultSet.getString(5), JsonHelper.read(resultSet.getString(3)));
                     }).list().stream().collect(Collectors.groupingBy(customReport -> customReport.reportType));
         }
     }

@@ -9,7 +9,6 @@ import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.util.CharsetUtil;
 import org.rakam.analysis.ApiKeyService;
@@ -49,7 +48,6 @@ import java.util.Optional;
 
 import static io.netty.buffer.Unpooled.wrappedBuffer;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
-import static io.netty.handler.codec.http.HttpHeaders.Names.COOKIE;
 import static io.netty.handler.codec.http.HttpHeaders.Names.SET_COOKIE;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
@@ -153,6 +151,23 @@ public class WebUserHttpService
         }
 
         return service.registerProject(project.userId, apiUrl, name, readKey, writeKey, masterKey);
+    }
+
+    @JsonRequest
+    @ProtectEndpoint(writeOperation = true, requiresProject = false)
+    @Path("/get-api-key-owners")
+    public List<WebUserService.ProjectKeyPermission> apiKeyOwners(@Named("user_id") Project project, @ApiParam(value = "read_keys") List<String> readKeys)
+    {
+        return service.apiKeyOwners(project.project, readKeys);
+    }
+
+    @JsonRequest
+    @ProtectEndpoint(writeOperation = true, requiresProject = false)
+    @Path("/get-project-owner")
+    @GET
+    public WebUserService.ProjectOwner apiKeyOwners(@Named("user_id") Project project)
+    {
+        return service.getProjectOwner(project.project);
     }
 
     @JsonRequest

@@ -22,6 +22,7 @@ import org.rakam.server.http.annotations.ApiParam;
 public class CustomReport {
     public final String reportType;
     public final Integer user;
+    public final String userEmail;
     public final String name;
     public final Object data;
 
@@ -29,12 +30,13 @@ public class CustomReport {
     public CustomReport(@ApiParam("report_type") String reportType,
                         @ApiParam("name") String name,
                         @ApiParam("data") Object data) {
-        this(reportType, name, null, data);
+        this(reportType, name, null, null, data);
     }
 
-    public CustomReport(String reportType, String name, Integer user, Object data) {
+    public CustomReport(String reportType, String name, Integer user, String userEmail, Object data) {
         this.reportType = reportType;
         this.user = user;
+        this.userEmail = userEmail;
         this.name = name;
         this.data = data;
     }

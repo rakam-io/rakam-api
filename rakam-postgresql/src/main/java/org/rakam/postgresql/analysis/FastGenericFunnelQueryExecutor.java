@@ -104,9 +104,13 @@ public class FastGenericFunnelQueryExecutor
                 mainSelect.stream().collect(Collectors.joining(" UNION ALL\n")),
                 dimension.map(v -> v + ", ").orElse(""),
                 connectorString,
-                dimension.map(v -> " group by 1").orElse(""));
+                dimension.map(v -> " group by 1 order by 2 desc").orElse(""));
 
-        QueryExecution queryExecution = executor.executeQuery(project, query);
+        if(dimension.isPresent()) {
+            query = format("SELECT * FROM (%s) WHERE event0_count > 0", query);
+        }
+
+        QueryExecution queryExecution = executor.executeQuery(project, query, Optional.empty(), "collection", 1000);
 
         return new DelegateQueryExecution(queryExecution,
                 result -> {

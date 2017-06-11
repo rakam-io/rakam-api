@@ -37,7 +37,7 @@ public class ReportHttpService
     @Path("/list")
     public Object list(@Named("user_id") Project project)
     {
-        return metadata.getReports(project.userId, project.project);
+        return metadata.list(project.userId, project.project);
     }
 
     @ApiOperation(value = "Create Report", authorizations = @Authorization(value = "read_key"))

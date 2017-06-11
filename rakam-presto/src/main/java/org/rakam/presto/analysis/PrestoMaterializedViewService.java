@@ -127,8 +127,7 @@ public class PrestoMaterializedViewService
         MaterializedView materializedView = database.getMaterializedView(project, name);
         database.deleteMaterializedView(project, name);
         String reference = queryExecutor.formatTableReference(project, QualifiedName.of("materialized", materializedView.tableName), Optional.empty(), ImmutableMap.of(), "collection");
-        return queryExecutor.executeRawQuery(format("DROP TABLE %s",
-                reference)).getResult().thenApply(result -> {
+        return queryExecutor.executeRawQuery(format("DROP TABLE %s", reference)).getResult().thenApply(result -> {
             if (result.isFailed()) {
                 throw new RakamException("Error while deleting materialized table: " + result.getError().toString(), INTERNAL_SERVER_ERROR);
             }

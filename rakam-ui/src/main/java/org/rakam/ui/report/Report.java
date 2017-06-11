@@ -27,6 +27,8 @@ public class Report
     public Boolean hasPermission;
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public Integer userId;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public String userEmail;
 
     @JsonCreator
     public Report(@ApiParam(value = "slug", description = "Short name of the report") String slug,
@@ -57,6 +59,11 @@ public class Report
     public void setUserId(int user)
     {
         this.userId = user;
+    }
+
+    public void setUserEmail(String userEmail)
+    {
+        this.userEmail = userEmail;
     }
 }
 

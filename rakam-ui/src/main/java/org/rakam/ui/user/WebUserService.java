@@ -30,6 +30,7 @@ import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.ResultIterator;
+import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.TransactionStatus;
 import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
@@ -169,6 +170,35 @@ public class WebUserService
         }
     }
 
+    public List<ProjectKeyPermission> apiKeyOwners(int project, List<String> readKeys)
+    {
+        try (Handle handle = dbi.open()) {
+            return handle.createQuery("select read_key, web_user.email, web_user_api_key.created_at from web_user_api_key \n" +
+                    "join web_user_api_key_permission permission on (permission.api_key_id = web_user_api_key.id and permission.read_permission)\n" +
+                    "join web_user on (web_user.id = permission.user_id)\n" +
+                    "where read_key = any (:keys) and web_user_api_key.project_id = :project")
+                    .bind("keys", handle.getConnection().createArrayOf("text", readKeys.toArray()))
+                    .bind("project", project)
+                    .map((index, r, ctx) -> {
+                        return new ProjectKeyPermission(r.getString(1), r.getString(2), r.getTimestamp(3).toInstant());
+                    }).list();
+        }
+        catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    public ProjectOwner getProjectOwner(int project)
+    {
+        try (Handle handle = dbi.open()) {
+            return handle.createQuery("select web_user.id, web_user.email from web_user join web_user_project project on (project.user_id = web_user.id) where project.id = :id")
+                    .bind("id", project)
+                    .map((index, r, ctx) -> {
+                        return new ProjectOwner(r.getInt(1), r.getString(2));
+                    }).first();
+        }
+    }
+
     public static class ProjectConfiguration
     {
         public final String name;
@@ -184,6 +214,32 @@ public class WebUserService
         {
             this.timezone = timezone;
             this.name = name;
+        }
+    }
+
+    public static class ProjectKeyPermission
+    {
+        public final String readKey;
+        public final String email;
+        public final Instant createdAt;
+
+        public ProjectKeyPermission(String readKey, String email, Instant createdAt)
+        {
+            this.readKey = readKey;
+            this.email = email;
+            this.createdAt = createdAt;
+        }
+    }
+
+    public static class ProjectOwner
+    {
+        public final int id;
+        public final String email;
+
+        public ProjectOwner(int id, String email)
+        {
+            this.id = id;
+            this.email = email;
         }
     }
 
