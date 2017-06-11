@@ -71,12 +71,15 @@ public class JDBCCustomReportMetadata implements CustomReportMetadata {
     @Override
     public CustomReport get(String reportType, int project, String name) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT data FROM custom_reports WHERE report_type = :reportType AND project_id = :project AND name = :name")
+            return handle.createQuery("SELECT data, web_user.id, web_user.email FROM custom_reports r " +
+                    "JOIN web_user ON (web_user.id = user_id) " +
+                    "WHERE r.report_type = :reportType AND r.project_id = :project AND r.name = :name")
                     .bind("reportType", reportType)
                     .bind("project", project)
                     .bind("name", name)
                     .map((i, resultSet, statementContext) -> {
-                        return new CustomReport(reportType, name, JsonHelper.read(resultSet.getString(1)));
+                        return new CustomReport(reportType, name, resultSet.getInt(2),
+                                resultSet.getString(3), JsonHelper.read(resultSet.getString(1)));
                     }).first();
         }
     }

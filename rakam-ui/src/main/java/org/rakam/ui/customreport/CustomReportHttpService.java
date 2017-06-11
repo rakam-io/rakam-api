@@ -13,6 +13,7 @@
  */
 package org.rakam.ui.customreport;
 
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.glassfish.jersey.internal.inject.Custom;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.server.http.HttpService;
@@ -25,6 +26,7 @@ import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.ProtectEndpoint;
 import org.rakam.ui.UIPermissionParameterProvider;
 import org.rakam.ui.UIPermissionParameterProvider.Project;
+import org.rakam.util.RakamException;
 import org.rakam.util.SuccessMessage;
 
 import javax.inject.Inject;
@@ -33,6 +35,8 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 
 import java.util.List;
+
+import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 
 @Path("/ui/custom-report")
 @IgnoreApi
@@ -83,6 +87,10 @@ public class CustomReportHttpService
     @ApiOperation(value = "Update reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
     public SuccessMessage update(@Named("user_id") Project project, @BodyParam CustomReport report)
     {
+        CustomReport customReport = metadata.get(report.reportType, project.project, report.name);
+        if(customReport.getUser() != null && customReport.getUser() != project.userId) {
+            throw new RakamException("The owner of the custom report can update the report", UNAUTHORIZED);
+        }
         metadata.update(project.project, report);
         return SuccessMessage.success();
     }
@@ -95,6 +103,11 @@ public class CustomReportHttpService
             @ApiParam("report_type") String reportType,
             @ApiParam("name") String name)
     {
+        CustomReport customReport = metadata.get(reportType, project.project, name);
+        if(customReport.getUser() != null && customReport.getUser() != project.userId) {
+            throw new RakamException("The owner of the custom report can delete the report", UNAUTHORIZED);
+        }
+
         metadata.delete(reportType, project.project, name);
 
         return SuccessMessage.success();
