@@ -2,7 +2,6 @@
   "name": "Facebook Ads",
   "description": "Collects data from Facebook Marketing API",
   "defaultDuration": "PT24H",
-  "recipe": "facebook-ads",
   "external": {
     "url": "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/facebook",
     "name": "Login with Facebook"
