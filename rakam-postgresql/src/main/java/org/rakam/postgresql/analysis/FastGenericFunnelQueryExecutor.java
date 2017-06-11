@@ -107,7 +107,7 @@ public class FastGenericFunnelQueryExecutor
                 dimension.map(v -> " group by 1 order by 2 desc").orElse(""));
 
         if(dimension.isPresent()) {
-            query = format("SELECT * FROM (%s) WHERE event0_count > 0", query);
+            query = format("SELECT * FROM (%s) data WHERE event0_count > 0", query);
         }
 
         QueryExecution queryExecution = executor.executeQuery(project, query, Optional.empty(), "collection", 1000);
