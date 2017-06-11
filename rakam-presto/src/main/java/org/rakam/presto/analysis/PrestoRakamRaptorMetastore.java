@@ -234,10 +234,8 @@ public class PrestoRakamRaptorMetastore
                         }
                         catch (Exception e) {
                             if (e.getMessage().equals("Failed to perform metadata operation")) {
-                                if(tryCount == 0) {
-                                    throw e;
-                                }
-                                getOrCreateCollectionFields(project, collection, ImmutableSet.of(f), tryCount - 1);
+                                // TODO: fix stackoverflow
+                                getOrCreateCollectionFields(project, collection, ImmutableSet.of(f), 1);
                             }
                             else if (!e.getMessage().contains("exists")) {
                                 throw new IllegalStateException(e.getMessage());
