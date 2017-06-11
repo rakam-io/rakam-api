@@ -2,7 +2,6 @@
   "name": "Google Analytics",
   "description": "Collects data from Google Analytics",
   "defaultDuration": "PT24H",
-  "recipe": "google-analytics",
   "external": {
      "url": "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/google?type=https://www.googleapis.com/auth/analytics.readonly",
      "name": "Login with Google"

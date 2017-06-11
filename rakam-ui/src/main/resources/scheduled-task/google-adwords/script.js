@@ -38,7 +38,7 @@ var fetch = function (parameters, events, index, startDate, endDate) {
 
     if (startDate == null) {
         startDate = new Date();
-        startDate.setMonth(startDate.getMonth() > 3 ? 0 : startDate.getMonth() - 2);
+        startDate.setMonth(startDate.getMonth() - 1);
         startDate = startDate.toJSON().slice(0, 10);
     }
 

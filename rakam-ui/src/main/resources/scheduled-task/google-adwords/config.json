@@ -2,7 +2,6 @@
   "name": "Google Adwords",
   "description": "Collects data from Google Adwords",
   "defaultDuration": "PT24H",
-  "recipe": "google-adwords",
   "external": {
      "url": "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/google?type=https://www.googleapis.com/auth/adwords",
      "name": "Login with Google"

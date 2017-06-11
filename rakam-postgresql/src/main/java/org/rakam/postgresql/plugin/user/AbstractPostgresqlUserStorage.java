@@ -64,6 +64,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static org.rakam.analysis.InternalConfig.USER_TYPE;
 import static org.rakam.collection.SchemaField.stripName;
+import static org.rakam.postgresql.plugin.user.PostgresqlUserStorage.USER_TABLE;
 import static org.rakam.report.QueryResult.TOTAL_RESULT;
 import static org.rakam.util.JDBCUtil.fromSql;
 import static org.rakam.util.ValidationUtil.checkProject;
@@ -535,9 +536,8 @@ public abstract class AbstractPostgresqlUserStorage
 
         try (Connection conn = queryExecutor.getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
-            String[] userTable = getUserTable(project, false).split("\\.", 2);
-            ResultSet indexInfo = metaData.getIndexInfo(null, userTable[0], userTable[1], true, false);
-            ResultSet dbColumns = metaData.getColumns(null, userTable[0], userTable[1], null);
+            ResultSet indexInfo = metaData.getIndexInfo(null, project, USER_TABLE, true, false);
+            ResultSet dbColumns = metaData.getColumns(null, project, USER_TABLE, null);
 
             Set<String> uniqueColumns = Sets.newHashSet();
             while (indexInfo.next()) {

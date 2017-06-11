@@ -24,7 +24,7 @@ var fetch = function (parameters, startDate, endDate, nextToken) {
 
     if (startDate == null) {
         startDate = new Date();
-        startDate.setMonth(startDate.getMonth() - 2);
+        startDate.setMonth(startDate.getMonth() - 1);
         startDate = startDate.toJSON().slice(0, 10);
     }
 
@@ -98,6 +98,8 @@ var fetch = function (parameters, startDate, endDate, nextToken) {
     var events = [];
     var report = data.reports[0];
     (report.data.rows || []).forEach(function (row) {
+        var valid_time;
+
         row.metrics.forEach(function (metricValues) {
             var properties = {};
             dimensions.forEach(function (dimension, idx) {
@@ -105,6 +107,8 @@ var fetch = function (parameters, startDate, endDate, nextToken) {
 
                 if (dimension == 'ga:dateHour') {
                     dimension = '_time';
+                    // Sometimes GA group it as 'Others'
+                    valid_time = value.indexOf('20') == 0;
                     value = value.substring(0, 4) + '-' + value.substring(4, 6) + '-' + value.substring(6, 8) + "T" + value.substring(8, 10) + ":00:00";
                 }
                 if (value !== '(not set)') {
@@ -116,7 +120,9 @@ var fetch = function (parameters, startDate, endDate, nextToken) {
                 properties[metric] = metricMappers[idx](metricValues.values[idx]);
             });
 
-            events.push({collection: parameters.collection, properties: properties});
+            if(valid_time) {
+                events.push({collection: parameters.collection, properties: properties});
+            }
         });
     });
 
