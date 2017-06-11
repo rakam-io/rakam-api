@@ -37,6 +37,7 @@ import java.util.stream.Collectors;
 
 import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
 import static java.lang.String.format;
+import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PostgresqlFunnelQueryExecutor
@@ -100,7 +101,7 @@ public class PostgresqlFunnelQueryExecutor
 
     public String convertFunnel(String project, String connectorField, int idx, FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate)
     {
-        String table = project + "." + ValidationUtil.checkCollection(funnelStep.getCollection());
+        String table = checkProject(project, '"') + "." + ValidationUtil.checkCollection(funnelStep.getCollection());
         Optional<String> filterExp = funnelStep.getExpression().map(value -> RakamSqlFormatter.formatExpression(value,
                 name -> name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
                 name -> formatIdentifier("step" + idx, '"') + "." + name.getParts().stream()

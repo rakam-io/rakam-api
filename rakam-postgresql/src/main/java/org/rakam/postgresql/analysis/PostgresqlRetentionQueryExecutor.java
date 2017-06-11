@@ -56,6 +56,7 @@ import static org.rakam.collection.FieldType.INTEGER;
 import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
 import static org.rakam.util.ValidationUtil.checkArgument;
 import static org.rakam.util.ValidationUtil.checkCollection;
+import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PostgresqlRetentionQueryExecutor
@@ -314,7 +315,7 @@ public class PostgresqlRetentionQueryExecutor
                 checkTableColumn(projectConfig.getTimeColumn()),
                 dimension.isPresent() ? checkTableColumn(dimension.get(), "dimension", '"') + " as dimension, " : "",
                 connectorField,
-                project + "." + checkCollection(collection),
+                checkProject(project, '"') + "." + checkCollection(collection),
                 checkTableColumn(projectConfig.getTimeColumn()),
                 timePredicate,
                 filter.isPresent() ? "and " + formatExpression(filter.get(), reference -> {

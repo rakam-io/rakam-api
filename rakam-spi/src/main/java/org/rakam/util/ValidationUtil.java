@@ -24,6 +24,11 @@ public final class ValidationUtil
         return project.toLowerCase(ENGLISH);
     }
 
+    public static String checkProject(String project, char character)
+    {
+        return character + checkProject(project).replaceAll("\"", "") + character;
+    }
+
     public static <T> T checkNotNull(T value, String name)
     {
         checkArgument(value != null, name+" is null");

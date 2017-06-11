@@ -38,6 +38,7 @@ import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 @Singleton
@@ -215,7 +216,7 @@ public class PostgresqlEventStore
     private String getQuery(String project, String collection, Schema schema)
     {
         StringBuilder query = new StringBuilder("INSERT INTO ")
-                .append(project)
+                .append(checkProject(project, '"'))
                 .append(".")
                 .append(ValidationUtil.checkCollection(collection));
         StringBuilder params = new StringBuilder();

@@ -36,7 +36,7 @@ import static org.testng.Assert.*;
 public abstract class TestEventExplorer
 {
     private static final int SCALE_FACTOR = 100;
-    protected static final String PROJECT_NAME = TestEventExplorer.class.getName().replace(".", "_").toLowerCase();
+    protected static final String PROJECT_NAME = "2";
 
     private static final Map<TimestampTransformation, Set<List>> EVENT_STATISTICS_RESULTS = ImmutableMap.<TimestampTransformation, Set<List>>builder()
             .put(HOUR_OF_DAY, ImmutableSet.of(of("test", "00:00", 36L), of("test", "01:00", 36L), of("test", "02:00", 28L)))

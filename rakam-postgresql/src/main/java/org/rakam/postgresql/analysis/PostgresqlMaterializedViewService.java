@@ -33,6 +33,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static org.rakam.postgresql.report.PostgresqlQueryExecutor.MATERIALIZED_VIEW_PREFIX;
 import static org.rakam.util.ValidationUtil.checkCollection;
+import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PostgresqlMaterializedViewService extends MaterializedViewService {
@@ -72,10 +73,10 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
         String format;
         if(!materializedView.incremental) {
             format = format("CREATE MATERIALIZED VIEW %s.%s AS %s WITH NO DATA",
-                    ValidationUtil.checkProject(project), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName), builder.toString());
+                    checkProject(project, '"'), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName), builder.toString());
         } else {
             format = format("CREATE TABLE %s.%s AS %s WITH NO DATA",
-                    ValidationUtil.checkProject(project), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName), builder.toString());
+                    checkProject(project, '"'), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName), builder.toString());
         }
 
         QueryResult result = queryExecutor.executeRawStatement(format).getResult().join();

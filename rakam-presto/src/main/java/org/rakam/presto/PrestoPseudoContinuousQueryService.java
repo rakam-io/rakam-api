@@ -51,7 +51,7 @@ public class PrestoPseudoContinuousQueryService  extends ContinuousQueryService
     public QueryExecution create(String project, ContinuousQuery report, boolean replayHistoricalData)
     {
         String query = service.buildQuery(project, report.query, Optional.empty(), "collection", null, new HashMap<>(), new HashMap<>());
-        String format = String.format("CREATE VIEW %s.%s AS %s", checkProject(project), checkCollection(CONTINUOUS_QUERY_PREFIX + report.tableName), query);
+        String format = String.format("CREATE VIEW %s.%s AS %s", checkProject(project, '"'), checkCollection(CONTINUOUS_QUERY_PREFIX + report.tableName), query);
         return new DelegateQueryExecution(executor.executeRawStatement(format), result -> {
             if (!result.isFailed()) {
                 database.createContinuousQuery(project, report);
@@ -66,7 +66,7 @@ public class PrestoPseudoContinuousQueryService  extends ContinuousQueryService
     @Override
     public CompletableFuture<Boolean> delete(String project, String name)
     {
-        return executor.executeRawStatement(String.format("DROP VIEW %s.%s", checkProject(project), checkCollection(CONTINUOUS_QUERY_PREFIX + name))).getResult().thenApply(result -> {
+        return executor.executeRawStatement(String.format("DROP VIEW %s.%s", checkProject(project, '"'), checkCollection(CONTINUOUS_QUERY_PREFIX + name))).getResult().thenApply(result -> {
             if (!result.isFailed()) {
                 database.deleteContinuousQuery(project, name);
             }

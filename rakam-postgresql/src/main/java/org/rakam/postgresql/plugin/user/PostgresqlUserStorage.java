@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 import static java.lang.String.format;
 import static org.rakam.report.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkCollection;
+import static org.rakam.util.ValidationUtil.checkProject;
 
 public class PostgresqlUserStorage
         extends AbstractPostgresqlUserStorage
@@ -101,7 +102,7 @@ public class PostgresqlUserStorage
     @Override
     public String getUserTable(String project, boolean isEventFilterActive)
     {
-        return project + "." + USER_TABLE;
+        return checkProject(project, '"') + "." + USER_TABLE;
     }
 
     @Override

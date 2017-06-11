@@ -21,6 +21,7 @@ import org.rakam.report.QueryExecutor;
 import org.rakam.report.QuerySampling;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
@@ -43,6 +44,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkLiteral;
+import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 // forbid crosstab, dblink
@@ -116,12 +118,12 @@ public class PostgresqlQueryExecutor
             String prefix = name.getPrefix().get().toString();
             switch (prefix) {
                 case "collection":
-                    return project + "." + checkCollection(name.getSuffix()) +
+                    return checkProject(project, '"') + "." + checkCollection(name.getSuffix()) +
                             sample.map(e -> " TABLESAMPLE " + e.method.name() + "(" + e.percentage + ")").orElse("");
                 case "continuous":
-                    return project + "." + checkCollection(CONTINUOUS_QUERY_PREFIX + name.getSuffix());
+                    return checkProject(project, '"') + "." + checkCollection(CONTINUOUS_QUERY_PREFIX + name.getSuffix());
                 case "materialized":
-                    return project + "." + checkCollection(MATERIALIZED_VIEW_PREFIX + name.getSuffix());
+                    return checkProject(project, '"') + "." + checkCollection(MATERIALIZED_VIEW_PREFIX + name.getSuffix());
                 default:
                     if (customDataSource == null) {
                         throw new RakamException("Schema does not exist: " + name.getPrefix().get().toString(), BAD_REQUEST);
@@ -152,7 +154,7 @@ public class PostgresqlQueryExecutor
         }
         else if (name.getSuffix().equals("users") || name.getSuffix().equals("_users")) {
             if (userServiceIsPostgresql) {
-                return project + "._users";
+                return checkProject(project, '"') + "._users";
             }
             throw new RakamException("User implementation is not supported", EXPECTATION_FAILED);
         }
@@ -170,7 +172,7 @@ public class PostgresqlQueryExecutor
                         .map(collection -> format("select cast('%s' as text) as \"_collection\", \"$server_time\" %s from %s t",
                                 checkLiteral(collection),
                                 sharedColumns.isEmpty() ? "" : (", " + sharedColumns),
-                                project + "." + checkCollection(collection)))
+                                checkProject(project, '"') + "." + checkCollection(collection)))
                         .collect(Collectors.joining(" union all \n")) + ") _all";
             }
             else {
@@ -179,7 +181,7 @@ public class PostgresqlQueryExecutor
             }
         }
         else {
-            return project + "." + checkCollection(name.getSuffix());
+            return checkProject(project, '"') + "." + checkCollection(name.getSuffix());
         }
     }
 

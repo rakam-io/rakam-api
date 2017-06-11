@@ -17,7 +17,6 @@ import org.rakam.collection.SchemaField;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.ProjectCollection;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -27,7 +26,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -37,7 +35,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -136,8 +133,9 @@ public class PostgresqlMetastore
         }
         try (Connection connection = connectionPool.getConnection()) {
             final Statement statement = connection.createStatement();
-            statement.executeUpdate(format("CREATE SCHEMA \"%s\"", checkProject(project)));
-            statement.executeUpdate(format("CREATE FUNCTION \"%s\".to_unixtime(timestamp) RETURNS double precision AS 'select extract(epoch from $1)' LANGUAGE SQL IMMUTABLE RETURNS NULL ON NULL INPUT", project));
+            statement.executeUpdate(format("CREATE SCHEMA %s", checkProject(project, '"')));
+            statement.executeUpdate(format("CREATE FUNCTION %s.to_unixtime(timestamp) RETURNS double precision AS 'select extract(epoch from $1)' LANGUAGE SQL IMMUTABLE RETURNS NULL ON NULL INPUT",
+                    checkProject(project, '"')));
         }
         catch (SQLException e) {
             throw Throwables.propagate(e);
@@ -398,7 +396,7 @@ public class PostgresqlMetastore
     {
         checkProject(project);
         try (Connection conn = connectionPool.getConnection()) {
-            conn.createStatement().execute(format("DROP SCHEMA %s CASCADE", checkProject(project)));
+            conn.createStatement().execute(format("DROP SCHEMA %s CASCADE", checkProject(project, '"')));
         }
         catch (SQLException e) {
             throw Throwables.propagate(e);
