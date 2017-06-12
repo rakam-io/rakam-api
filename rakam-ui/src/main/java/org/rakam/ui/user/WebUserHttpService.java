@@ -161,10 +161,10 @@ public class WebUserHttpService
         return service.apiKeyOwners(project.project, readKeys);
     }
 
-    @ProtectEndpoint(writeOperation = true, requiresProject = false)
+    @ProtectEndpoint(writeOperation = true)
     @Path("/get-project-owner")
     @GET
-    public WebUserService.ProjectOwner apiKeyOwners(@Named("user_id") Project project)
+    public WebUserService.ProjectOwner projectOwner(@Named("user_id") Project project)
     {
         return service.getProjectOwner(project.project);
     }
