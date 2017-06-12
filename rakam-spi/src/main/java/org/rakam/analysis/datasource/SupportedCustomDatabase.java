@@ -92,8 +92,8 @@ public enum SupportedCustomDatabase
             Properties info = new Properties();
             Optional.ofNullable(factory.getUsername()).map(value -> info.put("user", value));
             Optional.ofNullable(factory.getPassword()).map(value -> info.put("password", value));
-            info.setProperty("socketTimeout", "10");
-            info.setProperty("connectTimeout", "10");
+            info.setProperty("socketTimeout", "10000");
+            info.setProperty("connectTimeout", "10000");
 
             return new com.mysql.jdbc.Driver().connect(format("jdbc:mysql://%s:%s/%s",
                     factory.getHost(),
