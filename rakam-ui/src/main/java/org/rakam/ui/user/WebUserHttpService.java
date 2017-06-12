@@ -161,7 +161,6 @@ public class WebUserHttpService
         return service.apiKeyOwners(project.project, readKeys);
     }
 
-    @JsonRequest
     @ProtectEndpoint(writeOperation = true, requiresProject = false)
     @Path("/get-project-owner")
     @GET
