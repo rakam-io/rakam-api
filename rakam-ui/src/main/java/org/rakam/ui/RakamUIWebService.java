@@ -60,6 +60,7 @@ public class RakamUIWebService
     private final File directory;
     private static final Pattern INSECURE_URI = Pattern.compile(".*[<>&\"].*");
     private final MimetypesFileTypeMap mimeTypesMap = new MimetypesFileTypeMap();
+    private final RakamUIConfig config;
 
     @Inject
     public RakamUIWebService(RakamUIConfig config)
@@ -68,6 +69,7 @@ public class RakamUIWebService
         if(directory == null) {
             throw new IllegalStateException("ui.directory config is not set");
         }
+        this.config = config;
     }
 
     @Path("/favicon.ico")
@@ -77,9 +79,23 @@ public class RakamUIWebService
         sendFile(request, new File(directory.getPath(), "favicon.ico"));
     }
 
+    @Path("/check-configuration")
+    @GET
+    public void checkConfiguration(RakamHttpRequest request)
+    {
+        request.response(JsonHelper.encode(ImmutableMap.of(
+                "sentry", checkSentry(),
+                "disableTracking", config.getDisableTracking())), OK).end();
+    }
+
     @Path("/check-sentry")
     @GET
     public void checkSentry(RakamHttpRequest request)
+    {
+        request.response(JsonHelper.encode(checkSentry()), OK).end();
+    }
+
+    public Map<String, Object> checkSentry()
     {
         LogManager manager = LogManager.getLogManager();
         String canonicalName = SentryHandler.class.getCanonicalName();
@@ -105,7 +121,7 @@ public class RakamUIWebService
             tags.remove("type");
         }
 
-        request.response(JsonHelper.encode(dsnPublic != null ? ImmutableMap.of("tags", tags, "dsn", dsnPublic) : ImmutableMap.of()), OK).end();
+        return dsnPublic != null ? ImmutableMap.of("tags", tags, "dsn", dsnPublic) : ImmutableMap.of();
     }
 
     private void sendFile(RakamHttpRequest request, File file)

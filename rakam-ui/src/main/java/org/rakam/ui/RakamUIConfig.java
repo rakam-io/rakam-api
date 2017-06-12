@@ -31,6 +31,7 @@ public class RakamUIConfig {
     private String stripeKey;
     private URL screenCaptureService;
     private String authentication;
+    private boolean disableTracking;
 
     @Config("ui.directory")
     public RakamUIConfig setUIDirectory(File uiDirectory) {
@@ -125,5 +126,15 @@ public class RakamUIConfig {
 
     public String getGoogleClientId() {
         return googleClientId;
+    }
+
+    @Config("ui.disable-tracking")
+    public RakamUIConfig setDisableTracking(boolean disableTracking) {
+        this.disableTracking = disableTracking;
+        return this;
+    }
+
+    public boolean getDisableTracking() {
+        return disableTracking;
     }
 }
