@@ -349,7 +349,7 @@ public class PrestoRakamRaptorMetastore
     public List<SchemaField> getCollection(String project, String collection)
     {
         return dao.listTableColumns(project, collection).stream()
-                .filter(a -> !a.getColumnName().startsWith("$") && !a.getColumnName().equals(prestoConfig.getCheckpointColumn()))
+                .filter(a -> !a.getColumnName().startsWith("$"))
                 .map(column -> {
                     TypeSignature typeSignature = column.getDataType().getTypeSignature();
 
@@ -489,7 +489,7 @@ public class PrestoRakamRaptorMetastore
     {
         HashMap<String, List<SchemaField>> map = new HashMap<>();
         for (TableColumn tableColumn : dao.listTableColumns(project, null)) {
-            if (tableColumn.getColumnName().startsWith("$") || tableColumn.getColumnName().equals(prestoConfig.getCheckpointColumn()) || !filter.test(tableColumn)) {
+            if (tableColumn.getColumnName().startsWith("$") || !filter.test(tableColumn)) {
                 continue;
             }
             TypeSignature typeSignature = tableColumn.getDataType().getTypeSignature();
