@@ -222,7 +222,10 @@ public class WebUserHttpService
     @Path("/project-configuration")
     public SuccessMessage updateProjectPreferences(@Named("user_id") Project project, @BodyParam ProjectConfiguration configuration)
     {
-        service.updateProjectConfigurations(project.userId, project.project, configuration);
+        if (!service.hasMasterAccess(project.userId, project.project)) {
+            throw new RakamException("You don't have master access", UNAUTHORIZED);
+        }
+        service.updateProjectConfigurations(project.project, configuration);
         return SuccessMessage.success();
     }
 

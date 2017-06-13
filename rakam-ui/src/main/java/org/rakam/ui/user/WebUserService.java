@@ -135,7 +135,7 @@ public class WebUserService
         }
     }
 
-    public void updateProjectConfigurations(int userId, int project, ProjectConfiguration configuration)
+    public void updateProjectConfigurations(int project, ProjectConfiguration configuration)
     {
         try (Connection conn = dbi.open().getConnection()) {
             if (configuration.timezone != null) {
@@ -146,10 +146,9 @@ public class WebUserService
                     throw new RakamException("Timezone is invalid", BAD_REQUEST);
                 }
             }
-            PreparedStatement ps = conn.prepareStatement("UPDATE web_user_project SET timezone = ? WHERE user_id = ? and id = ?");
+            PreparedStatement ps = conn.prepareStatement("UPDATE web_user_project SET timezone = ? WHERE id = ?");
             ps.setString(1, configuration.timezone);
-            ps.setInt(2, userId);
-            ps.setInt(3, project);
+            ps.setInt(2, project);
             ps.executeUpdate();
         }
         catch (SQLException e) {
@@ -764,12 +763,20 @@ public class WebUserService
                 .executeAndReturnGeneratedKeys((index, r, ctx) -> r.getInt("id")).first();
     }
 
-    public boolean hasMasterAccess(Handle handle, int project, int user)
+    private boolean hasMasterAccess(Handle handle, int project, int user)
     {
-        return handle.createQuery("select user_id = :user or (select bool_or(master_permission) from web_user_api_key_permission p join web_user_api_key a on (p.api_key_id = a.id) where p.user_id = :user and a.project_id = :project) from web_user_project where id = :project")
+        return handle.createQuery("select user_id = :user or (select bool_or(master_permission) from web_user_api_key_permission p " +
+                "join web_user_api_key a on (p.api_key_id = a.id) where p.user_id = :user and a.project_id = :project) from web_user_project where id = :project")
                 .bind("user", user)
                 .bind("project", project).map(BooleanMapper.FIRST)
                 .first() == true;
+    }
+
+    public boolean hasMasterAccess(int project, int user)
+    {
+        try (Handle handle = dbi.open()) {
+            return hasMasterAccess(handle, project, user);
+        }
     }
 
     public Optional<WebUser> login(String email, String password)
