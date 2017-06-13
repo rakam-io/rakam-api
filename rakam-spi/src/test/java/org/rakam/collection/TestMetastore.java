@@ -41,7 +41,7 @@ public abstract class TestMetastore
         ImmutableSet<SchemaField> schema = ImmutableSet.of(new SchemaField("test", STRING));
         getMetastore().getOrCreateCollectionFields(PROJECT_NAME, "test", schema);
 
-        assertEquals(getMetastore().getCollection(PROJECT_NAME, "test"), schema);
+        assertTrue(getMetastore().getCollection(PROJECT_NAME, "test").containsAll(schema));
     }
 
     @Test
@@ -53,7 +53,7 @@ public abstract class TestMetastore
         ImmutableSet<SchemaField> schema = ImmutableSet.of(new SchemaField("test", STRING));
         getMetastore().getOrCreateCollectionFields(PROJECT_NAME, "test", schema);
 
-        assertEquals(getMetastore().getCollection(PROJECT_NAME, "test"), schema);
+        assertTrue(getMetastore().getCollection(PROJECT_NAME, "test").containsAll(schema));
     }
 
     @Test
@@ -76,8 +76,8 @@ public abstract class TestMetastore
 
         Map<String, List<SchemaField>> testing = getMetastore().getCollections(PROJECT_NAME);
         assertEquals(testing.size(), 2);
-        assertEquals(ImmutableSet.copyOf(testing.get("testcollection1")), schema);
-        assertEquals(ImmutableSet.copyOf(testing.get("testcollection2")), schema);
+        assertTrue(ImmutableSet.copyOf(testing.get("testcollection1")).containsAll(schema));
+        assertTrue(ImmutableSet.copyOf(testing.get("testcollection2")).containsAll(schema));
     }
 
     @Test
@@ -93,7 +93,7 @@ public abstract class TestMetastore
         getMetastore().getOrCreateCollectionFields(PROJECT_NAME, "testcollection", builder.build());
 
         for (int i = 0; i < 100; i++) {
-            assertEquals(getMetastore().getCollection(PROJECT_NAME, "testcollection"), builder.build());
+            assertTrue(getMetastore().getCollection(PROJECT_NAME, "testcollection").containsAll(builder.build()));
         }
     }
 
@@ -113,8 +113,8 @@ public abstract class TestMetastore
         getMetastore().getOrCreateCollectionFields(PROJECT_NAME, "testcollection",
                 ImmutableSet.of(new SchemaField("test", LONG)));
 
-        assertEquals(ImmutableSet.copyOf(getMetastore().getCollection(PROJECT_NAME, "testcollection")),
-                ImmutableSet.of(new SchemaField("test", LONG), new SchemaField("test", LONG)));
+        assertTrue(ImmutableSet.copyOf(getMetastore().getCollection(PROJECT_NAME, "testcollection")).containsAll(
+                ImmutableSet.of(new SchemaField("test", LONG), new SchemaField("test", LONG))));
     }
 
     @Test(expectedExceptions = IllegalStateException.class)
@@ -137,7 +137,7 @@ public abstract class TestMetastore
 
         getMetastore().getOrCreateCollectionFields(PROJECT_NAME, "testcollection", builder.build());
 
-        assertEquals(getMetastore().getCollection(PROJECT_NAME, "testcollection"), builder.build());
+        assertTrue(getMetastore().getCollection(PROJECT_NAME, "testcollection").containsAll(builder.build()));
     }
 
     /**
