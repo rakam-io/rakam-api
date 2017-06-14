@@ -156,7 +156,9 @@ public class PrestoMaterializedViewService
             }
             StringBuilder builder = new StringBuilder();
 
-            new RakamSqlFormatter.Formatter(builder, name -> queryExecutor.formatTableReference(project, name, Optional.empty(), sessionProperties, "collection"), '"').process(statement, 1);
+            new RakamSqlFormatter.Formatter(builder, name ->
+                    queryExecutor.formatTableReference(project, name, Optional.empty(),
+                    sessionProperties, "collection"), '"').process(statement, 1);
             QueryExecution execution = queryExecutor.executeRawStatement(format("INSERT INTO %s %s", tableName, builder.toString()), sessionProperties);
             execution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? Instant.now() : null));
             return new MaterializedViewExecution(execution, tableName);
