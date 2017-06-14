@@ -85,6 +85,14 @@ public class CustomDataSourceHttpService
         return service.schemaDatabases(project);
     }
 
+    @ApiOperation(value = "Schema of table in data-sources", authorizations = @Authorization(value = "read_key"))
+    @Path("/schema/table")
+    @JsonRequest
+    public List<SchemaField> schemaDatabases(@Named("project") String project, @ApiParam("schema") String schema, @ApiParam("table") String table)
+    {
+        return service.schemaTable(project, schema, table);
+    }
+
     @ApiOperation(value = "Get data-source", authorizations = @Authorization(value = "master_key"))
     @Path("/get/database")
     @JsonRequest

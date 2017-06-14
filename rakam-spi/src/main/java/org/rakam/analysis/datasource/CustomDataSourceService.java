@@ -1,6 +1,7 @@
 package org.rakam.analysis.datasource;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.JDBCPoolDataSource;
@@ -108,29 +109,52 @@ public class CustomDataSourceService
         }
     }
 
-    public Map<String, Map<String, List<SchemaField>>> schemaDatabases(@Named("project") String project)
+    public List<SchemaField> schemaTable(String project, String schema, String table)
+    {
+        CustomDataSource customDataSource = getDatabase(project, schema);
+        List<SchemaField> builder = new ArrayList<>();
+
+        SupportedCustomDatabase source = SupportedCustomDatabase.getAdapter(customDataSource.type);
+        try (Connection conn = source.getDataSource().openConnection(customDataSource.options)) {
+            ResultSet dbColumns = conn.getMetaData().getColumns(null, customDataSource.options.getSchema(), table, null);
+
+            while (dbColumns.next()) {
+                String columnName = dbColumns.getString("COLUMN_NAME");
+                FieldType fieldType;
+                try {
+                    fieldType = fromSql(dbColumns.getInt("DATA_TYPE"), dbColumns.getString("TYPE_NAME"));
+                }
+                catch (UnsupportedOperationException e) {
+                    continue;
+                }
+                builder.add(new SchemaField(columnName, fieldType));
+            }
+
+            return builder;
+        }
+        catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    public Map<String, Map<String, List<SchemaField>>> schemaDatabases(String project)
     {
         ImmutableMap.Builder<String, Map<String, List<SchemaField>>> schemas = ImmutableMap.builder();
 
         CustomDataSourceList customDataSourceList = listDatabases(project);
         for (CustomDataSource customDataSource : customDataSourceList.customDataSources) {
+            long t = System.currentTimeMillis();
             Map<String, List<SchemaField>> builder = new HashMap<>();
 
             SupportedCustomDatabase source = SupportedCustomDatabase.getAdapter(customDataSource.type);
             try (Connection conn = source.getDataSource().openConnection(customDataSource.options)) {
-                ResultSet dbColumns = conn.getMetaData().getColumns(null, customDataSource.options.getSchema(), null, null);
+                ResultSet dbColumns = conn.getMetaData().getTables(null, customDataSource.options.getSchema(), null, null);
 
                 while (dbColumns.next()) {
-                    String columnName = dbColumns.getString("COLUMN_NAME");
-                    FieldType fieldType;
-                    try {
-                        fieldType = fromSql(dbColumns.getInt("DATA_TYPE"), dbColumns.getString("TYPE_NAME"));
-                    }
-                    catch (UnsupportedOperationException e) {
+                    if (!"TABLE".equals(dbColumns.getString("table_type"))) {
                         continue;
                     }
-                    builder.computeIfAbsent(dbColumns.getString("table_name"), (k) -> new ArrayList<>())
-                            .add(new SchemaField(columnName, fieldType));
+                    builder.computeIfAbsent(dbColumns.getString("table_name"), (k) -> new ArrayList<>());
                 }
             }
             catch (SQLException e) {

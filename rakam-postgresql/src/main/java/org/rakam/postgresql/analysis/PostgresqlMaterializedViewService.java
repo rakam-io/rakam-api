@@ -4,8 +4,10 @@ import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Query;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.analysis.datasource.CustomDataSource;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.MaterializedView;
@@ -13,6 +15,7 @@ import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
+import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
@@ -66,6 +69,11 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
                     @Override
                     public String put(String key, String value)
                     {
+                        CustomDataSource read = JsonHelper.read(value, CustomDataSource.class);
+                        if(!ImmutableList.of("postgresql", "mysql").contains(read.type)) {
+                            throw new RakamException("Cross database materialized views are not supported in Postgresql deployment type.", BAD_REQUEST);
+                        }
+
                         throw new RakamException("Cross database materialized views are not supported in Postgresql deployment type.", BAD_REQUEST);
                     }
                 }, "collection"), '"').process(statement, 1);
