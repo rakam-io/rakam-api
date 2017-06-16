@@ -172,13 +172,15 @@ public class PrestoQueryExecutor
 
         switch (type.type) {
             case PostgresqlDataSource.NAME:
+            case "REDSHIFT":
                 schema = Optional.of(convert.getSchema());
                 break;
             case MysqlDataSource.NAME:
                 schema = Optional.empty();
                 break;
             default:
-                return null;
+                schema = Optional.empty();
+                break;
         }
 
         AtomicBoolean hasOutsideReference = new AtomicBoolean();
