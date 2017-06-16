@@ -72,6 +72,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_IMPLEMENTED;
 import static io.netty.handler.codec.http.HttpResponseStatus.PRECONDITION_REQUIRED;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
+import static java.lang.Boolean.TRUE;
 import static java.lang.String.format;
 import static java.time.temporal.ChronoUnit.HOURS;
 
@@ -765,11 +766,11 @@ public class WebUserService
 
     private boolean hasMasterAccess(Handle handle, int project, int user)
     {
-        return handle.createQuery("select user_id = :user or (select bool_or(master_permission) from web_user_api_key_permission p " +
+        return TRUE.equals(handle.createQuery("select user_id = :user or (select bool_or(master_permission) from web_user_api_key_permission p " +
                 "join web_user_api_key a on (p.api_key_id = a.id) where p.user_id = :user and a.project_id = :project) from web_user_project where id = :project")
                 .bind("user", user)
                 .bind("project", project).map(BooleanMapper.FIRST)
-                .first() == true;
+                .first());
     }
 
     public boolean hasMasterAccess(int project, int user)
