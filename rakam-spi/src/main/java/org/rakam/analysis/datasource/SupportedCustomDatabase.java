@@ -101,6 +101,7 @@ public enum SupportedCustomDatabase
             properties.setProperty("socketTimeout", "10");
             properties.setProperty("connectTimeout", "10");
             properties.setProperty("ssl", ((Boolean) factory.getEnableSSL()).toString());
+            properties.setProperty("sslfactory", "org.postgresql.ssl.NonValidatingFactory");
 
             return new com.amazon.redshift.jdbc42.Driver().connect(
                     format("jdbc:redshift://%s:%s/%s",
