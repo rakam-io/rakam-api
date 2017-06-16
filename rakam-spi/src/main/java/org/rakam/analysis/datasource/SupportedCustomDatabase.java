@@ -60,6 +60,54 @@ public enum SupportedCustomDatabase
                             factory.getDatabase()), properties);
         }
     }),
+    REDSHIFT(new CDataSource<JDBCSchemaConfig>()
+    {
+        @Override
+        public Optional<String> test(JDBCSchemaConfig factory)
+        {
+            Connection connect = null;
+            try {
+                connect = openConnection(factory);
+                String schemaPattern = connect.getSchema() == null ? "public" : factory.getSchema();
+                ResultSet schemas = connect.getMetaData().getSchemas(null, schemaPattern);
+                return schemas.next() ? Optional.empty() : Optional.of(format("Schema '%s' does not exist", schemaPattern));
+            }
+            catch (SQLException e) {
+                return Optional.of(e.getMessage());
+            }
+            finally {
+                if (connect != null) {
+                    try {
+                        connect.close();
+                    }
+                    catch (SQLException e) {
+                        throw Throwables.propagate(e);
+                    }
+                }
+            }
+        }
+
+        @Override
+        public Connection openConnection(JDBCSchemaConfig factory)
+                throws SQLException
+        {
+            Properties properties = new Properties();
+            Optional.ofNullable(factory.getPassword())
+                    .ifPresent(pass -> properties.setProperty("password", pass));
+            Optional.ofNullable(factory.getUsername())
+                    .ifPresent(user -> properties.setProperty("user", user));
+            properties.setProperty("loginTimeout", "10");
+            properties.setProperty("socketTimeout", "10");
+            properties.setProperty("connectTimeout", "10");
+            properties.setProperty("ssl", ((Boolean) factory.getEnableSSL()).toString());
+
+            return new org.postgresql.Driver().connect(
+                    format("jdbc:redshift://%s:%s/%s",
+                            factory.getHost(),
+                            Optional.ofNullable(factory.getPort()).orElse(5432),
+                            factory.getDatabase()), properties);
+        }
+    }),
     MYSQL(new CDataSource<JDBCSchemaConfig>()
     {
         @Override
