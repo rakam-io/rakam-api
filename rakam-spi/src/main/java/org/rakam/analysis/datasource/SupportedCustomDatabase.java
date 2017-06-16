@@ -3,6 +3,7 @@ package org.rakam.analysis.datasource;
 import com.google.common.base.Throwables;
 
 import java.sql.Connection;
+import java.sql.Driver;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Optional;
@@ -101,7 +102,7 @@ public enum SupportedCustomDatabase
             properties.setProperty("connectTimeout", "10");
             properties.setProperty("ssl", ((Boolean) factory.getEnableSSL()).toString());
 
-            return new org.postgresql.Driver().connect(
+            return new com.amazon.redshift.jdbc42.Driver().connect(
                     format("jdbc:redshift://%s:%s/%s",
                             factory.getHost(),
                             Optional.ofNullable(factory.getPort()).orElse(5432),
