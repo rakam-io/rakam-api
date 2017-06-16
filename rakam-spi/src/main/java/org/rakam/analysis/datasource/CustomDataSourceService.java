@@ -143,7 +143,6 @@ public class CustomDataSourceService
 
         CustomDataSourceList customDataSourceList = listDatabases(project);
         for (CustomDataSource customDataSource : customDataSourceList.customDataSources) {
-            long t = System.currentTimeMillis();
             Map<String, List<SchemaField>> builder = new HashMap<>();
 
             SupportedCustomDatabase source = SupportedCustomDatabase.getAdapter(customDataSource.type);

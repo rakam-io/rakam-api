@@ -39,10 +39,6 @@
       "description": "User module is basically a CRM integrated with your analytics service.",
       "value": "true"
     },
-    "ENABLE_REALTIME_PLUGIN": {
-      "description": "Real-time module allows you to create real-time reports for your dashboards.",
-      "value": "true"
-    },
     "ENABLE_EVENT_STREAM_PLUGIN": {
       "description": "Event stream plugin subscribes event streams and notifies new events to you in real-time.",
       "value": "true"
