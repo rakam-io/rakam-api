@@ -51,6 +51,7 @@ public enum SupportedCustomDatabase
             properties.setProperty("loginTimeout", "10");
             properties.setProperty("socketTimeout", "10");
             properties.setProperty("connectTimeout", "10");
+            properties.setProperty("ssl", ((Boolean) factory.getEnableSSL()).toString());
 
             return new org.postgresql.Driver().connect(
                     format("jdbc:postgresql://%s:%s/%s",

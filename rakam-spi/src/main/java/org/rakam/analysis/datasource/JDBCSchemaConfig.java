@@ -8,11 +8,23 @@ public class JDBCSchemaConfig
     private String database;
     private String schema;
     private Integer port;
+    private boolean enableSSL;
 
     public JDBCSchemaConfig setUsername(String username)
     {
         this.username = username;
         return this;
+    }
+
+    public JDBCSchemaConfig setEnableSSL(boolean enableSSL)
+    {
+        this.enableSSL = enableSSL;
+        return this;
+    }
+
+    public boolean getEnableSSL()
+    {
+        return enableSSL;
     }
 
     public JDBCSchemaConfig setSchema(String schema)
