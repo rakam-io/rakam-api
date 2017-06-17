@@ -86,11 +86,12 @@ public class PostgresqlModule
         binder.bind(ContinuousQueryService.class).to(PostgresqlPseudoContinuousQueryService.class).in(Scopes.SINGLETON);
         binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class).toInstance("to_unixtime");
 
+        binder.bind(boolean.class).annotatedWith(Names.named("user.storage.postgresql"))
+                .toInstance("postgresql".equals(getConfig("plugin.user.storage")));
+
         if (metadataConfig.getEventStore() == null) {
             binder.bind(EventStore.class).to(PostgresqlEventStore.class).in(Scopes.SINGLETON);
         }
-//        binder.bind(new TypeLiteral<List<AggregationType>>() {}).annotatedWith(RealtimeService.RealtimeAggregations.class).toInstance(ImmutableList.of(AggregationType.COUNT,
-//                SUM, MINIMUM, APPROXIMATE_UNIQUE, MAXIMUM));
 
         // use same jdbc pool if report.metadata.store is not set explicitly.
         if (getConfig("report.metadata.store") == null) {
