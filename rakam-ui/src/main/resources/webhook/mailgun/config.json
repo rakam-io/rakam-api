@@ -10,7 +10,7 @@
     "api_key": {
       "type": "string",
       "placeholder": "key-37gdgks1b7gbszx9j1a43jffsc5yqlx0",
-      "description": "The api-key of your Mailgun"
+      "description": "The api-key of your Mailgun. https://app.mailgun.com/app/account/security"
     }
   }
 }

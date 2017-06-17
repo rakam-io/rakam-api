@@ -1,12 +1,14 @@
-//@ sourceURL=rakam-ui/src/main/resources/stripe/mailgun/script.js
+//@ sourceURL=rakam-ui/src/main/resources/stripe/stripe/script.js
 
 var module = function(queryParams, body, params, headers) {
+    if(!body) return;
     var properties = {
         _time: body.created * 1000,
         type: body.type
     };
 
-    if(body.type.startsWith('invoice.')) {
+    if(body.type && body.type.startsWith && body.type.startsWith('invoice.')) {
+        if(!body.data || !body.data.object) return;
         var object = body.data.object;
         properties['amount_due'] = object['amount_due'];
         properties['attempt_count'] = object['attempt_count'];

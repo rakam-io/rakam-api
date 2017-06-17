@@ -9,6 +9,7 @@ import io.airlift.log.Level;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.util.CharsetUtil;
 import jdk.nashorn.api.scripting.ClassFilter;
 import jdk.nashorn.api.scripting.NashornScriptEngineFactory;
 import org.rakam.analysis.ConfigManager;
@@ -41,6 +42,7 @@ import java.net.URL;
 import java.net.UnknownHostException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
@@ -65,6 +67,7 @@ public class JSCodeCompiler
     private static final ClassLoader classLoader = new SafeClassLoader() {};
     private static Map<String, Object> JS_UTIL = ImmutableMap.of(
             "crypt", new JSUtil.JSCryptUtil(),
+            "base64", new JSUtil.JSBase64Util(),
             "request", new JSUtil.JSRequestUtil());
     private final boolean customEnabled;
 
@@ -382,6 +385,14 @@ public class JSCodeCompiler
             public String decryptAES(String data, String secretKey)
             {
                 return CryptUtil.decryptAES(data, secretKey);
+            }
+        }
+
+        public static class JSBase64Util
+        {
+            public String encode(String data)
+            {
+                return Base64.getEncoder().encodeToString(data.getBytes(CharsetUtil.UTF_8));
             }
         }
     }

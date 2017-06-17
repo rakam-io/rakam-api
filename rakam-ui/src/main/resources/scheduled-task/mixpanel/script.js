@@ -1,6 +1,6 @@
 //@ sourceURL=rakam-ui/src/main/resources/scheduled-task/mixpanel/script.js
 
-var report_url = "@data.mixpanel.com/api/2.0/export/";
+var report_url = "data.mixpanel.com/api/2.0/export/";
 
 var fetch = function (parameters, events, index, startDate, endDate) {
     logger.debug("Fetching between " + startDate + " and " + (endDate || 'now') + (index == null ? "" : " for index" + index));
@@ -14,7 +14,7 @@ var fetch = function (parameters, events, index, startDate, endDate) {
 
     if (startDate == null) {
         startDate = new Date();
-        startDate.setMonth(startDate.getMonth() > 3 ? 0 : startDate.getMonth() - 2);
+        startDate.setDate(startDate.getDate() - 2);
         startDate = startDate.toJSON().slice(0, 10);
     }
 
@@ -25,16 +25,17 @@ var fetch = function (parameters, events, index, startDate, endDate) {
 
     var endGap = new Date(endDate);
     endGap.setDate(endGap.getDate() - 1);
-    var response = http.get("https://" + parameters.api_secret + report_url)
+    var response = http.get("https://" + report_url)
+        .header('Authorization', 'Basic '+util.base64.encode(parameters.api_secret))
         .query('from_date', startDate)
-        .query('to_date', endGap.toJSON().slice(0, 10).replace(/-/g, ''))
+        .query('to_date', endGap.toJSON().slice(0, 10))
         .send();
 
     if (response.getStatusCode() != 200) {
         throw new Error(response.getResponseBody());
     }
 
-    var data = JSON.parse(response.getResponseBody());
+    var data = response.getResponseBody().split(/\n/);
 
     var mapping = {
         "$browser": "_user_agent_family",
@@ -45,7 +46,12 @@ var fetch = function (parameters, events, index, startDate, endDate) {
     var utcOffset = parameters.timezone * 60 * 1000;
     var events = [];
     for (var i = 0; i < data.length; i++) {
-        var row = data[i];
+        try {
+            var row = JSON.parse(data[i]);
+        } catch(e) {
+            logger.warn(data[i]);
+            continue;
+        }
         row.collection = row.event;
         row.event = undefined;
 
@@ -67,6 +73,7 @@ var fetch = function (parameters, events, index, startDate, endDate) {
                 properties[key] = undefined;
             }
         }
+        events.push(row);
     }
 
     eventStore.store(events);

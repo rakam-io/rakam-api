@@ -50,6 +50,8 @@ var mapUser = function(properties, user) {
 }
 
 var module = function(queryParams, body, params, headers) {
+    if(!body) return;
+    
     var body = JSON.parse(body);
     if(!body || body.topic == 'ping') {
         return null;

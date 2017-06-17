@@ -674,6 +674,9 @@ public class WebUserService
         if (masterPermission && access.isPresent()) {
             throw new RakamException("Scoped keys cannot have access to master_key", BAD_REQUEST);
         }
+        if (this.getProjectOwner(projectId).email.equals(email)) {
+            throw new RakamException("The user is already the owner of project", UNAUTHORIZED);
+        }
         ProjectConfiguration projectConfigurations = getProjectConfigurations(projectId);
 
         Integer newUserId;
