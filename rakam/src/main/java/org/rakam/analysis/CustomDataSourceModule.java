@@ -4,9 +4,11 @@ import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
+import io.airlift.configuration.Config;
 import org.rakam.analysis.datasource.CustomDataSourceHttpService;
 import org.rakam.plugin.RakamModule;
 import org.rakam.analysis.datasource.CustomDataSourceService;
+import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.server.http.HttpService;
 import org.rakam.util.ConditionalModule;
 

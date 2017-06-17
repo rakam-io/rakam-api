@@ -85,6 +85,7 @@ public class RakamUIWebService
     {
         request.response(JsonHelper.encode(ImmutableMap.of(
                 "sentry", checkSentry(),
+                "scheduledEmailEnabled", config.getScreenCaptureService() != null,
                 "disableTracking", config.getDisableTracking())), OK).end();
     }
 

@@ -50,6 +50,7 @@ import java.util.Optional;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
+import static java.lang.String.format;
 import static org.rakam.ui.user.WebUserHttpService.extractUserFromCookie;
 
 @Path("/ui/cluster")
@@ -80,17 +81,22 @@ public class ClusterService
             throw new RakamException("User is not allowed to register clusters", UNAUTHORIZED);
         }
 
+        if(!cluster.apiUrl.getPath().isEmpty() && !cluster.apiUrl.getPath().equals("/")) {
+            throw new RakamException(format("The API URL must not include path '%s'", cluster.apiUrl.getPath()),
+                    BAD_REQUEST);
+        }
+
         try (Handle handle = dbi.open()) {
             try {
                 handle.createStatement("INSERT INTO rakam_cluster (user_id, api_url, lock_key) VALUES (:userId, :apiUrl, :lockKey)")
                         .bind("userId", project.userId)
-                        .bind("apiUrl", cluster.apiUrl)
+                        .bind("apiUrl", cluster.apiUrl.toString())
                         .bind("lockKey", cluster.lockKey).execute();
             }
             catch (Throwable e) {
                 int execute = handle.createStatement("UPDATE rakam_cluster SET lock_key = :lock_key WHERE user_id = :userId AND api_url = :apiUrl")
                         .bind("userId", project.userId)
-                        .bind("apiUrl", cluster.apiUrl)
+                        .bind("apiUrl", cluster.apiUrl.toString())
                         .bind("lock_key", cluster.lockKey).execute();
 
                 if (execute == 0) {
@@ -134,11 +140,12 @@ public class ClusterService
 
     public static class Cluster
     {
-        public final String apiUrl;
+        public final URL apiUrl;
         public final String lockKey;
 
         @JsonCreator
-        public Cluster(@ApiParam("api_url") String apiUrl, @ApiParam(value = "lock_key", required = false) String lockKey)
+        public Cluster(@ApiParam("api_url") URL apiUrl,
+                @ApiParam(value = "lock_key", required = false) String lockKey)
         {
             this.apiUrl = apiUrl;
             this.lockKey = lockKey;
