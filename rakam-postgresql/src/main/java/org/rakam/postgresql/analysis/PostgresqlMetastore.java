@@ -311,7 +311,9 @@ public class PostgresqlMetastore
                 task = () -> super.onCreateCollectionField(project, collection, schemaFields);
             }
 
-            connection.createStatement().execute(query);
+            Statement statement = connection.createStatement();
+            statement.execute(query);
+            statement.close();
             connection.commit();
             connection.setAutoCommit(true);
             schemaCache.put(new ProjectCollection(project, collection), currentFields);

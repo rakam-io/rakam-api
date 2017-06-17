@@ -77,7 +77,7 @@ public class FastGenericFunnelQueryExecutor
 
             insideSelect.add(format("min(case when step = %d then %s end) as ts_event%d", i, checkTableColumn(projectConfig.getTimeColumn()), i));
             mainSelect.add(format("select %s %d as step, %s, %s from %s where %s between timestamp '%s' and timestamp '%s' and %s",
-                    dimension.map(v -> v + ", ").orElse(""),
+                    dimension.map(v -> checkTableColumn(v) + ", ").orElse(""),
                     i,
                     connectorString,
                     checkTableColumn(projectConfig.getTimeColumn()),
@@ -88,7 +88,8 @@ public class FastGenericFunnelQueryExecutor
                     filterExp.orElse("true")));
         }
 
-        String query = format("select %s %s\n" +
+        String dimensions = dimension.map(v -> checkTableColumn(v) + ", ").orElse("");
+        String query =  format("select %s %s\n" +
                         "from (select %s,\n" +
                         "            %s %s" +
                         "     from (\n" +
@@ -96,13 +97,13 @@ public class FastGenericFunnelQueryExecutor
                         "     ) t \n" +
                         "     group by %s %s\n" +
                         "    ) t %s",
-                dimension.map(v -> v + ", ").orElse(""),
+                dimensions,
                 selects.stream().collect(Collectors.joining(",\n")),
                 connectorString,
-                dimension.map(v -> v + ", ").orElse(""),
+                dimensions,
                 insideSelect.stream().collect(Collectors.joining(",\n")),
                 mainSelect.stream().collect(Collectors.joining(" UNION ALL\n")),
-                dimension.map(v -> v + ", ").orElse(""),
+                dimensions,
                 connectorString,
                 dimension.map(v -> " group by 1 order by 2 desc").orElse(""));
 

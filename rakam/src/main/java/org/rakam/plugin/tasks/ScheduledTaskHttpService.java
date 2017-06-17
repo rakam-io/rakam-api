@@ -475,8 +475,10 @@ public class ScheduledTaskHttpService
     {
         return executor.submit(() -> {
             try {
-                JSCodeCompiler.JSEventStore eventStore1 = jsCodeCompiler.getEventStore(project, deserializer, eventStore, eventMappers);
-                Invocable engine = jsCodeCompiler.createEngine(script, logger, eventStore1, configManager);
+                Invocable engine = jsCodeCompiler.createEngine(
+                        script, logger,
+                        jsCodeCompiler.getEventStore(project, deserializer, eventStore, eventMappers),
+                        configManager);
 
                 Map<String, Object> collect = Optional.ofNullable(parameters)
                         .map(v -> v.entrySet().stream()
