@@ -195,18 +195,22 @@ public class DashboardService
     }
 
     @JsonRequest
-    @ApiOperation(value = "List Report")
+    @ApiOperation(value = "List dashboards")
     @Path("/list")
     public DashboardList list(@Named("user_id") Project project)
     {
         try (Handle handle = dbi.open()) {
             Integer defaultDashboard = userDefaultService.get(handle, project, "DASHBOARD");
-            List<Dashboard> dashboards = handle.createQuery("SELECT id, name, refresh_interval, options, shared_everyone FROM dashboard WHERE project_id = :project ORDER BY id")
-                    .bind("project", project.project).map((i, resultSet, statementContext) -> {
+            List<Dashboard> dashboards = handle.createQuery("SELECT id, name, refresh_interval, options, shared_everyone, user_id FROM dashboard \n" +
+                    "WHERE project_id = :project and (shared_everyone or user_id = :user or " +
+                    "(select true from dashboard_permission where dashboard = dashboard.id and user_id = :user))")
+                    .bind("project", project.project)
+                    .bind("user", project.userId)
+                    .map((i, resultSet, statementContext) -> {
                         Map options = JsonHelper.read(resultSet.getString(4), Map.class);
-                        return new Dashboard(resultSet.getInt(1), project.userId, resultSet.getString(2),
-                                resultSet.getObject(3) == null ? null : Duration.ofSeconds(resultSet.getInt(3)),
-                                options == null ? null : options, resultSet.getBoolean(5));
+                        Duration refresh_interval = resultSet.getObject(3) == null ? null : Duration.ofSeconds(resultSet.getInt(3));
+                        return new Dashboard(resultSet.getInt(1), resultSet.getInt(6), resultSet.getString(2),
+                                refresh_interval, options == null ? null : options, resultSet.getBoolean(5));
                     }).list();
             return new DashboardList(dashboards, defaultDashboard);
         }
