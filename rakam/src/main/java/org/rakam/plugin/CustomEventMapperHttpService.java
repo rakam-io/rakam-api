@@ -68,6 +68,7 @@ import javax.ws.rs.Path;
 import java.net.InetAddress;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -118,8 +119,9 @@ public class CustomEventMapperHttpService
 
         public List<List<Object>> execute(String queryString) throws SQLException {
             QueryExecution queryExecution =
-                    queryExecutorService.executeQuery(project, queryString,
-                    null, "collection", DEFAULT_QUERY_RESULT_COUNT);
+                    queryExecutorService.executeQuery(
+                            project, queryString,
+                    null, "collection", ZoneOffset.UTC, DEFAULT_QUERY_RESULT_COUNT);
             try {
                 QueryResult queryResult =  queryExecution.getResult().get();
                 if (queryResult.isFailed()){

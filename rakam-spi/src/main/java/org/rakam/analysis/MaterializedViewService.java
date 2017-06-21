@@ -13,12 +13,12 @@ import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
 
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -112,7 +112,8 @@ public abstract class MaterializedViewService
         new RakamSqlFormatter.Formatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName, Optional.empty(), ImmutableMap.of(), "collection"), escapeIdentifier)
                 .process(queryStatement, 1);
 
-        QueryExecution execution = queryExecutor.executeRawQuery(builder.toString() + " limit 0");
+        QueryExecution execution = queryExecutor.executeRawQuery(builder.toString() + " limit 0",
+                ZoneOffset.UTC, ImmutableMap.of());
         CompletableFuture<List<SchemaField>> f = new CompletableFuture<>();
         execution.getResult().thenAccept(result -> {
             if (result.isFailed()) {

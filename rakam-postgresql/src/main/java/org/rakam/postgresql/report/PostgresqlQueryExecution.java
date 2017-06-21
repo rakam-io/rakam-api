@@ -30,21 +30,27 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 import static java.lang.String.format;
+import static java.time.format.TextStyle.SHORT;
+import static java.util.Locale.ENGLISH;
 import static org.rakam.collection.FieldType.STRING;
-import static org.rakam.postgresql.analysis.PostgresqlEventStore.UTC_CALENDAR;
 import static org.rakam.postgresql.report.PostgresqlQueryExecutor.QUERY_EXECUTOR;
 import static org.rakam.report.QueryResult.EXECUTION_TIME;
 import static org.rakam.report.QueryResult.QUERY;
 import static org.rakam.report.QueryStats.State.FINISHED;
 import static org.rakam.report.QueryStats.State.RUNNING;
 import static org.rakam.util.JDBCUtil.fromSql;
+import static org.rakam.util.ValidationUtil.checkLiteral;
 
 public class PostgresqlQueryExecution
         implements QueryExecution
@@ -55,9 +61,10 @@ public class PostgresqlQueryExecution
     private final String query;
     private Statement statement;
 
-    public PostgresqlQueryExecution(ConnectionFactory connectionPool, String query, boolean update)
+    public PostgresqlQueryExecution(ConnectionFactory connectionPool, String query, boolean update, ZoneId optionalZoneId)
     {
         this.query = query;
+        ZoneId zoneId = optionalZoneId != null ? optionalZoneId : ZoneOffset.UTC;
 
         // TODO: unnecessary threads will be spawn
         Supplier<QueryResult> task = () -> {
@@ -73,10 +80,24 @@ public class PostgresqlQueryExecution
                 }
                 else {
                     long beforeExecuted = System.currentTimeMillis();
-                    ResultSet resultSet = statement.executeQuery(query);
+                    String finalQuery;
+
+                    boolean zoneChangeRequired = zoneId != null && zoneId != ZoneOffset.UTC;
+                    if (zoneChangeRequired) {
+                        finalQuery = format("set local time zone '%s'",
+                                checkLiteral(zoneId.getDisplayName(SHORT, ENGLISH))) + "; " + query;
+                    }
+                    else {
+                        finalQuery = query;
+                    }
+                    statement.execute(finalQuery);
+                    if(zoneChangeRequired) {
+                        statement.getMoreResults();
+                    }
+                    ResultSet resultSet = statement.getResultSet();
                     statement = null;
                     queryResult = resultSetToQueryResult(resultSet,
-                            System.currentTimeMillis() - beforeExecuted);
+                            System.currentTimeMillis() - beforeExecuted, zoneId);
                 }
             }
             catch (Exception e) {
@@ -136,8 +157,10 @@ public class PostgresqlQueryExecution
         }
     }
 
-    private QueryResult resultSetToQueryResult(ResultSet resultSet, long executionTimeInMillis)
+    private QueryResult resultSetToQueryResult(ResultSet resultSet, long executionTimeInMillis, ZoneId timezone)
     {
+        Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone(timezone));
+
         List<SchemaField> columns;
         List<List<Object>> data;
         try {
@@ -189,15 +212,15 @@ public class PostgresqlQueryExecution
                             object = resultSet.getBoolean(i + 1);
                             break;
                         case TIMESTAMP:
-                            Timestamp timestamp = resultSet.getTimestamp(i + 1, UTC_CALENDAR);
+                            Timestamp timestamp = resultSet.getTimestamp(i + 1, calendar);
                             object = timestamp != null ? timestamp.toInstant() : null;
                             break;
                         case DATE:
-                            Date date = resultSet.getDate(i + 1, UTC_CALENDAR);
+                            Date date = resultSet.getDate(i + 1, calendar);
                             object = date != null ? date.toLocalDate() : null;
                             break;
                         case TIME:
-                            Time time = resultSet.getTime(i + 1, UTC_CALENDAR);
+                            Time time = resultSet.getTime(i + 1, calendar);
                             object = time != null ? time.toLocalTime() : null;
                             break;
                         case BINARY:

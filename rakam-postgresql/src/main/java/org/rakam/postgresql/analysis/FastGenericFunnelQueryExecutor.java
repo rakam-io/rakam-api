@@ -17,6 +17,7 @@ import javax.inject.Inject;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -45,7 +46,7 @@ public class FastGenericFunnelQueryExecutor
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, Optional<Boolean> ordered)
+    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId timezone, Optional<List<String>> connectors, Optional<Boolean> ordered)
     {
         if (ordered.isPresent() && ordered.get()) {
             throw new RakamException("Strict ordered funnel query is not supported", BAD_REQUEST);
@@ -83,8 +84,8 @@ public class FastGenericFunnelQueryExecutor
                     checkTableColumn(projectConfig.getTimeColumn()),
                     checkCollection(steps.get(i).getCollection()),
                     checkTableColumn(projectConfig.getTimeColumn()),
-                    TIMESTAMP_FORMATTER.format(startDate.atStartOfDay(zoneId)),
-                    TIMESTAMP_FORMATTER.format(endDate.plusDays(1).atStartOfDay(zoneId)),
+                    startDate,
+                    endDate.plusDays(1),
                     filterExp.orElse("true")));
         }
 
@@ -111,7 +112,7 @@ public class FastGenericFunnelQueryExecutor
             query = format("SELECT * FROM (%s) data WHERE event0_count > 0", query);
         }
 
-        QueryExecution queryExecution = executor.executeQuery(project, query, Optional.empty(), "collection", 1000);
+        QueryExecution queryExecution = executor.executeQuery(project, query, Optional.empty(), "collection", timezone, 1000);
 
         return new DelegateQueryExecution(queryExecution,
                 result -> {

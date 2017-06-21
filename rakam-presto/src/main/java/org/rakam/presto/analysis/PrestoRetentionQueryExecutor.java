@@ -94,7 +94,7 @@ public class PrestoRetentionQueryExecutor
             Optional<String> dimension,
             Optional<Integer> period,
             LocalDate startDate, LocalDate endDate,
-            ZoneId zoneId,
+            ZoneId timezone,
             boolean approximateVal)
     {
         boolean approximate = true;
@@ -133,9 +133,9 @@ public class PrestoRetentionQueryExecutor
         Set<CalculatedUserSet> missingPreComputedTables = new HashSet<>();
 
         String firstActionQuery = generateQuery(project, firstAction, projectConfig.getUserColumn(), timeColumn, dimension,
-                startDate, endDate, missingPreComputedTables, zoneId, approximate);
+                startDate, endDate, missingPreComputedTables, timezone, approximate);
         String returningActionQuery = generateQuery(project, returningAction, projectConfig.getUserColumn(), timeColumn, dimension,
-                startDate, endDate, missingPreComputedTables, zoneId, approximate);
+                startDate, endDate, missingPreComputedTables, timezone, approximate);
 
         if (firstActionQuery == null || returningActionQuery == null) {
             return QueryExecution.completedQueryExecution("", QueryResult.empty());
@@ -162,7 +162,7 @@ public class PrestoRetentionQueryExecutor
                 range.map(v -> String.format("AND data.date + interval '%d' day >= returning_action.date", v)).orElse(""),
                 dimension.map(v -> "GROUP BY 1, 2").orElse(""));
 
-        return new DelegateQueryExecution(executor.executeQuery(project, query),
+        return new DelegateQueryExecution(executor.executeQuery(project, query, timezone),
                 result -> {
                     result.setProperty("calculatedUserSets", missingPreComputedTables);
                     if (!result.isFailed()) {
@@ -183,17 +183,17 @@ public class PrestoRetentionQueryExecutor
             LocalDate startDate,
             LocalDate endDate,
             Set<CalculatedUserSet> missingPreComputedTables,
-            ZoneId zoneId,
+            ZoneId timezone,
             boolean approximate)
     {
 
         String timePredicate = String.format("between timestamp '%s' and timestamp '%s' + interval '1' day",
-                TIMESTAMP_FORMATTER.format(startDate.atStartOfDay(zoneId)),
-                TIMESTAMP_FORMATTER.format(endDate.atStartOfDay(zoneId)));
+                TIMESTAMP_FORMATTER.format(startDate),
+                TIMESTAMP_FORMATTER.format(endDate));
 
         if (!retentionAction.isPresent()) {
             Optional<String> preComputedTable = getPreComputedTable(project, timePredicate, timeColumn, Optional.empty(),
-                    dimension, Optional.empty(), missingPreComputedTables, dimension.isPresent(), zoneId);
+                    dimension, Optional.empty(), missingPreComputedTables, dimension.isPresent(), timezone);
 
             if (preComputedTable.isPresent()) {
                 return preComputedTable.get();
@@ -222,7 +222,7 @@ public class PrestoRetentionQueryExecutor
             String collection = retentionAction.get().collection();
 
             Optional<String> preComputedTable = getPreComputedTable(project, timePredicate, timeColumn, Optional.of(collection), dimension,
-                    retentionAction.get().filter(), missingPreComputedTables, dimension.isPresent(), zoneId);
+                    retentionAction.get().filter(), missingPreComputedTables, dimension.isPresent(), timezone);
 
             if (preComputedTable.isPresent()) {
                 return preComputedTable.get();

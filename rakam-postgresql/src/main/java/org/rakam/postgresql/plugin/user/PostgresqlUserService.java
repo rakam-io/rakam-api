@@ -23,6 +23,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -76,7 +77,7 @@ public class PostgresqlUserService
         }
 
         CompletableFuture<QueryResult> queryResult = executor.executeRawQuery(format("select collection, json from (%s) data order by %s desc limit %d",
-                sqlQuery, checkTableColumn(projectConfig.getTimeColumn()), limit)).getResult();
+                sqlQuery, checkTableColumn(projectConfig.getTimeColumn()), limit), ZoneOffset.UTC, ImmutableMap.of()).getResult();
         return queryResult.thenApply(result -> {
             if (result.isFailed()) {
                 throw new RakamException(result.getError().toString(), HttpResponseStatus.INTERNAL_SERVER_ERROR);

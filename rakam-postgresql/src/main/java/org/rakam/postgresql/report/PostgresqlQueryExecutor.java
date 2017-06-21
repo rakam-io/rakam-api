@@ -3,15 +3,12 @@ package org.rakam.postgresql.report;
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
-import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.Statement;
 import com.google.inject.name.Named;
-import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
 import io.airlift.log.Logger;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.datasource.CustomDataSource;
 import org.rakam.analysis.datasource.CustomDataSourceService;
-import org.rakam.analysis.datasource.JDBCSchemaConfig;
 import org.rakam.analysis.datasource.SupportedCustomDatabase;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
@@ -28,20 +25,24 @@ import javax.inject.Inject;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.format.TextStyle;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.EXPECTATION_FAILED;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static java.lang.String.format;
+import static java.time.format.TextStyle.SHORT;
+import static java.util.Locale.ENGLISH;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkLiteral;
 import static org.rakam.util.ValidationUtil.checkProject;
@@ -90,9 +91,9 @@ public class PostgresqlQueryExecutor
     }
 
     @Override
-    public QueryExecution executeRawQuery(String query)
+    public QueryExecution executeRawQuery(String query, ZoneId zoneId, Map<String, String> sessionParameters)
     {
-        return new PostgresqlQueryExecution(connectionPool::getConnection, query, false);
+        return new PostgresqlQueryExecution(connectionPool::getConnection, query, false, zoneId);
     }
 
     @Override
@@ -102,13 +103,13 @@ public class PostgresqlQueryExecutor
         if(remotedb != null) {
             return getSingleQueryExecution(query, JsonHelper.read(remotedb, CustomDataSource.class));
         }
-        return new PostgresqlQueryExecution(connectionPool::getConnection, query, false);
+        return new PostgresqlQueryExecution(connectionPool::getConnection, query, false, null);
     }
 
     @Override
     public QueryExecution executeRawStatement(String query)
     {
-        return new PostgresqlQueryExecution(connectionPool::getConnection, query, true);
+        return new PostgresqlQueryExecution(connectionPool::getConnection, query, true, null);
     }
 
     @Override
@@ -231,6 +232,6 @@ public class PostgresqlQueryExecutor
         }
 
         return new PostgresqlQueryExecution(() ->
-                source.getDataSource().openConnection(type.options), sqlQuery, false);
+                source.getDataSource().openConnection(type.options), sqlQuery, false, null);
     }
 }

@@ -23,6 +23,8 @@ import org.rakam.util.RakamException;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,7 +60,7 @@ public class QueryExecutorService
         this.escapeIdentifier = escapeIdentifier;
     }
 
-    public QueryExecution executeQuery(String project, String sqlQuery, Optional<QuerySampling> sample, String defaultSchema, int limit)
+    public QueryExecution executeQuery(String project, String sqlQuery, Optional<QuerySampling> sample, String defaultSchema, ZoneId zoneId, int limit)
     {
         if (!projectExists(project)) {
             throw new NotExistsException("Project");
@@ -84,7 +86,7 @@ public class QueryExecutorService
                 .collect(Collectors.toList());
 
         if (queryExecutions.isEmpty()) {
-            QueryExecution execution = executor.executeRawQuery(query, sessionParameters);
+            QueryExecution execution = executor.executeRawQuery(query, zoneId, sessionParameters);
             if (materializedViews.isEmpty()) {
                 return execution;
             }
@@ -117,7 +119,7 @@ public class QueryExecutorService
                     }
                 }
 
-                return executor.executeRawQuery(query, sessionParameters);
+                return executor.executeRawQuery(query, zoneId, sessionParameters);
             }), result -> {
                 if (!result.isFailed()) {
                     Map<String, Long> collect = materializedViews.entrySet().stream()
@@ -135,7 +137,14 @@ public class QueryExecutorService
 
     public QueryExecution executeQuery(String project, String sqlQuery)
     {
-        return executeQuery(project, sqlQuery, Optional.empty(), "collection", DEFAULT_QUERY_RESULT_COUNT);
+        return executeQuery(project, sqlQuery, Optional.empty(), "collection",
+                ZoneOffset.UTC, DEFAULT_QUERY_RESULT_COUNT);
+    }
+
+    public QueryExecution executeQuery(String project, String sqlQuery, ZoneId timezone)
+    {
+        return executeQuery(project, sqlQuery, Optional.empty(), "collection",
+                timezone, DEFAULT_QUERY_RESULT_COUNT);
     }
 
     public QueryExecution executeStatement(String project, String sqlQuery)

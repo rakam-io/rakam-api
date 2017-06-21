@@ -85,7 +85,8 @@ public class FunnelAnalyzerHttpService
                 query.endDate,
                 Optional.ofNullable(query.window),
                 query.timezone,
-                Optional.ofNullable(query.connectors), Optional.ofNullable(query.strictOrdering)), (query, result) -> LOGGER.error(new RuntimeException(JsonHelper.encode(query) + " : " + result.getError().toString()), "Error running funnel query"));
+                Optional.ofNullable(query.connectors), Optional.ofNullable(query.strictOrdering)),
+                (query, result) -> LOGGER.error(new RuntimeException(JsonHelper.encode(query) + " : " + result.getError().toString()), "Error running funnel query"));
     }
 
     @ApiOperation(value = "Execute query",

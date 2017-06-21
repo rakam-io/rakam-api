@@ -14,6 +14,7 @@
 package org.rakam.analysis;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
@@ -64,7 +65,7 @@ public abstract class AbstractFunnelQueryExecutor
     public QueryExecution query(String project,
             List<FunnelStep> steps,
             Optional<String> dimension, LocalDate startDate,
-            LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, Optional<Boolean> ordered)
+            LocalDate endDate, Optional<FunnelWindow> window, ZoneId timezone, Optional<List<String>> connectors, Optional<Boolean> ordered)
     {
         Map<String, List<SchemaField>> collections = metastore.getCollections(project);
 
@@ -77,8 +78,8 @@ public abstract class AbstractFunnelQueryExecutor
 
         String dimensionCol = dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ", ").orElse("");
         String query = format(getTemplate(steps, dimension, window), dimensionCol, dimensionCol, ctes,
-                TIMESTAMP_FORMATTER.format(startDate.atStartOfDay(zoneId)),
-                TIMESTAMP_FORMATTER.format(endDate.plusDays(1).atStartOfDay(zoneId)),
+                TIMESTAMP_FORMATTER.format(startDate),
+                TIMESTAMP_FORMATTER.format(endDate.plusDays(1)),
                 dimensionCol,
                 connectors.orElse(of(projectConfig.getUserColumn()))
                         .stream().collect(Collectors.joining(", ")),
@@ -88,7 +89,7 @@ public abstract class AbstractFunnelQueryExecutor
                             "(select *, row_number() OVER(ORDER BY total DESC) rank from (%s) t) t GROUP BY 1, 2",
                     dimension.map(ValidationUtil::checkTableColumn).get(), query);
         }
-        QueryExecution queryExecution = executor.executeRawQuery(query);
+        QueryExecution queryExecution = executor.executeRawQuery(query, timezone, ImmutableMap.of());
 
         return new DelegateQueryExecution(queryExecution,
                 result -> {

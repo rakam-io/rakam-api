@@ -12,6 +12,7 @@ import org.rakam.report.QueryResult;
 import org.rakam.report.QuerySampling;
 import org.rakam.util.RakamException;
 
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,7 +38,7 @@ public class ClickHouseQueryExecutor implements QueryExecutor
     }
 
     @Override
-    public QueryExecution executeRawQuery(String sqlQuery)
+    public QueryExecution executeRawQuery(String sqlQuery, ZoneId zoneId, Map<String, String> sessionParameters)
     {
         return new ClickHouseQueryExecution(config, sqlQuery);
     }

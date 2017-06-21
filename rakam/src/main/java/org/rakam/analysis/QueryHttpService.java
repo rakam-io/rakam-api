@@ -21,16 +21,14 @@ import com.google.common.primitives.Ints;
 import io.airlift.log.Logger;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.swagger.annotations.ApiModelProperty;
 import org.rakam.collection.SchemaField;
 import org.rakam.http.ForHttpServer;
 import org.rakam.plugin.EventStore.CopyType;
-import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
-import org.rakam.report.QueryStats;
 import org.rakam.report.QuerySampling;
+import org.rakam.report.QueryStats;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.Response;
@@ -43,8 +41,8 @@ import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.ExportUtil;
 import org.rakam.util.JsonHelper;
-import org.rakam.util.RakamException;
 import org.rakam.util.LogUtil;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -54,6 +52,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -77,7 +76,6 @@ import static org.rakam.report.QueryExecutorService.MAX_QUERY_RESULT_LIMIT;
 import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.jsonObject;
-import static org.rakam.util.JsonHelper.readSafe;
 
 @Path("/query")
 @Api(value = "/query", nickname = "query", description = "Execute query", tags = "query")
@@ -107,9 +105,12 @@ public class QueryHttpService
             @Named("project") String project,
             @BodyParam QueryRequest query)
     {
-        QueryExecution queryExecution = executorService.executeQuery(project, query.query,
+        QueryExecution queryExecution = executorService.executeQuery(
+                project,
+                query.query,
                 query.sample,
                 Optional.ofNullable(query.defaultSchema).orElse("collection"),
+                query.timezone,
                 query.limit == null ? DEFAULT_QUERY_RESULT_COUNT : query.limit);
         return queryExecution
                 .getResult().thenApply(result -> {
@@ -130,6 +131,7 @@ public class QueryHttpService
     {
         executorService.executeQuery(project, query.query,
                 query.sample, Optional.ofNullable(query.defaultSchema).orElse("collection"),
+                query.timezone,
                 query.limit == null ? DEFAULT_QUERY_RESULT_COUNT : query.limit).getResult().thenAccept(result -> {
             if (result.isFailed()) {
                 throw new RakamException(result.getError().toString(), BAD_REQUEST);
@@ -165,6 +167,7 @@ public class QueryHttpService
                 executorService.executeQuery(project, query.query,
                         query.sample,
                         Optional.ofNullable(query.defaultSchema).orElse("collection"),
+                        query.timezone,
                         query.limit == null ? DEFAULT_QUERY_RESULT_COUNT : query.limit));
     }
 
@@ -329,6 +332,7 @@ public class QueryHttpService
         public final String defaultSchema;
         public final Optional<QuerySampling> sample;
         public final CopyType exportType;
+        public final ZoneId timezone;
 
         @JsonCreator
         public QueryRequest(
@@ -336,7 +340,8 @@ public class QueryHttpService
                 @ApiParam(value = "export_type", required = false, description = "Export data using different formats") CopyType exportType,
                 @ApiParam(value = "sampling", required = false, description = "Optional parameter for specifying the sampling on source data") QuerySampling sample,
                 @ApiParam(value = "default_schema", required = false, defaultValue = "collection", description = "The default schema of the query. If the schema is not defined, this schema will be used.") String defaultSchema,
-                @ApiParam(value = "limit", required = false, description = "The maximum rows that can be returned from a query is 500K") Integer limit)
+                @ApiParam(value = "limit", required = false, description = "The maximum rows that can be returned from a query is 500K") Integer limit,
+                @ApiParam(value = "timezone", required = false, description = "") ZoneId timezone)
         {
             this.query = requireNonNull(query, "query is empty").trim().replaceAll(";+$", "");
             if (limit != null && limit > MAX_QUERY_RESULT_LIMIT) {
@@ -346,6 +351,7 @@ public class QueryHttpService
             this.defaultSchema = defaultSchema;
             this.sample = Optional.ofNullable(sample);
             this.limit = limit;
+            this.timezone = timezone;
         }
     }
 
