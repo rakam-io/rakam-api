@@ -481,7 +481,7 @@ public abstract class AbstractEventExplorer
                         "An error occurred while executing event explorer statistics query.");
             } else {
                 List<List<Object>> result1 = result.getResult();
-                if (TimestampTransformation.fromPrettyName(dimension.get()).get() == HOUR_OF_DAY) {
+                if (dimension.isPresent() && TimestampTransformation.fromPrettyName(dimension.get()).get() == HOUR_OF_DAY) {
                     ZoneOffset offset = timezone.getRules().getOffset(Instant.now());
                     DateTimeFormatter dateTimeFormatter = new DateTimeFormatterBuilder()
                             .appendValue(ChronoField.HOUR_OF_DAY, 2)
