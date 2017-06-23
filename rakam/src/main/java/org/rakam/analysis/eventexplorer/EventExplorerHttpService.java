@@ -44,6 +44,8 @@ import javax.ws.rs.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -90,12 +92,14 @@ public class EventExplorerHttpService
             @ApiParam(value = "collections", required = false) Set<String> collections,
             @ApiParam(value = "dimension", required = false) String dimension,
             @ApiParam("startDate") Instant startDate,
-            @ApiParam("endDate") Instant endDate)
+            @ApiParam("endDate") Instant endDate,
+            @ApiParam(value = "timezone", required = false) ZoneId timezone)
     {
+        timezone = timezone == null ? ZoneOffset.UTC : timezone;
         return eventExplorer.getEventStatistics(project,
                 Optional.ofNullable(collections),
                 Optional.ofNullable(dimension),
-                startDate, endDate);
+                startDate, endDate, timezone);
     }
 
     @GET

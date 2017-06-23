@@ -101,6 +101,10 @@ You can try the master branch by pulling the source code from Github and buildin
 git clone https://github.com/rakam-io/rakam.git
 cd rakam
 mvn clean install package -DskipTests
+```
+
+##### Running the application locally
+```sh
 rakam/target/rakam-*-bundle/rakam-*/bin/launcher.py run --config rakam/target/rakam-*-bundle/rakam-*/etc/config.properties
 ```
 
@@ -112,7 +116,7 @@ Since we already use Maven, you can import Rakam to your IDE using the root pom.
 
 ```
 Main Class: org.rakam.ServiceStarter
-VM Options: -ea -Xmx2G -Dconfig=YOUR_CONFIG_DIRECTORY/config.properties -Dlog.levels-file=etc/log.properties
+VM Options: -ea -Xmx2G -Dconfig=YOUR_CONFIG_DIRECTORY/config.properties
 Working directory: $MODULE_DIR$
 Use classpath of module: rakam
 ```
