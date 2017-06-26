@@ -2,7 +2,6 @@ package org.rakam.postgresql.analysis;
 
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.google.common.collect.ImmutableList;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
@@ -45,7 +44,7 @@ public class FastGenericFunnelQueryExecutor
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, Optional<Boolean> ordered)
+    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, Optional<Boolean> ordered, Optional<Boolean> approximate)
     {
         if (ordered.isPresent() && ordered.get()) {
             throw new RakamException("Strict ordered funnel query is not supported", BAD_REQUEST);

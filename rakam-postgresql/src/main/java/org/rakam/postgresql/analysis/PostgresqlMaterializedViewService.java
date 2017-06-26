@@ -120,8 +120,10 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
     public CompletableFuture<QueryResult> delete(String project, String name) {
         MaterializedView materializedView = database.getMaterializedView(project, name);
 
-        QueryExecution queryExecution = queryExecutor.executeRawStatement(format("DROP MATERIALIZED VIEW \"%s\".\"%s%s\"",
-                project, MATERIALIZED_VIEW_PREFIX, materializedView.tableName));
+        String type = materializedView.incremental ? "TABLE" : "MATERIALIZED VIEW";
+        QueryExecution queryExecution = queryExecutor.executeRawStatement(format("DROP %s %s.%s",
+                type,
+                checkProject(project, '\"'), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName)));
         return queryExecution.getResult().thenApply(result -> {
             if(!result.isFailed())
                 database.deleteMaterializedView(project, name);

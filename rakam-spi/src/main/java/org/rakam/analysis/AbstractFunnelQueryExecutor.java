@@ -64,7 +64,7 @@ public abstract class AbstractFunnelQueryExecutor
     public QueryExecution query(String project,
             List<FunnelStep> steps,
             Optional<String> dimension, LocalDate startDate,
-            LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, Optional<Boolean> ordered)
+            LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, Optional<Boolean> ordered, Optional<Boolean> approximate)
     {
         Map<String, List<SchemaField>> collections = metastore.getCollections(project);
 

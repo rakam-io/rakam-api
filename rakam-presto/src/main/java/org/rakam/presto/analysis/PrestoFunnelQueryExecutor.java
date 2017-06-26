@@ -14,23 +14,14 @@
 package org.rakam.presto.analysis;
 
 import com.facebook.presto.sql.RakamSqlFormatter;
-import com.facebook.presto.sql.tree.DefaultExpressionTraversalVisitor;
-import com.facebook.presto.sql.tree.Expression;
-import com.facebook.presto.sql.tree.QualifiedNameReference;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.analysis.CalculatedUserSet;
-import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.AbstractFunnelQueryExecutor;
-import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.postgresql.analysis.FastGenericFunnelQueryExecutor;
-import org.rakam.report.DelegateQueryExecution;
-import org.rakam.report.PreComputedTableSubQueryVisitor;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
-import org.rakam.report.QueryExecutorService;
 import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
@@ -38,12 +29,9 @@ import javax.inject.Inject;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
 import static java.lang.String.format;
@@ -55,28 +43,22 @@ import static org.rakam.util.ValidationUtil.checkTableColumn;
 public class PrestoFunnelQueryExecutor
         extends AbstractFunnelQueryExecutor
 {
-    private final QueryExecutorService executorService;
-    private final MaterializedViewService materializedViewService;
-    private final ContinuousQueryService continuousQueryService;
     private final boolean userMappingEnabled;
     private final FastGenericFunnelQueryExecutor fastPrestoFunnelQueryExecutor;
+    private final PrestoApproxFunnelQueryExecutor approxFunnelQueryExecutor;
 
     @Inject
     public PrestoFunnelQueryExecutor(
             ProjectConfig projectConfig,
             FastGenericFunnelQueryExecutor fastPrestoFunnelQueryExecutor,
+            PrestoApproxFunnelQueryExecutor approxFunnelQueryExecutor,
             Metastore metastore,
-            QueryExecutorService executorService,
             QueryExecutor executor,
-            MaterializedViewService materializedViewService,
-            ContinuousQueryService continuousQueryService,
             UserPluginConfig userPluginConfig)
     {
         super(projectConfig, metastore, executor);
-        this.materializedViewService = materializedViewService;
         this.fastPrestoFunnelQueryExecutor = fastPrestoFunnelQueryExecutor;
-        this.continuousQueryService = continuousQueryService;
-        this.executorService = executorService;
+        this.approxFunnelQueryExecutor = approxFunnelQueryExecutor;
         this.userMappingEnabled = userPluginConfig.getEnableUserMapping();
     }
 
@@ -91,17 +73,21 @@ public class PrestoFunnelQueryExecutor
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, Optional<Boolean> ordered)
+    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, Optional<Boolean> ordered, Optional<Boolean> approximate)
     {
         if (!ordered.orElse(false)) {
-            return fastPrestoFunnelQueryExecutor.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, ordered);
+            return fastPrestoFunnelQueryExecutor.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, ordered, Optional.empty());
+        }
+
+        if (!approximate.orElse(false)) {
+            return approxFunnelQueryExecutor.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, ordered, Optional.empty());
         }
 
         if (dimension.isPresent() && projectConfig.getUserColumn().equals(dimension.get())) {
             throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
         }
 
-        return super.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, ordered);
+        return super.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, ordered, approximate);
     }
 
     public String convertFunnel(String project, String connectorField, int idx, FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate)
