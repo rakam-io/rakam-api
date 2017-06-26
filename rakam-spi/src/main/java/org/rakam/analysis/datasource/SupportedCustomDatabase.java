@@ -4,6 +4,7 @@ import com.google.common.base.Throwables;
 
 import java.sql.Connection;
 import java.sql.Driver;
+import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Optional;
@@ -103,8 +104,8 @@ public enum SupportedCustomDatabase
             properties.setProperty("ssl", ((Boolean) factory.getEnableSSL()).toString());
             properties.setProperty("sslfactory", "org.postgresql.ssl.NonValidatingFactory");
 
-            return new com.amazon.redshift.jdbc42.Driver().connect(
-                    format("jdbc:redshift://%s:%s/%s",
+            return DriverManager.getConnection(
+                    format("jdbc:postgresql://%s:%s/%s",
                             factory.getHost(),
                             Optional.ofNullable(factory.getPort()).orElse(5432),
                             factory.getDatabase()), properties);

@@ -155,11 +155,12 @@
             <artifactId>swagger-models</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>com.amazon.redshift</groupId>
-            <artifactId>redshift-jdbc42</artifactId>
-            <version>1.2.1.1001</version>
-        </dependency>
+        <!-- Causes bug when using this driver with Postgresql driver-->
+        <!--<dependency>-->
+            <!--<groupId>com.amazon.redshift</groupId>-->
+            <!--<artifactId>redshift-jdbc42</artifactId>-->
+            <!--<version>1.2.1.1001</version>-->
+        <!--</dependency>-->
 
         <dependency>
             <groupId>org.rakam</groupId>

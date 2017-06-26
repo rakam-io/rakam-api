@@ -59,26 +59,27 @@ public class PrestoApproxFunnelQueryExecutor
                     name -> name.getParts().stream()
                             .map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")), '"')).orElse("true");
 
-            String withStep = format("step%d as (select %s as set %s from %s where %s between timestamp '%s' and timestamp '%s' and %s)",
-                    i, checkTableColumn(projectConfig.getUserColumn()),
-                    i > 1 ? format("approx_set(%s)", checkCollection(funnelStep.getCollection())) : format("merge_sets(step%d.set, approx_set(%s))", i - 1, checkTableColumn(projectConfig.getUserColumn())),
+            String withStep = format("step%d as (select %s as set %s from %s %s where %s between timestamp '%s' and timestamp '%s' and %s)",
+                    i, i == 0 ? format("approx_set(%s)", checkCollection(projectConfig.getUserColumn())) : format("merge_sets(step%d.set, approx_set(%s))", i - 1, checkTableColumn(projectConfig.getUserColumn())),
                     dimension.map(v -> ", " + checkTableColumn(v)).orElse(""),
+                    checkCollection(funnelStep.getCollection()),
+                    i > 0 ? format(", step%s", i - 1) : "",
                     checkTableColumn(projectConfig.getTimeColumn()),
                     startDateStr, endDateStr, filterExp);
             withs.add(withStep);
         }
 
         String querySelect = IntStream.range(0, steps.size())
-                .mapToObj(i -> String.format("cardinality(step%d.set)", i))
+                .mapToObj(i -> format("cardinality(step%d.set)", i))
                 .collect(Collectors.joining(", "));
 
         String queryEnd = IntStream.range(0, steps.size())
-                .mapToObj(i -> String.format("step%d", i))
+                .mapToObj(i -> format("step%d", i))
                 .collect(Collectors.joining(", "));
 
-        return executor.executeQuery(project, String.format("with %s select %s %s from %s %s",
-                withs.stream().collect(Collectors.joining(", ")),
-                dimension.map(v -> checkTableColumn(v) + ", "),
+        return executor.executeQuery(project, format("with \n%s\n select %s %s from %s %s",
+                withs.stream().collect(Collectors.joining(",\n")),
+                dimension.map(v -> checkTableColumn(v) + ", ").orElse(""),
                 querySelect, queryEnd, dimension.map(v -> " group by 1 ").orElse("")));
     }
 }

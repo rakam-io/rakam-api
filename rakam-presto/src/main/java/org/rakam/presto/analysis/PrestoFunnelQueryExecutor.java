@@ -75,12 +75,12 @@ public class PrestoFunnelQueryExecutor
     @Override
     public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, Optional<Boolean> ordered, Optional<Boolean> approximate)
     {
-        if (!ordered.orElse(false)) {
-            return fastPrestoFunnelQueryExecutor.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, ordered, Optional.empty());
-        }
-
         if (!approximate.orElse(false)) {
             return approxFunnelQueryExecutor.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, ordered, Optional.empty());
+        }
+
+        if (!ordered.orElse(false)) {
+            return fastPrestoFunnelQueryExecutor.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, ordered, Optional.empty());
         }
 
         if (dimension.isPresent() && projectConfig.getUserColumn().equals(dimension.get())) {
