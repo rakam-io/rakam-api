@@ -28,8 +28,6 @@ import org.rakam.report.PreComputedTableSubQueryVisitor;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
-import org.rakam.util.DateTimeUtils;
-import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 
@@ -51,10 +49,11 @@ import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static java.time.temporal.ChronoUnit.DAYS;
-import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.*;
+import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.DAY;
+import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.MONTH;
+import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.WEEK;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.presto.analysis.PrestoUserService.ANONYMOUS_ID_MAPPING;
-import static org.rakam.util.DateTimeUtils.DATE_FORMATTER;
 import static org.rakam.util.DateTimeUtils.LOCAL_DATE_FORMATTER;
 import static org.rakam.util.ValidationUtil.checkArgument;
 import static org.rakam.util.ValidationUtil.checkCollection;
