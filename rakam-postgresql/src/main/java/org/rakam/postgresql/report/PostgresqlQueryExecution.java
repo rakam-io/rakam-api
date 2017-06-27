@@ -41,6 +41,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 import static java.lang.String.format;
+import static java.time.format.TextStyle.NARROW;
 import static java.time.format.TextStyle.SHORT;
 import static java.util.Locale.ENGLISH;
 import static org.rakam.collection.FieldType.STRING;
@@ -60,11 +61,12 @@ public class PostgresqlQueryExecution
     private final CompletableFuture<QueryResult> result;
     private final String query;
     private Statement statement;
+    private static final ZoneId UTC = ZoneId.of("UTC");
 
     public PostgresqlQueryExecution(ConnectionFactory connectionPool, String query, boolean update, ZoneId optionalZoneId)
     {
         this.query = query;
-        ZoneId zoneId = optionalZoneId != null ? optionalZoneId : ZoneOffset.UTC;
+        ZoneId zoneId = optionalZoneId != null ? (optionalZoneId == ZoneOffset.UTC ? UTC : optionalZoneId) : UTC;
 
         // TODO: unnecessary threads will be spawn
         Supplier<QueryResult> task = () -> {
@@ -80,20 +82,10 @@ public class PostgresqlQueryExecution
                 }
                 else {
                     long beforeExecuted = System.currentTimeMillis();
-                    String finalQuery;
-
-                    boolean zoneChangeRequired = zoneId != null && zoneId != ZoneOffset.UTC;
-                    if (zoneChangeRequired) {
-                        finalQuery = format("set local time zone '%s'",
-                                checkLiteral(zoneId.getDisplayName(SHORT, ENGLISH))) + "; " + query;
-                    }
-                    else {
-                        finalQuery = query;
-                    }
+                    String finalQuery = format("set local time zone '%s'",
+                            checkLiteral(zoneId.getDisplayName(NARROW, ENGLISH))) + "; " + query;
                     statement.execute(finalQuery);
-                    if(zoneChangeRequired) {
-                        statement.getMoreResults();
-                    }
+                    statement.getMoreResults();
                     ResultSet resultSet = statement.getResultSet();
                     statement = null;
                     queryResult = resultSetToQueryResult(resultSet,

@@ -59,7 +59,7 @@ public class ClickHouseFunnelQueryExecutor
     @Override
     public QueryExecution query(String project, List<FunnelStep> steps,
             Optional<String> dimension, LocalDate startDate, LocalDate endDate,
-            Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, Optional<Boolean> ordered)
+            Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, Optional<Boolean> ordered, Optional<Boolean> approximate)
     {
         if (steps.size() == 0) {
             throw new RakamException("Funnel steps parameter is empty", BAD_REQUEST);

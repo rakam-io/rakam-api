@@ -67,7 +67,7 @@ public abstract class TestFunnelQueryExecutor {
                 Optional.empty(),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR), Optional.of(new FunnelWindow(30, DAY)), UTC,
-                Optional.empty(), Optional.ofNullable(null)).getResult().join();
+                Optional.empty(), Optional.ofNullable(null), Optional.empty()).getResult().join();
 
         assertFalse(query.isFailed());
         assertEquals(query.getResult(), of(of("Step 1", 3L)));
@@ -80,7 +80,7 @@ public abstract class TestFunnelQueryExecutor {
                 Optional.empty(),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR), Optional.of(new FunnelWindow(30, DAY)), UTC,
-                Optional.empty(), Optional.ofNullable(null)).getResult().join();
+                Optional.empty(), Optional.ofNullable(null), Optional.empty()).getResult().join();
 
         assertFalse(query.isFailed());
         assertEquals(query.getResult(), of(of("Step 1", 3L), of("Step 2", 3L), of("Step 3", 3L)));
@@ -93,7 +93,7 @@ public abstract class TestFunnelQueryExecutor {
                 Optional.of("teststr"),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR), Optional.of(new FunnelWindow(30, DAY)), UTC,
-                Optional.empty(), Optional.ofNullable(null)).getResult().join();
+                Optional.empty(), Optional.ofNullable(null), Optional.empty()).getResult().join();
 
         assertFalse(query.isFailed());
         assertEquals(ImmutableSet.copyOf(query.getResult()), ImmutableSet.of(
@@ -109,7 +109,7 @@ public abstract class TestFunnelQueryExecutor {
                 Optional.of("teststr"),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR), Optional.of(new FunnelWindow(30, DAY)), UTC,
-                Optional.empty(), Optional.ofNullable(null)).getResult().join();
+                Optional.empty(), Optional.ofNullable(null), Optional.empty()).getResult().join();
 
         assertFalse(query.isFailed());
         assertEquals(ImmutableSet.copyOf(query.getResult()),
@@ -127,7 +127,7 @@ public abstract class TestFunnelQueryExecutor {
                 Optional.of("teststr"),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR), Optional.of(new FunnelWindow(30, DAY)), UTC,
-                Optional.empty(), Optional.ofNullable(null)).getResult().join();
+                Optional.empty(), Optional.ofNullable(null), Optional.empty()).getResult().join();
 
         assertFalse(query.isFailed());
         assertEquals(query.getResult(), of(of("Step 1", "test1", 3L), of("Step 2", "test1", 3L)));

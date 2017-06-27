@@ -53,7 +53,6 @@ import static java.lang.String.format;
 import static org.rakam.report.realtime.AggregationType.COUNT;
 import static org.rakam.report.realtime.AggregationType.SUM;
 import static org.rakam.util.ValidationUtil.checkArgument;
-import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 @Path("/event-explorer")
@@ -91,6 +90,7 @@ public class EventExplorerHttpService
             @ApiParam("endDate") Instant endDate,
             @ApiParam(value = "timezone", required = false) ZoneId timezone)
     {
+        timezone = timezone == null ? ZoneOffset.UTC : timezone;
         return eventExplorer.getEventStatistics(project,
                 Optional.ofNullable(collections),
                 Optional.ofNullable(dimension),

@@ -4,7 +4,6 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.DefaultExpressionTraversalVisitor;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
-import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EventExplorer;
@@ -22,8 +21,12 @@ import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
 import java.time.Instant;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -39,11 +42,13 @@ import java.util.stream.Stream;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
+import static java.time.ZoneOffset.UTC;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.Optional.ofNullable;
 import static org.rakam.analysis.EventExplorer.ReferenceType.COLUMN;
 import static org.rakam.analysis.EventExplorer.ReferenceType.REFERENCE;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.HOUR;
+import static org.rakam.analysis.EventExplorer.TimestampTransformation.HOUR_OF_DAY;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.fromString;
 import static org.rakam.collection.SchemaField.stripName;
 import static org.rakam.report.realtime.AggregationType.COUNT;
@@ -93,22 +98,22 @@ public abstract class AbstractEventExplorer
             case DAY_OF_WEEK:
                 return;
             case HOUR:
-                if (startDate.atZone(ZoneOffset.UTC).until(endDate.atZone(ZoneOffset.UTC), ChronoUnit.HOURS) > 30000 / size) {
+                if (startDate.atZone(UTC).until(endDate.atZone(UTC), ChronoUnit.HOURS) > 30000 / size) {
                     throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
                 }
                 break;
             case DAY:
-                if (startDate.atZone(ZoneOffset.UTC).until(endDate.atZone(ZoneOffset.UTC), DAYS) > 30000 / size) {
+                if (startDate.atZone(UTC).until(endDate.atZone(UTC), DAYS) > 30000 / size) {
                     throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
                 }
                 break;
             case MONTH:
-                if (startDate.atZone(ZoneOffset.UTC).until(endDate.atZone(ZoneOffset.UTC), ChronoUnit.MONTHS) > 30000 / size) {
+                if (startDate.atZone(UTC).until(endDate.atZone(UTC), ChronoUnit.MONTHS) > 30000 / size) {
                     throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
                 }
                 break;
             case YEAR:
-                if (startDate.atZone(ZoneOffset.UTC).until(endDate.atZone(ZoneOffset.UTC), ChronoUnit.YEARS) > 30000 / size) {
+                if (startDate.atZone(UTC).until(endDate.atZone(UTC), ChronoUnit.YEARS) > 30000 / size) {
                     throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
                 }
                 break;
@@ -446,8 +451,10 @@ public abstract class AbstractEventExplorer
                 throw new RakamException(BAD_REQUEST);
             }
 
+            TimestampTransformation timestampTransformation = aggregationMethod.get();
+
             query = format("select collection, %s as %s, cast(sum(total) as bigint) from (%s) data where %s group by 1, 2 order by 2 desc",
-                    aggregationMethod.get() == HOUR ? "_time" : format(timestampMapping.get(aggregationMethod.get()), "_time"),
+                    aggregationMethod.get() == HOUR ? "_time" : format(timestampMapping.get(timestampTransformation), "_time"),
                     aggregationMethod.get(),
                     sourceTable(collections),
                     timePredicate);
@@ -466,14 +473,31 @@ public abstract class AbstractEventExplorer
             collection = executor.executeQuery(project, query, Optional.empty(), "collection", timezone, 20000);
         }
 
-        collection.getResult().thenAccept(result -> {
+        return collection.getResult().thenApply(result -> {
             if (result.isFailed()) {
                 LOGGER.error(new RuntimeException(result.getError().toString()),
                         "An error occurred while executing event explorer statistics query.");
-            }
-        });
+            } else {
+                List<List<Object>> result1 = result.getResult();
+                if (dimension.isPresent() && TimestampTransformation.fromPrettyName(dimension.get()).get() == HOUR_OF_DAY) {
+                    ZoneOffset offset = timezone.getRules().getOffset(Instant.now());
+                    DateTimeFormatter dateTimeFormatter = new DateTimeFormatterBuilder()
+                            .appendValue(ChronoField.HOUR_OF_DAY, 2)
+                            .appendLiteral(':')
+                            .appendValue(ChronoField.MINUTE_OF_HOUR, 2)
+                            .toFormatter();
 
-        return collection.getResult();
+                    for (List<Object> objects : result1) {
+                        String format = LocalTime.parse(objects.get(1).toString()).atOffset(UTC)
+                                .withOffsetSameInstant(offset)
+                                .format(dateTimeFormatter);
+                        objects.set(1, format);
+                    }
+                }
+            }
+
+            return result;
+        });
     }
 
     public String sourceTable(Optional<Set<String>> collections)

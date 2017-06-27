@@ -184,7 +184,7 @@ public class ClickHouseEventExplorer
     }
 
     @Override
-    public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, Instant startDate, Instant endDate, ZoneId zoneId)
+    public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, Instant startDate, Instant endDate, ZoneId timezone)
     {
         checkProject(project);
 

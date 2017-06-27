@@ -25,6 +25,7 @@ import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.UIPermissionParameterProvider.Project;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
 import org.rakam.util.SuccessMessage;
 import org.skife.jdbi.v2.DBI;
@@ -426,11 +427,10 @@ public class DashboardService
             @ApiParam("id") int dashboard)
     {
         try (Handle handle = dbi.open()) {
-            int execute = handle.createStatement("DELETE FROM dashboard WHERE id = :id and project_id = :project AND " +
-                    "(select count(*) FROM dashboard WHERE project_id = :project) > 1")
+            int execute = handle.createStatement("DELETE FROM dashboard WHERE id = :id and project_id = :project")
                     .bind("id", dashboard).bind("project", project.project).execute();
             if (execute == 0) {
-                throw new RakamException("You cannot remove the single dashboard.", BAD_REQUEST);
+                throw new NotExistsException("Dashboard");
             }
         }
         return SuccessMessage.success();

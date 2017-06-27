@@ -10,7 +10,7 @@ import java.util.Optional;
 
 public interface QueryExecutor
 {
-    QueryExecution executeRawQuery(String sqlQuery, ZoneId zoneId, Map<String, String> sessionParameters);
+    QueryExecution executeRawQuery(String sqlQuery, ZoneId timezone, Map<String, String> sessionParameters);
 
     default QueryExecution executeRawQuery(String sqlQuery, ZoneId zoneId)
     {

@@ -15,7 +15,9 @@ import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
+import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
@@ -32,6 +34,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static com.facebook.presto.sql.RakamSqlFormatter.formatSql;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_GATEWAY;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static org.rakam.postgresql.report.PostgresqlQueryExecutor.MATERIALIZED_VIEW_PREFIX;
@@ -56,51 +59,79 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
 
     @Override
     public CompletableFuture<Void> create(String project, MaterializedView materializedView) {
-        materializedView.validateQuery();
+        String format;
+        try {
+            materializedView.validateQuery();
 
-        StringBuilder builder = new StringBuilder();
-        Query statement;
-        synchronized (parser) {
-            statement = (Query) parser.createStatement(materializedView.query);
-        }
+            StringBuilder builder = new StringBuilder();
+            Query statement;
+            synchronized (parser) {
+                statement = (Query) parser.createStatement(materializedView.query);
+            }
 
-        new RakamSqlFormatter.Formatter(builder, name -> queryExecutor
-                .formatTableReference(project, name, Optional.empty(), new HashMap<String, String>() {
-                    @Override
-                    public String put(String key, String value)
-                    {
-                        CustomDataSource read = JsonHelper.read(value, CustomDataSource.class);
-                        if(!ImmutableList.of("postgresql", "mysql").contains(read.type)) {
+            new RakamSqlFormatter.Formatter(builder, name -> queryExecutor
+                    .formatTableReference(project, name, Optional.empty(), new HashMap<String, String>() {
+                        @Override
+                        public String put(String key, String value)
+                        {
+                            CustomDataSource read = JsonHelper.read(value, CustomDataSource.class);
+                            if(!ImmutableList.of("postgresql", "mysql").contains(read.type)) {
+                                throw new RakamException("Cross database materialized views are not supported in Postgresql deployment type.", BAD_REQUEST);
+                            }
+
                             throw new RakamException("Cross database materialized views are not supported in Postgresql deployment type.", BAD_REQUEST);
                         }
+                    }, "collection"), '"').process(statement, 1);
 
-                        throw new RakamException("Cross database materialized views are not supported in Postgresql deployment type.", BAD_REQUEST);
-                    }
-                }, "collection"), '"').process(statement, 1);
-
-        String format;
-        if(!materializedView.incremental) {
-            format = format("CREATE MATERIALIZED VIEW %s.%s AS %s WITH NO DATA",
-                    checkProject(project, '"'), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName), builder.toString());
-        } else {
-            format = format("CREATE TABLE %s.%s AS %s WITH NO DATA",
-                    checkProject(project, '"'), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName), builder.toString());
+            if(!materializedView.incremental) {
+                format = format("CREATE MATERIALIZED VIEW %s.%s AS %s WITH NO DATA",
+                        checkProject(project, '"'), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName), builder.toString());
+            } else {
+                format = format("CREATE TABLE %s.%s AS %s WITH NO DATA",
+                        checkProject(project, '"'), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName), builder.toString());
+            }
+        }
+        catch (Exception e) {
+            CompletableFuture<Void> f = new CompletableFuture<>();
+            f.completeExceptionally(e);
+            return f;
         }
 
-        QueryResult result = queryExecutor.executeRawStatement(format).getResult().join();
-        if (result.isFailed()) {
-            throw new RakamException("Couldn't created table: " + result.getError().toString(), BAD_REQUEST);
-        }
-        database.createMaterializedView(project, materializedView);
-        return CompletableFuture.completedFuture(null);
+        return queryExecutor.executeRawStatement(format).getResult().thenAccept(result -> {
+            if (result.isFailed()) {
+                try {
+                    get(project, materializedView.tableName);
+                    throw new AlreadyExistsException("Materialized view", BAD_REQUEST);
+                }
+                catch (NotExistsException e) {
+                }
+
+                if(!"42P07".equals(result.getError().sqlState)) {
+                    throw new RakamException("Couldn't created table: " +
+                            result.getError().toString(), BAD_REQUEST);
+                }
+            }
+
+            database.createMaterializedView(project, materializedView);
+        });
     }
 
     @Override
     public CompletableFuture<QueryResult> delete(String project, String name) {
         MaterializedView materializedView = database.getMaterializedView(project, name);
-        database.deleteMaterializedView(project, name);
-        return queryExecutor.executeRawStatement(format("DROP MATERIALIZED VIEW \"%s\".\"%s%s\"",
-                project, MATERIALIZED_VIEW_PREFIX, materializedView.tableName)).getResult();
+
+        String type = materializedView.incremental ? "TABLE" : "MATERIALIZED VIEW";
+        QueryExecution queryExecution = queryExecutor.executeRawStatement(format("DROP %s %s.%s",
+                type,
+                checkProject(project, '\"'), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName)));
+        return queryExecution.getResult().thenApply(result -> {
+            if(!result.isFailed())
+                database.deleteMaterializedView(project, name);
+            else
+                return result;
+
+            return QueryResult.empty();
+        });
     }
 
     @Override

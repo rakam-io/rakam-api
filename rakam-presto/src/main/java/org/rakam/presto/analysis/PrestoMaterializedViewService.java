@@ -20,6 +20,8 @@ import org.rakam.plugin.MaterializedView;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
+import org.rakam.util.AlreadyExistsException;
+import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
@@ -111,8 +113,15 @@ public class PrestoMaterializedViewService
                                 QualifiedName.of("materialized", materializedView.tableName), Optional.empty(), ImmutableMap.of(), "collection"), builder.toString(), Optional.empty()), map);
 
         return execution.getResult().thenAccept(result -> {
+            try {
+                get(project, materializedView.tableName);
+                throw new AlreadyExistsException("Materialized view", BAD_REQUEST);
+            }
+            catch (NotExistsException e) {
+            }
+
             if (result.isFailed()) {
-                throw new RakamException(result.getError().message, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+                throw new RakamException(result.getError().message, INTERNAL_SERVER_ERROR);
             }
             else {
                 database.createMaterializedView(project, materializedView);

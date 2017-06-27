@@ -20,7 +20,6 @@ import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.FunnelQueryExecutor.FunnelStep;
 import org.rakam.analysis.FunnelQueryExecutor.FunnelWindow;
 import org.rakam.analysis.QueryHttpService;
-import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -85,8 +84,7 @@ public class FunnelAnalyzerHttpService
                 query.endDate,
                 Optional.ofNullable(query.window),
                 query.timezone,
-                Optional.ofNullable(query.connectors), Optional.ofNullable(query.strictOrdering)),
-                (query, result) -> LOGGER.error(new RuntimeException(JsonHelper.encode(query) + " : " + result.getError().toString()), "Error running funnel query"));
+                Optional.ofNullable(query.connectors), Optional.ofNullable(query.strictOrdering), Optional.empty()), (query, result) -> LOGGER.error(new RuntimeException(JsonHelper.encode(query) + " : " + result.getError().toString()), "Error running funnel query"));
     }
 
     @ApiOperation(value = "Execute query",
@@ -106,7 +104,7 @@ public class FunnelAnalyzerHttpService
                 Optional.ofNullable(query.window),
                 query.timezone,
                 Optional.ofNullable(query.connectors),
-                Optional.ofNullable(query.strictOrdering)).getResult();
+                Optional.ofNullable(query.strictOrdering), Optional.empty()).getResult();
         result.thenAccept(data -> {
             if (data.isFailed()) {
                 LOGGER.error(new RuntimeException(JsonHelper.encode(query) + " : " + data.getError().toString()),
@@ -126,6 +124,7 @@ public class FunnelAnalyzerHttpService
         public final ZoneId timezone;
         public final Boolean strictOrdering;
         public final List<String> connectors;
+        public final Boolean approximate;
 
         @JsonCreator
         public FunnelQuery(@ApiParam("steps") List<FunnelStep> steps,
@@ -135,6 +134,7 @@ public class FunnelAnalyzerHttpService
                 @ApiParam("endDate") LocalDate endDate,
                 @ApiParam(value = "connectors", required = false) List<String> connectors,
                 @ApiParam(value = "strictOrdering", required = false) Boolean strictOrdering,
+                @ApiParam(value = "approximate", required = false) Boolean approximate,
                 @ApiParam(value = "timezone", required = false) String timezone)
         {
             this.steps = checkNotNull(steps, "steps field is required");
@@ -144,6 +144,7 @@ public class FunnelAnalyzerHttpService
             this.strictOrdering = strictOrdering;
             this.connectors = connectors;
             this.window = window;
+            this.approximate = approximate;
             try {
                 this.timezone = Optional.ofNullable(timezone)
                         .map(t -> ZoneId.of(t))

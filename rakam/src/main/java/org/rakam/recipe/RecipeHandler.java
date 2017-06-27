@@ -150,34 +150,41 @@ public class RecipeHandler
                 })).collect(Collectors.toList());
 
         List<CompletableFuture<QueryResult>> materializedViews = recipe.getMaterializedViewBuilders().stream()
-                .map(materializedView -> materializedViewService.create(project, materializedView).handle((res, ex) -> {
-                    if (ex != null) {
-                        if (ex instanceof AlreadyExistsException) {
-                            if (overrideExisting) {
-                                try {
-                                    materializedViewService.delete(project, materializedView.tableName);
-                                    materializedViewService.create(project, materializedView);
-                                    return QueryResult.empty();
+                .map(materializedView -> {
+                    CompletableFuture<Void> future = materializedViewService.create(project, materializedView);
+                    CompletableFuture<QueryResult> result = new CompletableFuture<>();
+
+                    future.whenComplete((res, ex) -> {
+                        if (ex != null) {
+                            if (ex.getCause() instanceof AlreadyExistsException) {
+                                if (overrideExisting) {
+                                    try {
+                                        materializedViewService.delete(project, materializedView.tableName).join();
+                                        materializedViewService.create(project, materializedView);
+                                        result.complete(QueryResult.empty());
+                                    }
+                                    catch (Throwable e) {
+                                        result.complete(QueryResult.errorResult(
+                                                create(format("Error while re-creating materialized view %s: %s",
+                                                        materializedView.tableName, e.getMessage()))));
+                                    }
                                 }
-                                catch (Throwable e) {
-                                    return QueryResult.errorResult(
-                                            create(format("Error while re-creating materialized view %s: %s",
-                                                    materializedView.tableName, e.getMessage())));
+                                else {
+                                    result.complete(QueryResult.errorResult(create(format("Materialized view %s already exists",
+                                            materializedView.tableName))));
                                 }
                             }
-                            else {
-                                return QueryResult.errorResult(create(format("Materialized view %s already exists",
-                                        materializedView.tableName)));
-                            }
+                            result.complete(QueryResult.errorResult(
+                                    create(format("Error while creating materialized view %s: %s",
+                                            materializedView.tableName, ex.getMessage()))));
                         }
-                        return QueryResult.errorResult(
-                                create(format("Error while creating materialized view %s: %s",
-                                        materializedView.tableName, ex.getMessage())));
-                    }
-                    else {
-                        return QueryResult.empty();
-                    }
-                })).collect(Collectors.toList());
+                        else {
+                            result.complete(QueryResult.empty());
+                        }
+                    });
+
+                    return result;
+                }).collect(Collectors.toList());
 
         CompletableFuture<QueryResult>[] futures = ImmutableList.builder().addAll(continuousQueries)
                 .addAll(materializedViews).build().stream()
