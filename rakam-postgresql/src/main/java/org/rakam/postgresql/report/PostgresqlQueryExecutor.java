@@ -146,10 +146,14 @@ public class PostgresqlQueryExecutor
 
                     String remoteDb = sessionParameters.get("remotedb");
                     if(remoteDb != null) {
-                        throw new RakamException("Cross database queries are not supported in Postgresql deployment type.", BAD_REQUEST);
+                        CustomDataSource read = JsonHelper.read(remoteDb, CustomDataSource.class);
+                        if (!read.schemaName.equals(prefix)) {
+                            throw new RakamException("Cross database queries are not supported in Postgresql deployment type.", BAD_REQUEST);
+                        }
+                    } else {
+                        sessionParameters.put("remotedb", JsonHelper.encode(dataSource));
                     }
 
-                    sessionParameters.put("remotedb", JsonHelper.encode(dataSource));
             }
         }
         else if (name.getSuffix().equals("users") || name.getSuffix().equals("_users")) {

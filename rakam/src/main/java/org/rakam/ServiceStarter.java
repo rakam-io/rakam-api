@@ -36,6 +36,7 @@ import org.rakam.analysis.MaterializedViewHttpService;
 import org.rakam.analysis.ProjectHttpService;
 import org.rakam.analysis.QueryHttpService;
 import org.rakam.analysis.RequestPreProcessorItem;
+import org.rakam.analysis.datasource.CustomDataSourceConfig;
 import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.bootstrap.Bootstrap;
 import org.rakam.collection.EventCollectionHttpService;
@@ -242,6 +243,7 @@ public final class ServiceStarter
             configBinder(binder).bindConfig(HttpServerConfig.class);
             configBinder(binder).bindConfig(ProjectConfig.class);
             configBinder(binder).bindConfig(EncryptionConfig.class);
+            configBinder(binder).bindConfig(CustomDataSourceConfig.class);
 
             binder.bind(SchemaChecker.class).asEagerSingleton();
 
