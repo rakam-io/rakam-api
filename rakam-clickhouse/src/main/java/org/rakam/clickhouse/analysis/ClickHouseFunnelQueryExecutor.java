@@ -117,7 +117,7 @@ public class ClickHouseFunnelQueryExecutor
                         range(0, steps.size()).mapToObj(i ->
                                 format("step%d DESC", i + 1)).collect(Collectors.joining(", ")) + " LIMIT 50")
                         .orElse(""));
-        return new DelegateQueryExecution(queryExecutor.executeRawQuery(query), result -> {
+        return new DelegateQueryExecution(queryExecutor.executeRawQuery(query, zoneId), result -> {
             List<List<Object>> data;
             if (!result.isFailed()) {
                 if (dimension.isPresent()) {

@@ -23,7 +23,6 @@ import org.rakam.report.QueryResult;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 

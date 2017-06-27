@@ -33,7 +33,6 @@ import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
-import org.rakam.postgresql.analysis.FastGenericFunnelQueryExecutor;
 import org.rakam.postgresql.analysis.PostgresqlConfig;
 import org.rakam.postgresql.analysis.PostgresqlEventStore;
 import org.rakam.postgresql.analysis.PostgresqlFunnelQueryExecutor;

@@ -16,6 +16,7 @@ import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
 
+import java.time.ZoneOffset;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.HashMap;
 import java.util.List;
@@ -82,7 +83,7 @@ public class PostgresqlPseudoContinuousQueryService
     {
         Stream<Entry<ContinuousQuery, QueryExecution>> continuous = database.getContinuousQueries(project).stream()
                 .map(c -> new SimpleImmutableEntry<>(c, executor.executeRawQuery("SELECT * FROM " +
-                        executor.formatTableReference(project, QualifiedName.of("continuous", c.tableName), Optional.empty(), ImmutableMap.of(), "collection") + " limit 0")));
+                        executor.formatTableReference(project, QualifiedName.of("continuous", c.tableName), Optional.empty(), ImmutableMap.of(), "collection") + " limit 0", ZoneOffset.UTC, ImmutableMap.of())));
         return continuous
                 .collect(Collectors.toMap(entry -> entry.getKey().tableName, entry -> {
                     QueryResult join = entry.getValue().getResult().join();
@@ -111,7 +112,7 @@ public class PostgresqlPseudoContinuousQueryService
                 .process(continuousQuery.getQuery(), 1);
 
         QueryExecution execution = executor
-                .executeRawQuery(builder.toString() + " limit 0");
+                .executeRawQuery(builder.toString() + " limit 0", ZoneOffset.UTC, ImmutableMap.of());
         QueryResult result = execution.getResult().join();
         if (result.isFailed()) {
             throw new RakamException("Query error: " + result.getError().message, BAD_REQUEST);

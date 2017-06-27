@@ -4,7 +4,6 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.DefaultExpressionTraversalVisitor;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
-import com.google.common.base.Throwables;
 import io.airlift.log.Logger;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EventExplorer;
@@ -21,27 +20,22 @@ import org.rakam.util.MaterializedViewNotExists;
 import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
-import java.time.format.ResolverStyle;
 import java.time.temporal.ChronoField;
 import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -173,7 +167,8 @@ public abstract class AbstractEventExplorer
             Reference segmentValue2,
             String filterExpression,
             Instant startDate,
-            Instant endDate)
+            Instant endDate,
+            ZoneId timezone)
     {
         Reference segment = segmentValue2 == null ? DEFAULT_SEGMENT : segmentValue2;
 
@@ -353,7 +348,7 @@ public abstract class AbstractEventExplorer
 
         String table = preComputedTable.map(e -> e.getValue()).orElse(null);
 
-        return new DelegateQueryExecution(executor.executeQuery(project, query), result -> {
+        return new DelegateQueryExecution(executor.executeQuery(project, query, timezone), result -> {
             if (table != null) {
                 result.setProperty("olapTable", table);
             }
@@ -431,7 +426,10 @@ public abstract class AbstractEventExplorer
     @Override
     public CompletableFuture<QueryResult> getEventStatistics(String project,
             Optional<Set<String>> collections,
-            Optional<String> dimension, Instant startDate, Instant endDate, ZoneId timezone)
+            Optional<String> dimension,
+            Instant startDate,
+            Instant endDate,
+            ZoneId timezone)
     {
         checkProject(project);
 
@@ -468,11 +466,11 @@ public abstract class AbstractEventExplorer
 
         QueryExecution collection;
         try {
-            collection = executor.executeQuery(project, query, Optional.empty(), "collection", 20000);
+            collection = executor.executeQuery(project, query, Optional.empty(), "collection", timezone, 20000);
         }
         catch (MaterializedViewNotExists e) {
             new EventExplorerListener(projectConfig, materializedViewService).createTable(project);
-            collection = executor.executeQuery(project, query, Optional.empty(), "collection", 20000);
+            collection = executor.executeQuery(project, query, Optional.empty(), "collection", timezone, 20000);
         }
 
         return collection.getResult().thenApply(result -> {

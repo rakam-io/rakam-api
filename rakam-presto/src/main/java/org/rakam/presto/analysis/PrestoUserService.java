@@ -19,7 +19,6 @@ import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 

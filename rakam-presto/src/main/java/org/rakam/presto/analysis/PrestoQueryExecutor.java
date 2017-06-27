@@ -30,12 +30,13 @@ import org.rakam.report.QueryExecutor;
 import org.rakam.report.QuerySampling;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 
 import java.net.URI;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -71,7 +72,6 @@ public class PrestoQueryExecutor
     private final CustomDataSourceService customDataSource;
     private final JDBCConfig userJdbcConfig;
     private final ProjectConfig projectConfig;
-    private ClientSession defaultSession;
     private SqlParser sqlParser = new SqlParser();
 
     @Inject
@@ -87,52 +87,45 @@ public class PrestoQueryExecutor
         this.metastore = metastore;
         this.customDataSource = customDataSource;
         this.userJdbcConfig = userJdbcConfig == null ? null : userJdbcConfig.orNull();
-        this.defaultSession = new ClientSession(
-                prestoConfig.getAddress(),
-                "rakam",
-                "api-server",
-                prestoConfig.getColdStorageConnector(),
-                "default",
-                TimeZone.getTimeZone(UTC).getID(),
-                Locale.ENGLISH,
-                ImmutableMap.of(),
-                null,
-                false, new Duration(1, TimeUnit.MINUTES));
     }
 
     @Override
-    public PrestoQueryExecution executeRawQuery(String query)
+    public PrestoQueryExecution executeRawQuery(String query, ZoneId timezone, Map<String, String> sessionParameters)
     {
-        return internalExecuteRawQuery(query, defaultSession);
+        return internalExecuteRawQuery(query, createSession(null, timezone, sessionParameters));
     }
 
     @Override
     public QueryExecution executeRawQuery(String query, Map<String, String> sessionProperties)
     {
-        return executeRawQuery(query, sessionProperties, null);
+        return executeRawQuery(query, ZoneOffset.UTC, sessionProperties, null);
     }
 
     @Override
     public QueryExecution executeRawStatement(String query, Map<String, String> sessionProperties)
     {
-        return executeRawStatement(query, sessionProperties, null);
+        return executeRawStatement(query, ZoneOffset.UTC, sessionProperties, null);
     }
 
-    public QueryExecution executeRawStatement(String query, Map<String, String> sessionProperties, String catalog)
+    public QueryExecution executeRawStatement(String query, ZoneId timezone, Map<String, String> sessionProperties, String catalog)
     {
-        return internalExecuteRawQuery(query, new ClientSession(
+        return internalExecuteRawQuery(query, createSession(catalog, timezone, sessionProperties));
+    }
+
+    public ClientSession createSession(String catalog, ZoneId timezone, Map<String, String> sessionProperties) {
+        return new ClientSession(
                 prestoConfig.getAddress(),
                 "rakam",
                 "api-server",
                 catalog == null ? "default" : catalog,
                 "default",
-                TimeZone.getDefault().getID(),
+                TimeZone.getTimeZone(timezone).getID(),
                 Locale.ENGLISH,
                 sessionProperties,
-                null, false, new Duration(1, TimeUnit.MINUTES)));
+                null, false, new Duration(1, TimeUnit.MINUTES));
     }
 
-    public QueryExecution executeRawQuery(String query, Map<String, String> sessionProperties, String catalog)
+    public QueryExecution executeRawQuery(String query, ZoneId timezone, Map<String, String> sessionProperties, String catalog)
     {
         if (sessionProperties.containsKey("external.source_options")) {
             String encodedKey = sessionProperties.get("external.source_options");
@@ -146,17 +139,17 @@ public class PrestoQueryExecutor
 
             if (params.size() == 1) {
                 Map.Entry<String, DataSourceType> next = params.entrySet().iterator().next();
-                QueryExecution singleQueryExecution = getSingleQueryExecution(query, next.getKey(), next.getValue());
+                QueryExecution singleQueryExecution = getSingleQueryExecution(query, next.getValue());
                 if (singleQueryExecution != null) {
                     return singleQueryExecution;
                 }
             }
         }
 
-        return executeRawStatement(query, sessionProperties, catalog);
+        return executeRawStatement(query, timezone, sessionProperties, catalog);
     }
 
-    private QueryExecution getSingleQueryExecution(String query, String key, DataSourceType type)
+    private QueryExecution getSingleQueryExecution(String query, DataSourceType type)
     {
         Optional<String> schema;
 
@@ -201,18 +194,13 @@ public class PrestoQueryExecutor
             return null;
         }
 
-        return new PostgresqlQueryExecution(() -> source.getDataSource().openConnection(convert), builder.toString(), false);
+        return new PostgresqlQueryExecution(() -> source.getDataSource().openConnection(convert),
+                builder.toString(), false, null);
     }
 
     public PrestoQueryExecution internalExecuteRawQuery(String query, ClientSession clientSession)
     {
         return new PrestoQueryExecution(clientSession, query);
-    }
-
-    @Override
-    public PrestoQueryExecution executeRawStatement(String sqlQuery)
-    {
-        return executeRawQuery(sqlQuery);
     }
 
     @Override

@@ -87,7 +87,7 @@ public class ClickHouseEventExplorer
 
     @Override
     public QueryExecution analyze(String project, List<String> collections, Measure measure, Reference grouping,
-            Reference segmentValue2, String filterExpression, Instant startDate, Instant endDate)
+            Reference segmentValue2, String filterExpression, Instant startDate, Instant endDate, ZoneId timezone)
     {
         Reference segment = segmentValue2 == null ? DEFAULT_SEGMENT : segmentValue2;
 

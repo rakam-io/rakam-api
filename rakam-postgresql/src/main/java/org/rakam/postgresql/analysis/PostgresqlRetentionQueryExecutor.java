@@ -16,7 +16,7 @@ package org.rakam.postgresql.analysis;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
-import io.netty.handler.codec.http.HttpResponseStatus;
+import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
@@ -25,8 +25,6 @@ import org.rakam.report.AbstractRetentionQueryExecutor;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
-import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
@@ -50,6 +48,7 @@ import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static com.google.common.primitives.Ints.checkedCast;
 import static java.lang.String.format;
 import static java.util.Locale.ENGLISH;
+import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.DAY;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.MONTH;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.WEEK;
 import static org.rakam.collection.FieldType.INTEGER;
@@ -163,11 +162,11 @@ public class PostgresqlRetentionQueryExecutor
         String firstActionQuery = generateQuery(
                 collections, project, firstAction,
                 testDeviceIdExists(firstAction, collections) ? format("coalesce(cast(%s as varchar), _device_id) as %s", projectConfig.getUserColumn(), checkTableColumn(projectConfig.getUserColumn())) : projectConfig.getUserColumn(),
-                dimension, startDate, endDate, zoneId);
+                dimension, startDate, endDate);
         String returningActionQuery = generateQuery(
                 collections, project, returningAction,
                 testDeviceIdExists(firstAction, collections) ? format("coalesce(cast(%s as varchar), _device_id) as %s", projectConfig.getUserColumn(), checkTableColumn(projectConfig.getUserColumn())) : projectConfig.getUserColumn(),
-                dimension, startDate, endDate, zoneId);
+                dimension, startDate, endDate);
 
         String query;
         if (firstAction.equals(returningAction)) {
@@ -202,8 +201,8 @@ public class PostgresqlRetentionQueryExecutor
                     dimension.map(v -> ", 2").orElse(""),
 
                     dimension.map(v -> "").orElseGet(() -> String.format("cross join (select generate_series(date_trunc('%s', date '%s'), date_trunc('%s', date '%s'),  interval '1 %s')::date date) dates",
-                            dateUnit.name().toLowerCase(ENGLISH), TIMESTAMP_FORMATTER.format(startDate.atStartOfDay(zoneId)),
-                            dateUnit.name().toLowerCase(ENGLISH), TIMESTAMP_FORMATTER.format(endDate.atStartOfDay(zoneId)),
+                            dateUnit.name().toLowerCase(ENGLISH), TIMESTAMP_FORMATTER.format(startDate.atStartOfDay()),
+                            dateUnit.name().toLowerCase(ENGLISH), TIMESTAMP_FORMATTER.format(endDate.atStartOfDay()),
                             dateUnit.name().toLowerCase(ENGLISH))));
         }
         else {
@@ -239,12 +238,12 @@ public class PostgresqlRetentionQueryExecutor
                     dimension.map(v -> ", 2").orElse(""),
                     dimension.map(v -> " and first.dimension = ret.dimension").orElse(""),
                     dimension.map(v -> "").orElseGet(() -> String.format("cross join (select generate_series(date_trunc('%s', date '%s'), date_trunc('%s', date '%s'),  interval '1 %s')::date date) dates",
-                            dateUnit.name().toLowerCase(ENGLISH), TIMESTAMP_FORMATTER.format(startDate.atStartOfDay(zoneId)),
-                            dateUnit.name().toLowerCase(ENGLISH), TIMESTAMP_FORMATTER.format(endDate.atStartOfDay(zoneId)),
+                            dateUnit.name().toLowerCase(ENGLISH),  TIMESTAMP_FORMATTER.format(startDate.atStartOfDay()),
+                            dateUnit.name().toLowerCase(ENGLISH), TIMESTAMP_FORMATTER.format(endDate.atStartOfDay()),
                             dateUnit.name().toLowerCase(ENGLISH))));
         }
 
-        return new DelegateQueryExecution(executor.executeRawQuery(query), (result) -> {
+        return new DelegateQueryExecution(executor.executeRawQuery(query, zoneId), (result) -> {
             if (result.isFailed()) {
                 return result;
             }
@@ -272,12 +271,11 @@ public class PostgresqlRetentionQueryExecutor
             String connectorField,
             Optional<String> dimension,
             LocalDate startDate,
-            LocalDate endDate,
-            ZoneId zoneId)
+            LocalDate endDate)
     {
         String timePredicate = format("between timestamp '%s' and timestamp '%s' + interval '1' day",
-                TIMESTAMP_FORMATTER.format(startDate.atStartOfDay(zoneId)),
-                TIMESTAMP_FORMATTER.format(endDate.atStartOfDay(zoneId)));
+                TIMESTAMP_FORMATTER.format(startDate.atStartOfDay()),
+                TIMESTAMP_FORMATTER.format(endDate.atStartOfDay()));
 
         if (!retentionAction.isPresent()) {
             if (!collections.entrySet().stream().anyMatch(e -> e.getValue().stream().anyMatch(s -> s.getName().equals("_user")))) {

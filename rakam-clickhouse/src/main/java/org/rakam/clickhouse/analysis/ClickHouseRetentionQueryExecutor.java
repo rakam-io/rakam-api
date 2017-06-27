@@ -97,7 +97,7 @@ public class ClickHouseRetentionQueryExecutor
                             dimension.map(e -> checkCollection(e, '`')).orElse("`$date`")));
         }).collect(Collectors.joining(" UNION ALL \n"));
 
-        return new DelegateQueryExecution(executor.executeRawQuery(query), (result) -> {
+        return new DelegateQueryExecution(executor.executeRawQuery(query, zoneId), (result) -> {
             if (result.isFailed()) {
                 return result;
             }

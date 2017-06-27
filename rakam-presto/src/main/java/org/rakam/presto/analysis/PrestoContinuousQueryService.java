@@ -27,6 +27,7 @@ import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -96,7 +97,7 @@ public class PrestoContinuousQueryService
                     Duration.succinctDuration(realTimeConfig.getWindowInterval().toMillis() * 2, MILLISECONDS).toString());
         }
 
-        prestoQueryExecution = executor.executeRawStatement(prestoQuery, builder.build(), config.getStreamingConnector());
+        prestoQueryExecution = executor.executeRawStatement(prestoQuery, ZoneOffset.UTC, builder.build(), config.getStreamingConnector());
 
         return new DelegateQueryExecution(prestoQueryExecution, result -> {
             if (!result.isFailed()) {
@@ -204,6 +205,7 @@ public class PrestoContinuousQueryService
 
         return executor.executeRawStatement(format("create or replace view %s.\"%s\".\"%s\" as %s",
                 config.getStreamingConnector(), project, tableName, query),
+                ZoneOffset.UTC,
                 ImmutableMap.of(config.getStreamingConnector() + ".append_data", "false"),
                 config.getStreamingConnector());
     }

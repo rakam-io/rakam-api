@@ -38,7 +38,7 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 public interface EventExplorer
 {
 
-    QueryExecution analyze(String project, List<String> collections, Measure measureType, Reference grouping, Reference segment, String filterExpression, Instant startDate, Instant endDate);
+    QueryExecution analyze(String project, List<String> collections, Measure measureType, Reference grouping, Reference segment, String filterExpression, Instant startDate, Instant endDate, ZoneId timezone);
 
     CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, Instant startDate, Instant endDate, ZoneId timezone);
 

@@ -38,7 +38,7 @@ public interface RetentionQueryExecutor {
             Optional<Integer> period,
             LocalDate startDate,
             LocalDate endDate,
-            ZoneId zoneId,
+            ZoneId timezone,
             boolean approximate);
 
     @AutoValue

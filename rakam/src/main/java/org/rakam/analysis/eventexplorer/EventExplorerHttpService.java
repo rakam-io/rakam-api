@@ -15,7 +15,6 @@ package org.rakam.analysis.eventexplorer;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.collect.ImmutableMap;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.EventExplorer.OLAPTable;
 import org.rakam.analysis.MaterializedViewService;
@@ -33,8 +32,6 @@ import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -43,7 +40,6 @@ import javax.ws.rs.Path;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -57,7 +53,6 @@ import static java.lang.String.format;
 import static org.rakam.report.realtime.AggregationType.COUNT;
 import static org.rakam.report.realtime.AggregationType.SUM;
 import static org.rakam.util.ValidationUtil.checkArgument;
-import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 @Path("/event-explorer")
@@ -99,7 +94,8 @@ public class EventExplorerHttpService
         return eventExplorer.getEventStatistics(project,
                 Optional.ofNullable(collections),
                 Optional.ofNullable(dimension),
-                startDate, endDate, timezone);
+                startDate, endDate,
+                Optional.ofNullable(timezone).orElse(ZoneOffset.UTC));
     }
 
     @GET
@@ -127,7 +123,8 @@ public class EventExplorerHttpService
         return eventExplorer.analyze(project, analyzeRequest.collections,
                 analyzeRequest.measure, analyzeRequest.grouping,
                 analyzeRequest.segment, analyzeRequest.filterExpression,
-                analyzeRequest.startDate, analyzeRequest.endDate).getResult();
+                analyzeRequest.startDate, analyzeRequest.endDate,
+                Optional.ofNullable(analyzeRequest.timezone).orElse(ZoneOffset.UTC)).getResult();
     }
 
     public static class PrecalculatedTable
@@ -241,7 +238,8 @@ public class EventExplorerHttpService
             return eventExplorer.analyze(project, analyzeRequest.collections,
                     analyzeRequest.measure, analyzeRequest.grouping,
                     analyzeRequest.segment, analyzeRequest.filterExpression,
-                    analyzeRequest.startDate, analyzeRequest.endDate);
+                    analyzeRequest.startDate, analyzeRequest.endDate,
+                    Optional.ofNullable(analyzeRequest.timezone).orElse(ZoneOffset.UTC));
         });
     }
 
@@ -253,6 +251,7 @@ public class EventExplorerHttpService
         public final String filterExpression;
         public final Instant startDate;
         public final Instant endDate;
+        public final ZoneId timezone;
         public final List<String> collections;
 
         @JsonCreator
@@ -262,6 +261,7 @@ public class EventExplorerHttpService
                 @ApiParam(value = "filterExpression", required = false) String filterExpression,
                 @ApiParam("startDate") Instant startDate,
                 @ApiParam("endDate") Instant endDate,
+                @ApiParam(value = "timezone", required = false) ZoneId timezone,
                 @ApiParam("collections") List<String> collections)
         {
             this.measure = measure;
@@ -270,6 +270,7 @@ public class EventExplorerHttpService
             this.filterExpression = filterExpression;
             this.startDate = startDate;
             this.endDate = endDate;
+            this.timezone = timezone;
             this.collections = collections;
         }
     }

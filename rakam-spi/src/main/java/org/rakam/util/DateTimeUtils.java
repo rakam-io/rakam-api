@@ -17,6 +17,7 @@ public class DateTimeUtils
     }
 
     public static final java.time.format.DateTimeFormatter TIMESTAMP_FORMATTER = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneOffset.UTC);
+    public static final java.time.format.DateTimeFormatter LOCAL_DATE_FORMATTER = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneOffset.UTC);
 
     private static final DateTimeFormatter DATE_FORMATTER = ISODateTimeFormat.date().withZoneUTC();
     private static final DateTimeFormatter TIMESTAMP_WITHOUT_TIME_ZONE_FORMATTER;
