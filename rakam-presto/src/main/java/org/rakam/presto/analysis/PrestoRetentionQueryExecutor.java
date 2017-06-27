@@ -28,6 +28,7 @@ import org.rakam.report.PreComputedTableSubQueryVisitor;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
+import org.rakam.util.DateTimeUtils;
 import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
@@ -53,7 +54,8 @@ import static java.time.temporal.ChronoUnit.DAYS;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.*;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.presto.analysis.PrestoUserService.ANONYMOUS_ID_MAPPING;
-import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
+import static org.rakam.util.DateTimeUtils.DATE_FORMATTER;
+import static org.rakam.util.DateTimeUtils.LOCAL_DATE_FORMATTER;
 import static org.rakam.util.ValidationUtil.checkArgument;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
@@ -187,9 +189,9 @@ public class PrestoRetentionQueryExecutor
             boolean approximate)
     {
 
-        String timePredicate = String.format("between timestamp '%s' and timestamp '%s' + interval '1' day",
-                TIMESTAMP_FORMATTER.format(startDate),
-                TIMESTAMP_FORMATTER.format(endDate));
+        String timePredicate = String.format("between date '%s' and date '%s' + interval '1' day",
+                LOCAL_DATE_FORMATTER.format(startDate),
+                LOCAL_DATE_FORMATTER.format(endDate));
 
         if (!retentionAction.isPresent()) {
             Optional<String> preComputedTable = getPreComputedTable(project, timePredicate, timeColumn, Optional.empty(),
