@@ -119,7 +119,7 @@ public class PrestoQueryExecutor
                 "api-server",
                 catalog == null ? "default" : catalog,
                 "default",
-                TimeZone.getTimeZone(timezone).getID(),
+                TimeZone.getTimeZone(timezone == null ? ZoneOffset.UTC : timezone).getID(),
                 Locale.ENGLISH,
                 sessionProperties,
                 null, false, new Duration(1, TimeUnit.MINUTES));
