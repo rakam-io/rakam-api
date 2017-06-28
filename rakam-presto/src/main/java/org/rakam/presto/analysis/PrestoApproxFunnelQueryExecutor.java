@@ -1,16 +1,22 @@
 package org.rakam.presto.analysis;
 
 import com.facebook.presto.sql.RakamSqlFormatter;
+import com.google.common.collect.ImmutableList;
 import org.rakam.analysis.FunnelQueryExecutor;
+import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
+import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
+import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -20,6 +26,8 @@ import java.util.stream.IntStream;
 import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
+import static org.rakam.collection.FieldType.LONG;
+import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
@@ -50,36 +58,66 @@ public class PrestoApproxFunnelQueryExecutor
             throw new RakamException("Windowed funnel query is not supported when approximation is enabled.", BAD_REQUEST);
         }
 
-        List<String> withs = new ArrayList<>();
-        for (int i = 0; i < steps.size(); i++) {
-            FunnelStep funnelStep = steps.get(i);
+        String query;
+        if (dimension.isPresent()) {
+            String queries = IntStream.range(0, steps.size()).mapToObj(step -> String.format("(select %s as dimension, %s as _user, %d as step from %s where _time between timestamp '%s' and timestamp '%s' and %s)",
+                    checkTableColumn(dimension.get()), checkTableColumn(projectConfig.getUserColumn()), step,
+                    checkCollection(steps.get(step).getCollection()),
+                    startDateStr, endDateStr,
+                    getFilterExp(steps.get(step)))).collect(Collectors.joining(" union all "));
 
-            String filterExp = funnelStep.getExpression().map(value -> RakamSqlFormatter.formatExpression(value,
-                    name -> name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
-                    name -> name.getParts().stream()
-                            .map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")), '"')).orElse("true");
+            query = format("select step, dimension, approx_funnel(user_sets) OVER (PARTITION BY dimension ORDER BY step) as count from (select dimension, step, approx_set(_user) user_sets from (%s) where dimension is not null group by 1, 2)", queries);
+        }
+        else {
+            String queries = steps.stream().map(step -> String.format("(select approx_set(%s) from %s where _time between timestamp '%s' and timestamp '%s' and %s )",
+                    checkTableColumn(projectConfig.getUserColumn()),
+                    checkCollection(step.getCollection()),
+                    startDateStr, endDateStr, getFilterExp(step)))
+                    .collect(Collectors.joining(", "));
 
-            String withStep = format("step%d as (select %s as set %s from %s %s where %s between timestamp '%s' and timestamp '%s' and %s)",
-                    i, i == 0 ? format("approx_set(%s)", checkCollection(projectConfig.getUserColumn())) : format("merge_sets(step%d.set, approx_set(%s))", i - 1, checkTableColumn(projectConfig.getUserColumn())),
-                    dimension.map(v -> ", " + checkTableColumn(v)).orElse(""),
-                    checkCollection(funnelStep.getCollection()),
-                    i > 0 ? format(", step%s", i - 1) : "",
-                    checkTableColumn(projectConfig.getTimeColumn()),
-                    startDateStr, endDateStr, filterExp);
-            withs.add(withStep);
+            query = String.format("select funnel_steps(array[%s])", queries);
         }
 
-        String querySelect = IntStream.range(0, steps.size())
-                .mapToObj(i -> format("cardinality(step%d.set)", i))
-                .collect(Collectors.joining(", "));
+        QueryExecution queryExecution = executor.executeQuery(project, query, Optional.empty(), "collection", zoneId, 10000);
 
-        String queryEnd = IntStream.range(0, steps.size())
-                .mapToObj(i -> format("step%d", i))
-                .collect(Collectors.joining(", "));
+        return new DelegateQueryExecution(queryExecution,
+                result -> {
+                    if (result.isFailed()) {
+                        return result;
+                    }
 
-        return executor.executeQuery(project, format("with \n%s\n select %s %s from %s %s",
-                withs.stream().collect(Collectors.joining(",\n")),
-                dimension.map(v -> checkTableColumn(v) + ", ").orElse(""),
-                querySelect, queryEnd, dimension.map(v -> " group by 1 ").orElse("")));
+                    List<List<Object>> newResult = new ArrayList<>();
+                    List<SchemaField> metadata;
+
+                    if (dimension.isPresent()) {
+                        metadata = result.getMetadata();
+                        newResult = result.getResult();
+
+                        for (List<Object> objects : result.getResult()) {
+                            objects.set(0, "Step "+objects.get(0));
+                        }
+                    }
+                    else {
+                        metadata = ImmutableList.of(
+                                new SchemaField("step", STRING),
+                                new SchemaField("count", LONG));
+
+                        ArrayList<Long> step = (ArrayList<Long>) result.getResult().get(0).get(0);
+                        for (int i = 0; i < step.size(); i++) {
+                            Object value = step.get(i);
+                            newResult.add(ImmutableList.of("Step " + (i + 1), value == null ? 0 : value));
+                        }
+                    }
+
+                    return new QueryResult(metadata, newResult, result.getProperties());
+                });
+    }
+
+    private String getFilterExp(FunnelStep step)
+    {
+        return step.getExpression().map(value -> RakamSqlFormatter.formatExpression(value,
+                name -> name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
+                name -> name.getParts().stream()
+                        .map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")), '"')).orElse("true");
     }
 }

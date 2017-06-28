@@ -80,7 +80,7 @@ public class PostgresqlFunnelQueryExecutor
     public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, Optional<Boolean> ordered, Optional<Boolean> approximate)
     {
         if (!ordered.orElse(false)) {
-            return fastExecutor.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, ordered, Optional.empty());
+            return fastExecutor.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, ordered, approximate);
         }
 
         if (dimension.isPresent() && projectConfig.getUserColumn().equals(dimension.get())) {

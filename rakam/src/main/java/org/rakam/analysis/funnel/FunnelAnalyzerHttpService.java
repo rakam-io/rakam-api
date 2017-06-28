@@ -84,7 +84,8 @@ public class FunnelAnalyzerHttpService
                 query.endDate,
                 Optional.ofNullable(query.window),
                 query.timezone,
-                Optional.ofNullable(query.connectors), Optional.ofNullable(query.strictOrdering), Optional.empty()), (query, result) -> LOGGER.error(new RuntimeException(JsonHelper.encode(query) + " : " + result.getError().toString()), "Error running funnel query"));
+                Optional.ofNullable(query.connectors),
+                Optional.ofNullable(query.strictOrdering), Optional.ofNullable(query.approximate)), (query, result) -> LOGGER.error(new RuntimeException(JsonHelper.encode(query) + " : " + result.getError().toString()), "Error running funnel query"));
     }
 
     @ApiOperation(value = "Execute query",
@@ -104,7 +105,7 @@ public class FunnelAnalyzerHttpService
                 Optional.ofNullable(query.window),
                 query.timezone,
                 Optional.ofNullable(query.connectors),
-                Optional.ofNullable(query.strictOrdering), Optional.empty()).getResult();
+                Optional.ofNullable(query.strictOrdering), Optional.ofNullable(query.approximate)).getResult();
         result.thenAccept(data -> {
             if (data.isFailed()) {
                 LOGGER.error(new RuntimeException(JsonHelper.encode(query) + " : " + data.getError().toString()),
