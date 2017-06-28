@@ -85,8 +85,16 @@ public class PostgresqlModule
         binder.bind(ContinuousQueryService.class).to(PostgresqlPseudoContinuousQueryService.class).in(Scopes.SINGLETON);
         binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class).toInstance("to_unixtime");
 
-        binder.bind(boolean.class).annotatedWith(Names.named("user.storage.postgresql"))
-                .toInstance("postgresql".equals(getConfig("plugin.user.storage")));
+        boolean isUserModulePostgresql = "postgresql".equals(getConfig("plugin.user.storage"));
+        if (isUserModulePostgresql) {
+            binder.bind(AbstractUserService.class).to(PostgresqlUserService.class)
+                    .in(Scopes.SINGLETON);
+            binder.bind(AbstractPostgresqlUserStorage.class).to(PostgresqlUserStorage.class)
+                    .in(Scopes.SINGLETON);
+        } else {
+            binder.bind(boolean.class).annotatedWith(Names.named("user.storage.postgresql"))
+                    .toInstance(false);
+        }
 
         if (metadataConfig.getEventStore() == null) {
             binder.bind(EventStore.class).to(PostgresqlEventStore.class).in(Scopes.SINGLETON);
@@ -109,13 +117,6 @@ public class PostgresqlModule
 
         if (postgresqlConfig.isAutoIndexColumns()) {
             binder.bind(CollectionFieldIndexerListener.class).asEagerSingleton();
-        }
-
-        if ("postgresql".equals(getConfig("plugin.user.storage"))) {
-            binder.bind(AbstractUserService.class).to(PostgresqlUserService.class)
-                    .in(Scopes.SINGLETON);
-            binder.bind(AbstractPostgresqlUserStorage.class).to(PostgresqlUserStorage.class)
-                    .in(Scopes.SINGLETON);
         }
 
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
