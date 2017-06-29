@@ -38,6 +38,8 @@ import java.net.URI;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -59,6 +61,7 @@ import static com.facebook.presto.jdbc.internal.spi.type.ParameterKind.TYPE;
 import static com.google.common.base.Throwables.propagate;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.time.ZoneOffset.UTC;
+import static java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.rakam.collection.FieldType.BINARY;
 import static org.rakam.collection.FieldType.BOOLEAN;
@@ -238,10 +241,12 @@ public class PrestoQueryExecution
             implements Runnable
     {
         private final ClientSession session;
+        private final ZoneId zone;
 
         public QueryTracker(ClientSession session)
         {
             this.session = session;
+            this.zone = Optional.ofNullable(session.getTimeZoneId()).map(e -> ZoneId.of(e)).orElse(ZoneOffset.UTC);
         }
 
         private void waitForQuery()
@@ -342,7 +347,7 @@ public class PrestoQueryExecution
                     if (value != null) {
                         if (type.equals(StandardTypes.TIMESTAMP)) {
                             try {
-                                row[i] = LocalDateTime.parse((CharSequence) value, PRESTO_TIMESTAMP_FORMAT).toInstant(UTC);
+                                row[i] = LocalDateTime.parse((CharSequence) value, PRESTO_TIMESTAMP_FORMAT).atZone(zone).format(ISO_OFFSET_DATE_TIME);
                             }
                             catch (Exception e) {
                                 LOGGER.error(e, "Error while parsing Presto TIMESTAMP.");
@@ -350,7 +355,7 @@ public class PrestoQueryExecution
                         }
                         else if (type.equals(StandardTypes.TIMESTAMP_WITH_TIME_ZONE)) {
                             try {
-                                row[i] = LocalDateTime.parse((CharSequence) value, PRESTO_TIMESTAMP_WITH_TIMEZONE_FORMAT).toInstant(UTC);
+                                row[i] = LocalDateTime.parse((CharSequence) value, PRESTO_TIMESTAMP_WITH_TIMEZONE_FORMAT).atZone(zone).format(ISO_OFFSET_DATE_TIME);
                             }
                             catch (Exception e) {
                                 LOGGER.error(e, "Error while parsing Presto TIMESTAMP WITH TIMEZONE.");

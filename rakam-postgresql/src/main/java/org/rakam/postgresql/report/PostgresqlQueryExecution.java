@@ -32,6 +32,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -60,13 +61,14 @@ public class PostgresqlQueryExecution
 
     private final CompletableFuture<QueryResult> result;
     private final String query;
+    private final ZoneId zoneId;
     private Statement statement;
     private static final ZoneId UTC = ZoneId.of("UTC");
 
     public PostgresqlQueryExecution(ConnectionFactory connectionPool, String query, boolean update, ZoneId optionalZoneId)
     {
         this.query = query;
-        ZoneId zoneId = optionalZoneId != null ? (optionalZoneId == ZoneOffset.UTC ? UTC : optionalZoneId) : UTC;
+        zoneId = optionalZoneId != null ? (optionalZoneId == ZoneOffset.UTC ? UTC : optionalZoneId) : UTC;
 
         // TODO: unnecessary threads will be spawn
         Supplier<QueryResult> task = () -> {
@@ -205,7 +207,7 @@ public class PostgresqlQueryExecution
                             break;
                         case TIMESTAMP:
                             Timestamp timestamp = resultSet.getTimestamp(i + 1, calendar);
-                            object = timestamp != null ? timestamp.toInstant() : null;
+                            object = timestamp != null ? timestamp.toInstant().atZone(zoneId).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME) : null;
                             break;
                         case DATE:
                             Date date = resultSet.getDate(i + 1, calendar);

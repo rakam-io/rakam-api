@@ -108,13 +108,18 @@ public abstract class MaterializedViewService
     {
         StringBuilder builder = new StringBuilder();
         Query queryStatement = (Query) sqlParser.createStatement(checkNotNull(query, "query is required"));
+        CompletableFuture<List<SchemaField>> f = new CompletableFuture<>();
 
-        new RakamSqlFormatter.Formatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName, Optional.empty(), ImmutableMap.of(), "collection"), escapeIdentifier)
-                .process(queryStatement, 1);
+        try {
+            new RakamSqlFormatter.Formatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName, Optional.empty(), ImmutableMap.of(), "collection"), escapeIdentifier)
+                    .process(queryStatement, 1);
+        }
+        catch (Exception e) {
+            f.completeExceptionally(e);
+        }
 
         QueryExecution execution = queryExecutor.executeRawQuery(builder.toString() + " limit 0",
                 ZoneOffset.UTC, ImmutableMap.of());
-        CompletableFuture<List<SchemaField>> f = new CompletableFuture<>();
         execution.getResult().thenAccept(result -> {
             if (result.isFailed()) {
                 f.completeExceptionally(new RakamException(result.getError().message, INTERNAL_SERVER_ERROR));
