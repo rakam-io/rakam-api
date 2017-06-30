@@ -40,6 +40,7 @@ import javax.ws.rs.Path;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -86,8 +87,8 @@ public class EventExplorerHttpService
     public CompletableFuture<QueryResult> getEventStatistics(@Named("project") String project,
             @ApiParam(value = "collections", required = false) Set<String> collections,
             @ApiParam(value = "dimension", required = false) String dimension,
-            @ApiParam("startDate") Instant startDate,
-            @ApiParam("endDate") Instant endDate,
+            @ApiParam("startDate") LocalDate startDate,
+            @ApiParam("endDate") LocalDate endDate,
             @ApiParam(value = "timezone", required = false) ZoneId timezone)
     {
         timezone = timezone == null ? ZoneOffset.UTC : timezone;
@@ -249,8 +250,8 @@ public class EventExplorerHttpService
         public final EventExplorer.Reference grouping;
         public final EventExplorer.Reference segment;
         public final String filterExpression;
-        public final Instant startDate;
-        public final Instant endDate;
+        public final LocalDate startDate;
+        public final LocalDate endDate;
         public final ZoneId timezone;
         public final List<String> collections;
 
@@ -259,8 +260,8 @@ public class EventExplorerHttpService
                 @ApiParam(value = "grouping", required = false) EventExplorer.Reference grouping,
                 @ApiParam(value = "segment", required = false) EventExplorer.Reference segment,
                 @ApiParam(value = "filterExpression", required = false) String filterExpression,
-                @ApiParam("startDate") Instant startDate,
-                @ApiParam("endDate") Instant endDate,
+                @ApiParam("startDate") LocalDate startDate,
+                @ApiParam("endDate") LocalDate endDate,
                 @ApiParam(value = "timezone", required = false) ZoneId timezone,
                 @ApiParam("collections") List<String> collections)
         {

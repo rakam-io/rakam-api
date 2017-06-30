@@ -22,6 +22,7 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.util.RakamException;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
@@ -38,9 +39,9 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 public interface EventExplorer
 {
 
-    QueryExecution analyze(String project, List<String> collections, Measure measureType, Reference grouping, Reference segment, String filterExpression, Instant startDate, Instant endDate, ZoneId timezone);
+    QueryExecution analyze(String project, List<String> collections, Measure measureType, Reference grouping, Reference segment, String filterExpression, LocalDate startDate, LocalDate endDate, ZoneId timezone);
 
-    CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, Instant startDate, Instant endDate, ZoneId timezone);
+    CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate, ZoneId timezone);
 
     Map<String, List<String>> getExtraDimensions(String project);
 

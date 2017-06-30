@@ -17,6 +17,7 @@ import org.rakam.util.ValidationUtil;
 import javax.inject.Inject;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -87,7 +88,7 @@ public class ClickHouseEventExplorer
 
     @Override
     public QueryExecution analyze(String project, List<String> collections, Measure measure, Reference grouping,
-            Reference segmentValue2, String filterExpression, Instant startDate, Instant endDate, ZoneId timezone)
+            Reference segmentValue2, String filterExpression, LocalDate startDate, LocalDate endDate, ZoneId timezone)
     {
         Reference segment = segmentValue2 == null ? DEFAULT_SEGMENT : segmentValue2;
 
@@ -184,7 +185,7 @@ public class ClickHouseEventExplorer
     }
 
     @Override
-    public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, Instant startDate, Instant endDate, ZoneId timezone)
+    public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate, ZoneId timezone)
     {
         checkProject(project);
 

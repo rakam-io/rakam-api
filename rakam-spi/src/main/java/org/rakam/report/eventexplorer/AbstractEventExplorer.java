@@ -21,6 +21,7 @@ import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -43,6 +44,7 @@ import java.util.stream.Stream;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static java.time.ZoneOffset.UTC;
+import static java.time.format.DateTimeFormatter.ISO_DATE;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.Optional.ofNullable;
 import static org.rakam.analysis.EventExplorer.ReferenceType.COLUMN;
@@ -87,7 +89,7 @@ public abstract class AbstractEventExplorer
         this.continuousQueryService = continuousQueryService;
     }
 
-    public static void checkReference(String refValue, Instant startDate, Instant endDate, int size)
+    public static void checkReference(String refValue, LocalDate startDate, LocalDate endDate, int size)
     {
         switch (fromString(refValue.replace(" ", "_"))) {
             case HOUR_OF_DAY:
@@ -98,22 +100,22 @@ public abstract class AbstractEventExplorer
             case DAY_OF_WEEK:
                 return;
             case HOUR:
-                if (startDate.atZone(UTC).until(endDate.atZone(UTC), ChronoUnit.HOURS) > 30000 / size) {
+                if (startDate.until(endDate, ChronoUnit.HOURS) > 30000 / size) {
                     throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
                 }
                 break;
             case DAY:
-                if (startDate.atZone(UTC).until(endDate.atZone(UTC), DAYS) > 30000 / size) {
+                if (startDate.until(endDate, DAYS) > 30000 / size) {
                     throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
                 }
                 break;
             case MONTH:
-                if (startDate.atZone(UTC).until(endDate.atZone(UTC), ChronoUnit.MONTHS) > 30000 / size) {
+                if (startDate.until(endDate, ChronoUnit.MONTHS) > 30000 / size) {
                     throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
                 }
                 break;
             case YEAR:
-                if (startDate.atZone(UTC).until(endDate.atZone(UTC), ChronoUnit.YEARS) > 30000 / size) {
+                if (startDate.until(endDate, ChronoUnit.YEARS) > 30000 / size) {
                     throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
                 }
                 break;
@@ -166,8 +168,8 @@ public abstract class AbstractEventExplorer
             Measure measure, Reference grouping,
             Reference segmentValue2,
             String filterExpression,
-            Instant startDate,
-            Instant endDate,
+            LocalDate startDate,
+            LocalDate endDate,
             ZoneId timezone)
     {
         Reference segment = segmentValue2 == null ? DEFAULT_SEGMENT : segmentValue2;
@@ -217,9 +219,8 @@ public abstract class AbstractEventExplorer
                     .map(view -> new AbstractMap.SimpleImmutableEntry<>(view, "continuous." + checkCollection(view.tableName)));
         }
 
-        String timeFilter = format(" %s between timestamp '%s' and timestamp '%s' + interval '1' day",
-                checkTableColumn(projectConfig.getTimeColumn()),
-                TIMESTAMP_FORMATTER.format(startDate), TIMESTAMP_FORMATTER.format(endDate));
+        String timeFilter = format(" %s between date '%s' and date '%s' + interval '1' day",
+                checkTableColumn(projectConfig.getTimeColumn()), startDate.format(ISO_DATE), endDate.format(ISO_DATE));
 
         String groupBy;
         boolean bothActive = segment != null && grouping != null;
@@ -427,8 +428,8 @@ public abstract class AbstractEventExplorer
     public CompletableFuture<QueryResult> getEventStatistics(String project,
             Optional<Set<String>> collections,
             Optional<String> dimension,
-            Instant startDate,
-            Instant endDate,
+            LocalDate startDate,
+            LocalDate endDate,
             ZoneId timezone)
     {
         checkProject(project);
@@ -441,8 +442,8 @@ public abstract class AbstractEventExplorer
             checkReference(dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
         }
 
-        String timePredicate = format("_time between timestamp '%s' and timestamp '%s' + interval '1' day",
-                TIMESTAMP_FORMATTER.format(startDate), TIMESTAMP_FORMATTER.format(endDate));
+        String timePredicate = format("_time between date '%s' and date '%s' + interval '1' day",
+                startDate.format(ISO_DATE), endDate.format(ISO_DATE));
 
         String query;
         if (dimension.isPresent()) {
