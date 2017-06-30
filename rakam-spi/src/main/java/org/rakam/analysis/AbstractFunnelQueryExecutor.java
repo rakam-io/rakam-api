@@ -80,8 +80,8 @@ public abstract class AbstractFunnelQueryExecutor
 
         String dimensionCol = dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ", ").orElse("");
         String query = format(getTemplate(steps, dimension, window), dimensionCol, dimensionCol, ctes,
-                TIMESTAMP_FORMATTER.format(startDate),
-                TIMESTAMP_FORMATTER.format(endDate.plusDays(1)),
+                TIMESTAMP_FORMATTER.format(startDate.atStartOfDay()),
+                TIMESTAMP_FORMATTER.format(endDate.plusDays(1).atStartOfDay()),
                 dimensionCol,
                 connectors.orElse(of(projectConfig.getUserColumn()))
                         .stream().collect(Collectors.joining(", ")),
