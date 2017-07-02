@@ -22,6 +22,7 @@ import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.postgresql.analysis.FastGenericFunnelQueryExecutor;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
+import org.rakam.report.QueryExecutorService;
 import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
@@ -53,10 +54,10 @@ public class PrestoFunnelQueryExecutor
             FastGenericFunnelQueryExecutor fastPrestoFunnelQueryExecutor,
             PrestoApproxFunnelQueryExecutor approxFunnelQueryExecutor,
             Metastore metastore,
-            QueryExecutor executor,
+            QueryExecutorService service,
             UserPluginConfig userPluginConfig)
     {
-        super(projectConfig, metastore, executor);
+        super(projectConfig, metastore, service);
         this.fastPrestoFunnelQueryExecutor = fastPrestoFunnelQueryExecutor;
         this.approxFunnelQueryExecutor = approxFunnelQueryExecutor;
         this.userMappingEnabled = userPluginConfig.getEnableUserMapping();
@@ -103,7 +104,7 @@ public class PrestoFunnelQueryExecutor
                 idx + 1,
                 "step" + idx,
                 checkTableColumn(projectConfig.getTimeColumn()),
-                project + "." + checkCollection(funnelStep.getCollection()),
+                checkCollection(funnelStep.getCollection()),
                 "step" + idx,
                 userMappingEnabled ? format("left join %s.%s mapping on (%s.%s is null and mapping.created_at >= date '%s' and mapping.merged_at <= date '%s' and mapping.id = %s.%s)",
                         project, checkCollection(ANONYMOUS_ID_MAPPING),

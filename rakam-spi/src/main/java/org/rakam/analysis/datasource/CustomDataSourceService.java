@@ -137,13 +137,13 @@ public class CustomDataSourceService
         }
     }
 
-    public Map<String, Map<String, List<SchemaField>>> schemaDatabases(String project)
+    public Map<String, List<String>> schemaDatabases(String project)
     {
-        ImmutableMap.Builder<String, Map<String, List<SchemaField>>> schemas = ImmutableMap.builder();
+        ImmutableMap.Builder<String, List<String>> schemas = ImmutableMap.builder();
 
         CustomDataSourceList customDataSourceList = listDatabases(project);
         for (CustomDataSource customDataSource : customDataSourceList.customDataSources) {
-            Map<String, List<SchemaField>> builder = new HashMap<>();
+            List<String> builder = new ArrayList<>();
 
             SupportedCustomDatabase source = SupportedCustomDatabase.getAdapter(customDataSource.type);
             try (Connection conn = source.getDataSource().openConnection(customDataSource.options)) {
@@ -153,7 +153,7 @@ public class CustomDataSourceService
                     if (!"TABLE".equals(dbColumns.getString("table_type"))) {
                         continue;
                     }
-                    builder.computeIfAbsent(dbColumns.getString("table_name"), (k) -> new ArrayList<>());
+                    builder.add(dbColumns.getString("table_name"));
                 }
             }
             catch (SQLException e) {

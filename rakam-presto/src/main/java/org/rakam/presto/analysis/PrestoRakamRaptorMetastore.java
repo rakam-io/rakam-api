@@ -439,7 +439,7 @@ public class PrestoRakamRaptorMetastore
     private boolean filterTables(String tableName, String tableColumn)
     {
         return !tableName.startsWith(MATERIALIZED_VIEW_PREFIX)
-                && !tableColumn.startsWith("$");
+                && !tableColumn.startsWith("$") && !tableName.startsWith("$");
     }
 
     @Override

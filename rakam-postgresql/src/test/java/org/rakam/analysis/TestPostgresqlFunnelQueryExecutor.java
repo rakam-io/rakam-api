@@ -10,6 +10,7 @@ import org.rakam.plugin.EventStore;
 import org.rakam.postgresql.analysis.FastGenericFunnelQueryExecutor;
 import org.rakam.postgresql.analysis.PostgresqlEventStore;
 import org.rakam.postgresql.analysis.PostgresqlFunnelQueryExecutor;
+import org.rakam.postgresql.analysis.PostgresqlMaterializedViewService;
 import org.rakam.postgresql.analysis.PostgresqlMetastore;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecutorService;
@@ -38,7 +39,10 @@ public class TestPostgresqlFunnelQueryExecutor extends TestFunnelQueryExecutor {
         eventStore = new PostgresqlEventStore(dataSource, build);
         FastGenericFunnelQueryExecutor exec = new FastGenericFunnelQueryExecutor(new QueryExecutorService(queryExecutor, metastore, null, Clock.systemUTC(), '"'),
                 new ProjectConfig());
-        funnelQueryExecutor = new PostgresqlFunnelQueryExecutor(exec, new ProjectConfig(), metastore, queryExecutor);
+
+        PostgresqlMaterializedViewService postgresqlMaterializedViewService = new PostgresqlMaterializedViewService(new ProjectConfig(), queryExecutor, new InMemoryQueryMetadataStore());
+        QueryExecutorService queryExecutorService = new QueryExecutorService(queryExecutor, metastore, postgresqlMaterializedViewService, Clock.systemUTC(), '"');
+        funnelQueryExecutor = new PostgresqlFunnelQueryExecutor(exec, new ProjectConfig(), metastore, queryExecutorService, queryExecutor);
         funnelQueryExecutor.setup();
         super.setup();
     }

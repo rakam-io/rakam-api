@@ -21,6 +21,7 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.config.ProjectConfig;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecution;
+import org.rakam.report.QueryExecutorService;
 import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
@@ -47,9 +48,9 @@ public class PostgresqlFunnelQueryExecutor
     private final FastGenericFunnelQueryExecutor fastExecutor;
 
     @Inject
-    public PostgresqlFunnelQueryExecutor(FastGenericFunnelQueryExecutor fastExecutor, ProjectConfig projectConfig, Metastore metastore, PostgresqlQueryExecutor executor)
+    public PostgresqlFunnelQueryExecutor(FastGenericFunnelQueryExecutor fastExecutor, ProjectConfig projectConfig, Metastore metastore, QueryExecutorService service, PostgresqlQueryExecutor executor)
     {
-        super(projectConfig, metastore, executor);
+        super(projectConfig, metastore, service);
         this.executor = executor;
         this.fastExecutor = fastExecutor;
     }
