@@ -1,20 +1,15 @@
 package org.rakam.analysis;
 
-import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.MaterializedViewNotExists;
-import org.rakam.util.RakamException;
-import org.skife.jdbi.v2.Handle;
-import org.skife.jdbi.v2.util.LongMapper;
+import org.rakam.util.NotExistsException;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -79,6 +74,18 @@ public class InMemoryQueryMetadataStore
         });
 
         return true;
+    }
+
+    @Override
+    public synchronized void changeMaterializedView(String project, String tableName, boolean realTime)
+    {
+        Set<MaterializedView> materializedViews = this.materializedViews.get(project);
+        MaterializedView materializedView = materializedViews.stream().filter(e -> e.tableName.equals(tableName))
+                .findAny().orElseThrow(() -> new NotExistsException("Materialized view"));
+        materializedViews.remove(materializedView);
+        materializedViews.add(new MaterializedView(materializedView.tableName,
+                materializedView.name, materializedView.query, materializedView.updateInterval,materializedView.incremental,
+                realTime, materializedView.options));
     }
 
     @Override

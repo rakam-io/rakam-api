@@ -42,6 +42,7 @@ import org.rakam.postgresql.PostgresqlConfigManager;
 import org.rakam.postgresql.analysis.JDBCApiKeyService;
 import org.rakam.postgresql.plugin.user.AbstractPostgresqlUserStorage;
 import org.rakam.presto.analysis.MysqlConfigManager;
+import org.rakam.presto.analysis.PrestoAbstractMetastore;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
 import org.rakam.presto.analysis.PrestoEventExplorer;
@@ -148,12 +149,16 @@ public class PrestoModule
                     .in(Scopes.SINGLETON);
         }
 
+        Class<? extends PrestoAbstractMetastore> implementation;
         if ("rakam_raptor".equals(prestoConfig.getColdStorageConnector())) {
-            binder.bind(Metastore.class).to(PrestoRakamRaptorMetastore.class).in(Scopes.SINGLETON);
+            implementation = PrestoRakamRaptorMetastore.class;
         }
         else {
-            binder.bind(Metastore.class).to(PrestoMetastore.class).in(Scopes.SINGLETON);
+            implementation = PrestoMetastore.class;
         }
+
+        binder.bind(Metastore.class).to(implementation).in(Scopes.SINGLETON);
+        binder.bind(PrestoAbstractMetastore.class).to(implementation).in(Scopes.SINGLETON);
 
         if ("postgresql".equals(getConfig("plugin.user.storage"))) {
             binder.bind(AbstractPostgresqlUserStorage.class).to(PrestoExternalUserStorageAdapter.class)

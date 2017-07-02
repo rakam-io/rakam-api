@@ -66,6 +66,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -94,7 +95,7 @@ import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PrestoRakamRaptorMetastore
-        extends AbstractMetastore
+        extends PrestoAbstractMetastore
 {
     private static final Logger LOGGER = Logger.get(PrestoRakamRaptorMetastore.class);
 
@@ -435,22 +436,17 @@ public class PrestoRakamRaptorMetastore
         return getTables(project, this::filterTables);
     }
 
-    private boolean filterTables(String tableColumn)
+    private boolean filterTables(String tableName, String tableColumn)
     {
-        return !tableColumn.startsWith(MATERIALIZED_VIEW_PREFIX)
+        return !tableName.startsWith(MATERIALIZED_VIEW_PREFIX)
                 && !tableColumn.startsWith("$");
-    }
-
-    private boolean filterTables(TableColumn tableColumn)
-    {
-        return filterTables(tableColumn.getTable().getTableName());
     }
 
     @Override
     public Set<String> getCollectionNames(String project)
     {
         return dao.listTables(project).stream().map(e -> e.getTableName())
-                .filter(this::filterTables)
+                .filter(tableName -> !tableName.startsWith(MATERIALIZED_VIEW_PREFIX))
                 .collect(Collectors.toSet());
     }
 
@@ -485,11 +481,17 @@ public class PrestoRakamRaptorMetastore
         }
     }
 
-    public Map<String, List<SchemaField>> getTables(String project, Predicate<TableColumn> filter)
+    @Override
+    public Map<String, List<SchemaField>> getSchemas(String project, Predicate<String> filter)
+    {
+        return getTables(project, (t, c) -> filter.test(t));
+    }
+
+    public Map<String, List<SchemaField>> getTables(String project, BiPredicate<String, String> filter)
     {
         HashMap<String, List<SchemaField>> map = new HashMap<>();
         for (TableColumn tableColumn : dao.listTableColumns(project, null)) {
-            if (tableColumn.getColumnName().startsWith("$") || !filter.test(tableColumn)) {
+            if (tableColumn.getColumnName().startsWith("$") || !filter.test(tableColumn.getTable().getTableName(), tableColumn.getColumnName())) {
                 continue;
             }
             TypeSignature typeSignature = tableColumn.getDataType().getTypeSignature();

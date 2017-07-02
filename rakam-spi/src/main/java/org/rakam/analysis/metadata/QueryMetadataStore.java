@@ -21,6 +21,8 @@ public interface QueryMetadataStore {
 
     boolean updateMaterializedView(String project, MaterializedView view, CompletableFuture<Instant> releaseLock);
 
+    void changeMaterializedView(String project, String tableName, boolean realTime);
+
     void createContinuousQuery(String project, ContinuousQuery report);
 
     void deleteContinuousQuery(String project, String tableName);

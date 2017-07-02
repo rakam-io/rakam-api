@@ -80,6 +80,10 @@ public abstract class MaterializedViewService
         return metadata(project, database.getMaterializedView(project, tableName).query).join();
     }
 
+    public void changeView(String project, String tableName, boolean realTime) {
+        database.changeMaterializedView(project, tableName, realTime);
+    }
+
     public static class MaterializedViewExecution
     {
         public final QueryExecution queryExecution;

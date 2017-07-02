@@ -156,6 +156,12 @@ public class DynamodbQueryMetastore
     }
 
     @Override
+    public void changeMaterializedView(String project, String tableName, boolean realTime)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void createContinuousQuery(String project, ContinuousQuery report)
     {
         dynamoDBClient.putItem(new PutItemRequest().withTableName(tableConfig.getTableName())

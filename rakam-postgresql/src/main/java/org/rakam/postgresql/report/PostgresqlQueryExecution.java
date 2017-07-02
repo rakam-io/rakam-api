@@ -4,6 +4,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import io.airlift.log.Logger;
+import org.postgresql.jdbc.PgConnection;
+import org.postgresql.jdbc.TimestampUtils;
 import org.postgresql.util.PGobject;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.FieldType;
@@ -30,8 +32,11 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -84,14 +89,14 @@ public class PostgresqlQueryExecution
                 }
                 else {
                     long beforeExecuted = System.currentTimeMillis();
-                    String finalQuery = format("set local time zone '%s'",
+                    String finalQuery = format("set time zone '%s'",
                             checkLiteral(zoneId.getDisplayName(NARROW, ENGLISH))) + "; " + query;
                     statement.execute(finalQuery);
                     statement.getMoreResults();
                     ResultSet resultSet = statement.getResultSet();
                     statement = null;
-                    queryResult = resultSetToQueryResult(resultSet,
-                            System.currentTimeMillis() - beforeExecuted, zoneId);
+                    queryResult = resultSetToQueryResult(resultSet, System.currentTimeMillis() - beforeExecuted,
+                            connection.unwrap(PgConnection.class));
                 }
             }
             catch (Exception e) {
@@ -151,10 +156,8 @@ public class PostgresqlQueryExecution
         }
     }
 
-    private QueryResult resultSetToQueryResult(ResultSet resultSet, long executionTimeInMillis, ZoneId timezone)
+    private QueryResult resultSetToQueryResult(ResultSet resultSet, long executionTimeInMillis, PgConnection connection)
     {
-        Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone(timezone));
-
         List<SchemaField> columns;
         List<List<Object>> data;
         try {
@@ -185,40 +188,40 @@ public class PostgresqlQueryExecution
                         continue;
                     }
                     FieldType type = schemaField.getType();
+                    int columnIndex = i + 1;
                     switch (type) {
                         case STRING:
-                            object = resultSet.getString(i + 1);
+                            object = resultSet.getString(columnIndex);
                             break;
                         case LONG:
-                            object = resultSet.getLong(i + 1);
+                            object = resultSet.getLong(columnIndex);
                             break;
                         case INTEGER:
-                            object = resultSet.getInt(i + 1);
+                            object = resultSet.getInt(columnIndex);
                             break;
                         case DECIMAL:
-                            BigDecimal bigDecimal = resultSet.getBigDecimal(i + 1);
+                            BigDecimal bigDecimal = resultSet.getBigDecimal(columnIndex);
                             object = bigDecimal != null ? bigDecimal.doubleValue() : null;
                             break;
                         case DOUBLE:
-                            object = resultSet.getDouble(i + 1);
+                            object = resultSet.getDouble(columnIndex);
                             break;
                         case BOOLEAN:
-                            object = resultSet.getBoolean(i + 1);
+                            object = resultSet.getBoolean(columnIndex);
                             break;
                         case TIMESTAMP:
-                            Timestamp timestamp = resultSet.getTimestamp(i + 1, calendar);
-                            object = timestamp != null ? timestamp.toInstant().atZone(zoneId).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME) : null;
+                            String timestamp = resultSet.getString(columnIndex);
+                            object = connection.getTimestampUtils().toLocalDateTime(timestamp).atZone(zoneId);
                             break;
                         case DATE:
-                            Date date = resultSet.getDate(i + 1, calendar);
-                            object = date != null ? date.toLocalDate() : null;
+                            object = LocalDate.parse(resultSet.getString(columnIndex));
                             break;
                         case TIME:
-                            Time time = resultSet.getTime(i + 1, calendar);
+                            Time time = resultSet.getTime(columnIndex);
                             object = time != null ? time.toLocalTime() : null;
                             break;
                         case BINARY:
-                            InputStream binaryStream = resultSet.getBinaryStream(i + 1);
+                            InputStream binaryStream = resultSet.getBinaryStream(columnIndex);
                             if (binaryStream != null) {
                                 try {
                                     object = ByteStreams.toByteArray(binaryStream);
@@ -234,11 +237,11 @@ public class PostgresqlQueryExecution
                             break;
                         default:
                             if (type.isArray()) {
-                                Array array = resultSet.getArray(i + 1);
+                                Array array = resultSet.getArray(columnIndex);
                                 object = array == null ? null : array.getArray();
                             }
                             else if (type.isMap()) {
-                                PGobject pgObject = (PGobject) resultSet.getObject(i + 1);
+                                PGobject pgObject = (PGobject) resultSet.getObject(columnIndex);
                                 if (pgObject == null) {
                                     object = null;
                                 }

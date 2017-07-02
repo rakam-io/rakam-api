@@ -100,22 +100,22 @@ public abstract class AbstractEventExplorer
             case DAY_OF_WEEK:
                 return;
             case HOUR:
-                if (startDate.until(endDate, ChronoUnit.HOURS) > 30000 / size) {
+                if (startDate.atStartOfDay().until(endDate.plusDays(1).atStartOfDay(), ChronoUnit.HOURS) > 30000 / size) {
                     throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
                 }
                 break;
             case DAY:
-                if (startDate.until(endDate, DAYS) > 30000 / size) {
+                if (startDate.atStartOfDay().until(endDate.plusDays(1).atStartOfDay(), DAYS) > 30000 / size) {
                     throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
                 }
                 break;
             case MONTH:
-                if (startDate.until(endDate, ChronoUnit.MONTHS) > 30000 / size) {
+                if (startDate.atStartOfDay().until(endDate.plusDays(1).atStartOfDay(), ChronoUnit.MONTHS) > 30000 / size) {
                     throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
                 }
                 break;
             case YEAR:
-                if (startDate.until(endDate, ChronoUnit.YEARS) > 30000 / size) {
+                if (startDate.atStartOfDay().until(endDate.plusDays(1).atStartOfDay(), ChronoUnit.YEARS) > 30000 / size) {
                     throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
                 }
                 break;
@@ -478,23 +478,6 @@ public abstract class AbstractEventExplorer
             if (result.isFailed()) {
                 LOGGER.error(new RuntimeException(result.getError().toString()),
                         "An error occurred while executing event explorer statistics query.");
-            } else {
-                List<List<Object>> result1 = result.getResult();
-                if (dimension.isPresent() && TimestampTransformation.fromPrettyName(dimension.get()).get() == HOUR_OF_DAY) {
-                    ZoneOffset offset = timezone.getRules().getOffset(Instant.now());
-                    DateTimeFormatter dateTimeFormatter = new DateTimeFormatterBuilder()
-                            .appendValue(ChronoField.HOUR_OF_DAY, 2)
-                            .appendLiteral(':')
-                            .appendValue(ChronoField.MINUTE_OF_HOUR, 2)
-                            .toFormatter();
-
-                    for (List<Object> objects : result1) {
-                        String format = LocalTime.parse(objects.get(1).toString()).atOffset(UTC)
-                                .withOffsetSameInstant(offset)
-                                .format(dateTimeFormatter);
-                        objects.set(1, format);
-                    }
-                }
             }
 
             return result;

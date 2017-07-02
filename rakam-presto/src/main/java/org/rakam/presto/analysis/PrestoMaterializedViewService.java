@@ -49,14 +49,14 @@ public class PrestoMaterializedViewService
     public final static SqlParser sqlParser = new SqlParser();
     protected final QueryMetadataStore database;
     protected final QueryExecutor queryExecutor;
-    private final Metastore metastore;
+    private final PrestoAbstractMetastore metastore;
     private final PrestoConfig prestoConfig;
 
     @Inject
     public PrestoMaterializedViewService(
             PrestoConfig prestoConfig,
             QueryExecutor queryExecutor,
-            Metastore metastore,
+            PrestoAbstractMetastore metastore,
             QueryMetadataStore database)
     {
         super(database, queryExecutor, '"');
@@ -69,7 +69,8 @@ public class PrestoMaterializedViewService
     @Override
     public Map<String, List<SchemaField>> getSchemas(String project, Optional<List<String>> names)
     {
-        Stream<Map.Entry<String, List<SchemaField>>> views = metastore.getCollections(project).entrySet()
+        Stream<Map.Entry<String, List<SchemaField>>> views = metastore.getSchemas(project, e -> e.startsWith(MATERIALIZED_VIEW_PREFIX))
+                .entrySet()
                 .stream().filter(e -> e.getKey().startsWith(MATERIALIZED_VIEW_PREFIX));
         if (names.isPresent()) {
             views = views.filter(e -> names.get().contains(e.getKey()));

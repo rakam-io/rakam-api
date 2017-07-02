@@ -40,6 +40,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -347,7 +348,7 @@ public class PrestoQueryExecution
                     if (value != null) {
                         if (type.equals(StandardTypes.TIMESTAMP)) {
                             try {
-                                row[i] = LocalDateTime.parse((CharSequence) value, PRESTO_TIMESTAMP_FORMAT).atZone(zone).format(ISO_OFFSET_DATE_TIME);
+                                row[i] = LocalDateTime.parse((CharSequence) value, PRESTO_TIMESTAMP_FORMAT).atZone(zone);
                             }
                             catch (Exception e) {
                                 LOGGER.error(e, "Error while parsing Presto TIMESTAMP.");
@@ -355,7 +356,7 @@ public class PrestoQueryExecution
                         }
                         else if (type.equals(StandardTypes.TIMESTAMP_WITH_TIME_ZONE)) {
                             try {
-                                row[i] = LocalDateTime.parse((CharSequence) value, PRESTO_TIMESTAMP_WITH_TIMEZONE_FORMAT).atZone(zone).format(ISO_OFFSET_DATE_TIME);
+                                row[i] = ZonedDateTime.parse((CharSequence) value, PRESTO_TIMESTAMP_WITH_TIMEZONE_FORMAT);
                             }
                             catch (Exception e) {
                                 LOGGER.error(e, "Error while parsing Presto TIMESTAMP WITH TIMEZONE.");

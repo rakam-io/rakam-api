@@ -31,12 +31,15 @@ import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERR
 
 @Path("/materialized-view")
 @Api(value = "/materialized-view", nickname = "materializedView", description = "Materialized View", tags = "materialized-view")
-public class MaterializedViewHttpService extends HttpService {
+public class MaterializedViewHttpService
+        extends HttpService
+{
     private final MaterializedViewService service;
     private final QueryHttpService queryService;
 
     @Inject
-    public MaterializedViewHttpService(MaterializedViewService service, QueryHttpService queryService) {
+    public MaterializedViewHttpService(MaterializedViewService service, QueryHttpService queryService)
+    {
         this.service = service;
         this.queryService = queryService;
     }
@@ -45,7 +48,8 @@ public class MaterializedViewHttpService extends HttpService {
     @ApiOperation(value = "List views", authorizations = @Authorization(value = "read_key"))
 
     @Path("/list")
-    public List<MaterializedView> listViews(@javax.inject.Named("project") String project) {
+    public List<MaterializedView> listViews(@javax.inject.Named("project") String project)
+    {
         return service.list(project);
     }
 
@@ -53,21 +57,23 @@ public class MaterializedViewHttpService extends HttpService {
     @ApiOperation(value = "Get schemas", authorizations = @Authorization(value = "read_key"))
     @Path("/schema")
     public List<MaterializedViewSchema> getSchemaOfView(@javax.inject.Named("project") String project,
-                                                                  @ApiParam(value = "names", required = false) List<String> tableNames) {
+            @ApiParam(value = "names", required = false) List<String> tableNames)
+    {
         return service.getSchemas(project, Optional.ofNullable(tableNames)).entrySet().stream()
                 .map(entry -> new MaterializedViewSchema(entry.getKey(), entry.getValue()))
                 .collect(Collectors.toList());
     }
 
-    public static class MaterializedViewSchema {
+    public static class MaterializedViewSchema
+    {
         public final String name;
         public final List<SchemaField> fields;
 
-        public MaterializedViewSchema(String name, List<SchemaField> fields) {
+        public MaterializedViewSchema(String name, List<SchemaField> fields)
+        {
             this.name = name;
             this.fields = fields;
         }
-
     }
 
     /**
@@ -86,7 +92,8 @@ public class MaterializedViewHttpService extends HttpService {
     @ApiOperation(value = "Create view", authorizations = @Authorization(value = "master_key"))
 
     @Path("/create")
-    public CompletableFuture<SuccessMessage> createView(@javax.inject.Named("project") String project, @BodyParam MaterializedView query) {
+    public CompletableFuture<SuccessMessage> createView(@javax.inject.Named("project") String project, @BodyParam MaterializedView query)
+    {
         return service.create(project, query).thenApply(res -> SuccessMessage.success());
     }
 
@@ -95,15 +102,29 @@ public class MaterializedViewHttpService extends HttpService {
 
     @Path("/delete")
     public CompletableFuture<SuccessMessage> deleteView(@javax.inject.Named("project") String project,
-                                                  @ApiParam("table_name") String name) {
+            @ApiParam("table_name") String name)
+    {
         return service.delete(project, name)
                 .thenApply(result -> {
-                    if(result.getError() == null) {
+                    if (result.getError() == null) {
                         return SuccessMessage.success();
-                    } else {
+                    }
+                    else {
                         throw new RakamException(result.getError().message, INTERNAL_SERVER_ERROR);
                     }
                 });
+    }
+
+    @JsonRequest
+    @ApiOperation(value = "Change materialized view", authorizations = @Authorization(value = "master_key"))
+
+    @Path("/change")
+    public SuccessMessage changeView(@javax.inject.Named("project") String project,
+            @ApiParam("table_name") String tableName,
+            @ApiParam("real_time") boolean realTime)
+    {
+        service.changeView(project, tableName, realTime);
+        return SuccessMessage.success();
     }
 
     @GET
@@ -112,7 +133,8 @@ public class MaterializedViewHttpService extends HttpService {
     @ApiOperation(value = "Update view", authorizations = @Authorization(value = "master_key"), notes = "Invalidate previous cached data, executes the materialized view query and caches it.\n" +
             "This feature is similar to UPDATE MATERIALIZED VIEWS in RDBMSs.")
     @IgnoreApi
-    public void update(RakamHttpRequest request) {
+    public void update(RakamHttpRequest request)
+    {
         queryService.handleServerSentQueryExecution(request, MaterializedViewRequest.class,
                 (project, query) -> {
                     QueryExecution execution = service.lockAndUpdateView(project, service.get(project, query.name)).queryExecution;
@@ -124,10 +146,12 @@ public class MaterializedViewHttpService extends HttpService {
                 });
     }
 
-    public static class MaterializedViewRequest {
+    public static class MaterializedViewRequest
+    {
         public final String name;
 
-        public MaterializedViewRequest(String name) {
+        public MaterializedViewRequest(String name)
+        {
             this.name = name;
         }
     }
@@ -137,8 +161,8 @@ public class MaterializedViewHttpService extends HttpService {
 
     @Path("/get")
     public MaterializedView getView(@javax.inject.Named("project") String project,
-                                @ApiParam("table_name") String tableName) {
+            @ApiParam("table_name") String tableName)
+    {
         return service.get(project, tableName);
     }
-
 }

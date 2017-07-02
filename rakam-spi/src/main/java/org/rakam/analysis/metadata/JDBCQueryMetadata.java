@@ -206,6 +206,22 @@ public class JDBCQueryMetadata
     }
 
     @Override
+    public void changeMaterializedView(String project, String tableName, boolean realTime)
+    {
+        try (Handle handle = dbi.open()) {
+            int execute = handle.createStatement("UPDATE materialized_views SET last_updated = :last_updated " +
+                    "WHERE project = :project AND table_name = :table_name")
+                    .bind("project", project)
+                    .bind("table_name", tableName)
+                    .bind("real_time", realTime)
+                    .execute();
+            if(execute == 0) {
+                throw new NotExistsException("Materialized view");
+            }
+        }
+    }
+
+    @Override
     public void createContinuousQuery(String project, ContinuousQuery report)
     {
         try (Handle handle = dbi.open()) {
