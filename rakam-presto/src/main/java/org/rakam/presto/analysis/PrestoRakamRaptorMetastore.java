@@ -1,7 +1,6 @@
 package org.rakam.presto.analysis;
 
 import com.facebook.presto.client.ClientSession;
-import com.facebook.presto.jdbc.internal.spi.type.StandardTypes;
 import com.facebook.presto.raptor.metadata.MetadataDao;
 import com.facebook.presto.raptor.metadata.Table;
 import com.facebook.presto.raptor.metadata.TableColumn;
@@ -21,6 +20,7 @@ import com.facebook.presto.spi.type.DoubleType;
 import com.facebook.presto.spi.type.IntegerType;
 import com.facebook.presto.spi.type.MapType;
 import com.facebook.presto.spi.type.ParametricType;
+import com.facebook.presto.spi.type.StandardTypes;
 import com.facebook.presto.spi.type.TimeType;
 import com.facebook.presto.spi.type.TimestampType;
 import com.facebook.presto.spi.type.Type;

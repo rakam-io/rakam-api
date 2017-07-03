@@ -49,10 +49,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static com.facebook.presto.jdbc.internal.airlift.json.JsonCodec.jsonCodec;
-import static com.facebook.presto.jdbc.internal.guava.base.Preconditions.checkNotNull;
-import static com.google.common.base.Throwables.propagate;
-import static io.airlift.http.client.Request.Builder.fromRequest;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static org.rakam.collection.FieldType.BINARY;
 import static org.rakam.collection.FieldType.BOOLEAN;
@@ -208,7 +204,7 @@ public class PrestoQueryExecution
             while (client.isValid()) {
                 if (Thread.currentThread().isInterrupted()) {
                     client.close();
-                    throw propagate(new RakamException("Query executor thread was interrupted", INTERNAL_SERVER_ERROR));
+                    throw new RakamException("Query executor thread was interrupted", INTERNAL_SERVER_ERROR);
                 }
                 transformAndAdd(client.current());
 
