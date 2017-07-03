@@ -179,7 +179,7 @@
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-rakam-raptor</artifactId>
-            <version>0.156.2</version>
+            <version>0.180.0</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
@@ -204,9 +204,8 @@
 
         <dependency>
             <groupId>com.facebook.presto</groupId>
-            <artifactId>presto-rakam-streaming</artifactId>
-            <version>0.156.8</version>
-            <!--<scope>test</scope>-->
+            <artifactId>presto-rakam-udf</artifactId>
+            <version>0.180.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.jdbi</groupId>
