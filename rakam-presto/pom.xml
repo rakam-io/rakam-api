@@ -81,17 +81,6 @@
         </dependency>
 
         <dependency>
-            <groupId>io.airlift</groupId>
-            <artifactId>slice</artifactId>
-        </dependency>
-
-        <!--<dependency>-->
-        <!--<groupId>com.fasterxml.jackson.dataformat</groupId>-->
-        <!--<artifactId>jackson-dataformat-smile</artifactId>-->
-        <!--<version>${jackson.version}</version>-->
-        <!--</dependency>-->
-
-        <dependency>
             <groupId>org.rakam</groupId>
             <artifactId>rakam-parser</artifactId>
             <version>${project.version}</version>
@@ -101,7 +90,6 @@
             <groupId>io.airlift</groupId>
             <artifactId>http-client</artifactId>
         </dependency>
-
 
         <dependency>
             <groupId>com.google.code.findbugs</groupId>
@@ -197,9 +185,9 @@
             </exclusions>
         </dependency>
         <!--<dependency>-->
-            <!--<groupId>com.amazonaws</groupId>-->
-            <!--<artifactId>DynamoDBLocal</artifactId>-->
-            <!--<scope>test</scope>-->
+        <!--<groupId>com.amazonaws</groupId>-->
+        <!--<artifactId>DynamoDBLocal</artifactId>-->
+        <!--<scope>test</scope>-->
         <!--</dependency>-->
 
         <dependency>
@@ -274,6 +262,17 @@
                     <artifactId>jackson-databind</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>com.facebook.presto</groupId>
+            <artifactId>presto-client</artifactId>
+            <version>${presto.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
         </dependency>
 
         <dependency>

@@ -5,12 +5,15 @@ import com.google.inject.name.Names;
 import io.airlift.configuration.ConfigDefaults;
 import io.airlift.configuration.ConfigurationAwareModule;
 import io.airlift.configuration.ConfigurationFactory;
+import org.rakam.util.ConditionalModule;
 
 import javax.validation.constraints.NotNull;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Objects;
+import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
@@ -34,7 +37,17 @@ public abstract class RakamModule
     {
         checkState(this.binder == null, "re-entry not allowed");
         this.binder = checkNotNull(binder, "binder is null");
+
         try {
+            ConditionalModule annotation = this.getClass().getAnnotation(ConditionalModule.class);
+            if(annotation != null) {
+                configurationFactory.consumeProperty(annotation.config());
+                String value = configurationFactory.getProperties().get(annotation.config());
+                if(!Objects.equals(annotation.value(), value)) {
+                    return;
+                }
+            }
+
             setup(binder);
         }
         finally {
@@ -44,7 +57,7 @@ public abstract class RakamModule
 
     protected synchronized <T> T buildConfigObject(Class<T> configClass)
     {
-        bindConfig(binder).to(configClass);
+        configBinder(binder).bindConfig(configClass);
         return configurationFactory.build(configClass);
     }
 
@@ -60,11 +73,9 @@ public abstract class RakamModule
         configBinder(binder).bindConfig(configClass,
                 prefix != null ? Names.named(prefix) : null, prefix);
         try {
-            Method method = configurationFactory.getClass().getDeclaredMethod(
-                    "build", Class.class,
-                    String.class, ConfigDefaults.class);
+            Method method = configurationFactory.getClass().getDeclaredMethod("build", Class.class, Optional.class, ConfigDefaults.class);
             method.setAccessible(true);
-            Object invoke = method.invoke(configurationFactory, configClass, prefix, ConfigDefaults.noDefaults());
+            Object invoke = method.invoke(configurationFactory, configClass, Optional.of(prefix), ConfigDefaults.noDefaults());
             Field instance = invoke.getClass().getDeclaredField("instance");
             instance.setAccessible(true);
             return (T) instance.get(invoke);

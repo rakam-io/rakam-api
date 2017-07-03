@@ -8,13 +8,12 @@ import com.google.common.primitives.Ints;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
 import org.apache.commons.compress.archivers.ArchiveEntry;
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
-import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.user.UserPropertyMapper;
+import org.rakam.util.ConditionalModule;
 
 import java.io.File;
 import java.io.FileInputStream;

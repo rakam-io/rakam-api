@@ -4,82 +4,30 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.inject.Binding;
-import com.google.inject.ConfigurationException;
 import com.google.inject.Module;
-import com.google.inject.Provider;
-import com.google.inject.spi.DefaultElementVisitor;
-import com.google.inject.spi.Element;
-import com.google.inject.spi.Elements;
-import com.google.inject.spi.Message;
-import com.google.inject.spi.ProviderInstanceBinding;
-import io.airlift.configuration.ConfigurationAwareProvider;
 import io.airlift.configuration.ConfigurationFactory;
 import io.airlift.configuration.ConfigurationInspector;
-import io.airlift.configuration.WarningsMonitor;
-import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.RakamModule;
+import org.rakam.util.ConditionalModule;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static java.util.Collections.singletonList;
-
 public class SystemRegistry {
-
-    private final Set<Module> modules;
     private final Set<Module> installedModules;
+    private final Set<Module> allModules;
 
     private List<ModuleDescriptor> moduleDescriptors;
 
-    public SystemRegistry(Set<Module> modules, Set<Module> installedModules) {
-        this.modules = modules;
+    public SystemRegistry(Set<Module> allModules, Set<Module> installedModules) {
+        this.allModules = allModules;
         this.installedModules = installedModules;
     }
 
-    public static List<Message> validate(ConfigurationFactory factory, Iterable<? extends Module> modules, WarningsMonitor monitor)
-    {
-        final List<Message> messages = Lists.newArrayList();
-
-        for (final Element element : Elements.getElements(modules)) {
-            element.acceptVisitor(new DefaultElementVisitor<Void>()
-            {
-                public <T> Void visit(Binding<T> binding)
-                {
-                    // look for ConfigurationProviders...
-                    if (binding instanceof ProviderInstanceBinding) {
-                        ProviderInstanceBinding<?> providerInstanceBinding = (ProviderInstanceBinding<?>) binding;
-                        Provider<?> provider = providerInstanceBinding.getProviderInstance();
-                        if (provider instanceof ConfigurationAwareProvider) {
-                            ConfigurationAwareProvider<?> configurationProvider = (ConfigurationAwareProvider<?>) provider;
-                            // give the provider the configuration factory
-                            configurationProvider.setConfigurationFactory(factory);
-                            configurationProvider.setWarningsMonitor(monitor);
-                            try {
-                                // call the getter which will cause object creation
-                                configurationProvider.get();
-                            } catch (ConfigurationException e) {
-                                // if we got errors, add them to the errors list
-                                messages.addAll(e.getErrorMessages().stream()
-                                        .map(message -> new Message(singletonList(binding.getSource()), message.getMessage(), message.getCause()))
-                                        .collect(Collectors.toList()));
-                            }
-                        }
-
-                    }
-
-                    return null;
-                }
-            });
-        }
-        return messages;
-    }
-
     private List<ModuleDescriptor> createModuleDescriptor() {
-        return modules.stream()
+        return (allModules == null ? installedModules : allModules).stream()
                 .filter(module -> module instanceof RakamModule)
                 .map(module -> {
                     RakamModule rakamModule = (RakamModule) module;
@@ -95,7 +43,7 @@ public class SystemRegistry {
 
                     // process modules and add used properties to ConfigurationFactory
 
-                    validate(otherConfigurationFactory, ImmutableList.of(module), warning -> {});
+                    otherConfigurationFactory.validateRegisteredConfigurationProvider();
 
                     ImmutableList.Builder<ConfigItem> attributesBuilder = ImmutableList.builder();
 
@@ -116,7 +64,7 @@ public class SystemRegistry {
                 }).collect(Collectors.toList());
     }
 
-    public List<ModuleDescriptor> getModules() {
+    public synchronized List<ModuleDescriptor> getModules() {
         if(moduleDescriptors == null) {
             this.moduleDescriptors = createModuleDescriptor();
         }

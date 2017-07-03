@@ -38,7 +38,7 @@ import org.rakam.analysis.QueryHttpService;
 import org.rakam.analysis.RequestPreProcessorItem;
 import org.rakam.analysis.datasource.CustomDataSourceConfig;
 import org.rakam.analysis.metadata.SchemaChecker;
-import org.rakam.bootstrap.Bootstrap;
+import org.rakam.bootstrap.ProxyBootstrap;
 import org.rakam.collection.EventCollectionHttpService;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
@@ -117,7 +117,7 @@ public final class ServiceStarter
             System.setProperty("config", args[0]);
         }
 
-        Bootstrap app = new Bootstrap(getModules());
+        ProxyBootstrap app = new ProxyBootstrap(getModules());
         app.requireExplicitBindings(false);
         Injector injector = app.strictConfig().initialize();
 
