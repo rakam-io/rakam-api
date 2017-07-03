@@ -91,7 +91,7 @@ public class ClickHouseFunnelQueryExecutor
                     startDate.format(ISO_DATE),
                     endDate.plusDays(1).format(ISO_DATE),
                     funnelStep.getExpression().map(exp -> "AND " + ClickhouseExpressionFormatter.formatExpression(exp,
-                            ValidationUtil::checkTableColumn.getParts().stream().map(e -> formatIdentifier(e, '`')).collect(Collectors.joining(".")),
+                            name -> name.getParts().stream().map(e -> formatIdentifier(e, '`')).collect(Collectors.joining(".")),
                             name -> checkCollection(funnelStep.getCollection()) + "." + name, '`')).orElse(""));
         }).collect(Collectors.joining("\n        UNION ALL\n     "));
 
