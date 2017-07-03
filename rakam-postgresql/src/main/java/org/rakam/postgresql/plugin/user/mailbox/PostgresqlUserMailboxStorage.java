@@ -7,8 +7,6 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.html.HtmlEscapers;
 import com.google.inject.name.Named;
-import com.impossibl.postgres.api.jdbc.PGConnection;
-import com.impossibl.postgres.api.jdbc.PGNotificationListener;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.ConfigManager;
@@ -148,70 +146,71 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
 
     @Override
     public MessageListener listen(String projectId, String user, Consumer<Data> consumer) {
-        try (Connection conn = dataSource.getConnection()) {
-            final PGConnection unwrap = conn.unwrap(PGConnection.class);
-            String name = projectId + "_" + user + USER_NOTIFICATION_SUFFIX;
-
-            PGNotificationListener listener = (processId, channelName, payload) -> {
-                int idx = payload.indexOf("\n");
-                Operation op = Operation.valueOf(payload.substring(0, idx));
-                consumer.accept(new Data(op, payload.substring(idx + 1)));
-            };
-            unwrap.addNotificationListener(name, listener);
-
-            try (Statement statement = unwrap.createStatement()) {
-                statement.execute("LISTEN " + name);
-            } catch (SQLException e) {
-                throw Throwables.propagate(e);
-            }
-
-            return () -> {
-                try (Statement statement = unwrap.createStatement()) {
-                    statement.execute(format("UNLISTEN %s_%s" + USER_NOTIFICATION_SUFFIX, projectId, user));
-                } catch (SQLException e) {
-                    throw Throwables.propagate(e);
-                }
-                unwrap.removeNotificationListener(listener);
-            };
-
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
-        }
-
+//        try (Connection conn = dataSource.getConnection()) {
+//            final PGConnection unwrap = conn.unwrap(PGConnection.class);
+//            String name = projectId + "_" + user + USER_NOTIFICATION_SUFFIX;
+//
+//            PGNotificationListener listener = (processId, channelName, payload) -> {
+//                int idx = payload.indexOf("\n");
+//                Operation op = Operation.valueOf(payload.substring(0, idx));
+//                consumer.accept(new Data(op, payload.substring(idx + 1)));
+//            };
+//            unwrap.addNotificationListener(name, listener);
+//
+//            try (Statement statement = unwrap.createStatement()) {
+//                statement.execute("LISTEN " + name);
+//            } catch (SQLException e) {
+//                throw Throwables.propagate(e);
+//            }
+//
+//            return () -> {
+//                try (Statement statement = unwrap.createStatement()) {
+//                    statement.execute(format("UNLISTEN %s_%s" + USER_NOTIFICATION_SUFFIX, projectId, user));
+//                } catch (SQLException e) {
+//                    throw Throwables.propagate(e);
+//                }
+//                unwrap.removeNotificationListener(listener);
+//            };
+//
+//        } catch (SQLException e) {
+//            throw Throwables.propagate(e);
+//        }
+        return null;
     }
 
     @Override
     public MessageListener listenAllUsers(String projectId, Consumer<Data> consumer) {
-        try (Connection conn = dataSource.getConnection()) {
-            PGConnection asyncConn = conn.unwrap(PGConnection.class);
-            PGNotificationListener listener = (processId, channelName, payload) -> {
-                if (lastMessage.get() + 2 > Instant.now().getEpochSecond()) {
-                    return;
-                }
-                int idx = payload.indexOf("\n");
-                Operation op = Operation.valueOf(payload.substring(0, idx));
-                consumer.accept(new Data(op, payload.substring(idx + 1)));
-                lastMessage.set(Instant.now().getEpochSecond());
-            };
-            asyncConn.addNotificationListener(projectId + USER_NOTIFICATION_ALL_SUFFIX, listener);
-
-            try (Statement statement = asyncConn.createStatement()) {
-                statement.execute("LISTEN " + projectId + USER_NOTIFICATION_ALL_SUFFIX);
-            } catch (SQLException e) {
-                throw Throwables.propagate(e);
-            }
-
-            return () -> {
-                try (Statement statement = asyncConn.createStatement()) {
-                    statement.execute(format("UNLISTEN %s_user_mailbox_all_listener", projectId));
-                } catch (SQLException e) {
-                    throw Throwables.propagate(e);
-                }
-                asyncConn.removeNotificationListener(listener);
-            };
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
-        }
+//        try (Connection conn = dataSource.getConnection()) {
+//            PGConnection asyncConn = conn.unwrap(PGConnection.class);
+//            PGNotificationListener listener = (processId, channelName, payload) -> {
+//                if (lastMessage.get() + 2 > Instant.now().getEpochSecond()) {
+//                    return;
+//                }
+//                int idx = payload.indexOf("\n");
+//                Operation op = Operation.valueOf(payload.substring(0, idx));
+//                consumer.accept(new Data(op, payload.substring(idx + 1)));
+//                lastMessage.set(Instant.now().getEpochSecond());
+//            };
+//            asyncConn.addNotificationListener(projectId + USER_NOTIFICATION_ALL_SUFFIX, listener);
+//
+//            try (Statement statement = asyncConn.createStatement()) {
+//                statement.execute("LISTEN " + projectId + USER_NOTIFICATION_ALL_SUFFIX);
+//            } catch (SQLException e) {
+//                throw Throwables.propagate(e);
+//            }
+//
+//            return () -> {
+//                try (Statement statement = asyncConn.createStatement()) {
+//                    statement.execute(format("UNLISTEN %s_user_mailbox_all_listener", projectId));
+//                } catch (SQLException e) {
+//                    throw Throwables.propagate(e);
+//                }
+//                asyncConn.removeNotificationListener(listener);
+//            };
+//        } catch (SQLException e) {
+//            throw Throwables.propagate(e);
+//        }
+        return null;
     }
 
     @Override

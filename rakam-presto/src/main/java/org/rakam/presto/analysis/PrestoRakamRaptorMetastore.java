@@ -35,6 +35,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
+import io.airlift.units.Duration;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
@@ -88,6 +89,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERR
 import static java.lang.String.format;
 import static java.sql.JDBCType.VARBINARY;
 import static java.util.Locale.ENGLISH;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.rakam.collection.FieldType.DATE;
 import static org.rakam.collection.FieldType.LONG;
 import static org.rakam.collection.FieldType.TIMESTAMP;
@@ -131,7 +133,7 @@ public class PrestoRakamRaptorMetastore
                 ENGLISH,
                 ImmutableMap.of(),
                 null,
-                false, null);
+                false, Duration.succinctDuration(1, MINUTES));
     }
 
     @PostConstruct
@@ -183,6 +185,8 @@ public class PrestoRakamRaptorMetastore
             if (queryEnd.isEmpty()) {
                 return currentFields;
             }
+
+            queryEnd += format(", \"%s\" %s", "_shard_time", toSql(TIMESTAMP));
 
             List<String> params = new ArrayList<>();
             if (fields.stream().anyMatch(f -> f.getName().equals(projectConfig.getTimeColumn()) && (f.getType() == TIMESTAMP || f.getType() == DATE))) {

@@ -1,6 +1,7 @@
 package org.rakam.aws;
 
 import com.google.common.eventbus.EventBus;
+import org.rakam.TestingPrestoEventStore;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.InMemoryQueryMetadataStore;
 import org.rakam.analysis.JDBCPoolDataSource;
@@ -36,7 +37,7 @@ public class TestPrestoEventExplorer
     private InMemoryQueryMetadataStore queryMetadataStore;
     private JDBCPoolDataSource metastoreDataSource;
     private PrestoContinuousQueryService continuousQueryService;
-    private AWSKinesisEventStore testingPrestoEventStore;
+    private TestingPrestoEventStore eventStore;
 
     @BeforeSuite
     @Override
@@ -64,15 +65,15 @@ public class TestPrestoEventExplorer
         QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, metastore, materializedViewService, Clock.systemUTC(), '"');
 
         eventExplorer = new PrestoEventExplorer(new ProjectConfig(), queryExecutorService, continuousQueryService, materializedViewService);
-        setupInline();
+        eventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);
+
         super.setup();
-        Thread.sleep(10000);
     }
 
     @Override
     public EventStore getEventStore()
     {
-        return testingPrestoEventStore;
+        return eventStore;
     }
 
     public PrestoQueryExecutor getPrestoQueryExecutor()
@@ -88,29 +89,6 @@ public class TestPrestoEventExplorer
     public JDBCPoolDataSource getMetastoreDataSource()
     {
         return metastoreDataSource;
-    }
-
-    public void setupInline()
-    {
-        AWSConfig awsConfig = testingEnvironment.getAWSConfig();
-
-        int kinesisPort = getEnvironment().getKinesisPort();
-        awsConfig
-                .setKinesisEndpoint(kinesisPort == 0 ? null : "http://127.0.0.1:" + kinesisPort)
-                .setEventStoreStreamName("rakam-events");
-
-        testingPrestoEventStore = new AWSKinesisEventStore(
-                awsConfig, getMetastore(),
-                new FieldDependencyBuilder().build())
-        {
-            // KCL doesn't work with Kinesalite. See: https://github.com/mhart/kinesalite/issues/16
-            @Override
-            public int[] storeBatch(List<Event> events)
-            {
-                events.forEach(this::store);
-                return SUCCESSFUL_BATCH;
-            }
-        };
     }
 
     @Override

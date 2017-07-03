@@ -189,38 +189,6 @@ public class PrestoQueryExecution
         client.close();
     }
 
-    private static HostAndPort getSystemSocksProxy()
-    {
-        URI uri = URI.create("socket://0.0.0.0:80");
-        for (Proxy proxy : ProxySelector.getDefault().select(uri)) {
-            if (proxy.type() == Proxy.Type.SOCKS &&
-                    proxy.address() instanceof InetSocketAddress) {
-                InetSocketAddress address = (InetSocketAddress) proxy.address();
-                return HostAndPort.fromParts(address.getHostString(), address.getPort());
-            }
-        }
-        return null;
-    }
-
-    static class UserAgentRequestFilter
-            implements HttpRequestFilter
-    {
-        private final String userAgent;
-
-        public UserAgentRequestFilter(String userAgent)
-        {
-            this.userAgent = checkNotNull(userAgent, "userAgent is null");
-        }
-
-        @Override
-        public Request filterRequest(Request request)
-        {
-            return fromRequest(request)
-                    .addHeader(HttpHeaders.USER_AGENT, userAgent)
-                    .build();
-        }
-    }
-
     private static final String SERVER_NOT_ACTIVE = "Database server is not active.";
 
     private class QueryTracker
