@@ -65,7 +65,7 @@ public class FastGenericFunnelQueryExecutor
         for (int i = 0; i < steps.size(); i++) {
             Optional<String> filterExp = steps.get(i).getExpression().map(value -> RakamSqlFormatter.formatExpression(value,
                     name -> name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
-                    name -> name, '"'));
+                    ValidationUtil::checkTableColumn, '"'));
 
             if (i == 0) {
                 selects.add(format("sum(case when ts_event%d is not null then 1 else 0 end) as event%d_count", i, i));

@@ -179,8 +179,8 @@ public class ClickHouseEventExplorer
     private static String formatExpression(Expression value)
     {
         return ClickhouseExpressionFormatter.formatExpression(value,
-                name -> name.getParts().stream().map(e -> formatIdentifier(e, '`')).collect(Collectors.joining(".")),
-                name -> name, '`');
+                ValidationUtil::checkTableColumn.getParts().stream().map(e -> formatIdentifier(e, '`')).collect(Collectors.joining(".")),
+                ValidationUtil::checkTableColumn, '`');
     }
 
     @Override

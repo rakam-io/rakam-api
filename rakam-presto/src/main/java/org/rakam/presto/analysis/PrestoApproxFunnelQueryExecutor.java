@@ -119,6 +119,6 @@ public class PrestoApproxFunnelQueryExecutor
     {
         return step.getExpression().map(value -> RakamSqlFormatter.formatExpression(value,
                 name -> name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
-                name -> name, '"')).orElse("true");
+                ValidationUtil::checkTableColumn, '"')).orElse("true");
     }
 }

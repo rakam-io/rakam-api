@@ -12,20 +12,25 @@ import static com.facebook.presto.sql.RakamSqlFormatter.Formatter.format;
 import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static org.testng.Assert.assertEquals;
 
-public class TestQueryFormatter {
+public class TestQueryFormatter
+{
     @Test
-    public void testSimpleExpression() throws Exception {
+    public void testSimpleExpression()
+            throws Exception
+    {
         Expression expression = new SqlParser().createExpression("test = 'test'");
 
         assertEquals("(\"dummy\".\"test\" = 'test')", formatExpression(expression,
                 name -> {
                     throw new UnsupportedOperationException();
                 },
-                name -> "\"dummy\"." + name, '"'));
+                name -> "\"dummy\".\"" + name + "\"", '"'));
     }
 
     @Test
-    public void testSimpleQuery() throws Exception {
+    public void testSimpleQuery()
+            throws Exception
+    {
         Statement statement = new SqlParser().createStatement("select * from testcollection");
 
         assertEquals("SELECT *\n" +
@@ -34,20 +39,24 @@ public class TestQueryFormatter {
     }
 
     @Test
-    public void testJoinQuery() throws Exception {
+    public void testJoinQuery()
+            throws Exception
+    {
         Statement statement = new SqlParser().createStatement
                 ("select * from testcollection join anothercollection on (anothercollection.test = testcollection.test)");
 
         // TODO: decide if we should also format expressions in QueryFormatter
         assertEquals("SELECT *\n" +
-                "   FROM\n" +
-                "     (dummy\n" +
-                "   INNER JOIN dummy ON ((\"anothercollection\".\"test\" = \"testcollection\".\"test\")))",
+                        "   FROM\n" +
+                        "     (dummy\n" +
+                        "   INNER JOIN dummy ON ((\"anothercollection\".\"test\" = \"testcollection\".\"test\")))",
                 format(statement, name -> "dummy", '"').trim());
     }
 
     @Test
-    public void testQueryWithCTE() throws Exception {
+    public void testQueryWithCTE()
+            throws Exception
+    {
         Statement statement = new SqlParser().createStatement("with test as (select * from collection) select * from test");
 
         assertEquals("WITH\n" +
@@ -62,7 +71,9 @@ public class TestQueryFormatter {
     }
 
     @Test
-    public void testQueryWithCTEDuplicateName() throws Exception {
+    public void testQueryWithCTEDuplicateName()
+            throws Exception
+    {
         Statement statement = new SqlParser().createStatement("with test as (select * from collection) select * from collection.test");
 
         assertEquals("WITH\n" +
@@ -77,7 +88,9 @@ public class TestQueryFormatter {
     }
 
     @Test
-    public void testExpressionFormatterFormatTable() throws Exception {
+    public void testExpressionFormatterFormatTable()
+            throws Exception
+    {
         Expression expression = new SqlParser().createExpression("test in (select id from testcollection)");
 
         assertEquals("(\"test\" IN (SELECT \"id\"\n" +
@@ -85,6 +98,6 @@ public class TestQueryFormatter {
                 "  \"schema\".\"testcollection\"\n" +
                 "))", formatExpression(expression,
                 name -> "\"schema\"." + name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
-                name -> name, '"'));
+                name -> '"' + name + '"', '"'));
     }
 }
