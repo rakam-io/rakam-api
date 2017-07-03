@@ -1,8 +1,7 @@
 package org.rakam.event;
 
+import com.facebook.presto.rakam.RakamPlugin;
 import com.facebook.presto.rakam.RakamRaptorPlugin;
-import com.facebook.presto.rakam.stream.StreamPlugin;
-import com.facebook.presto.rakam.stream.metadata.ForMetadata;
 import com.facebook.presto.raptor.RaptorPlugin;
 import com.facebook.presto.server.testing.TestingPrestoServer;
 import com.google.common.base.Strings;
@@ -96,7 +95,6 @@ public class TestingEnvironment
 
                         @Provides
                         @Singleton
-                        @ForMetadata
                         public IDBI getDataSource()
                         {
                             return new DBI(format("jdbc:h2:mem:test%s;DB_CLOSE_DELAY=-1;mode=MySQL", System.nanoTime()));
@@ -106,30 +104,9 @@ public class TestingEnvironment
                     kinesisPort = startKinesis();
                     int dynamodbPort = createDynamodbProcess();
 
-                    StreamPlugin streamPlugin = new StreamPlugin("streaming", metastoreModule);
-
+                    ;
                     testingPrestoServer.installPlugin(plugin);
-                    testingPrestoServer.installPlugin(streamPlugin);
-                    testingPrestoServer.createCatalog("streaming", "streaming", ImmutableMap.<String, String>builder()
-                            .put("target.connector_id", "rakam_raptor")
-                            .put("backup.provider", "s3")
-//                            .put("backup.s3.bucket", "testing")
-                            .put("aws.s3-endpoint", s3ProxyLaunchInfo.getEndpoint().toString())
-                            .put("stream.max-flush-duration", "0ms")
-                            .put("http-server.http.port", Integer.toString(ThreadLocalRandom.current().nextInt(1000, 10000)))
-                            .put("storage.directory", Files.createTempDir().getAbsolutePath())
-                            .put("backup.timeout", "1m")
-                            .put("stream.source", "kinesis")
-                            .put("kinesis.stream", "rakam-events")
-                            .put("aws.kinesis-endpoint", "http://127.0.0.1:" + kinesisPort)
-                            .put("aws.dynamodb-endpoint", "http://127.0.0.1:" + dynamodbPort)
-                            .put("aws.secret-access-key", s3ProxyLaunchInfo.getS3Credential())
-                            .put("aws.access-key", s3ProxyLaunchInfo.getS3Identity())
-                            .put("aws.region", "us-east-1")
-                            .put("aws.enable-cloudwatch", "false")
-                            .put("kinesis.consumer-dynamodb-table", "rakamtest")
-                            .put("middleware.max-flush-records", "1")
-                            .put("stream.max-flush-records", "1").build());
+                    testingPrestoServer.installPlugin(new RakamPlugin());
 
                     testingPrestoServer.createCatalog("rakam_raptor", "rakam_raptor", ImmutableMap.<String, String>builder()
                             .put("storage.data-directory", Files.createTempDir().getAbsolutePath())
