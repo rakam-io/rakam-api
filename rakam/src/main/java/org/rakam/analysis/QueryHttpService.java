@@ -3,10 +3,10 @@ package org.rakam.analysis;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.GroupingElement;
+import com.facebook.presto.sql.tree.Identifier;
 import com.facebook.presto.sql.tree.LongLiteral;
 import com.facebook.presto.sql.tree.Node;
 import com.facebook.presto.sql.tree.NodeLocation;
-import com.facebook.presto.sql.tree.QualifiedNameReference;
 import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.QuerySpecification;
 import com.facebook.presto.sql.tree.Relation;
@@ -373,7 +373,7 @@ public class QueryHttpService
 
             if (statement.getQueryBody() instanceof QuerySpecification) {
                 return parseQuerySpecification((QuerySpecification) statement.getQueryBody(),
-                        statement.getLimit(), statement.getOrderBy(), map);
+                        statement.getLimit(), statement.getOrderBy().map(v -> v.getSortItems()).orElse(null), map);
             }
             else if (statement.getQueryBody() instanceof Union) {
                 Relation relation = ((Union) statement.getQueryBody()).getRelations().get(0);
@@ -383,7 +383,7 @@ public class QueryHttpService
 
                 if (relation instanceof QuerySpecification) {
                     return parseQuerySpecification((QuerySpecification) relation,
-                            statement.getLimit(), statement.getOrderBy(), map);
+                            statement.getLimit(), statement.getOrderBy().map(v -> v.getSortItems()).orElse(null), map);
                 }
             }
 
@@ -431,9 +431,9 @@ public class QueryHttpService
                     .collect(Collectors.toList());
         }
         else {
-            orderBy = queryBody.getOrderBy().stream().map(item ->
+            orderBy =queryBody.getOrderBy().map(v -> v.getSortItems().stream().map(item ->
                     new Ordering(item.getOrdering(), mapper.apply(item.getSortKey()), item.getSortKey().toString()))
-                    .collect(Collectors.toList());
+                    .collect(Collectors.toList())).orElse(ImmutableList.of());
         }
 
         String limitStr = limitOutside.orElse(queryBody.getLimit().orElse(null));
@@ -458,7 +458,7 @@ public class QueryHttpService
                 if (next instanceof LongLiteral) {
                     return Optional.of(((int) ((LongLiteral) next).getValue()));
                 }
-                else if (next instanceof QualifiedNameReference) {
+                else if (next instanceof Identifier) {
                     for (int i = 0; i < selectItems.size(); i++) {
                         if (selectItems.get(i) instanceof SingleColumn) {
                             if (((SingleColumn) selectItems.get(i)).getExpression().equals(next)) {

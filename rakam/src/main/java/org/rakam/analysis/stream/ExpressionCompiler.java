@@ -55,7 +55,6 @@ import static com.facebook.presto.bytecode.Access.FINAL;
 import static com.facebook.presto.bytecode.Access.PUBLIC;
 import static com.facebook.presto.bytecode.Access.a;
 import static com.facebook.presto.bytecode.CompilerUtils.defineClass;
-import static com.facebook.presto.sql.ExpressionUtils.rewriteQualifiedNamesToSymbolReferences;
 import static com.facebook.presto.sql.analyzer.ExpressionAnalyzer.getExpressionTypesFromInput;
 import static com.google.common.collect.ImmutableList.copyOf;
 import static com.google.common.collect.Iterables.concat;
@@ -121,7 +120,8 @@ public class ExpressionCompiler
 
     private FilterContext analyze(Expression filterExpression, List<Map.Entry<String, Type>> columns)
     {
-        filterExpression = rewriteQualifiedNamesToSymbolReferences(filterExpression);
+//        filterExpression = rewriteQualifiedNamesToSymbolReferences(filterExpression);
+        // TODO
         List<Expression> projectionExpressions = new ArrayList<>();
         Map<Symbol, Integer> sourceLayout = new HashMap<>();
         Map<Integer, Type> sourceTypes = new HashMap<>();
@@ -150,28 +150,29 @@ public class ExpressionCompiler
         }.process(filterExpression, null);
 
         // compiler uses inputs instead of symbols, so rewrite the expressions first
-        SymbolToInputRewriter symbolToInputRewriter = new SymbolToInputRewriter(sourceLayout);
-        Expression rewrittenFilter = ExpressionTreeRewriter.rewriteWith(symbolToInputRewriter, filterExpression);
+//        SymbolToInputRewriter symbolToInputRewriter = new SymbolToInputRewriter(sourceLayout);
+//        Expression rewrittenFilter = ExpressionTreeRewriter.rewriteWith(symbolToInputRewriter, filterExpression);
 
-        List<Expression> rewrittenProjections = new ArrayList<>();
-        for (Expression projection : projectionExpressions) {
-            rewrittenProjections.add(ExpressionTreeRewriter.rewriteWith(symbolToInputRewriter, projection));
-        }
+//        List<Expression> rewrittenProjections = new ArrayList<>();
+//        for (Expression projection : projectionExpressions) {
+//            rewrittenProjections.add(ExpressionTreeRewriter.rewriteWith(symbolToInputRewriter, projection));
+//        }
 
-        IdentityHashMap<Expression, Type> expressionTypes = getExpressionTypesFromInput(
-                session,
-                metadata,
-                sqlParser,
-                sourceTypes,
-                concat(singleton(rewrittenFilter), rewrittenProjections),
-                ImmutableList.of());
+//        IdentityHashMap<Expression, Type> expressionTypes = getExpressionTypesFromInput(
+//                session,
+//                metadata,
+//                sqlParser,
+//                sourceTypes,
+//                concat(singleton(rewrittenFilter), rewrittenProjections),
+//                ImmutableList.of());
 
         FunctionRegistry functionRegistry = new FunctionRegistry(typeManager, serde, featuresConfig);
-        RowExpression filter = SqlToRowExpressionTranslator.translate(
-                rewrittenFilter, FunctionKind.SCALAR, expressionTypes, functionRegistry, typeManager, session, true);
-        filter = expressionOptimizer.optimize(filter);
+//        RowExpression filter = SqlToRowExpressionTranslator.translate(
+//                rewrittenFilter, FunctionKind.SCALAR, expressionTypes, functionRegistry, typeManager, session, true);
+//        filter = expressionOptimizer.optimize(filter);
 
-        return new FilterContext(sourceTypes, projectionProxies, compileRowExpression(filter));
+//        return new FilterContext(sourceTypes, projectionProxies, compileRowExpression(filter));
+        return null;
     }
 
 

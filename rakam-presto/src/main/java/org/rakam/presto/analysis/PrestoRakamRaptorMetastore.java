@@ -1,6 +1,6 @@
 package org.rakam.presto.analysis;
 
-import com.facebook.presto.jdbc.internal.client.ClientSession;
+import com.facebook.presto.client.ClientSession;
 import com.facebook.presto.jdbc.internal.spi.type.StandardTypes;
 import com.facebook.presto.raptor.metadata.MetadataDao;
 import com.facebook.presto.raptor.metadata.Table;
@@ -10,13 +10,17 @@ import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.block.Block;
 import com.facebook.presto.spi.block.BlockBuilder;
 import com.facebook.presto.spi.block.BlockBuilderStatus;
+import com.facebook.presto.spi.function.OperatorType;
 import com.facebook.presto.spi.type.AbstractType;
+import com.facebook.presto.spi.type.ArrayType;
 import com.facebook.presto.spi.type.BigintType;
 import com.facebook.presto.spi.type.BooleanType;
 import com.facebook.presto.spi.type.DateType;
 import com.facebook.presto.spi.type.DecimalType;
 import com.facebook.presto.spi.type.DoubleType;
 import com.facebook.presto.spi.type.IntegerType;
+import com.facebook.presto.spi.type.MapType;
+import com.facebook.presto.spi.type.ParametricType;
 import com.facebook.presto.spi.type.TimeType;
 import com.facebook.presto.spi.type.TimestampType;
 import com.facebook.presto.spi.type.Type;
@@ -25,15 +29,13 @@ import com.facebook.presto.spi.type.TypeSignature;
 import com.facebook.presto.spi.type.TypeSignatureParameter;
 import com.facebook.presto.spi.type.VarbinaryType;
 import com.facebook.presto.spi.type.VarcharType;
-import com.facebook.presto.type.ArrayType;
-import com.facebook.presto.type.MapType;
+import com.facebook.presto.type.MapParametricType;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.analysis.metadata.AbstractMetastore;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
@@ -41,7 +43,6 @@ import org.rakam.report.QueryResult;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.IDBI;
@@ -53,14 +54,16 @@ import org.skife.jdbi.v2.util.StringMapper;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
+import java.lang.invoke.MethodHandle;
+import java.net.URI;
 import java.sql.JDBCType;
-import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -92,7 +95,6 @@ import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZ
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkLiteral;
 import static org.rakam.util.ValidationUtil.checkProject;
-import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PrestoRakamRaptorMetastore
         extends PrestoAbstractMetastore
@@ -122,13 +124,14 @@ public class PrestoRakamRaptorMetastore
                 prestoConfig.getAddress(),
                 "rakam",
                 "api-server",
+                null,
                 prestoConfig.getColdStorageConnector(),
                 "default",
                 TimeZone.getTimeZone(ZoneOffset.UTC).getID(),
                 ENGLISH,
-                ImmutableMap.<String, String>of(),
+                ImmutableMap.of(),
                 null,
-                false, new com.facebook.presto.jdbc.internal.airlift.units.Duration(1, TimeUnit.MINUTES));
+                false, null);
     }
 
     @PostConstruct
@@ -562,7 +565,7 @@ public class PrestoRakamRaptorMetastore
         }
 
         @Override
-        public Optional<Type> getCommonSuperType(List<? extends Type> list)
+        public Collection<ParametricType> getParametricTypes()
         {
             throw new UnsupportedOperationException();
         }
@@ -577,6 +580,12 @@ public class PrestoRakamRaptorMetastore
         public Optional<Type> coerceTypeBase(Type sourceType, String resultTypeBase)
         {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public MethodHandle resolveOperator(OperatorType operatorType, List<? extends Type> argumentTypes)
+        {
+            return null;
         }
 
         @Override
@@ -642,7 +651,7 @@ public class PrestoRakamRaptorMetastore
                     return new ArrayType(toType(type.getArrayElementType()));
                 }
                 if (type.isMap()) {
-                    return new MapType(VarcharType.VARCHAR, toType(type.getMapValueType()));
+                    return new MapType(true, VarcharType.VARCHAR, toType(type.getMapValueType()), null, null, null);
                 }
                 throw new IllegalStateException();
         }

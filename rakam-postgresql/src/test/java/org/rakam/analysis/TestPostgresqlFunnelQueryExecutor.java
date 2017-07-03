@@ -40,9 +40,7 @@ public class TestPostgresqlFunnelQueryExecutor extends TestFunnelQueryExecutor {
         FastGenericFunnelQueryExecutor exec = new FastGenericFunnelQueryExecutor(new QueryExecutorService(queryExecutor, metastore, null, Clock.systemUTC(), '"'),
                 new ProjectConfig());
 
-        PostgresqlMaterializedViewService postgresqlMaterializedViewService = new PostgresqlMaterializedViewService(new ProjectConfig(), queryExecutor, new InMemoryQueryMetadataStore());
-        QueryExecutorService queryExecutorService = new QueryExecutorService(queryExecutor, metastore, postgresqlMaterializedViewService, Clock.systemUTC(), '"');
-        funnelQueryExecutor = new PostgresqlFunnelQueryExecutor(exec, new ProjectConfig(), metastore, queryExecutorService, queryExecutor);
+        funnelQueryExecutor = new PostgresqlFunnelQueryExecutor(exec, new ProjectConfig(), metastore, queryExecutor);
         funnelQueryExecutor.setup();
         super.setup();
     }

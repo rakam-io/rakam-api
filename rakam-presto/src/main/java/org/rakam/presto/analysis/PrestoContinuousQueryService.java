@@ -4,7 +4,7 @@ import com.facebook.presto.spi.type.TypeSignature;
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.AllColumns;
-import com.facebook.presto.sql.tree.QualifiedNameReference;
+import com.facebook.presto.sql.tree.Identifier;
 import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.QueryBody;
 import com.facebook.presto.sql.tree.QuerySpecification;
@@ -184,7 +184,7 @@ public class PrestoContinuousQueryService
 
             if (selectItem instanceof SingleColumn) {
                 SingleColumn singleColumn = (SingleColumn) selectItem;
-                if (!singleColumn.getAlias().isPresent() && !(singleColumn.getExpression() instanceof QualifiedNameReference)) {
+                if (!singleColumn.getAlias().isPresent() && !(singleColumn.getExpression() instanceof Identifier)) {
                     throw new RakamException(format("Alias for %s is missing", singleColumn.toString()), BAD_REQUEST);
                 }
 

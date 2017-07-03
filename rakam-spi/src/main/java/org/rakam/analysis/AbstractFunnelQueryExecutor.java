@@ -21,6 +21,7 @@ import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
+import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
@@ -46,11 +47,11 @@ import static org.rakam.util.ValidationUtil.checkTableColumn;
 public abstract class AbstractFunnelQueryExecutor
         implements FunnelQueryExecutor
 {
-    private final QueryExecutorService executor;
+    private final QueryExecutor executor;
     private final Metastore metastore;
     protected final ProjectConfig projectConfig;
 
-    public AbstractFunnelQueryExecutor(ProjectConfig projectConfig, Metastore metastore, QueryExecutorService executor)
+    public AbstractFunnelQueryExecutor(ProjectConfig projectConfig, Metastore metastore, QueryExecutor executor)
     {
         this.projectConfig = projectConfig;
         this.metastore = metastore;
@@ -67,7 +68,7 @@ public abstract class AbstractFunnelQueryExecutor
             Optional<String> dimension, LocalDate startDate,
             LocalDate endDate, Optional<FunnelWindow> window, ZoneId timezone,
             Optional<List<String>> connectors,
-            Optional<Boolean> ordered, Optional<Boolean> approximate)
+            FunnelType type)
     {
         Map<String, List<SchemaField>> collections = metastore.getCollections(project);
 
@@ -91,7 +92,7 @@ public abstract class AbstractFunnelQueryExecutor
                             "(select *, row_number() OVER(ORDER BY total DESC) rank from (%s) t) t GROUP BY 1, 2",
                     dimension.map(ValidationUtil::checkTableColumn).get(), query);
         }
-        QueryExecution queryExecution = executor.executeQuery(project, query, timezone);
+        QueryExecution queryExecution = executor.executeRawQuery(query, timezone);
 
         return new DelegateQueryExecution(queryExecution,
                 result -> {

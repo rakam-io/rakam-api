@@ -1,27 +1,21 @@
 package org.rakam.presto.analysis;
 
-import com.facebook.presto.jdbc.internal.airlift.http.client.HttpClientConfig;
-import com.facebook.presto.jdbc.internal.airlift.http.client.HttpRequestFilter;
-import com.facebook.presto.jdbc.internal.airlift.http.client.Request;
-import com.facebook.presto.jdbc.internal.airlift.http.client.jetty.JettyHttpClient;
-import com.facebook.presto.jdbc.internal.airlift.http.client.jetty.JettyIoPool;
-import com.facebook.presto.jdbc.internal.airlift.http.client.jetty.JettyIoPoolConfig;
-import com.facebook.presto.jdbc.internal.airlift.units.Duration;
-import com.facebook.presto.jdbc.internal.client.ClientSession;
-import com.facebook.presto.jdbc.internal.client.ClientTypeSignatureParameter;
-import com.facebook.presto.jdbc.internal.client.ErrorLocation;
-import com.facebook.presto.jdbc.internal.client.QueryResults;
-import com.facebook.presto.jdbc.internal.client.StatementClient;
-import com.facebook.presto.jdbc.internal.client.StatementStats;
-import com.facebook.presto.jdbc.internal.guava.collect.ImmutableSet;
-import com.facebook.presto.jdbc.internal.guava.collect.Lists;
-import com.facebook.presto.jdbc.internal.guava.net.HostAndPort;
-import com.facebook.presto.jdbc.internal.guava.net.HttpHeaders;
-import com.facebook.presto.jdbc.internal.spi.type.StandardTypes;
+import com.facebook.presto.client.ClientSession;
+import com.facebook.presto.client.ClientTypeSignatureParameter;
+import com.facebook.presto.client.QueryResults;
+import com.facebook.presto.client.StatementClient;
+import com.facebook.presto.client.StatementStats;
+import com.facebook.presto.spi.type.StandardTypes;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.net.HostAndPort;
+import com.google.common.net.HttpHeaders;
+import io.airlift.http.client.HttpRequestFilter;
+import io.airlift.http.client.Request;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import okhttp3.OkHttpClient;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryError;
@@ -55,15 +49,11 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static com.facebook.presto.jdbc.internal.airlift.http.client.Request.Builder.fromRequest;
 import static com.facebook.presto.jdbc.internal.airlift.json.JsonCodec.jsonCodec;
 import static com.facebook.presto.jdbc.internal.guava.base.Preconditions.checkNotNull;
-import static com.facebook.presto.jdbc.internal.spi.type.ParameterKind.TYPE;
 import static com.google.common.base.Throwables.propagate;
+import static io.airlift.http.client.Request.Builder.fromRequest;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static java.time.ZoneOffset.UTC;
-import static java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME;
-import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.rakam.collection.FieldType.BINARY;
 import static org.rakam.collection.FieldType.BOOLEAN;
 import static org.rakam.collection.FieldType.DATE;
@@ -80,19 +70,14 @@ public class PrestoQueryExecution
         implements QueryExecution
 {
     private final static Logger LOGGER = Logger.get(PrestoQueryExecution.class);
-    private static final JettyHttpClient HTTP_CLIENT = new JettyHttpClient(
-            new HttpClientConfig()
-                    .setConnectTimeout(new Duration(10, SECONDS))
-                    .setSocksProxy(getSystemSocksProxy()),
-            new JettyIoPool("presto-jdbc", new JettyIoPoolConfig()),
-            ImmutableSet.of(new UserAgentRequestFilter("rakam")));
+    private static final OkHttpClient HTTP_CLIENT = new OkHttpClient().newBuilder()
+            .build();
 
     private static final ThreadPoolExecutor QUERY_EXECUTOR = new ThreadPoolExecutor(0, 60,
             300L, TimeUnit.SECONDS,
             new SynchronousQueue<>());
 
     private final List<List<Object>> data = Lists.newArrayList();
-    private static final com.facebook.presto.jdbc.internal.airlift.json.JsonCodec<QueryResults> QUERY_RESULTS_JSON_CODEC = jsonCodec(QueryResults.class);
     private final String query;
     private List<SchemaField> columns;
 
@@ -247,7 +232,7 @@ public class PrestoQueryExecution
         public QueryTracker(ClientSession session)
         {
             this.session = session;
-            this.zone = Optional.ofNullable(session.getTimeZoneId()).map(e -> ZoneId.of(e)).orElse(ZoneOffset.UTC);
+            this.zone = Optional.ofNullable(session.getTimeZone()).map(e -> ZoneId.of(e.getId())).orElse(ZoneOffset.UTC);
         }
 
         private void waitForQuery()
@@ -267,7 +252,7 @@ public class PrestoQueryExecution
         public void run()
         {
             try {
-                client = new StatementClient(HTTP_CLIENT, QUERY_RESULTS_JSON_CODEC, session, query);
+                client = new StatementClient(HTTP_CLIENT, session, query);
             }
             catch (RuntimeException e) {
                 String message = SERVER_NOT_ACTIVE + " " + e.getMessage();
@@ -288,8 +273,8 @@ public class PrestoQueryExecution
                     result.complete(QueryResult.errorResult(queryError, query));
                 }
                 else if (client.isFailed()) {
-                    com.facebook.presto.jdbc.internal.client.QueryError error = client.finalResults().getError();
-                    ErrorLocation errorLocation = error.getErrorLocation();
+                    com.facebook.presto.client.QueryError error = client.finalResults().getError();
+                    com.facebook.presto.client.ErrorLocation errorLocation = error.getErrorLocation();
                     QueryError queryError = new QueryError(
                             Optional.ofNullable(error.getFailureInfo().getMessage())
                                     .orElse(error.getFailureInfo().toException().toString()),
@@ -329,7 +314,7 @@ public class PrestoQueryExecution
                             List<ClientTypeSignatureParameter> arguments = c.getTypeSignature().getArguments();
                             return new SchemaField(c.getName(), fromPrestoType(c.getTypeSignature().getRawType(),
                                     arguments.stream()
-                                            .filter(argument -> argument.getKind() == TYPE)
+                                            .filter(argument -> argument.getKind() == com.facebook.presto.spi.type.ParameterKind.TYPE)
                                             .map(argument -> argument.getTypeSignature().getRawType()).iterator()));
                         })
                         .collect(Collectors.toList());

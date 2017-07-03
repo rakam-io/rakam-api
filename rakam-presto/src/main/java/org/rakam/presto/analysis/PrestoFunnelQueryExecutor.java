@@ -54,10 +54,10 @@ public class PrestoFunnelQueryExecutor
             FastGenericFunnelQueryExecutor fastPrestoFunnelQueryExecutor,
             PrestoApproxFunnelQueryExecutor approxFunnelQueryExecutor,
             Metastore metastore,
-            QueryExecutorService service,
+            QueryExecutor executor,
             UserPluginConfig userPluginConfig)
     {
-        super(projectConfig, metastore, service);
+        super(projectConfig, metastore, executor);
         this.fastPrestoFunnelQueryExecutor = fastPrestoFunnelQueryExecutor;
         this.approxFunnelQueryExecutor = approxFunnelQueryExecutor;
         this.userMappingEnabled = userPluginConfig.getEnableUserMapping();
@@ -74,29 +74,28 @@ public class PrestoFunnelQueryExecutor
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, Optional<Boolean> ordered, Optional<Boolean> approximate)
+    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, FunnelType funnelType)
     {
-        if (approximate.orElse(false)) {
-            return approxFunnelQueryExecutor.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, ordered, approximate);
+        if (funnelType == FunnelType.APPROXIMATE) {
+            return approxFunnelQueryExecutor.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, funnelType);
         }
 
-        if (!ordered.orElse(false)) {
-            return fastPrestoFunnelQueryExecutor.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, ordered, approximate);
+        if (funnelType != FunnelType.ORDERED) {
+            return fastPrestoFunnelQueryExecutor.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, funnelType);
         }
 
         if (dimension.isPresent() && projectConfig.getUserColumn().equals(dimension.get())) {
             throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
         }
 
-        return super.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, ordered, approximate);
+        return super.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, funnelType);
     }
 
     public String convertFunnel(String project, String connectorField, int idx, FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate)
     {
         Optional<String> filterExp = funnelStep.getExpression().map(value -> RakamSqlFormatter.formatExpression(value,
                 name -> name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
-                name -> formatIdentifier("step" + idx, '"') + "." + name.getParts().stream()
-                        .map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")), '"'));
+                name -> formatIdentifier("step" + idx, '"') + "." + name, '"'));
 
         String format = format("SELECT %s %s, %d as step, %s.%s from %s %s %s %s",
                 dimension.map(ValidationUtil::checkTableColumn).map(v -> "step" + idx + "." + v + ",").orElse(""),
@@ -104,7 +103,7 @@ public class PrestoFunnelQueryExecutor
                 idx + 1,
                 "step" + idx,
                 checkTableColumn(projectConfig.getTimeColumn()),
-                checkCollection(funnelStep.getCollection()),
+                checkCollection(project), checkCollection(funnelStep.getCollection()),
                 "step" + idx,
                 userMappingEnabled ? format("left join %s.%s mapping on (%s.%s is null and mapping.created_at >= date '%s' and mapping.merged_at <= date '%s' and mapping.id = %s.%s)",
                         project, checkCollection(ANONYMOUS_ID_MAPPING),

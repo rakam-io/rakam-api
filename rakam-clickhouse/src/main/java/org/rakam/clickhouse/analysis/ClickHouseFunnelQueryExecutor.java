@@ -59,7 +59,7 @@ public class ClickHouseFunnelQueryExecutor
     @Override
     public QueryExecution query(String project, List<FunnelStep> steps,
             Optional<String> dimension, LocalDate startDate, LocalDate endDate,
-            Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, Optional<Boolean> ordered, Optional<Boolean> approximate)
+            Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, FunnelType funnelType)
     {
         if (steps.size() == 0) {
             throw new RakamException("Funnel steps parameter is empty", BAD_REQUEST);
@@ -92,8 +92,7 @@ public class ClickHouseFunnelQueryExecutor
                     endDate.plusDays(1).format(ISO_DATE),
                     funnelStep.getExpression().map(exp -> "AND " + ClickhouseExpressionFormatter.formatExpression(exp,
                             name -> name.getParts().stream().map(e -> formatIdentifier(e, '`')).collect(Collectors.joining(".")),
-                            name -> checkCollection(funnelStep.getCollection()) + "." + name.getParts().stream()
-                                    .map(e -> formatIdentifier(e, '`')).collect(Collectors.joining(".")), '`')).orElse(""));
+                            name -> checkCollection(funnelStep.getCollection()) + "." + name, '`')).orElse(""));
         }).collect(Collectors.joining("\n        UNION ALL\n     "));
 
         String query = format("SELECT\n" +

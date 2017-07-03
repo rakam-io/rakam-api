@@ -24,7 +24,25 @@ public interface FunnelQueryExecutor
             LocalDate endDate,
             Optional<FunnelWindow> window, ZoneId zoneId,
             Optional<List<String>> connectors,
-            Optional<Boolean> ordered, Optional<Boolean> approximate);
+            FunnelType type);
+
+    enum FunnelType
+    {
+        NORMAL, APPROXIMATE, ORDERED;
+
+        @JsonCreator
+        public static FunnelType get(String name)
+        {
+            return valueOf(name.toUpperCase());
+        }
+
+        @JsonProperty
+        public String value()
+        {
+            return name();
+        }
+    }
+
 
     enum WindowType
     {

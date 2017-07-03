@@ -48,6 +48,9 @@ import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static org.rakam.analysis.FunnelQueryExecutor.FunnelType.APPROXIMATE;
+import static org.rakam.analysis.FunnelQueryExecutor.FunnelType.NORMAL;
+import static org.rakam.analysis.FunnelQueryExecutor.FunnelType.ORDERED;
 
 @Path("/funnel")
 @Api(value = "/funnel", nickname = "funnelAnalyzer", tags = "funnel")
@@ -85,7 +88,25 @@ public class FunnelAnalyzerHttpService
                 Optional.ofNullable(query.window),
                 query.timezone,
                 Optional.ofNullable(query.connectors),
-                Optional.ofNullable(query.strictOrdering), Optional.ofNullable(query.approximate)), (query, result) -> LOGGER.error(new RuntimeException(JsonHelper.encode(query) + " : " + result.getError().toString()), "Error running funnel query"));
+                getFunnelType(query)),
+                (query, result) -> LOGGER.error(new RuntimeException(JsonHelper.encode(query) + " : " + result.getError().toString()), "Error running funnel query"));
+    }
+
+    private FunnelQueryExecutor.FunnelType getFunnelType(FunnelQuery query)
+    {
+        if(query.funnelType != null) {
+            return query.funnelType;
+        }
+
+        if(Boolean.TRUE.equals(query.strictOrdering)) {
+            return ORDERED;
+        }
+
+        if(Boolean.TRUE.equals(query.approximate)) {
+            return APPROXIMATE;
+        }
+
+        return NORMAL;
     }
 
     @ApiOperation(value = "Execute query",
@@ -105,7 +126,7 @@ public class FunnelAnalyzerHttpService
                 Optional.ofNullable(query.window),
                 query.timezone,
                 Optional.ofNullable(query.connectors),
-                Optional.ofNullable(query.strictOrdering), Optional.ofNullable(query.approximate)).getResult();
+                getFunnelType(query)).getResult();
         result.thenAccept(data -> {
             if (data.isFailed()) {
                 LOGGER.error(new RuntimeException(JsonHelper.encode(query) + " : " + data.getError().toString()),
@@ -126,6 +147,7 @@ public class FunnelAnalyzerHttpService
         public final Boolean strictOrdering;
         public final List<String> connectors;
         public final Boolean approximate;
+        public final FunnelQueryExecutor.FunnelType funnelType;
 
         @JsonCreator
         public FunnelQuery(@ApiParam("steps") List<FunnelStep> steps,
@@ -136,6 +158,7 @@ public class FunnelAnalyzerHttpService
                 @ApiParam(value = "connectors", required = false) List<String> connectors,
                 @ApiParam(value = "strictOrdering", required = false) Boolean strictOrdering,
                 @ApiParam(value = "approximate", required = false) Boolean approximate,
+                @ApiParam(value = "funnelType", required = false) FunnelQueryExecutor.FunnelType funnelType,
                 @ApiParam(value = "timezone", required = false) String timezone)
         {
             this.steps = checkNotNull(steps, "steps field is required");
@@ -146,6 +169,7 @@ public class FunnelAnalyzerHttpService
             this.connectors = connectors;
             this.window = window;
             this.approximate = approximate;
+            this.funnelType = funnelType;
             try {
                 this.timezone = Optional.ofNullable(timezone)
                         .map(t -> ZoneId.of(t))

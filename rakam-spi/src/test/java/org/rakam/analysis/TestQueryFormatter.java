@@ -21,8 +21,7 @@ public class TestQueryFormatter {
                 name -> {
                     throw new UnsupportedOperationException();
                 },
-                name -> "\"dummy\"." + name.getParts().stream().map(e -> formatIdentifier(e, '"'))
-                        .collect(Collectors.joining(".")), '"'));
+                name -> "\"dummy\"." + name, '"'));
     }
 
     @Test
@@ -86,7 +85,6 @@ public class TestQueryFormatter {
                 "  \"schema\".\"testcollection\"\n" +
                 "))", formatExpression(expression,
                 name -> "\"schema\"." + name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
-                name -> name.getParts().stream().map(e -> formatIdentifier(e, '"'))
-                        .collect(Collectors.joining(".")), '"'));
+                name -> name, '"'));
     }
 }

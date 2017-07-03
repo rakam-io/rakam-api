@@ -3,7 +3,7 @@ package org.rakam.report.eventexplorer;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.DefaultExpressionTraversalVisitor;
 import com.facebook.presto.sql.tree.Expression;
-import com.facebook.presto.sql.tree.QualifiedNameReference;
+import com.facebook.presto.sql.tree.Identifier;
 import io.airlift.log.Logger;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EventExplorer;
@@ -385,13 +385,9 @@ public abstract class AbstractEventExplorer
         new DefaultExpressionTraversalVisitor<Void, Void>()
         {
             @Override
-            protected Void visitQualifiedNameReference(QualifiedNameReference node, Void context)
+            protected Void visitIdentifier(Identifier node, Void context)
             {
-                if (node.getName().getParts().size() != 1) {
-                    columnExists[0] = false;
-                }
-
-                if (!options.dimensions.contains(node.getName().getParts().get(0))) {
+                if (!options.dimensions.contains(node.getName())) {
                     columnExists[0] = false;
                 }
 

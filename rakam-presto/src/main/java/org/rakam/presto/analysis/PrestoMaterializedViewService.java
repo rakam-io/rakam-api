@@ -4,16 +4,14 @@ import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.AllColumns;
 import com.facebook.presto.sql.tree.DereferenceExpression;
+import com.facebook.presto.sql.tree.Identifier;
 import com.facebook.presto.sql.tree.QualifiedName;
-import com.facebook.presto.sql.tree.QualifiedNameReference;
 import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.QuerySpecification;
 import com.facebook.presto.sql.tree.SelectItem;
 import com.facebook.presto.sql.tree.SingleColumn;
 import com.google.common.collect.ImmutableMap;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.MaterializedViewService;
-import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
@@ -97,7 +95,7 @@ public class PrestoMaterializedViewService
 
         for (SelectItem selectItem : selectItems) {
             SingleColumn selectColumn = (SingleColumn) selectItem;
-            if (!selectColumn.getAlias().isPresent() && !(selectColumn.getExpression() instanceof QualifiedNameReference)
+            if (!selectColumn.getAlias().isPresent() && !(selectColumn.getExpression() instanceof Identifier)
                     && !(selectColumn.getExpression() instanceof DereferenceExpression)) {
                 throw new RakamException(format("Column '%s' must have alias", selectColumn.getExpression().toString()), BAD_REQUEST);
             }

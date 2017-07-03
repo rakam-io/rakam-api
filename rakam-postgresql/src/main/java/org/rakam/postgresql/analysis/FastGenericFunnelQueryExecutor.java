@@ -45,9 +45,9 @@ public class FastGenericFunnelQueryExecutor
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId timezone, Optional<List<String>> connectors, Optional<Boolean> ordered, Optional<Boolean> approximate)
+    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId timezone, Optional<List<String>> connectors, FunnelType funnelType)
     {
-        if (ordered.isPresent() && ordered.get()) {
+        if (funnelType == FunnelType.ORDERED) {
             throw new RakamException("Strict ordered funnel query is not supported", BAD_REQUEST);
         }
 
@@ -65,8 +65,7 @@ public class FastGenericFunnelQueryExecutor
         for (int i = 0; i < steps.size(); i++) {
             Optional<String> filterExp = steps.get(i).getExpression().map(value -> RakamSqlFormatter.formatExpression(value,
                     name -> name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
-                    name -> name.getParts().stream()
-                            .map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")), '"'));
+                    name -> name, '"'));
 
             if (i == 0) {
                 selects.add(format("sum(case when ts_event%d is not null then 1 else 0 end) as event%d_count", i, i));

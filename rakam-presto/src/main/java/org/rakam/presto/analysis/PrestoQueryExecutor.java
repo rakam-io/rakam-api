@@ -1,7 +1,6 @@
 package org.rakam.presto.analysis;
 
-import com.facebook.presto.jdbc.internal.airlift.units.Duration;
-import com.facebook.presto.jdbc.internal.client.ClientSession;
+import com.facebook.presto.client.ClientSession;
 import com.facebook.presto.rakam.externaldata.DataManager.DataSourceType;
 import com.facebook.presto.rakam.externaldata.source.MysqlDataSource;
 import com.facebook.presto.rakam.externaldata.source.PostgresqlDataSource;
@@ -14,6 +13,7 @@ import com.facebook.presto.sql.tree.QualifiedName;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Singleton;
+import io.airlift.units.Duration;
 import org.rakam.analysis.datasource.CustomDataSourceService;
 import org.rakam.analysis.datasource.RemoteTable;
 import org.rakam.analysis.metadata.Metastore;
@@ -117,6 +117,7 @@ public class PrestoQueryExecutor
                 prestoConfig.getAddress(),
                 "rakam",
                 "api-server",
+                null,
                 catalog == null ? "default" : catalog,
                 "default",
                 TimeZone.getTimeZone(timezone == null ? ZoneOffset.UTC : timezone).getID(),

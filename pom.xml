@@ -27,18 +27,6 @@
     </developers>
 
     <repositories>
-        <!--<repository>-->
-            <!--<snapshots>-->
-                <!--<enabled>false</enabled>-->
-            <!--</snapshots>-->
-            <!--<id>central</id>-->
-            <!--<name>Maven Repository Switchboard</name>-->
-            <!--<url>http://repo1.maven.org/maven2</url>-->
-        <!--</repository>-->
-        <repository>
-            <id>redshift</id>
-            <url>http://redshift-maven-repository.s3-website-us-east-1.amazonaws.com/release</url>
-        </repository>
         <repository>
             <snapshots>
                 <enabled>false</enabled>
@@ -78,13 +66,13 @@
         <air.check.skip-extended>true</air.check.skip-extended>
         <air.check.skip-license>true</air.check.skip-license>
         <air.check.skip-duplicate-finder>true</air.check.skip-duplicate-finder>
-        <dep.slice.version>0.27</dep.slice.version>
+        <dep.slice.version>0.29</dep.slice.version>
         <air.maven.version>3.3.3</air.maven.version>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>4.11</junit.version>
         <air.version>0.139</air.version>
-        <presto.version>0.156</presto.version>
+        <presto.version>0.180</presto.version>
         <java.version>1.8</java.version>
         <jackson.version>2.8.1</jackson.version>
         <aws.library>1.10.66</aws.library>
@@ -391,7 +379,7 @@
             <dependency>
                 <groupId>com.google.guava</groupId>
                 <artifactId>guava</artifactId>
-                <version>18.0</version>
+                <version>21.0</version>
             </dependency>
 
             <dependency>

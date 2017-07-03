@@ -5,13 +5,13 @@ import com.facebook.presto.sql.tree.AstVisitor;
 import com.facebook.presto.sql.tree.ComparisonExpression;
 import com.facebook.presto.sql.tree.ComparisonExpressionType;
 import com.facebook.presto.sql.tree.Expression;
+import com.facebook.presto.sql.tree.Identifier;
 import com.facebook.presto.sql.tree.IsNotNullPredicate;
 import com.facebook.presto.sql.tree.IsNullPredicate;
 import com.facebook.presto.sql.tree.LikePredicate;
 import com.facebook.presto.sql.tree.Literal;
 import com.facebook.presto.sql.tree.LogicalBinaryExpression;
 import com.facebook.presto.sql.tree.Node;
-import com.facebook.presto.sql.tree.QualifiedNameReference;
 import com.facebook.presto.sql.tree.StringLiteral;
 import com.google.common.base.Throwables;
 import net.openhft.compiler.CompilerUtils;
@@ -131,13 +131,9 @@ public final class ExpressionCompiler
         }
 
         @Override
-        protected String visitQualifiedNameReference(QualifiedNameReference node, Boolean unmangleNames)
+        protected String visitIdentifier(Identifier node, Boolean context)
         {
-            if (node.getName().getPrefix().isPresent()) {
-                throw new IllegalArgumentException("field reference is invalid");
-            }
-            final String suffix = node.getName().getSuffix();
-            return "props.get(\"" + checkTableColumn(suffix, "field reference is invalid", '"') + "\")";
+            return "props.get(\"" + checkTableColumn(node.getName(), "field reference is invalid", '"') + "\")";
         }
 
         @Override

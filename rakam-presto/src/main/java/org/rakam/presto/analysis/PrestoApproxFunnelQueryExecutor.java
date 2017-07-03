@@ -46,11 +46,11 @@ public class PrestoApproxFunnelQueryExecutor
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, Optional<Boolean> ordered, Optional<Boolean> approximate)
+    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, FunnelType funnelType)
     {
         String startDateStr = TIMESTAMP_FORMATTER.format(startDate.atStartOfDay(zoneId));
         String endDateStr = TIMESTAMP_FORMATTER.format(endDate.plusDays(1).atStartOfDay(zoneId));
-        if (ordered.isPresent() && ordered.get()) {
+        if (funnelType == FunnelType.ORDERED) {
             throw new RakamException("Ordered funnel query is not supported when approximation is enabled.", BAD_REQUEST);
         }
 
@@ -119,7 +119,6 @@ public class PrestoApproxFunnelQueryExecutor
     {
         return step.getExpression().map(value -> RakamSqlFormatter.formatExpression(value,
                 name -> name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
-                name -> name.getParts().stream()
-                        .map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")), '"')).orElse("true");
+                name -> name, '"')).orElse("true");
     }
 }

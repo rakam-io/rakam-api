@@ -7,6 +7,7 @@ import com.facebook.presto.sql.tree.BooleanLiteral;
 import com.facebook.presto.sql.tree.ComparisonExpression;
 import com.facebook.presto.sql.tree.DecimalLiteral;
 import com.facebook.presto.sql.tree.DoubleLiteral;
+import com.facebook.presto.sql.tree.Identifier;
 import com.facebook.presto.sql.tree.IsNotNullPredicate;
 import com.facebook.presto.sql.tree.IsNullPredicate;
 import com.facebook.presto.sql.tree.LikePredicate;
@@ -15,7 +16,6 @@ import com.facebook.presto.sql.tree.LogicalBinaryExpression;
 import com.facebook.presto.sql.tree.LongLiteral;
 import com.facebook.presto.sql.tree.Node;
 import com.facebook.presto.sql.tree.NotExpression;
-import com.facebook.presto.sql.tree.QualifiedNameReference;
 import com.facebook.presto.sql.tree.StringLiteral;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.util.RakamException;
@@ -40,7 +40,7 @@ class DynamodbFilterQueryFormatter
     @Override
     protected String visitIsNullPredicate(IsNullPredicate node, Boolean unmangleNames)
     {
-        if (!(node.getValue() instanceof QualifiedNameReference)) {
+        if (!(node.getValue() instanceof Identifier)) {
             throw new IllegalArgumentException("inlined expressions are not supported");
         }
 
@@ -66,10 +66,10 @@ class DynamodbFilterQueryFormatter
     }
 
     @Override
-    protected String visitQualifiedNameReference(QualifiedNameReference node, Boolean unmangleNames)
+    protected String visitIdentifier(Identifier node, Boolean context)
     {
         String variableName = "#" + variable[0]++;
-        nameBuilder.put(variableName, node.getName().toString());
+        nameBuilder.put(variableName, node.getName());
         return variableName;
     }
 
@@ -124,13 +124,13 @@ class DynamodbFilterQueryFormatter
     @Override
     protected String visitIsNotNullPredicate(IsNotNullPredicate node, Boolean unmangleNames)
     {
-        if (!(node.getValue() instanceof QualifiedNameReference)) {
+        if (!(node.getValue() instanceof Identifier)) {
             throw new IllegalArgumentException("inlined expressions are not supported");
         }
 
         String variableName = "#" + variable[0]++;
 
-        nameBuilder.put(variableName, ((QualifiedNameReference) node.getValue()).getName().toString());
+        nameBuilder.put(variableName, ((Identifier) node.getValue()).getName());
 
         return format("attribute_exists(%s)", variableName);
     }
@@ -138,7 +138,7 @@ class DynamodbFilterQueryFormatter
     @Override
     protected String visitBetweenPredicate(BetweenPredicate node, Boolean unmangleNames)
     {
-        if (!(node.getValue() instanceof QualifiedNameReference)) {
+        if (!(node.getValue() instanceof Identifier)) {
             throw new IllegalArgumentException("inlined expressions are not supported");
         }
 
@@ -150,7 +150,7 @@ class DynamodbFilterQueryFormatter
         }
 
         String variableName = "#" + variable[0]++;
-        nameBuilder.put(variableName, ((QualifiedNameReference) node.getValue()).getName().toString());
+        nameBuilder.put(variableName, ((Identifier) node.getValue()).getName());
 
         return "(#" + variableName + " BETWEEN " +
                 process(node.getMin(), unmangleNames) + " AND " + process(node.getMax(), unmangleNames) + ")";

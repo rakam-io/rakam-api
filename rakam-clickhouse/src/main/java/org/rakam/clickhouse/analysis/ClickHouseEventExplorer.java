@@ -180,8 +180,7 @@ public class ClickHouseEventExplorer
     {
         return ClickhouseExpressionFormatter.formatExpression(value,
                 name -> name.getParts().stream().map(e -> formatIdentifier(e, '`')).collect(Collectors.joining(".")),
-                name -> name.getParts().stream()
-                        .map(e -> formatIdentifier(e, '`')).collect(Collectors.joining(".")), '`');
+                name -> name, '`');
     }
 
     @Override

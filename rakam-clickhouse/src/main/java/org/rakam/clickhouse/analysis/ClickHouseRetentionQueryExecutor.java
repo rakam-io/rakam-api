@@ -43,8 +43,7 @@ public class ClickHouseRetentionQueryExecutor
     {
         return RakamSqlFormatter.formatExpression(value,
                 name -> name.getParts().stream().map(e -> formatIdentifier(e, '`')).collect(Collectors.joining(".")),
-                name -> name.getParts().stream()
-                        .map(e -> formatIdentifier(e, '`')).collect(Collectors.joining(".")), '`');
+                name -> name, '`');
     }
 
     @Override

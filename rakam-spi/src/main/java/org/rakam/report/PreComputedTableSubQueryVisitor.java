@@ -7,6 +7,7 @@ import com.facebook.presto.sql.tree.ComparisonExpression;
 import com.facebook.presto.sql.tree.DoubleLiteral;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.GenericLiteral;
+import com.facebook.presto.sql.tree.Identifier;
 import com.facebook.presto.sql.tree.InPredicate;
 import com.facebook.presto.sql.tree.IntervalLiteral;
 import com.facebook.presto.sql.tree.IsNotNullPredicate;
@@ -17,7 +18,6 @@ import com.facebook.presto.sql.tree.LongLiteral;
 import com.facebook.presto.sql.tree.Node;
 import com.facebook.presto.sql.tree.NotExpression;
 import com.facebook.presto.sql.tree.NullLiteral;
-import com.facebook.presto.sql.tree.QualifiedNameReference;
 import com.facebook.presto.sql.tree.StringLiteral;
 import com.facebook.presto.sql.tree.TimeLiteral;
 import com.facebook.presto.sql.tree.TimestampLiteral;
@@ -180,13 +180,10 @@ public class PreComputedTableSubQueryVisitor extends AstVisitor<String, Boolean>
     }
 
     @Override
-    protected String visitQualifiedNameReference(QualifiedNameReference node, Boolean negate) {
-        if (node.getName().getParts().size() != 1) {
-            throw new RakamException("Multiple references in filter expression are not supported: " +
-                    node.getName().getParts().stream().collect(Collectors.joining(",")), HttpResponseStatus.BAD_REQUEST);
-        }
+    protected String visitIdentifier(Identifier node, Boolean context)
+    {
         String tableColumn = ValidationUtil
-                .checkTableColumn(node.getName().getParts().get(0), "reference in filter", '"');
+                .checkTableColumn(node.getName(), "reference in filter", '"');
 
         Optional<String> preComputedTable = columnNameMapper.apply(tableColumn);
         if (preComputedTable.isPresent()) {

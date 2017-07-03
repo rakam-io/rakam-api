@@ -62,7 +62,7 @@ public class PostgresqlUserStorage
             if (filter.aggregation == null) {
                 builder.append(format("select \"_user\" from %s", collection));
                 if (filter.filterExpression != null) {
-                    builder.append(" where ").append(new ExpressionFormatter.Formatter(Optional.empty()).process(filter.getExpression(), true));
+                    builder.append(" where ").append(new ExpressionFormatter.Formatter(Optional.empty()).process(filter.getExpression(), null));
                 }
                 // TODO: timeframe
                 filters.add((format("id in (%s)", builder.toString())));
@@ -70,7 +70,7 @@ public class PostgresqlUserStorage
             else {
                 builder.append(format("select \"_user\" from %s", collection));
                 if (filter.filterExpression != null) {
-                    builder.append(" where ").append(new ExpressionFormatter.Formatter(Optional.empty()).process(filter.getExpression(), true));
+                    builder.append(" where ").append(new ExpressionFormatter.Formatter(Optional.empty()).process(filter.getExpression(), null));
                 }
                 String field;
                 if (filter.aggregation.type == COUNT && filter.aggregation.field == null) {
