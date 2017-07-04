@@ -27,6 +27,7 @@ import static com.google.common.collect.Iterables.transform;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 
+// It overrides QualifiedName and do not lowercase the names
 public class QualifiedName0
 {
     private final List<String> parts;

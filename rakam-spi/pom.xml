@@ -40,6 +40,12 @@
             <artifactId>units</artifactId>
         </dependency>
 
+        <!-- Remove this if QualifiedName0 is renamed to QualifiedName -->
+        <dependency>
+            <groupId>com.facebook.presto</groupId>
+            <artifactId>presto-parser</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
