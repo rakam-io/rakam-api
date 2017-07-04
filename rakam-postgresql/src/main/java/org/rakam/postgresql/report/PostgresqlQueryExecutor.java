@@ -149,6 +149,7 @@ public class PostgresqlQueryExecutor
                     if(remoteDb != null) {
                         CustomDataSource read = JsonHelper.read(remoteDb, CustomDataSource.class);
                         if (!read.schemaName.equals(prefix)) {
+//                            dataSource.options.getHost()
                             throw new RakamException("Cross database queries are not supported in Postgresql deployment type.", BAD_REQUEST);
                         }
                     } else {
