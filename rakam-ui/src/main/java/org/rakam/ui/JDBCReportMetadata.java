@@ -29,9 +29,6 @@ public class JDBCReportMetadata implements ReportMetadata {
                 JsonHelper.read(r.getString(6), Map.class),
                 r.getString(7) == null ? ImmutableMap.of() : JsonHelper.read(r.getString(7), Map.class),
                 r.getBoolean(8));
-        if(r.getMetaData().getColumnCount() >= 8) {
-            report.setPermission(r.getBoolean(9));
-        }
         if(r.getMetaData().getColumnCount() >= 9) {
             report.setUserId(r.getInt(9));
             report.setUserEmail(r.getString(10));

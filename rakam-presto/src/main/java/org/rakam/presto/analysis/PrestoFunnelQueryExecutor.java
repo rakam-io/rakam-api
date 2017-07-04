@@ -39,6 +39,7 @@ import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.rakam.presto.analysis.PrestoUserService.ANONYMOUS_ID_MAPPING;
 import static org.rakam.util.ValidationUtil.checkCollection;
+import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PrestoFunnelQueryExecutor
@@ -47,10 +48,12 @@ public class PrestoFunnelQueryExecutor
     private final boolean userMappingEnabled;
     private final FastGenericFunnelQueryExecutor fastPrestoFunnelQueryExecutor;
     private final PrestoApproxFunnelQueryExecutor approxFunnelQueryExecutor;
+    private final PrestoConfig prestoConfig;
 
     @Inject
     public PrestoFunnelQueryExecutor(
             ProjectConfig projectConfig,
+            PrestoConfig prestoConfig,
             FastGenericFunnelQueryExecutor fastPrestoFunnelQueryExecutor,
             PrestoApproxFunnelQueryExecutor approxFunnelQueryExecutor,
             Metastore metastore,
@@ -58,6 +61,7 @@ public class PrestoFunnelQueryExecutor
             UserPluginConfig userPluginConfig)
     {
         super(projectConfig, metastore, executor);
+        this.prestoConfig = prestoConfig;
         this.fastPrestoFunnelQueryExecutor = fastPrestoFunnelQueryExecutor;
         this.approxFunnelQueryExecutor = approxFunnelQueryExecutor;
         this.userMappingEnabled = userPluginConfig.getEnableUserMapping();
@@ -97,13 +101,12 @@ public class PrestoFunnelQueryExecutor
                 name -> name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
                 name -> formatIdentifier("step" + idx, '"') + "." + name, '"'));
 
-        String format = format("SELECT %s %s, %d as step, %s.%s from %s %s %s %s",
+        String format = format("SELECT %s %s, %d as step, %s.%s from %s.%s.%s %s %s %s",
                 dimension.map(ValidationUtil::checkTableColumn).map(v -> "step" + idx + "." + v + ",").orElse(""),
                 userMappingEnabled ? format("coalesce(mapping._user, %s._user, %s) as _user", "step" + idx, format(connectorField, "step" + idx)) : connectorField,
                 idx + 1,
-                "step" + idx,
-                checkTableColumn(projectConfig.getTimeColumn()),
-                checkCollection(project), checkCollection(funnelStep.getCollection()),
+                "step" + idx, checkTableColumn(projectConfig.getTimeColumn()),
+                prestoConfig.getColdStorageConnector(), checkProject(project, '"'), checkCollection(funnelStep.getCollection()),
                 "step" + idx,
                 userMappingEnabled ? format("left join %s.%s mapping on (%s.%s is null and mapping.created_at >= date '%s' and mapping.merged_at <= date '%s' and mapping.id = %s.%s)",
                         project, checkCollection(ANONYMOUS_ID_MAPPING),

@@ -24,8 +24,6 @@ public class Report
     public final Map<String, Object> queryOptions;
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public Boolean hasPermission;
-    @JsonInclude(JsonInclude.Include.NON_NULL)
     public Integer userId;
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public String userEmail;
@@ -49,11 +47,6 @@ public class Report
 
         checkArgument(this.slug.matches("^[A-Za-z]+[A-Za-z0-9_]*"),
                 "slug must only contain alphanumeric characters and _");
-    }
-
-    public void setPermission(boolean hasPermission)
-    {
-        this.hasPermission = hasPermission;
     }
 
     public void setUserId(int user)
