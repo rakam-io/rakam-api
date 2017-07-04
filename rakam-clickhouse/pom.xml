@@ -33,6 +33,11 @@
             <groupId>com.amazonaws</groupId>
             <artifactId>amazon-kinesis-producer</artifactId>
         </dependency>
+        <!-- Remove this if QualifiedName0 is renamed to QualifiedName -->
+        <dependency>
+            <groupId>com.facebook.presto</groupId>
+            <artifactId>presto-parser</artifactId>
+        </dependency>
         <dependency>
             <artifactId>aws-java-sdk-kinesis</artifactId>
             <groupId>com.amazonaws</groupId>

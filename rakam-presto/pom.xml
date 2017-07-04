@@ -59,6 +59,11 @@
             <groupId>io.airlift</groupId>
             <artifactId>log</artifactId>
         </dependency>
+        <!-- Remove this if QualifiedName0 is renamed to QualifiedName -->
+        <dependency>
+            <groupId>com.facebook.presto</groupId>
+            <artifactId>presto-parser</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.google.inject</groupId>
             <artifactId>guice</artifactId>
