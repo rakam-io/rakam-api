@@ -201,7 +201,7 @@ public class RakamExpressionFormatter
         for (Expression value : node.getValues()) {
             valueStrings.add(formatSql(value, tableNameMapper,  columnNameMapper.orElse(null), queryWithTables, escape));
         }
-        return "ARRAY[" + Joiner.on(",").join(valueStrings.build()) + "]";
+        return "array[" + Joiner.on(",").join(valueStrings.build()) + "]";
     }
 
     @Override

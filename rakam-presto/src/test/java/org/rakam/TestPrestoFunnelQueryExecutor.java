@@ -45,11 +45,6 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
 
         EventBus eventBus = new EventBus();
 
-//        prestoMetastore = JDBCPoolDataSource.getOrCreateDataSource(new JDBCConfig().setUrl("jdbc:mysql://127.0.0.1:3306/presto").setUsername("root").setPassword("hebelek123"));
-//        prestoConfig = new PrestoConfig()
-//                .setAddress(URI.create("http://127.0.0.1:8080"))
-//                .setColdStorageConnector("rakam_raptor");
-
         metastore = new PrestoRakamRaptorMetastore(prestoMetastore, eventBus, new ProjectConfig(), prestoConfig);
         metastore.setup();
 

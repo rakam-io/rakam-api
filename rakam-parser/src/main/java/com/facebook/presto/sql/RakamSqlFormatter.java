@@ -73,7 +73,6 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static com.facebook.presto.sql.ExpressionFormatter.formatExpression;
 import static com.facebook.presto.sql.ExpressionFormatter.formatOrderBy;
 import static com.facebook.presto.sql.ExpressionFormatter.formatStringLiteral;
 import static com.facebook.presto.sql.RakamExpressionFormatter.formatGroupBy;

@@ -9,7 +9,7 @@ import java.util.List;
 
 public class PrestoConfig {
     private URI address;
-    private String coldStorageConnector;
+    private String coldStorageConnector = "rakam_raptor";
     private String hotStorageConnector;
     private String streamingConnector = "streaming";
     private String userConnector = "user";

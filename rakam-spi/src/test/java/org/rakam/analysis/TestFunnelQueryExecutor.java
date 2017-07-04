@@ -92,7 +92,7 @@ public abstract class TestFunnelQueryExecutor {
         QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME, of(new FunnelStep("test0", null)),
                 Optional.empty(),
                 LocalDate.ofEpochDay(0),
-                LocalDate.ofEpochDay(SCALE_FACTOR), Optional.of(new FunnelWindow(30, DAY)), UTC,
+                LocalDate.ofEpochDay(SCALE_FACTOR), Optional.empty(), UTC,
                 Optional.empty(), FunnelQueryExecutor.FunnelType.APPROXIMATE).getResult().join();
 
         assertFalse(query.isFailed());
@@ -117,7 +117,7 @@ public abstract class TestFunnelQueryExecutor {
                 of(new FunnelStep("test0", null), new FunnelStep("test1", null), new FunnelStep("test2", null)),
                 Optional.empty(),
                 LocalDate.ofEpochDay(0),
-                LocalDate.ofEpochDay(SCALE_FACTOR), Optional.of(new FunnelWindow(30, DAY)), UTC,
+                LocalDate.ofEpochDay(SCALE_FACTOR), Optional.empty(), UTC,
                 Optional.empty(), APPROXIMATE).getResult().join();
 
         assertFalse(query.isFailed());
@@ -145,7 +145,7 @@ public abstract class TestFunnelQueryExecutor {
                 of(new FunnelStep("test0", null), new FunnelStep("test1", null), new FunnelStep("test2", null)),
                 Optional.of("teststr"),
                 LocalDate.ofEpochDay(0),
-                LocalDate.ofEpochDay(SCALE_FACTOR), Optional.of(new FunnelWindow(30, DAY)), UTC,
+                LocalDate.ofEpochDay(SCALE_FACTOR), Optional.empty(), UTC,
                 Optional.empty(), APPROXIMATE).getResult().join();
 
         assertFalse(query.isFailed());
@@ -200,7 +200,7 @@ public abstract class TestFunnelQueryExecutor {
                 of(new FunnelStep("test0", Optional.of("teststr = 'test1'")), new FunnelStep("test1", Optional.of("teststr = 'test1'"))),
                 Optional.of("teststr"),
                 LocalDate.ofEpochDay(0),
-                LocalDate.ofEpochDay(SCALE_FACTOR), Optional.of(new FunnelWindow(30, DAY)), UTC,
+                LocalDate.ofEpochDay(SCALE_FACTOR), Optional.empty(), UTC,
                 Optional.empty(), APPROXIMATE).getResult().join();
 
         assertFalse(query.isFailed());
