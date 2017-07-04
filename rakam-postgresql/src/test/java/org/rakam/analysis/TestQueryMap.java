@@ -4,11 +4,8 @@ import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.IdentifierSymbol;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.parser.SqlParserOptions;
-import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Statement;
 import org.testng.annotations.Test;
-
-import java.util.function.Function;
 
 public class TestQueryMap
 {
