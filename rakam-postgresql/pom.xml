@@ -90,10 +90,10 @@
         </dependency>
 
         <!-- Remove this if QualifiedName0 is renamed to QualifiedName -->
-        <!--<dependency>-->
-            <!--<groupId>com.facebook.presto</groupId>-->
-            <!--<artifactId>presto-parser</artifactId>-->
-        <!--</dependency>-->
+        <dependency>
+            <groupId>com.facebook.presto</groupId>
+            <artifactId>presto-parser</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.rakam</groupId>

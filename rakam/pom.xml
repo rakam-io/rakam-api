@@ -137,11 +137,6 @@
             <artifactId>rakam-spi</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.rakam</groupId>
-            <artifactId>rakam-parser</artifactId>
-            <version>${project.version}</version>
-        </dependency>
 
         <!--<dependency>-->
             <!--<groupId>com.amazonaws</groupId>-->
