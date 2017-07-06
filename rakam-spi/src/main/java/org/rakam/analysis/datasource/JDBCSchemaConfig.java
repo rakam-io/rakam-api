@@ -8,7 +8,7 @@ public class JDBCSchemaConfig
     private String database;
     private String schema;
     private Integer port;
-    private boolean enableSSL;
+    private Boolean enableSSL;
 
     public JDBCSchemaConfig setUsername(String username)
     {
@@ -22,7 +22,7 @@ public class JDBCSchemaConfig
         return this;
     }
 
-    public boolean getEnableSSL()
+    public Boolean getEnableSSL()
     {
         return enableSSL;
     }

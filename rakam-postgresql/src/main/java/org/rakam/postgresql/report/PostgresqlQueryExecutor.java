@@ -213,7 +213,7 @@ public class PostgresqlQueryExecutor
                 && Objects.equals(current.options.getUsername(), dataSource.options.getUsername())
                 && Objects.equals(current.options.getPassword(), dataSource.options.getPassword())
                 && Objects.equals(current.options.getPort(), dataSource.options.getPort())
-                && current.options.getEnableSSL() == dataSource.options.getEnableSSL();
+                && Objects.equals(current.options.getEnableSSL(), dataSource.options.getEnableSSL());
     }
 
     public Connection getConnection()
