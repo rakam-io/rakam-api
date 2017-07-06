@@ -20,7 +20,6 @@ import org.rakam.report.QueryExecutor;
 import org.rakam.report.QuerySampling;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
@@ -28,15 +27,10 @@ import javax.inject.Inject;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.time.format.TextStyle;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
-import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -45,8 +39,6 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.EXPECTATION_FAILED;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static java.lang.String.format;
-import static java.time.format.TextStyle.SHORT;
-import static java.util.Locale.ENGLISH;
 import static java.util.Optional.ofNullable;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkLiteral;
@@ -118,7 +110,7 @@ public class PostgresqlQueryExecutor
     }
 
     @Override
-    public String formatTableReference(String project, QualifiedName name, Optional<QuerySampling> sample, Map<String, String> sessionParameters, String defaultSchema)
+    public String formatTableReference(String project, QualifiedName name, Optional<QuerySampling> sample, Map<String, String> sessionParameters)
     {
         if (name.getPrefix().isPresent()) {
             String prefix = name.getPrefix().get().toString();

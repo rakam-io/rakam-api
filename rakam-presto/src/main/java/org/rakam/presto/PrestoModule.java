@@ -2,14 +2,12 @@ package org.rakam.presto;
 
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Key;
 import com.google.inject.Scopes;
-import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.multibindings.OptionalBinder;
 import com.google.inject.name.Names;
@@ -57,32 +55,22 @@ import org.rakam.presto.analysis.PrestoUserService;
 import org.rakam.presto.plugin.user.PrestoExternalUserStorageAdapter;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.eventexplorer.EventExplorerConfig;
-import org.rakam.report.realtime.AggregationType;
-import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.util.ConditionalModule;
-import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
-import java.util.List;
 import java.util.Optional;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static org.rakam.presto.analysis.PrestoUserService.ANONYMOUS_ID_MAPPING;
-import static org.rakam.report.realtime.AggregationType.APPROXIMATE_UNIQUE;
-import static org.rakam.report.realtime.AggregationType.COUNT;
-import static org.rakam.report.realtime.AggregationType.MAXIMUM;
-import static org.rakam.report.realtime.AggregationType.MINIMUM;
-import static org.rakam.report.realtime.AggregationType.SUM;
 import static org.rakam.util.ValidationUtil.checkCollection;
 
 @AutoService(RakamModule.class)
@@ -230,7 +218,7 @@ public class PrestoModule
         {
             executor.executeRawStatement(format("CREATE TABLE %s(id VARCHAR, %s VARCHAR, " +
                             "created_at TIMESTAMP, merged_at TIMESTAMP)",
-                    executor.formatTableReference(event.project, QualifiedName.of(ANONYMOUS_ID_MAPPING), Optional.empty(), ImmutableMap.of(), "collection"),
+                    executor.formatTableReference(event.project, QualifiedName.of(ANONYMOUS_ID_MAPPING), Optional.empty(), ImmutableMap.of()),
                     checkCollection(projectConfig.getUserColumn())));
         }
     }

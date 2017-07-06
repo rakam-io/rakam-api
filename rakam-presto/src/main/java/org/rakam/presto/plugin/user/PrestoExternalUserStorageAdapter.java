@@ -15,7 +15,6 @@ import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.report.QueryExecution;
-import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
@@ -156,7 +155,7 @@ public class PrestoExternalUserStorageAdapter
     public List<String> getEventFilterPredicate(String project, List<EventFilter> eventFilter)
     {
         return eventFilter.stream().map(f -> String.format("id in (%s)",
-                String.format(getEventFilterQuery(project, f), executor.formatTableReference(project, QualifiedName.of(f.collection), Optional.empty(), ImmutableMap.of(), "collection"))))
+                String.format(getEventFilterQuery(project, f), executor.formatTableReference(project, QualifiedName.of(f.collection), Optional.empty(), ImmutableMap.of()))))
                 .collect(Collectors.toList());
     }
 

@@ -70,7 +70,7 @@ public class PrestoContinuousQueryService
             if (name.getSuffix().equals("_all") && name.getPrefix().map(prefix -> prefix.equals("collection")).orElse(true)) {
                 return format("_all.%s", project);
             }
-            return executor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of(), "collection");
+            return executor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of());
         }, '"').process(query, 1);
 
         return builder.toString();

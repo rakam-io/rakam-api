@@ -50,7 +50,6 @@ import java.util.stream.Collectors;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static java.lang.String.format;
-import static java.time.ZoneOffset.UTC;
 import static java.util.Base64.getDecoder;
 import static java.util.Base64.getEncoder;
 import static org.rakam.postgresql.report.PostgresqlQueryExecutor.dbSeparator;
@@ -205,7 +204,7 @@ public class PrestoQueryExecutor
     }
 
     @Override
-    public String formatTableReference(String project, QualifiedName node, Optional<QuerySampling> sample, Map<String, String> sessionParameters, String defaultSchema)
+    public String formatTableReference(String project, QualifiedName node, Optional<QuerySampling> sample, Map<String, String> sessionParameters)
     {
         String prefix = node.getPrefix().map(e -> e.toString()).orElse(null);
         String suffix = node.getSuffix();
@@ -224,7 +223,7 @@ public class PrestoQueryExecutor
         else if ("materialized".equals(prefix)) {
             return getTableReference(project, MATERIALIZED_VIEW_PREFIX + suffix, sample);
         }
-        else if ("collection".equals(prefix) || (prefix == null && (defaultSchema.equals("collection")) && !"_users".equals(suffix) && !"_all".equals(suffix))) {
+        else if ("collection".equals(prefix) || (prefix == null && !"_users".equals(suffix) && !"_all".equals(suffix))) {
             return getTableReference(project, suffix, sample);
         }
         else {
@@ -278,7 +277,7 @@ public class PrestoQueryExecutor
                 }
             }
             else {
-                prefix = Optional.ofNullable(prefix).orElse(defaultSchema);
+                prefix = Optional.ofNullable(prefix).orElse("collection");
 
                 if (customDataSource == null) {
                     throw new RakamException(NOT_FOUND);

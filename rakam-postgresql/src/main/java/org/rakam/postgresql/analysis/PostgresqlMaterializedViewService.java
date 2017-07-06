@@ -76,7 +76,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
 
                             throw new RakamException("Cross database materialized views are not supported in Postgresql deployment type.", BAD_REQUEST);
                         }
-                    }, "collection"), '"').process(statement, 1);
+                    }), '"').process(statement, 1);
 
             if(!materializedView.incremental) {
                 format = format("CREATE MATERIALIZED VIEW %s.%s AS %s WITH NO DATA",
@@ -134,7 +134,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
         CompletableFuture<Instant> f = new CompletableFuture<>();
 
         String tableName = queryExecutor.formatTableReference(project,
-                QualifiedName.of("materialized", materializedView.tableName), Optional.empty(), ImmutableMap.of(), "collection");
+                QualifiedName.of("materialized", materializedView.tableName), Optional.empty(), ImmutableMap.of());
         Query statement;
         synchronized (sqlParser) {
             statement = (Query) sqlParser.createStatement(materializedView.query);
@@ -172,7 +172,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
                                     format(" < timezone('UTC', to_timestamp(%d))", now.getEpochSecond());
 
                             String collection = queryExecutor.formatTableReference(project, name, Optional.empty(),
-                                    ImmutableMap.of(), "collection");
+                                    ImmutableMap.of());
                             return format("(SELECT * FROM %s WHERE \"$server_time\" %s) data", collection, predicate);
                         }, '"');
 
@@ -193,7 +193,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
                 String query = formatSql(statement,
                         name -> {
                             String collection = format("(SELECT * FROM %s %s) data",
-                                    queryExecutor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of(), "collection"),
+                                    queryExecutor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of()),
                                     format("WHERE \"$server_time\" > to_timestamp(%d)",
                                             (lastUpdated != null ? lastUpdated : now).getEpochSecond()));
                             return collection;

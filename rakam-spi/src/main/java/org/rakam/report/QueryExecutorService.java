@@ -240,7 +240,11 @@ public class QueryExecutorService
                 return materializedViewExecution.computeQuery ;
             }
 
-            return executor.formatTableReference(project, node, sample, sessionParameters, defaultSchema);
+            if(!node.getPrefix().isPresent() && defaultSchema != null) {
+                node = QualifiedName.of(defaultSchema, node.getSuffix());
+            }
+
+            return executor.formatTableReference(project, node, sample, sessionParameters);
         };
     }
 
@@ -257,7 +261,7 @@ public class QueryExecutorService
 
         Map<String, String> map = new HashMap<>();
         new RakamSqlFormatter.Formatter(builder, qualifiedName ->
-                executor.formatTableReference(project, qualifiedName, Optional.empty(), map, "collection"), escapeIdentifier)
+                executor.formatTableReference(project, qualifiedName, Optional.empty(), map), escapeIdentifier)
                 .process(queryStatement, 1);
 
         QueryExecution execution = executor

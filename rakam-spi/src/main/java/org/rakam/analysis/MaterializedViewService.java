@@ -115,7 +115,7 @@ public abstract class MaterializedViewService
         CompletableFuture<List<SchemaField>> f = new CompletableFuture<>();
 
         try {
-            new RakamSqlFormatter.Formatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName, Optional.empty(), ImmutableMap.of(), "collection"), escapeIdentifier)
+            new RakamSqlFormatter.Formatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName, Optional.empty(), ImmutableMap.of()), escapeIdentifier)
                     .process(queryStatement, 1);
         }
         catch (Exception e) {
