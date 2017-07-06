@@ -159,6 +159,7 @@ public class PostgresqlQueryExecutor
                     }
 
                     sessionParameters.put("remotedb", JsonHelper.encode(state));
+
                     return checkProject(prefix, '"') + "." + checkCollection(name.getSuffix());
             }
         }
@@ -229,22 +230,26 @@ public class PostgresqlQueryExecutor
 
     private QueryExecution getSingleQueryExecution(String query, List<CustomDataSource> type)
     {
-
         char seperator = dbSeparator(type.get(0).type);
 
         StringBuilder builder = new StringBuilder();
         Statement statement = sqlParser.createStatement(query);
 
-        new RakamSqlFormatter.Formatter(builder, qualifiedName -> {
-            String schema = qualifiedName.getPrefix().get().toString();
-            CustomDataSource customDataSource1 = type.stream().filter(e -> e.schemaName.equals(schema)).findAny().get();
+        try {
+            new RakamSqlFormatter.Formatter(builder, qualifiedName -> {
+                String schema = qualifiedName.getPrefix().get().toString();
+                CustomDataSource customDataSource1 = type.stream()
+                        .filter(e -> e.schemaName.equals(schema)).findAny()
+                        .orElseThrow(() -> new RakamException("Cross database operations are not supported.", BAD_REQUEST));
 
-            return ofNullable(customDataSource1.options.getSchema())
-                    .map(e -> e + "." + qualifiedName.getSuffix())
-                    .orElse(qualifiedName.getSuffix());
-        }, seperator)
-        {
-        }.process(statement, 1);
+                return ofNullable(customDataSource1.options.getSchema())
+                        .map(e -> e + "." + qualifiedName.getSuffix())
+                        .orElse(qualifiedName.getSuffix());
+            }, seperator){}.process(statement, 1);
+        }
+        catch (UnsupportedOperationException e) {
+            return null;
+        }
 
         String sqlQuery = builder.toString();
 
