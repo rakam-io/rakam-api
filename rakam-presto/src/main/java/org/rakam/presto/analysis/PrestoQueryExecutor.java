@@ -20,7 +20,7 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.JDBCConfig;
 import org.rakam.config.ProjectConfig;
-import org.rakam.postgresql.report.PostgresqlQueryExecution;
+import org.rakam.postgresql.report.JDBCQueryExecution;
 import org.rakam.presto.PrestoModule.UserConfig;
 import org.rakam.analysis.datasource.CustomDataSource;
 import org.rakam.analysis.datasource.JDBCSchemaConfig;
@@ -89,9 +89,9 @@ public class PrestoQueryExecutor
     }
 
     @Override
-    public PrestoQueryExecution executeRawQuery(String query, ZoneId timezone, Map<String, String> sessionParameters)
+    public QueryExecution executeRawQuery(String query, ZoneId timezone, Map<String, String> sessionParameters)
     {
-        return internalExecuteRawQuery(query, createSession(null, timezone, sessionParameters));
+        return executeRawQuery(query, timezone, sessionParameters, null);
     }
 
     @Override
@@ -194,8 +194,8 @@ public class PrestoQueryExecutor
             return null;
         }
 
-        return new PostgresqlQueryExecution(() -> source.getDataSource().openConnection(convert),
-                builder.toString(), false, null);
+        return new JDBCQueryExecution(() -> source.getDataSource().openConnection(convert),
+                builder.toString(), false, Optional.empty(), false);
     }
 
     public PrestoQueryExecution internalExecuteRawQuery(String query, ClientSession clientSession)

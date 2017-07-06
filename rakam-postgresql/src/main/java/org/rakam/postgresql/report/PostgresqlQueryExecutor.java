@@ -90,7 +90,7 @@ public class PostgresqlQueryExecutor
     @Override
     public QueryExecution executeRawQuery(String query, ZoneId zoneId, Map<String, String> sessionParameters)
     {
-        return new PostgresqlQueryExecution(connectionPool::getConnection, query, false, zoneId);
+        return new JDBCQueryExecution(connectionPool::getConnection, query, false, Optional.of(zoneId), true);
     }
 
     @Override
@@ -100,13 +100,13 @@ public class PostgresqlQueryExecutor
         if(remotedb != null) {
             return getSingleQueryExecution(query, JsonHelper.read(remotedb, CustomDataSource.class));
         }
-        return new PostgresqlQueryExecution(connectionPool::getConnection, query, false, null);
+        return new JDBCQueryExecution(connectionPool::getConnection, query, false, Optional.empty(), true);
     }
 
     @Override
     public QueryExecution executeRawStatement(String query)
     {
-        return new PostgresqlQueryExecution(connectionPool::getConnection, query, true, null);
+        return new JDBCQueryExecution(connectionPool::getConnection, query, true, Optional.empty(), true);
     }
 
     @Override
@@ -253,7 +253,7 @@ public class PostgresqlQueryExecutor
             sqlQuery = sqlQuery.replaceAll("LIMIT ([0-9]+)$", "ORDER BY 1 OFFSET 0 ROWS FETCH NEXT $1 ROWS ONLY");
         }
 
-        return new PostgresqlQueryExecution(() ->
-                source.getDataSource().openConnection(type.options), sqlQuery, false, null);
+        return new JDBCQueryExecution(() ->
+                source.getDataSource().openConnection(type.options), sqlQuery, false, Optional.empty(), false);
     }
 }

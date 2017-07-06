@@ -5,9 +5,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import io.airlift.log.Logger;
 import org.postgresql.jdbc.PgConnection;
-import org.postgresql.jdbc.TimestampUtils;
 import org.postgresql.util.PGobject;
-import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryError;
@@ -18,37 +16,28 @@ import org.rakam.util.JsonHelper;
 import org.rakam.util.LogUtil;
 import org.skife.jdbi.v2.tweak.ConnectionFactory;
 
-import javax.sql.DataSource;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.sql.Array;
 import java.sql.Connection;
-import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Time;
-import java.sql.Timestamp;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.List;
-import java.util.TimeZone;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 import static java.lang.String.format;
 import static java.time.format.TextStyle.NARROW;
-import static java.time.format.TextStyle.SHORT;
 import static java.util.Locale.ENGLISH;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.postgresql.report.PostgresqlQueryExecutor.QUERY_EXECUTOR;
@@ -59,10 +48,10 @@ import static org.rakam.report.QueryStats.State.RUNNING;
 import static org.rakam.util.JDBCUtil.fromSql;
 import static org.rakam.util.ValidationUtil.checkLiteral;
 
-public class PostgresqlQueryExecution
+public class JDBCQueryExecution
         implements QueryExecution
 {
-    private final static Logger LOGGER = Logger.get(PostgresqlQueryExecution.class);
+    private final static Logger LOGGER = Logger.get(JDBCQueryExecution.class);
 
     private final CompletableFuture<QueryResult> result;
     private final String query;
@@ -70,10 +59,10 @@ public class PostgresqlQueryExecution
     private Statement statement;
     private static final ZoneId UTC = ZoneId.of("UTC");
 
-    public PostgresqlQueryExecution(ConnectionFactory connectionPool, String query, boolean update, ZoneId optionalZoneId)
+    public JDBCQueryExecution(ConnectionFactory connectionPool, String query, boolean update, Optional<ZoneId> optionalZoneId, boolean applyZone)
     {
         this.query = query;
-        zoneId = optionalZoneId != null ? (optionalZoneId == ZoneOffset.UTC ? UTC : optionalZoneId) : UTC;
+        zoneId = applyZone ? optionalZoneId.map(v -> v == ZoneOffset.UTC ? UTC : v).orElse(UTC) : null;
 
         // TODO: unnecessary threads will be spawn
         Supplier<QueryResult> task = () -> {
@@ -89,14 +78,21 @@ public class PostgresqlQueryExecution
                 }
                 else {
                     long beforeExecuted = System.currentTimeMillis();
-                    String finalQuery = format("set time zone '%s'",
-                            checkLiteral(zoneId.getDisplayName(NARROW, ENGLISH))) + "; " + query;
+                    String finalQuery;
+                    if(applyZone) {
+                        finalQuery = format("set time zone '%s'",
+                                checkLiteral(zoneId.getDisplayName(NARROW, ENGLISH))) + "; " + query;
+                    } else {
+                        finalQuery = query;
+                    }
+
                     statement.execute(finalQuery);
-                    statement.getMoreResults();
+                    if(applyZone) {
+                        statement.getMoreResults();
+                    }
                     ResultSet resultSet = statement.getResultSet();
                     statement = null;
-                    queryResult = resultSetToQueryResult(resultSet, System.currentTimeMillis() - beforeExecuted,
-                            connection.unwrap(PgConnection.class));
+                    queryResult = resultSetToQueryResult(resultSet, System.currentTimeMillis() - beforeExecuted, connection);
                 }
             }
             catch (Exception e) {
@@ -156,7 +152,7 @@ public class PostgresqlQueryExecution
         }
     }
 
-    private QueryResult resultSetToQueryResult(ResultSet resultSet, long executionTimeInMillis, PgConnection connection)
+    private QueryResult resultSetToQueryResult(ResultSet resultSet, long executionTimeInMillis, Connection connection)
     {
         List<SchemaField> columns;
         List<List<Object>> data;
@@ -211,7 +207,11 @@ public class PostgresqlQueryExecution
                             break;
                         case TIMESTAMP:
                             String timestamp = resultSet.getString(columnIndex);
-                            object = connection.getTimestampUtils().toLocalDateTime(timestamp).atZone(zoneId);
+                            if(zoneId != null) {
+                                object = ((PgConnection) connection).getTimestampUtils().toLocalDateTime(timestamp).atZone(zoneId);
+                            } else {
+                                object = resultSet.getTimestamp(columnIndex);
+                            }
                             break;
                         case DATE:
                             object = LocalDate.parse(resultSet.getString(columnIndex));
