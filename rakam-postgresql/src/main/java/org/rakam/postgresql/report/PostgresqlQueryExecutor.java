@@ -33,6 +33,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -90,17 +91,17 @@ public class PostgresqlQueryExecutor
     @Override
     public QueryExecution executeRawQuery(String query, ZoneId zoneId, Map<String, String> sessionParameters)
     {
+        String remotedb = sessionParameters.get("remotedb");
+        if (remotedb != null) {
+            return getSingleQueryExecution(query, JsonHelper.read(remotedb, new TypeReference<List<CustomDataSource>>() {}));
+        }
         return new JDBCQueryExecution(connectionPool::getConnection, query, false, Optional.ofNullable(zoneId), true);
     }
 
     @Override
     public QueryExecution executeRawQuery(String query, Map<String, String> sessionParameters)
     {
-        String remotedb = sessionParameters.get("remotedb");
-        if(remotedb != null) {
-            return getSingleQueryExecution(query, JsonHelper.read(remotedb, CustomDataSource.class));
-        }
-        return new JDBCQueryExecution(connectionPool::getConnection, query, false, Optional.empty(), true);
+        return executeRawQuery(query, null, sessionParameters);
     }
 
     @Override
@@ -144,21 +145,21 @@ public class PostgresqlQueryExecutor
 
                     String remoteDb = sessionParameters.get("remotedb");
                     List<CustomDataSource> state;
-                    if(remoteDb != null) {
+                    if (remoteDb != null) {
                         state = JsonHelper.read(remoteDb, new TypeReference<List<CustomDataSource>>() {});
                         if (!inSameDatabase(state.get(0), dataSource)) {
                             throw new RakamException("Cross database queries are not supported in Postgresql deployment type.", BAD_REQUEST);
                         }
-                        if(!state.stream().anyMatch(e -> e.schemaName.equals(dataSource.schemaName))) {
+                        if (!state.stream().anyMatch(e -> e.schemaName.equals(dataSource.schemaName))) {
                             state.add(dataSource);
                         }
-                    } else {
+                    }
+                    else {
                         state = ImmutableList.of(dataSource);
                     }
 
                     sessionParameters.put("remotedb", JsonHelper.encode(state));
-
-                    return ofNullable(dataSource.options.getSchema()).map(v -> checkProject(v, '"') + ".").orElse("") + checkCollection(name.getSuffix());
+                    return checkProject(prefix, '"') + "." + checkCollection(name.getSuffix());
             }
         }
         else if (name.getSuffix().equals("users") || name.getSuffix().equals("_users")) {
@@ -196,7 +197,7 @@ public class PostgresqlQueryExecutor
 
     private boolean inSameDatabase(CustomDataSource current, CustomDataSource dataSource)
     {
-        if(current.schemaName.equals(dataSource)) {
+        if (current.schemaName.equals(dataSource)) {
             return true;
         }
 
@@ -226,34 +227,28 @@ public class PostgresqlQueryExecutor
         }
     }
 
-    private QueryExecution getSingleQueryExecution(String query, CustomDataSource type)
+    private QueryExecution getSingleQueryExecution(String query, List<CustomDataSource> type)
     {
-        Optional<String> schema = ofNullable(type.options.getSchema());
 
-        SupportedCustomDatabase source;
-        try {
-            source = SupportedCustomDatabase.getAdapter(type.type);
-        }
-        catch (IllegalArgumentException e) {
-            return null;
-        }
-        char seperator = dbSeparator(type.type);
+        char seperator = dbSeparator(type.get(0).type);
 
         StringBuilder builder = new StringBuilder();
         Statement statement = sqlParser.createStatement(query);
 
-        new RakamSqlFormatter.Formatter(builder, qualifiedName -> schema.map(e -> e + "." + qualifiedName.getSuffix())
-                .orElse(qualifiedName.getSuffix()), seperator) {
+        new RakamSqlFormatter.Formatter(builder, qualifiedName -> {
+            String schema = qualifiedName.getPrefix().get().toString();
+            CustomDataSource customDataSource1 = type.stream().filter(e -> e.schemaName.equals(schema)).findAny().get();
+
+            return ofNullable(customDataSource1.options.getSchema())
+                    .map(e -> e + "." + qualifiedName.getSuffix())
+                    .orElse(qualifiedName.getSuffix());
+        }, seperator)
+        {
         }.process(statement, 1);
 
         String sqlQuery = builder.toString();
 
-        // TODO: remove mssql support
-        if(type.type.equals(SupportedCustomDatabase.MSSQL.name())) {
-            sqlQuery = sqlQuery.replaceAll("LIMIT ([0-9]+)$", "ORDER BY 1 OFFSET 0 ROWS FETCH NEXT $1 ROWS ONLY");
-        }
-
         return new JDBCQueryExecution(() ->
-                source.getDataSource().openConnection(type.options), sqlQuery, false, Optional.empty(), false);
+                SupportedCustomDatabase.getAdapter(type.get(0).type).getDataSource().openConnection(type.get(0).options), sqlQuery, false, Optional.empty(), false);
     }
 }
