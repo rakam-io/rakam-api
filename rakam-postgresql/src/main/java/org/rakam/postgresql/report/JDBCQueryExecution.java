@@ -208,7 +208,7 @@ public class JDBCQueryExecution
                         case TIMESTAMP:
                             String timestamp = resultSet.getString(columnIndex);
                             if(zoneId != null) {
-                                object = ((PgConnection) connection).getTimestampUtils().toLocalDateTime(timestamp).atZone(zoneId);
+                                object = connection.unwrap(PgConnection.class).getTimestampUtils().toLocalDateTime(timestamp).atZone(zoneId);
                             } else {
                                 object = resultSet.getTimestamp(columnIndex);
                             }
