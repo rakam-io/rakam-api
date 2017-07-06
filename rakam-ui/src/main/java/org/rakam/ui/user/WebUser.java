@@ -40,12 +40,14 @@ public class WebUser {
         public final String name;
         public final String apiUrl;
         public final ZoneId timezone;
+        public final int ownerId;
         public final List<ProjectApiKeys> apiKeys;
 
-        public Project(int id, String name, String apiUrl, ZoneId zoneId, List<ProjectApiKeys> apiKeys) {
+        public Project(int id, String name, String apiUrl, ZoneId zoneId, int ownerId, List<ProjectApiKeys> apiKeys) {
             this.id = id;
             this.name = name;
             this.timezone = zoneId;
+            this.ownerId = ownerId;
             this.apiKeys = apiKeys;
             this.apiUrl = apiUrl;
         }

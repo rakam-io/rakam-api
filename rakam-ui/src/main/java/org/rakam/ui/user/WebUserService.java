@@ -30,7 +30,6 @@ import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.ResultIterator;
-import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.TransactionStatus;
 import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
@@ -67,7 +66,6 @@ import java.util.stream.Stream;
 import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.EXPECTATION_FAILED;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_IMPLEMENTED;
 import static io.netty.handler.codec.http.HttpResponseStatus.PRECONDITION_REQUIRED;
@@ -184,7 +182,7 @@ public class WebUserService
                     }).list();
         }
         catch (SQLException e) {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -901,11 +899,11 @@ public class WebUserService
     private List<WebUser.Project> getUserApiKeys(Handle handle, int userId)
     {
         List<WebUser.Project> list = new ArrayList<>();
-        ResultIterator<Object> user = handle.createQuery("SELECT project.id, project.project, project.api_url, project.timezone, api_key.master_key, api_key.read_key, api_key.write_key " +
+        ResultIterator<Object> user = handle.createQuery("SELECT project.id, project.project, project.api_url, project.timezone, :user, api_key.master_key, api_key.read_key, api_key.write_key " +
                 " FROM web_user_project project " +
                 " JOIN web_user_api_key api_key ON (api_key.project_id = project.id)" +
                 " WHERE api_key.user_id = :user " +
-                " UNION ALL SELECT api_key.project_id, project.project, project.api_url, project.timezone, " +
+                " UNION ALL SELECT api_key.project_id, project.project, project.api_url, project.timezone, project.user_id, " +
                 "case when permission.master_permission then api_key.master_key else null end," +
                 "case when permission.master_permission or permission.read_permission then api_key.read_key else null end," +
                 "case when permission.master_permission or permission.write_permission then api_key.write_key else null end " +
@@ -926,15 +924,17 @@ public class WebUserService
                     catch (ZoneRulesException e) {
                         zoneId = null;
                     }
+
+                    int ownerId = r.getInt(5);
                     ZoneId finalZoneId = zoneId;
                     WebUser.Project p = list.stream().filter(e -> e.id == id)
                             .findFirst()
                             .orElseGet(() -> {
-                                WebUser.Project project = new WebUser.Project(id, name, url, finalZoneId, new ArrayList<>());
+                                WebUser.Project project = new WebUser.Project(id, name, url, finalZoneId, ownerId, new ArrayList<>());
                                 list.add(project);
                                 return project;
                             });
-                    p.apiKeys.add(ProjectApiKeys.create(r.getString(5), r.getString(6), r.getString(7)));
+                    p.apiKeys.add(ProjectApiKeys.create(r.getString(6), r.getString(7), r.getString(8)));
                     return null;
                 }).iterator();
 

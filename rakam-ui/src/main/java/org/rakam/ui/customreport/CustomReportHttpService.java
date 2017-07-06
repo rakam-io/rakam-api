@@ -26,6 +26,7 @@ import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.ProtectEndpoint;
 import org.rakam.ui.UIPermissionParameterProvider;
 import org.rakam.ui.UIPermissionParameterProvider.Project;
+import org.rakam.ui.user.WebUserService;
 import org.rakam.util.RakamException;
 import org.rakam.util.SuccessMessage;
 
@@ -45,11 +46,13 @@ public class CustomReportHttpService
 {
 
     private final CustomReportMetadata metadata;
+    private final WebUserService userService;
 
     @Inject
-    public CustomReportHttpService(CustomReportMetadata metadata)
+    public CustomReportHttpService(WebUserService userService, CustomReportMetadata metadata)
     {
         this.metadata = metadata;
+        this.userService = userService;
     }
 
     @JsonRequest
@@ -89,7 +92,10 @@ public class CustomReportHttpService
     {
         CustomReport customReport = metadata.get(report.reportType, project.project, report.name);
         if(customReport.getUser() != null && customReport.getUser() != project.userId) {
-            throw new RakamException("The owner of the custom report can update the report", UNAUTHORIZED);
+            int id = userService.getProjectOwner(project.project).id;
+            if(id != project.userId) {
+                throw new RakamException("The owner of the custom report can update the report", UNAUTHORIZED);
+            }
         }
         metadata.update(project.project, report);
         return SuccessMessage.success();
@@ -105,11 +111,13 @@ public class CustomReportHttpService
     {
         CustomReport customReport = metadata.get(reportType, project.project, name);
         if(customReport.getUser() != null && customReport.getUser() != project.userId) {
-            throw new RakamException("The owner of the custom report can delete the report", UNAUTHORIZED);
+            int id = userService.getProjectOwner(project.project).id;
+            if(id != project.userId) {
+                throw new RakamException("The owner of the custom report can delete the report", UNAUTHORIZED);
+            }
         }
 
         metadata.delete(reportType, project.project, name);
-
         return SuccessMessage.success();
     }
 

@@ -56,7 +56,7 @@ public class JDBCReportMetadata implements ReportMetadata {
     public void delete(Integer userId, int project, String slug) {
         try (Handle handle = dbi.open()) {
             int execute = handle.createStatement("DELETE FROM reports WHERE project_id = :project AND slug = :slug" +
-                    " AND (:user is null or user_id = :user)")
+                    " AND (:user is null or user_id = :user or (SELECT user_id = :user FROM web_user_project WHERE id = :project))")
                     .bind("project", project)
                     .bind("slug", slug)
                     .bind("user", userId).execute();
@@ -109,7 +109,8 @@ public class JDBCReportMetadata implements ReportMetadata {
 
     public Report update(Integer userId, int project, Report report) {
         try (Handle handle = dbi.open()) {
-            int execute = handle.createStatement("UPDATE reports SET name = :name, query = :query, category = :category, options = :options WHERE project_id = :project AND slug = :slug AND user_id = :user")
+            int execute = handle.createStatement("UPDATE reports SET name = :name, query = :query, category = :category, options = :options" +
+                    " WHERE project_id = :project AND slug = :slug AND (user_id = :user or user_id is null or (SELECT user_id = :user FROM web_user_project WHERE id = :project))")
                     .bind("project", project)
                     .bind("name", report.name)
                     .bind("query", report.query)

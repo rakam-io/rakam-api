@@ -55,6 +55,11 @@
         </dependency>
 
         <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>org.rakam</groupId>
             <artifactId>rakam-spi</artifactId>
             <version>${project.version}</version>
