@@ -4,6 +4,8 @@ import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Statement;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.collect.ImmutableList;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
 import org.rakam.analysis.JDBCPoolDataSource;
@@ -31,7 +33,9 @@ import java.time.format.TextStyle;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -43,6 +47,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static java.lang.String.format;
 import static java.time.format.TextStyle.SHORT;
 import static java.util.Locale.ENGLISH;
+import static java.util.Optional.ofNullable;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkLiteral;
 import static org.rakam.util.ValidationUtil.checkProject;
@@ -146,16 +151,22 @@ public class PostgresqlQueryExecutor
                     }
 
                     String remoteDb = sessionParameters.get("remotedb");
+                    List<CustomDataSource> state;
                     if(remoteDb != null) {
-                        CustomDataSource read = JsonHelper.read(remoteDb, CustomDataSource.class);
-                        if (!read.schemaName.equals(prefix)) {
-//                            dataSource.options.getHost()
+                        state = JsonHelper.read(remoteDb, new TypeReference<List<CustomDataSource>>() {});
+                        if (!inSameDatabase(state.get(0), dataSource)) {
                             throw new RakamException("Cross database queries are not supported in Postgresql deployment type.", BAD_REQUEST);
                         }
+                        if(!state.stream().anyMatch(e -> e.schemaName.equals(dataSource.schemaName))) {
+                            state.add(dataSource);
+                        }
                     } else {
-                        sessionParameters.put("remotedb", JsonHelper.encode(dataSource));
+                        state = ImmutableList.of(dataSource);
                     }
 
+                    sessionParameters.put("remotedb", JsonHelper.encode(state));
+
+                    return ofNullable(dataSource.options.getSchema()).map(v -> checkProject(v, '"') + ".").orElse("") + checkCollection(name.getSuffix());
             }
         }
         else if (name.getSuffix().equals("users") || name.getSuffix().equals("_users")) {
@@ -191,6 +202,20 @@ public class PostgresqlQueryExecutor
         }
     }
 
+    private boolean inSameDatabase(CustomDataSource current, CustomDataSource dataSource)
+    {
+        if(current.schemaName.equals(dataSource)) {
+            return true;
+        }
+
+        return current.type.equals(dataSource.type)
+                && current.options.getHost().equals(dataSource.options.getHost())
+                && Objects.equals(current.options.getUsername(), dataSource.options.getUsername())
+                && Objects.equals(current.options.getPassword(), dataSource.options.getPassword())
+                && Objects.equals(current.options.getPort(), dataSource.options.getPort())
+                && current.options.getEnableSSL() == dataSource.options.getEnableSSL();
+    }
+
     public Connection getConnection()
             throws SQLException
     {
@@ -211,7 +236,7 @@ public class PostgresqlQueryExecutor
 
     private QueryExecution getSingleQueryExecution(String query, CustomDataSource type)
     {
-        Optional<String> schema = Optional.ofNullable(type.options.getSchema());
+        Optional<String> schema = ofNullable(type.options.getSchema());
 
         SupportedCustomDatabase source;
         try {

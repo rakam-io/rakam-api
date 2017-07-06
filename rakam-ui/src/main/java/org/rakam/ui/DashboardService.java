@@ -361,18 +361,15 @@ public class DashboardService
             @Named("user_id") Project project,
             @ApiParam("dashboard") int dashboard,
             @ApiParam("name") String name,
-            @ApiParam("refresh_interval") Duration refreshDuration,
-            @ApiParam(value = "sharedEveryone", required = false) Boolean sharedEveryone,
+            @ApiParam(value = "refresh_interval", required = false) Duration refreshDuration,
             @ApiParam("options") Map<String, Object> options)
     {
         dbi.inTransaction((handle, transactionStatus) -> {
-            handle.createStatement("UPDATE dashboard SET options = :options, refresh_interval = :refreshDuration, name = :name," +
-                    " shared_everyone = (case when :shared is null then shared_everyone else :shared end)" +
+            handle.createStatement("UPDATE dashboard SET options = :options, refresh_interval = :refreshDuration, name = :name" +
                     " WHERE id = :id AND project_id = :project")
                     .bind("id", dashboard)
                     .bind("name", name)
-                    .bind("shared", TRUE.equals(sharedEveryone))
-                    .bind("refreshDuration", refreshDuration.getSeconds())
+                    .bind("refreshDuration", refreshDuration != null ? refreshDuration.getSeconds() : null)
                     .bind("options", JsonHelper.encode(options))
                     .bind("project", project.project)
                     .execute();
