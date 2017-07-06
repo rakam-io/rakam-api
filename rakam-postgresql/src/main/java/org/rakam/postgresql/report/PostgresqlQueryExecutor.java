@@ -90,7 +90,7 @@ public class PostgresqlQueryExecutor
     @Override
     public QueryExecution executeRawQuery(String query, ZoneId zoneId, Map<String, String> sessionParameters)
     {
-        return new JDBCQueryExecution(connectionPool::getConnection, query, false, Optional.of(zoneId), true);
+        return new JDBCQueryExecution(connectionPool::getConnection, query, false, Optional.ofNullable(zoneId), true);
     }
 
     @Override
