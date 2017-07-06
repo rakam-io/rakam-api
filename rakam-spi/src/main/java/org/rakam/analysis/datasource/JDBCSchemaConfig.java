@@ -1,5 +1,7 @@
 package org.rakam.analysis.datasource;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 public class JDBCSchemaConfig
 {
     private String username;
@@ -8,6 +10,7 @@ public class JDBCSchemaConfig
     private String database;
     private String schema;
     private Integer port;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private Boolean enableSSL;
 
     public JDBCSchemaConfig setUsername(String username)
