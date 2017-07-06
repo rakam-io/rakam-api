@@ -576,7 +576,7 @@ public class RakamExpressionFormatter
             parts.add("PARTITION BY " + joinExpressions(node.getPartitionBy()));
         }
         if (node.getOrderBy().isPresent()) {
-            parts.add(formatOrderBy(node.getOrderBy().get()));
+            parts.add(formatOrderBy(node.getOrderBy().get(), tableNameMapper, columnNameMapper, queryWithTables, escape));
         }
         if (node.getFrame().isPresent()) {
             parts.add(process(node.getFrame().get(), context));
@@ -695,15 +695,15 @@ public class RakamExpressionFormatter
         return builder.toString();
     }
 
-    String formatOrderBy(OrderBy orderBy)
+    static String formatOrderBy(OrderBy orderBy, Function<QualifiedName, String> tableNameMapper, Optional<Function<String, String>> columnNameMapper, List<String> queryWithTables, char escapeIdentifier)
     {
-        return "ORDER BY " + formatSortItems(orderBy.getSortItems());
+        return "ORDER BY " + formatSortItems(orderBy.getSortItems(), tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier);
     }
 
-    String formatSortItems(List<SortItem> sortItems)
+    static String formatSortItems(List<SortItem> sortItems, Function<QualifiedName, String> tableNameMapper, Optional<Function<String, String>> columnNameMapper, List<String> queryWithTables, char escapeIdentifier)
     {
         return Joiner.on(", ").join(sortItems.stream()
-                .map(sortItemFormatterFunction())
+                .map(sortItemFormatterFunction(tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier))
                 .iterator());
     }
 
@@ -769,12 +769,12 @@ public class RakamExpressionFormatter
         return format("(%s)", Joiner.on(", ").join(groupingSet));
     }
 
-    private Function<SortItem, String> sortItemFormatterFunction()
+    private static Function<SortItem, String> sortItemFormatterFunction(Function<QualifiedName, String> tableNameMapper, Optional<Function<String, String>> columnNameMapper, List<String> queryWithTables, char escapeIdentifier)
     {
         return input -> {
             StringBuilder builder = new StringBuilder();
 
-            builder.append(formatExpression(input.getSortKey(), tableNameMapper, columnNameMapper, queryWithTables, escape));
+            builder.append(formatExpression(input.getSortKey(), tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier));
 
             switch (input.getOrdering()) {
                 case ASCENDING:

@@ -73,7 +73,6 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static com.facebook.presto.sql.ExpressionFormatter.formatOrderBy;
 import static com.facebook.presto.sql.ExpressionFormatter.formatStringLiteral;
 import static com.facebook.presto.sql.RakamExpressionFormatter.formatGroupBy;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -310,7 +309,7 @@ public final class RakamSqlFormatter
         @Override
         protected Void visitOrderBy(OrderBy node, Integer indent)
         {
-            append(indent, formatOrderBy(node, Optional.empty()))
+            append(indent, RakamExpressionFormatter.formatOrderBy(node, tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier))
                     .append('\n');
             return null;
         }

@@ -333,13 +333,13 @@ public class LdapAuthService
         }
     }
 
-    public static void main(String[] args)
-    {
-        LdapConfig ldapConfig = new LdapConfig();
-        ldapConfig.setLdapUrl("ldap://ldap.forumsys.com:389")
-                .setUserBindSearchPattern("cn=read-only-admin,dc=example,dc=com");
-        LdapAuthService ldapAuth = new LdapAuthService(ldapConfig, new RakamUIConfig(), null);
-
-        ldapAuth.authenticate("riemann", "password");
-    }
+//    public static void main(String[] args)
+//    {
+//        LdapConfig ldapConfig = new LdapConfig();
+//        ldapConfig.setLdapUrl("ldap://ldap.forumsys.com:389")
+//                .setUserBindSearchPattern("cn=read-only-admin,dc=example,dc=com");
+//        LdapAuthService ldapAuth = new LdapAuthService(ldapConfig, new RakamUIConfig(), null);
+//
+//        ldapAuth.authenticate("riemann", "password");
+//    }
 }
