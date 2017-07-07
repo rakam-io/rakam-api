@@ -42,7 +42,8 @@ public abstract class RakamModule
             ConditionalModule annotation = this.getClass().getAnnotation(ConditionalModule.class);
             if(annotation != null) {
                 configurationFactory.consumeProperty(annotation.config());
-                String value = configurationFactory.getProperties().get(annotation.config());
+                String value = Optional.ofNullable(configurationFactory.getProperties().get(annotation.config()))
+                        .map(v -> v.trim()).orElse(null);
                 if(!Objects.equals(annotation.value(), value)) {
                     return;
                 }
