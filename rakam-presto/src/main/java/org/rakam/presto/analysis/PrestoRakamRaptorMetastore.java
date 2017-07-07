@@ -186,7 +186,7 @@ public class PrestoRakamRaptorMetastore
                 return currentFields;
             }
 
-            queryEnd += format(", \"%s\" %s", "_shard_time", toSql(TIMESTAMP));
+            queryEnd += format(", \"%s\" %s", prestoConfig.getCheckpointColumn(), toSql(TIMESTAMP));
 
             List<String> params = new ArrayList<>();
             if (fields.stream().anyMatch(f -> f.getName().equals(projectConfig.getTimeColumn()) && (f.getType() == TIMESTAMP || f.getType() == DATE))) {
