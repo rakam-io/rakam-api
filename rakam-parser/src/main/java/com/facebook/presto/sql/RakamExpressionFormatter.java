@@ -337,8 +337,15 @@ public class RakamExpressionFormatter
             arguments = "DISTINCT " + arguments;
         }
 
-        builder.append(formatQualifiedName(node.getName(), escape))
-                .append('(').append(arguments).append(')');
+        String name;
+        if(node.getName().getParts().size() > 1) {
+            name = formatQualifiedName(node.getName(), escape);
+        } else {
+            // for Mysql - > SELECT `count`(1) doesn't work
+            name = node.getName().getSuffix();
+        }
+
+        builder.append(name).append('(').append(arguments).append(')');
 
         if (node.getFilter().isPresent()) {
             builder.append(" FILTER ").append(visitFilter(node.getFilter().get(), context));
