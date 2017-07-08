@@ -158,43 +158,57 @@ public class AWSKinesisEventStore
 
     public void store(Event event, CompletableFuture<Void> future, int tryCount)
     {
-        ByteBuf buffer = getBuffer(event);
-        kinesis.putRecordAsync(config.getEventStoreStreamName(), buffer.nioBuffer(),
-                getPartitionKey(event), new AsyncHandler<PutRecordRequest, PutRecordResult>()
-                {
-                    @Override
-                    public void onError(Exception e)
-                    {
-                        try {
-                            if (e instanceof ResourceNotFoundException) {
-                                try {
-                                    KinesisUtils.createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
-                                }
-                                catch (Exception e1) {
-                                    throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
-                                }
-                            }
+        store(getBuffer(event), getPartitionKey(event), future, tryCount);
+    }
 
-                            LOGGER.error(e);
-                            if (tryCount > 0) {
-                                store(event, future, tryCount - 1);
+    public void store(ByteBuf buffer, String partitionKey, CompletableFuture<Void> future, int tryCount)
+    {
+        try {
+            kinesis.putRecordAsync(config.getEventStoreStreamName(), buffer.nioBuffer(), partitionKey, new AsyncHandler<PutRecordRequest, PutRecordResult>()
+            {
+                @Override
+                public void onError(Exception e)
+                {
+                    try {
+                        if (e instanceof ResourceNotFoundException) {
+                            try {
+                                KinesisUtils.createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
                             }
-                            else {
-                                future.completeExceptionally(new RakamException(INTERNAL_SERVER_ERROR));
+                            catch (Exception e1) {
+                                throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
                             }
                         }
-                        finally {
+
+                        LOGGER.error(e);
+                        if (tryCount > 0) {
+                            store(buffer, partitionKey, future, tryCount - 1);
+                        }
+                        else {
                             buffer.release();
+                            future.completeExceptionally(new RakamException(INTERNAL_SERVER_ERROR));
                         }
                     }
-
-                    @Override
-                    public void onSuccess(PutRecordRequest request, PutRecordResult putRecordResult)
-                    {
+                    catch (Throwable e1) {
                         buffer.release();
+                        LOGGER.error(e1);
+                    }
+                }
+
+                @Override
+                public void onSuccess(PutRecordRequest request, PutRecordResult putRecordResult)
+                {
+                    try {
+                        buffer.release();
+                    }
+                    finally {
                         future.complete(null);
                     }
-                });
+                }
+            });
+        }
+        catch (Exception e) {
+            buffer.release();
+        }
     }
 
     private ByteBuf getBuffer(Event event)
