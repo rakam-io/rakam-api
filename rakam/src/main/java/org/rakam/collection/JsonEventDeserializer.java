@@ -61,10 +61,9 @@ import static org.rakam.analysis.InternalConfig.USER_TYPE;
 import static org.rakam.collection.FieldType.ARRAY_STRING;
 import static org.rakam.collection.FieldType.MAP_STRING;
 import static org.rakam.collection.FieldType.STRING;
-import static org.rakam.collection.SchemaField.stripName;
 import static org.rakam.util.AvroUtil.convertAvroSchema;
-import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkCollectionValid;
+import static org.rakam.util.ValidationUtil.stripName;
 
 public class JsonEventDeserializer
         extends JsonDeserializer<Event>

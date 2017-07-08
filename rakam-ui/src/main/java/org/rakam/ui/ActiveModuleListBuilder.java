@@ -65,6 +65,10 @@ public class ActiveModuleListBuilder {
         public final boolean userStorageEventFilter;
         @JsonProperty
         public final boolean customDatabaseEnabled;
+        @JsonProperty
+        private final String timeColumn;
+        @JsonProperty
+        private final String userColumn;
 
         private ActiveModuleList(UserPluginConfig userPluginConfig,  boolean userStorageMailbox,
                 RealTimeConfig realtimeConfig, EventStreamConfig eventStreamConfig,
@@ -81,6 +85,8 @@ public class ActiveModuleListBuilder {
             this.eventStream = eventStreamConfig.getEventStreamEnabled();
             this.userStorageEventFilter = userStorage.getStorageModule() != null;
             this.companyName = projectConfig.getCompanyName();
+            this.timeColumn = projectConfig.getTimeColumn();
+            this.userColumn = projectConfig.getUserColumn();
             this.customDatabaseEnabled = customDatabaseEnabled;
         }
     }

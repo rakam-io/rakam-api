@@ -10,6 +10,8 @@ import org.rakam.util.ValidationUtil;
 
 import java.util.Locale;
 
+import static org.rakam.util.ValidationUtil.stripName;
+
 public class SchemaField
 {
     private final String name;
@@ -41,45 +43,6 @@ public class SchemaField
             throw new RakamException(String.format("Field name (%s) can't be empty string", this.name),
                     HttpResponseStatus.BAD_REQUEST);
         }
-    }
-
-    public static String stripName(String name, String type)
-    {
-        if(name.isEmpty()) {
-            throw new RakamException(type+" is empty", HttpResponseStatus.BAD_REQUEST);
-        }
-
-        StringBuilder builder = new StringBuilder(name.length());
-        for (int i = 0; i < name.length(); i++) {
-            char charAt = name.charAt(i);
-            if (charAt == '"' || (i == 0 && charAt == ' ')) {
-                continue;
-            }
-
-            if (Character.isUpperCase(charAt)) {
-                if (i > 0) {
-                    if (Character.isLowerCase(name.charAt(i - 1))) {
-                        builder.append("_");
-                    }
-                }
-
-                builder.append(Character.toLowerCase(charAt));
-            }
-            else {
-                builder.append(charAt);
-            }
-        }
-
-        if(builder.length() == 0) {
-            throw new RakamException("Invalid "+type+": "+name, HttpResponseStatus.BAD_REQUEST);
-        }
-
-        int lastIdx = builder.length() - 1;
-        if(builder.charAt(lastIdx) == ' ') {
-            builder.deleteCharAt(lastIdx);
-        }
-
-        return builder.toString();
     }
 
     public SchemaField(String name, FieldType type)

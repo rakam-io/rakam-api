@@ -63,12 +63,12 @@ import java.util.stream.Stream;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static org.rakam.analysis.InternalConfig.USER_TYPE;
-import static org.rakam.collection.SchemaField.stripName;
 import static org.rakam.postgresql.plugin.user.PostgresqlUserStorage.USER_TABLE;
 import static org.rakam.report.QueryResult.TOTAL_RESULT;
 import static org.rakam.util.JDBCUtil.fromSql;
 import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
+import static org.rakam.util.ValidationUtil.stripName;
 
 public abstract class AbstractPostgresqlUserStorage
         implements UserStorage

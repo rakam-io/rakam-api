@@ -19,6 +19,7 @@ import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.config.ProjectConfig;
 import org.rakam.util.DateTimeUtils;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 
@@ -142,7 +143,7 @@ public class CsvEventDeserializer
 
         Set<SchemaField> newFields = new HashSet<>();
         while (jp.nextToken() == VALUE_STRING) {
-            String name = SchemaField.stripName(jp.getValueAsString(), "header name");
+            String name = ValidationUtil.stripName(jp.getValueAsString(), "header name");
 
             Optional<SchemaField> existingField = fields.stream()
                     .filter(f -> f.getName().equals(name)).findAny();

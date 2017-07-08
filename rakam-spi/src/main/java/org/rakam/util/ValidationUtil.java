@@ -1,5 +1,6 @@
 package org.rakam.util;
 
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 
 import javax.annotation.Nullable;
@@ -77,7 +78,7 @@ public final class ValidationUtil
             throw new IllegalArgumentException(type + " is null");
         }
 
-        return escape + SchemaField.stripName(column, "field name") + escape;
+        return escape + stripName(column, "field name") + escape;
     }
 
     public static void checkArgument(boolean expression, @Nullable String errorMessage)
@@ -90,6 +91,45 @@ public final class ValidationUtil
                 throw new RakamException(errorMessage, BAD_REQUEST);
             }
         }
+    }
+
+    public static String stripName(String name, String type)
+    {
+        if(name.isEmpty()) {
+            throw new RakamException(type+" is empty", HttpResponseStatus.BAD_REQUEST);
+        }
+
+        StringBuilder builder = new StringBuilder(name.length());
+        for (int i = 0; i < name.length(); i++) {
+            char charAt = name.charAt(i);
+            if (charAt == '"' || (i == 0 && charAt == ' ')) {
+                continue;
+            }
+
+            if (Character.isUpperCase(charAt)) {
+                if (i > 0) {
+                    if (Character.isLowerCase(name.charAt(i - 1))) {
+                        builder.append("_");
+                    }
+                }
+
+                builder.append(Character.toLowerCase(charAt));
+            }
+            else {
+                builder.append(charAt);
+            }
+        }
+
+        if(builder.length() == 0) {
+            throw new RakamException("Invalid "+type+": "+name, HttpResponseStatus.BAD_REQUEST);
+        }
+
+        int lastIdx = builder.length() - 1;
+        if(builder.charAt(lastIdx) == ' ') {
+            builder.deleteCharAt(lastIdx);
+        }
+
+        return builder.toString();
     }
 
 }

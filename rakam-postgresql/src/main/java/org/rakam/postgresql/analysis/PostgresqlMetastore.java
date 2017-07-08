@@ -17,6 +17,7 @@ import org.rakam.collection.SchemaField;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.ProjectCollection;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -44,6 +45,7 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkLiteral;
 import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
+import static org.rakam.util.ValidationUtil.stripName;
 
 public class PostgresqlMetastore
         extends AbstractMetastore
@@ -293,7 +295,7 @@ public class PostgresqlMetastore
                 if (queryEnd.isEmpty()) {
                     return currentFields;
                 }
-                query = format("CREATE TABLE \"%s\".%s (%s)", project, checkCollection(collection), queryEnd);
+                query = format("CREATE TABLE \"%s\".%s (%s)", project, checkCollection(stripName(collection, "collection")), queryEnd);
                 task = () -> super.onCreateCollection(project, collection, schemaFields);
             }
             else {

@@ -94,6 +94,7 @@ import static org.rakam.collection.FieldType.DATE;
 import static org.rakam.collection.FieldType.LONG;
 import static org.rakam.collection.FieldType.TIMESTAMP;
 import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
+import static org.rakam.presto.analysis.PrestoQueryExecution.isServerInactive;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkLiteral;
 import static org.rakam.util.ValidationUtil.checkProject;
@@ -220,7 +221,7 @@ public class PrestoRakamRaptorMetastore
                     }
                 }
                 else {
-                    if (PrestoQueryExecution.isServerInactive(join.getError())) {
+                    if (isServerInactive(join.getError())) {
                         throw new RakamException("Database is not active", BAD_GATEWAY);
                     }
 

@@ -20,14 +20,8 @@ import org.rakam.util.MaterializedViewNotExists;
 import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
-import java.time.temporal.ChronoField;
 import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -43,21 +37,18 @@ import java.util.stream.Stream;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
-import static java.time.ZoneOffset.UTC;
 import static java.time.format.DateTimeFormatter.ISO_DATE;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.Optional.ofNullable;
 import static org.rakam.analysis.EventExplorer.ReferenceType.COLUMN;
 import static org.rakam.analysis.EventExplorer.ReferenceType.REFERENCE;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.HOUR;
-import static org.rakam.analysis.EventExplorer.TimestampTransformation.HOUR_OF_DAY;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.fromString;
-import static org.rakam.collection.SchemaField.stripName;
 import static org.rakam.report.realtime.AggregationType.COUNT;
-import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
+import static org.rakam.util.ValidationUtil.stripName;
 
 public abstract class AbstractEventExplorer
         implements EventExplorer

@@ -47,13 +47,13 @@ import static org.rakam.analysis.EventExplorer.TimestampTransformation.YEAR;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.fromPrettyName;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.fromString;
 import static org.rakam.clickhouse.analysis.ClickHouseQueryExecution.DATE_TIME_FORMATTER;
-import static org.rakam.collection.SchemaField.stripName;
 import static org.rakam.report.eventexplorer.AbstractEventExplorer.checkReference;
 import static org.rakam.report.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkLiteral;
 import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
+import static org.rakam.util.ValidationUtil.stripName;
 
 public class ClickHouseEventExplorer
         implements EventExplorer
