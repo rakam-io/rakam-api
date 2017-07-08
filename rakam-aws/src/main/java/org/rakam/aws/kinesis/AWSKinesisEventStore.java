@@ -165,22 +165,26 @@ public class AWSKinesisEventStore
                     @Override
                     public void onError(Exception e)
                     {
-                        if (e instanceof ResourceNotFoundException) {
-                            try {
-                                KinesisUtils.createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
+                        try {
+                            if (e instanceof ResourceNotFoundException) {
+                                try {
+                                    KinesisUtils.createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
+                                }
+                                catch (Exception e1) {
+                                    throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
+                                }
                             }
-                            catch (Exception e1) {
-                                throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
-                            }
-                        }
 
-                        LOGGER.error(e);
-                        if (tryCount > 0) {
-                            store(event, future, tryCount - 1);
+                            LOGGER.error(e);
+                            if (tryCount > 0) {
+                                store(event, future, tryCount - 1);
+                            }
+                            else {
+                                future.completeExceptionally(new RakamException(INTERNAL_SERVER_ERROR));
+                            }
                         }
-                        else {
+                        finally {
                             buffer.release();
-                            future.completeExceptionally(new RakamException(INTERNAL_SERVER_ERROR));
                         }
                     }
 
@@ -199,8 +203,8 @@ public class AWSKinesisEventStore
         ByteBuf buffer = DEFAULT.buffer(100);
         buffer.writeByte(2);
 
-        BinaryEncoder encoder = EncoderFactory.get().directBinaryEncoder(
-                new ByteBufOutputStream(buffer), null);
+        BinaryEncoder encoder = EncoderFactory.get()
+                .directBinaryEncoder(new ByteBufOutputStream(buffer), null);
 
         try {
             encoder.writeString(event.collection());

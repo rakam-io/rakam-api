@@ -236,6 +236,9 @@ public class PrestoRakamRaptorMetastore
             fields.stream()
                     .filter(field -> schemaFields.stream().noneMatch(f -> f.getName().equals(field.getName())))
                     .forEach(f -> {
+                        if(f.getName().equals(prestoConfig.getCheckpointColumn())) {
+                            throw new RakamException("Checkpoint column is reserved", BAD_REQUEST);
+                        }
                         newFields.add(f);
                         try {
                             addColumn(tableInformation, project, collection, f.getName(), f.getType());
@@ -358,6 +361,8 @@ public class PrestoRakamRaptorMetastore
     {
         return dao.listTableColumns(project, collection).stream()
                 .filter(a -> !a.getColumnName().startsWith("$"))
+                // this field should be removed since the server sets it
+                .filter(a -> !a.getColumnName().equals(prestoConfig.getCheckpointColumn()))
                 .map(column -> {
                     TypeSignature typeSignature = column.getDataType().getTypeSignature();
 
@@ -446,7 +451,9 @@ public class PrestoRakamRaptorMetastore
     private boolean filterTables(String tableName, String tableColumn)
     {
         return !tableName.startsWith(MATERIALIZED_VIEW_PREFIX)
-                && !tableColumn.startsWith("$") && !tableName.startsWith("$");
+                && !tableColumn.startsWith("$")
+                && !tableName.startsWith("$")
+                && !tableColumn.equals(prestoConfig.getCheckpointColumn());
     }
 
     @Override

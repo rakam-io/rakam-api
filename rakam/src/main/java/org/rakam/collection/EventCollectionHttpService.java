@@ -226,8 +226,11 @@ public class EventCollectionHttpService
                 Event event = jsonMapper.readValue(buff, Event.class);
 
                 cookiesFuture = mapEvent(eventMappers, (mapper) -> mapper.mapAsync(event, new HttpRequestParams(request),
-                        getRemoteAddress(socketAddress), response.trailingHeaders()));
-                cookiesFuture.thenAccept(v -> eventStore.store(event));
+                        getRemoteAddress(socketAddress), response.trailingHeaders()))
+                        .thenApply(v -> {
+                            eventStore.store(event);
+                            return v;
+                        });
             }
             catch (JsonMappingException e) {
                 String message = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
@@ -717,12 +720,13 @@ public class EventCollectionHttpService
             });
 
             response.thenAccept(resp -> entries.whenComplete((value, ex) -> {
-                if(ex != null) {
+                if (ex != null) {
                     String message = "Error while processing event mappers";
                     LOGGER.error(ex, message);
                     request.response(JsonHelper.encode(errorMessage(message, INTERNAL_SERVER_ERROR)),
                             INTERNAL_SERVER_ERROR);
-                } else {
+                }
+                else {
                     if (value != null) {
                         responseHeaders.add(SET_COOKIE, STRICT.encode(value));
                     }
