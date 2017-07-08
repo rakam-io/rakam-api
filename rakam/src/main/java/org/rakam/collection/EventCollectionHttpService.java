@@ -225,12 +225,9 @@ public class EventCollectionHttpService
             try {
                 Event event = jsonMapper.readValue(buff, Event.class);
 
-                cookiesFuture = mapEvent(eventMappers, (mapper) -> mapper.mapAsync(event, new HttpRequestParams(request),
+                cookiesFuture = mapEvent(eventMappers, mapper -> mapper.mapAsync(event, new HttpRequestParams(request),
                         getRemoteAddress(socketAddress), response.trailingHeaders()))
-                        .thenApply(v -> {
-                            eventStore.store(event);
-                            return v;
-                        });
+                        .thenCombine(eventStore.storeAsync(event), (cookies, aVoid) -> cookies);
             }
             catch (JsonMappingException e) {
                 String message = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
