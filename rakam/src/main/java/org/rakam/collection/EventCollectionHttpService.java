@@ -270,7 +270,18 @@ public class EventCollectionHttpService
                 response.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
             }
 
-            cookiesFuture.thenAccept(cookies -> {
+            cookiesFuture.whenComplete((cookies, ex) -> {
+                if(ex != null) {
+                    if(ex instanceof RakamException) {
+                        LogUtil.logException(request, ex);
+                        returnError(request, ex.getMessage(), ((RakamException) ex).getStatusCode());
+                    } else {
+                        LOGGER.error(ex, "Error while collecting event");
+                        returnError(request, "An error occurred", INTERNAL_SERVER_ERROR);
+                    }
+                    return;
+                }
+
                 if (cookies != null) {
                     response.headers().add(SET_COOKIE, STRICT.encode(cookies));
                 }

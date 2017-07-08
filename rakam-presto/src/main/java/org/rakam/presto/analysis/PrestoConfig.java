@@ -1,7 +1,7 @@
 package org.rakam.presto.analysis;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
 import io.airlift.configuration.Config;
 
 import java.net.URI;
@@ -16,7 +16,6 @@ public class PrestoConfig {
     private String bulkConnector = "middleware";
     private String checkpointColumn = "_shard_time";
     private List<String> existingProjects;
-    private boolean enableStreaming = true;
 
     @Config("presto.address")
     public PrestoConfig setAddress(URI address)
@@ -103,18 +102,6 @@ public class PrestoConfig {
     {
         this.hotStorageConnector = streamConnectorName;
         return this;
-    }
-
-    @Config("presto.enable-streaming")
-    public PrestoConfig setEnableStreaming(boolean enableStreaming)
-    {
-        this.enableStreaming = enableStreaming;
-        return this;
-    }
-
-    public boolean getEnableStreaming()
-    {
-        return enableStreaming;
     }
 
     public String getHotStorageConnector() {

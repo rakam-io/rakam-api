@@ -209,16 +209,9 @@ public class PrestoQueryExecutor
         String prefix = node.getPrefix().map(e -> e.toString()).orElse(null);
         String suffix = node.getSuffix();
         if ("continuous".equals(prefix)) {
-            if (prestoConfig.getColdStorageConnector().equals("rakam_raptor") && prestoConfig.getEnableStreaming()) {
-                return prestoConfig.getStreamingConnector() + "." +
-                        checkCollection(project) + "." +
-                        checkCollection(suffix);
-            }
-            else {
-                return prestoConfig.getColdStorageConnector() + "." +
-                        checkCollection(project) + "." +
-                        checkCollection(CONTINUOUS_QUERY_PREFIX + suffix);
-            }
+            return prestoConfig.getColdStorageConnector() + "." +
+                    checkCollection(project) + "." +
+                    checkCollection(CONTINUOUS_QUERY_PREFIX + suffix);
         }
         else if ("materialized".equals(prefix)) {
             return getTableReference(project, MATERIALIZED_VIEW_PREFIX + suffix, sample);

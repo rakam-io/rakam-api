@@ -249,7 +249,7 @@
             <dependency>
                 <groupId>com.amazonaws</groupId>
                 <artifactId>amazon-kinesis-producer</artifactId>
-                <version>0.10.2</version>
+                <version>0.12.5</version>
                 <exclusions>
                     <exclusion>
                         <groupId>org.slf4j</groupId>

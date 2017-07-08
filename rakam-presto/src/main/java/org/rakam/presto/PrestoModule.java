@@ -95,13 +95,7 @@ public class PrestoModule
 
         JDBCPoolDataSource metadataDataSource;
         if ("rakam_raptor".equals(prestoConfig.getColdStorageConnector())) {
-            if (prestoConfig.getEnableStreaming()) {
-                binder.bind(ContinuousQueryService.class).to(PrestoContinuousQueryService.class);
-            }
-            else {
-                binder.bind(ContinuousQueryService.class).to(PrestoPseudoContinuousQueryService.class);
-            }
-
+            binder.bind(ContinuousQueryService.class).to(PrestoPseudoContinuousQueryService.class);
             metadataDataSource = bindJDBCConfig(binder, "presto.metastore.jdbc");
 
             if (buildConfigObject(EventStreamConfig.class).getEventStreamEnabled()) {
