@@ -23,7 +23,7 @@ plugin.user.storage=postgresql\n\
 event-stream=server\n\
 http.server.address=0.0.0.0:9999\n\
 plugin.user.storage.identifier-column=id\n\
-plugin.geoip.database.url=file://tmp/GeoLite2-City.mmdb\n" > config.properties && (env | grep RAKAM_CONFIG_ | awk  '{gsub(/\_/,".",$0); print substr(tolower($0), 14)}' >> config.properties))
+plugin.geoip.database.url=file://tmp/GeoLite2-City.mmdb\n" > config.properties)
 
 RUN apt-get update \
     # Rakam can automatically download & extract the database but we do this
