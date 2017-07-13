@@ -1,6 +1,7 @@
 package org.rakam.bootstrap;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Injector;
 import com.google.inject.Module;
@@ -8,6 +9,8 @@ import io.airlift.bootstrap.Bootstrap;
 
 import java.lang.reflect.Field;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 public class ProxyBootstrap
@@ -30,6 +33,16 @@ public class ProxyBootstrap
         modules.set(this, ImmutableList.builder().addAll(installedModules).add((Module) binder -> {
             binder.bind(SystemRegistry.class).toInstance(systemRegistry);
         }).build());
+
+        String env = System.getProperty("env");
+        if(env != null) {
+            System.getenv().entrySet().stream()
+                    .filter(entry -> entry.getKey().startsWith(env)).forEach(entry -> {
+                String configName = entry.getKey().substring(env.length() + 1)
+                        .toLowerCase(Locale.ENGLISH).replaceAll("_", ".");
+                this.setOptionalConfigurationProperty(configName, entry.getValue());
+            });
+        }
 
         Injector initialize = super.initialize();
         return initialize;

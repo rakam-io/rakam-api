@@ -69,7 +69,7 @@ public class PostgresqlEventStore
             ps.executeUpdate();
         }
         catch (SQLException e) {
-            Throwables.propagate(e);
+            throw new RuntimeException(e);
         }
     }
 

@@ -37,6 +37,7 @@ import javax.ws.rs.Path;
 
 import java.util.List;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 
 @Path("/ui/custom-report")
@@ -110,6 +111,9 @@ public class CustomReportHttpService
             @ApiParam("name") String name)
     {
         CustomReport customReport = metadata.get(reportType, project.project, name);
+        if(customReport == null) {
+            throw new RakamException(NOT_FOUND);
+        }
         if(customReport.getUser() != null && customReport.getUser() != project.userId) {
             int id = userService.getProjectOwner(project.project).id;
             if(id != project.userId) {

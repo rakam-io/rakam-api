@@ -34,6 +34,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.ImmutableList.of;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_IMPLEMENTED;
 import static java.lang.String.format;
 import static org.apache.avro.Schema.Type.LONG;
 import static org.apache.avro.Schema.Type.NULL;
@@ -182,7 +183,7 @@ public class PrestoUserService
     public void merge(String project, Object user, Object anonymousId, Instant createdAt, Instant mergedAt)
     {
         if (!config.getEnableUserMapping()) {
-            throw new RakamException(HttpResponseStatus.NOT_IMPLEMENTED);
+            throw new RakamException(NOT_IMPLEMENTED);
         }
         GenericData.Record properties = new GenericData.Record(ANONYMOUS_USER_MAPPING_SCHEMA);
         properties.put(0, anonymousId);

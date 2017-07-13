@@ -81,6 +81,7 @@ public class UserPluginConfig {
     public void setAutomationEnabled(boolean automationEnabled) {
         this.automationEnabled = automationEnabled;
     }
+
     public boolean getAutomationEnabled() {
         return automationEnabled;
     }

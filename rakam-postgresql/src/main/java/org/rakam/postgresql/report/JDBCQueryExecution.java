@@ -207,14 +207,19 @@ public class JDBCQueryExecution
                             break;
                         case TIMESTAMP:
                             String timestamp = resultSet.getString(columnIndex);
-                            if(zoneId != null) {
+                            if(zoneId != null && timestamp != null) {
                                 object = connection.unwrap(PgConnection.class).getTimestampUtils().toLocalDateTime(timestamp).atZone(zoneId);
                             } else {
                                 object = resultSet.getTimestamp(columnIndex);
                             }
                             break;
                         case DATE:
-                            object = LocalDate.parse(resultSet.getString(columnIndex));
+                            String string = resultSet.getString(columnIndex);
+                            if(string != null) {
+                                object = LocalDate.parse(string);
+                            } else {
+                                object = null;
+                            }
                             break;
                         case TIME:
                             Time time = resultSet.getTime(columnIndex);

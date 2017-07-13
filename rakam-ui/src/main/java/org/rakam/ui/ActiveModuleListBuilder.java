@@ -66,9 +66,9 @@ public class ActiveModuleListBuilder {
         @JsonProperty
         public final boolean customDatabaseEnabled;
         @JsonProperty
-        private final String timeColumn;
+        public final String timeColumn;
         @JsonProperty
-        private final String userColumn;
+        public final String userColumn;
 
         private ActiveModuleList(UserPluginConfig userPluginConfig,  boolean userStorageMailbox,
                 RealTimeConfig realtimeConfig, EventStreamConfig eventStreamConfig,

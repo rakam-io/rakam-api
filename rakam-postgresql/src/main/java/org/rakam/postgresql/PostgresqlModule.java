@@ -1,7 +1,9 @@
 package org.rakam.postgresql;
 
+import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
@@ -53,8 +55,11 @@ import javax.inject.Inject;
 
 import java.net.URISyntaxException;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
+import static java.lang.String.format;
+import static org.rakam.postgresql.plugin.user.PostgresqlUserService.ANONYMOUS_ID_MAPPING;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
@@ -127,6 +132,10 @@ public class PostgresqlModule
 
         if (userPluginConfig.isRetentionAnalysisEnabled()) {
             binder.bind(RetentionQueryExecutor.class).to(PostgresqlRetentionQueryExecutor.class);
+        }
+
+        if (userPluginConfig.getEnableUserMapping()) {
+            binder.bind(UserMergeTableHook.class).asEagerSingleton();
         }
     }
 
@@ -232,11 +241,11 @@ public class PostgresqlModule
             for (SchemaField field : fields) {
                 try {
                     // We cant't use CONCURRENTLY because it causes dead-lock with ALTER TABLE and it's slow.
+                    projectConfig.getTimeColumn();
                     executor.executeRawStatement(String.format("CREATE INDEX %s %s ON %s.%s USING %s(%s)",
                             postgresql9_5 ? "IF NOT EXISTS" : "",
                             checkCollection(String.format("%s_%s_%s_auto_index", project, collection, field.getName())),
                             project, checkCollection(collection),
-//                            (postgresql9_5 && brinSupportedTypes.contains(field.getType())) ? "BRIN" : "BTREE",
                             (postgresql9_5 && field.getName().equals(projectConfig.getTimeColumn())) ? "BRIN" : "BTREE",
                             checkTableColumn(field.getName())));
                 }
@@ -251,5 +260,27 @@ public class PostgresqlModule
         private Set<FieldType> brinSupportedTypes = ImmutableSet.of(FieldType.DATE, FieldType.DECIMAL,
                 FieldType.DOUBLE, FieldType.INTEGER, FieldType.LONG,
                 FieldType.STRING, FieldType.TIMESTAMP, FieldType.TIME);
+    }
+
+    public static class UserMergeTableHook
+    {
+        private final PostgresqlQueryExecutor executor;
+        private final ProjectConfig projectConfig;
+
+        @Inject
+        public UserMergeTableHook(ProjectConfig projectConfig, PostgresqlQueryExecutor executor)
+        {
+            this.projectConfig = projectConfig;
+            this.executor = executor;
+        }
+
+        @Subscribe
+        public void onCreateProject(SystemEvents.ProjectCreatedEvent event)
+        {
+            executor.executeRawStatement(format("CREATE TABLE %s(id VARCHAR, %s VARCHAR, " +
+                            "created_at TIMESTAMP, merged_at TIMESTAMP)",
+                    executor.formatTableReference(event.project, QualifiedName.of(ANONYMOUS_ID_MAPPING), Optional.empty(), ImmutableMap.of()),
+                    checkCollection(projectConfig.getUserColumn())));
+        }
     }
 }

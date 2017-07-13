@@ -157,12 +157,19 @@ public class DashboardService
 
             Integer userId = handle.createQuery("SELECT user_id FROM dashboard where id = :id")
                     .bind("id", id).map(IntegerMapper.FIRST).first();
-            if(project.userId != userId) {
+            if (project.userId != userId) {
                 throw new RakamException(FORBIDDEN);
             }
 
             handle.createStatement("DELETE FROM dashboard_permission WHERE dashboard = :dashboard")
                     .bind("dashboard", id).execute();
+
+            handle.createStatement("UPDATE dashboard SET shared_everyone = :sharedEveryone" +
+                    " WHERE id = :id AND project_id = :project")
+                    .bind("id", id)
+                    .bind("sharedEveryone", false)
+                    .bind("project", project.project)
+                    .execute();
 
             for (int user : users) {
                 handle.createStatement("INSERT INTO dashboard_permission (dashboard, user_id) VALUES (:dashboard, :user_id) ")
@@ -175,7 +182,6 @@ public class DashboardService
             return SuccessMessage.success();
         }
     }
-
 
     @JsonRequest
     @ApiOperation(value = "Cache report data")
@@ -222,7 +228,8 @@ public class DashboardService
         public final List<Dashboard> dashboards;
         public final Integer defaultDashboard;
 
-        public DashboardList(List<Dashboard> dashboards, Integer defaultDashboard) {
+        public DashboardList(List<Dashboard> dashboards, Integer defaultDashboard)
+        {
             this.dashboards = dashboards;
             this.defaultDashboard = defaultDashboard;
         }
@@ -361,14 +368,20 @@ public class DashboardService
             @Named("user_id") Project project,
             @ApiParam("dashboard") int dashboard,
             @ApiParam("name") String name,
+            @ApiParam("shared_everyone") boolean sharedEveryone,
             @ApiParam(value = "refresh_interval", required = false) Duration refreshDuration,
             @ApiParam("options") Map<String, Object> options)
     {
         dbi.inTransaction((handle, transactionStatus) -> {
-            handle.createStatement("UPDATE dashboard SET options = :options, refresh_interval = :refreshDuration, name = :name" +
+            if (!sharedEveryone) {
+                handle.createStatement("DELETE FROM dashboard_permission WHERE dashboard = :dashboard")
+                        .bind("dashboard", dashboard).execute();
+            }
+            handle.createStatement("UPDATE dashboard SET options = :options, refresh_interval = :refreshDuration, shared_everyone = :sharedEveryone, name = :name" +
                     " WHERE id = :id AND project_id = :project")
                     .bind("id", dashboard)
                     .bind("name", name)
+                    .bind("sharedEveryone", sharedEveryone)
                     .bind("refreshDuration", refreshDuration != null ? refreshDuration.getSeconds() : null)
                     .bind("options", JsonHelper.encode(options))
                     .bind("project", project.project)
