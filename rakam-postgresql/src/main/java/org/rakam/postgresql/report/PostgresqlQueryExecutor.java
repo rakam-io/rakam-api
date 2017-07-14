@@ -6,6 +6,7 @@ import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Statement;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
 import org.rakam.analysis.JDBCPoolDataSource;
@@ -33,6 +34,11 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -55,7 +61,10 @@ public class PostgresqlQueryExecutor
     public final static String CONTINUOUS_QUERY_PREFIX = "$view_";
 
     private final JDBCPoolDataSource connectionPool;
-    protected static final ExecutorService QUERY_EXECUTOR = Executors.newWorkStealingPool();
+    protected static final ExecutorService QUERY_EXECUTOR = new ThreadPoolExecutor(0, 1000,
+            60L, TimeUnit.SECONDS,
+            new SynchronousQueue<>(), new ThreadFactoryBuilder()
+            .setNameFormat("jdbc-query-executor").build());
     private final Metastore metastore;
     private final boolean userServiceIsPostgresql;
     private final CustomDataSourceService customDataSource;

@@ -50,9 +50,9 @@ public enum SupportedCustomDatabase
                     .ifPresent(pass -> properties.setProperty("password", pass));
             Optional.ofNullable(factory.getUsername())
                     .ifPresent(user -> properties.setProperty("user", user));
-            properties.setProperty("loginTimeout", "10");
-            properties.setProperty("socketTimeout", "10");
-            properties.setProperty("connectTimeout", "10");
+            properties.setProperty("loginTimeout", "40");
+            properties.setProperty("socketTimeout", "40");
+            properties.setProperty("connectTimeout", "40");
             if(factory.getEnableSSL() != null) {
                 properties.setProperty("ssl", factory.getEnableSSL().toString());
             }
@@ -100,9 +100,9 @@ public enum SupportedCustomDatabase
                     .ifPresent(pass -> properties.setProperty("password", pass));
             Optional.ofNullable(factory.getUsername())
                     .ifPresent(user -> properties.setProperty("user", user));
-            properties.setProperty("loginTimeout", "10");
-            properties.setProperty("socketTimeout", "10");
-            properties.setProperty("connectTimeout", "10");
+            properties.setProperty("loginTimeout", "40");
+            properties.setProperty("socketTimeout", "40");
+            properties.setProperty("connectTimeout", "40");
             if(factory.getEnableSSL() != null) {
                 properties.setProperty("ssl", factory.getEnableSSL().toString());
             }

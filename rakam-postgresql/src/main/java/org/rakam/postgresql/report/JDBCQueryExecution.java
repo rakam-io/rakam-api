@@ -52,20 +52,19 @@ public class JDBCQueryExecution
         implements QueryExecution
 {
     private final static Logger LOGGER = Logger.get(JDBCQueryExecution.class);
+    private static final ZoneId UTC = ZoneId.of("UTC");
 
     private final CompletableFuture<QueryResult> result;
     private final String query;
     private final ZoneId zoneId;
     private Statement statement;
-    private static final ZoneId UTC = ZoneId.of("UTC");
 
     public JDBCQueryExecution(ConnectionFactory connectionPool, String query, boolean update, Optional<ZoneId> optionalZoneId, boolean applyZone)
     {
         this.query = query;
         zoneId = applyZone ? optionalZoneId.map(v -> v == ZoneOffset.UTC ? UTC : v).orElse(UTC) : null;
 
-        // TODO: unnecessary threads will be spawn
-        Supplier<QueryResult> task = () -> {
+        this.result = CompletableFuture.supplyAsync(() -> {
             final QueryResult queryResult;
             try (Connection connection = connectionPool.openConnection()) {
                 statement = connection.createStatement();
@@ -111,9 +110,7 @@ public class JDBCQueryExecution
             }
 
             return queryResult;
-        };
-
-        this.result = CompletableFuture.supplyAsync(task, QUERY_EXECUTOR);
+        }, QUERY_EXECUTOR);
     }
 
     @Override

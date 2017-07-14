@@ -28,6 +28,7 @@ import javax.ws.rs.Path;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static com.facebook.presto.spi.type.TypeSignature.parseTypeSignature;
 
@@ -80,7 +81,7 @@ public class CustomDataSourceHttpService
     @ApiOperation(value = "Schema of data-sources", authorizations = @Authorization(value = "read_key"))
     @Path("/schema/tables")
     @GET
-    public Map<String, List<String>> schemaDatabases(@Named("project") String project)
+    public CompletableFuture<Map<String, List<String>>> schemaDatabases(@Named("project") String project)
     {
         return service.schemaDatabases(project);
     }
@@ -88,7 +89,7 @@ public class CustomDataSourceHttpService
     @ApiOperation(value = "Schema of table in data-sources", authorizations = @Authorization(value = "read_key"))
     @Path("/schema/table")
     @JsonRequest
-    public List<SchemaField> schemaDatabases(@Named("project") String project, @ApiParam("schema") String schema, @ApiParam("table") String table)
+    public CompletableFuture<List<SchemaField>> schemaDatabases(@Named("project") String project, @ApiParam("schema") String schema, @ApiParam("table") String table)
     {
         return service.schemaTable(project, schema, table);
     }

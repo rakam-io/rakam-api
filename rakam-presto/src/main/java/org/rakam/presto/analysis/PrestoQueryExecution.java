@@ -11,6 +11,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.net.HostAndPort;
 import com.google.common.net.HttpHeaders;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.airlift.http.client.HttpRequestFilter;
 import io.airlift.http.client.Request;
 import io.airlift.log.Logger;
@@ -69,9 +70,10 @@ public class PrestoQueryExecution
     private static final OkHttpClient HTTP_CLIENT = new OkHttpClient().newBuilder()
             .build();
 
-    private static final ThreadPoolExecutor QUERY_EXECUTOR = new ThreadPoolExecutor(0, 60,
-            300L, TimeUnit.SECONDS,
-            new SynchronousQueue<>());
+    private static final ThreadPoolExecutor QUERY_EXECUTOR = new ThreadPoolExecutor(0, 1000,
+            60L, TimeUnit.SECONDS,
+            new SynchronousQueue<>(), new ThreadFactoryBuilder()
+            .setNameFormat("presto-query-executor").build());
 
     private final List<List<Object>> data = Lists.newArrayList();
     private final String query;
@@ -92,8 +94,7 @@ public class PrestoQueryExecution
             QUERY_EXECUTOR.execute(new QueryTracker(session));
         }
         catch (RejectedExecutionException e) {
-            // TODO: make this configurable and optional
-            throw new RakamException("There are already 60 running queries. Please calm down.", HttpResponseStatus.TOO_MANY_REQUESTS);
+            throw new RakamException("There are already 1000 running queries. Please calm down.", HttpResponseStatus.TOO_MANY_REQUESTS);
         }
     }
 
