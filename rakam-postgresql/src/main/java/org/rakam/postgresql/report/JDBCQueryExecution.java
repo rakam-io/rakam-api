@@ -105,7 +105,7 @@ public class JDBCQueryExecution
                     LOGGER.error(e, "Internal query execution error");
                     error = new QueryError(e.getMessage(), null, null, null, null);
                 }
-                LOGGER.debug(e, format("Error while executing Postgresql query: \n%s", query));
+                LOGGER.debug(e, format("Error while executing JDBC query: \n%s", query));
                 return QueryResult.errorResult(error, query);
             }
 
