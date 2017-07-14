@@ -12,6 +12,7 @@ import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.postgresql.PostgresqlConfigManager;
+import org.rakam.postgresql.analysis.PostgresqlEventStore;
 import org.rakam.postgresql.analysis.PostgresqlMaterializedViewService;
 import org.rakam.postgresql.analysis.PostgresqlMetastore;
 import org.rakam.postgresql.plugin.user.PostgresqlUserService;
@@ -52,7 +53,8 @@ public class TestPostgresqlUserStorage
         configManager = new PostgresqlConfigManager(dataSource);
         configManager.setup();
         PostgresqlUserStorage userStorage = new PostgresqlUserStorage(queryExecutorService, materializedViewService, configManager, queryExecutor);
-        userService = new PostgresqlUserService(new ProjectConfig(), userStorage, metastore, queryExecutor);
+        PostgresqlEventStore postgresqlEventStore = new PostgresqlEventStore(dataSource, new FieldDependencyBuilder().build());
+        userService = new PostgresqlUserService(new ProjectConfig(), postgresqlEventStore, userStorage, metastore, queryExecutor);
         super.setUp();
     }
 

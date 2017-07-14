@@ -5,9 +5,14 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.Event;
+import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
+import org.rakam.plugin.EventStore;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
@@ -33,7 +38,11 @@ import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.collect.ImmutableList.of;
 import static java.lang.String.format;
+import static org.apache.avro.Schema.Type.LONG;
+import static org.apache.avro.Schema.Type.NULL;
+import static org.apache.avro.Schema.Type.STRING;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkLiteral;
 import static org.rakam.util.ValidationUtil.checkProject;
@@ -46,15 +55,17 @@ public class PostgresqlUserService
     private final PostgresqlQueryExecutor executor;
     private final PostgresqlUserStorage storage;
     private final ProjectConfig projectConfig;
+    private final EventStore eventStore;
 
     @Inject
-    public PostgresqlUserService(ProjectConfig projectConfig, PostgresqlUserStorage storage, Metastore metastore, PostgresqlQueryExecutor executor)
+    public PostgresqlUserService(ProjectConfig projectConfig, EventStore eventStore, PostgresqlUserStorage storage, Metastore metastore, PostgresqlQueryExecutor executor)
     {
         super(storage);
         this.storage = storage;
         this.projectConfig = projectConfig;
         this.metastore = metastore;
         this.executor = executor;
+        this.eventStore = eventStore;
     }
 
     @Override
@@ -95,28 +106,53 @@ public class PostgresqlUserService
         });
     }
 
+    public static final String ANONYMOUS_ID_MAPPING = "$anonymous_id_mapping";
+    protected static final Schema ANONYMOUS_USER_MAPPING_SCHEMA = Schema.createRecord(of(
+            new Schema.Field("id", Schema.createUnion(of(Schema.create(NULL), Schema.create(STRING))), null, null),
+            new Schema.Field("_user", Schema.createUnion(of(Schema.create(NULL), Schema.create(STRING))), null, null),
+            new Schema.Field("created_at", Schema.createUnion(of(Schema.create(NULL), Schema.create(LONG))), null, null),
+            new Schema.Field("merged_at", Schema.createUnion(of(Schema.create(NULL), Schema.create(LONG))), null, null)
+    ));
+    protected static final List<SchemaField> ANONYMOUS_USER_MAPPING = of(
+            new SchemaField("id", FieldType.STRING),
+            new SchemaField("_user", FieldType.STRING),
+            new SchemaField("created_at", FieldType.TIMESTAMP),
+            new SchemaField("merged_at", FieldType.TIMESTAMP)
+    );
+
     @Override
     public void merge(String project, Object user, Object anonymousId, Instant createdAt, Instant mergedAt)
     {
-        for (Map.Entry<String, List<SchemaField>> entry : metastore.getCollections(project).entrySet()) {
-            if (!entry.getValue().stream().anyMatch(e -> e.getName().equals("_user")) ||
-                    !entry.getValue().stream().anyMatch(e -> e.getName().equals("_device_id"))) {
-                continue;
-            }
-            try (Connection connection = executor.getConnection()) {
-                PreparedStatement ps = connection.prepareStatement(format("UPDATE %s SET _user = ? WHERE _device_id = ? AND _user is NULL AND %s BETWEEN ? and ?",
-                        executor.formatTableReference(project, QualifiedName.of(entry.getKey()), Optional.empty(), ImmutableMap.of()),
-                        checkTableColumn(projectConfig.getTimeColumn())));
-                storage.setUserId(project, ps, user, 1);
-                storage.setUserId(project, ps, anonymousId, 2);
-                ps.setTimestamp(3, Timestamp.from(createdAt));
-                ps.setTimestamp(4, Timestamp.from(mergedAt));
-                ps.executeUpdate();
-            }
-            catch (SQLException e) {
-                throw Throwables.propagate(e);
-            }
-        }
+
+//        GenericData.Record properties = new GenericData.Record(ANONYMOUS_USER_MAPPING_SCHEMA);
+//        properties.put(0, anonymousId.toString());
+//        properties.put(1, user.toString());
+//        properties.put(2, createdAt.toEpochMilli());
+//        properties.put(3, mergedAt.toEpochMilli());
+//
+//        eventStore.store(new Event(project, ANONYMOUS_ID_MAPPING, null, ANONYMOUS_USER_MAPPING, properties));
+    }
+
+    private void syncAnonymousUser() {
+//        for (Map.Entry<String, List<SchemaField>> entry : metastore.getCollections(project).entrySet()) {
+//            if (!entry.getValue().stream().anyMatch(e -> e.getName().equals("_user")) ||
+//                    !entry.getValue().stream().anyMatch(e -> e.getName().equals("_device_id"))) {
+//                continue;
+//            }
+//            try (Connection connection = executor.getConnection()) {
+//                PreparedStatement ps = connection.prepareStatement(format("UPDATE %s SET _user = ? WHERE _device_id = ? AND _user is NULL AND %s BETWEEN ? and ?",
+//                        executor.formatTableReference(project, QualifiedName.of(entry.getKey()), Optional.empty(), ImmutableMap.of()),
+//                        checkTableColumn(projectConfig.getTimeColumn())));
+//                storage.setUserId(project, ps, user, 1);
+//                storage.setUserId(project, ps, anonymousId, 2);
+//                ps.setTimestamp(3, Timestamp.from(createdAt));
+//                ps.setTimestamp(4, Timestamp.from(mergedAt));
+//                ps.executeUpdate();
+//            }
+//            catch (SQLException e) {
+//                throw new RuntimeException(e);
+//            }
+//        }
     }
 
     @Override
