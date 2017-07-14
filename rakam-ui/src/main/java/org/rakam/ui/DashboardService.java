@@ -377,7 +377,7 @@ public class DashboardService
                 handle.createStatement("DELETE FROM dashboard_permission WHERE dashboard = :dashboard")
                         .bind("dashboard", dashboard).execute();
             }
-            handle.createStatement("UPDATE dashboard SET options = :options, refresh_interval = :refreshDuration, shared_everyone = :sharedEveryone, name = :name" +
+            int execute = handle.createStatement("UPDATE dashboard SET options = :options, refresh_interval = :refreshDuration, shared_everyone = :sharedEveryone, name = :name" +
                     " WHERE id = :id AND project_id = :project")
                     .bind("id", dashboard)
                     .bind("name", name)
@@ -386,6 +386,9 @@ public class DashboardService
                     .bind("options", JsonHelper.encode(options))
                     .bind("project", project.project)
                     .execute();
+            if(execute == 0) {
+                throw new NotExistsException("Dashboard");
+            }
             return null;
         });
         return SuccessMessage.success();
