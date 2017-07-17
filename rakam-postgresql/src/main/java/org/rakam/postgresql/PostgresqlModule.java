@@ -48,6 +48,7 @@ import org.rakam.postgresql.report.PostgresqlEventExplorer;
 import org.rakam.postgresql.report.PostgresqlPseudoContinuousQueryService;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecutor;
+import org.rakam.report.QueryResult;
 import org.rakam.report.eventexplorer.EventExplorerConfig;
 import org.rakam.util.ConditionalModule;
 
@@ -57,6 +58,7 @@ import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import static java.lang.String.format;
 import static org.rakam.postgresql.plugin.user.PostgresqlUserService.ANONYMOUS_ID_MAPPING;
@@ -277,10 +279,15 @@ public class PostgresqlModule
         @Subscribe
         public void onCreateProject(SystemEvents.ProjectCreatedEvent event)
         {
-            executor.executeRawStatement(format("CREATE TABLE %s(id VARCHAR, %s VARCHAR, " +
+            createTable(event.project);
+        }
+
+        public CompletableFuture<QueryResult> createTable(String project)
+        {
+            return executor.executeRawStatement(format("CREATE TABLE %s(id VARCHAR, %s VARCHAR, " +
                             "created_at TIMESTAMP, merged_at TIMESTAMP)",
-                    executor.formatTableReference(event.project, QualifiedName.of(ANONYMOUS_ID_MAPPING), Optional.empty(), ImmutableMap.of()),
-                    checkCollection(projectConfig.getUserColumn())));
+                    executor.formatTableReference(project, QualifiedName.of(ANONYMOUS_ID_MAPPING), Optional.empty(), ImmutableMap.of()),
+                    checkCollection(projectConfig.getUserColumn()))).getResult();
         }
     }
 }

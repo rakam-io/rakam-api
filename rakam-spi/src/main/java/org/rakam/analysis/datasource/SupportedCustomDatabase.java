@@ -50,9 +50,9 @@ public enum SupportedCustomDatabase
                     .ifPresent(pass -> properties.setProperty("password", pass));
             Optional.ofNullable(factory.getUsername())
                     .ifPresent(user -> properties.setProperty("user", user));
-            properties.setProperty("loginTimeout", "40");
-            properties.setProperty("socketTimeout", "40");
-            properties.setProperty("connectTimeout", "40");
+            properties.setProperty("loginTimeout", "120");
+            properties.setProperty("socketTimeout", "120");
+            properties.setProperty("connectTimeout", "120");
             if(factory.getEnableSSL() != null) {
                 properties.setProperty("ssl", factory.getEnableSSL().toString());
             }
@@ -100,9 +100,9 @@ public enum SupportedCustomDatabase
                     .ifPresent(pass -> properties.setProperty("password", pass));
             Optional.ofNullable(factory.getUsername())
                     .ifPresent(user -> properties.setProperty("user", user));
-            properties.setProperty("loginTimeout", "40");
-            properties.setProperty("socketTimeout", "40");
-            properties.setProperty("connectTimeout", "40");
+            properties.setProperty("loginTimeout", "120");
+            properties.setProperty("socketTimeout", "120");
+            properties.setProperty("connectTimeout", "120");
             if(factory.getEnableSSL() != null) {
                 properties.setProperty("ssl", factory.getEnableSSL().toString());
             }
@@ -148,8 +148,8 @@ public enum SupportedCustomDatabase
             Properties info = new Properties();
             Optional.ofNullable(factory.getUsername()).map(value -> info.put("user", value));
             Optional.ofNullable(factory.getPassword()).map(value -> info.put("password", value));
-            info.setProperty("socketTimeout", "10000");
-            info.setProperty("connectTimeout", "10000");
+            info.setProperty("socketTimeout", "120000");
+            info.setProperty("connectTimeout", "120000");
 
             return new com.mysql.jdbc.Driver().connect(format("jdbc:mysql://%s:%s/%s",
                     factory.getHost(),

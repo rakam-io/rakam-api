@@ -7,17 +7,22 @@ import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
+import org.postgresql.util.PSQLException;
+import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.EventStore;
+import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.ISingleUserBatchOperation;
+import org.rakam.postgresql.PostgresqlModule;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
+import org.rakam.util.AvroUtil;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
@@ -40,9 +45,11 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.ImmutableList.of;
 import static java.lang.String.format;
+import static org.apache.avro.Schema.Type.INT;
 import static org.apache.avro.Schema.Type.LONG;
 import static org.apache.avro.Schema.Type.NULL;
 import static org.apache.avro.Schema.Type.STRING;
+import static org.rakam.analysis.InternalConfig.USER_TYPE;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkLiteral;
 import static org.rakam.util.ValidationUtil.checkProject;
@@ -56,9 +63,10 @@ public class PostgresqlUserService
     private final PostgresqlUserStorage storage;
     private final ProjectConfig projectConfig;
     private final EventStore eventStore;
+    private final ConfigManager configManager;
 
     @Inject
-    public PostgresqlUserService(ProjectConfig projectConfig, EventStore eventStore, PostgresqlUserStorage storage, Metastore metastore, PostgresqlQueryExecutor executor)
+    public PostgresqlUserService(ProjectConfig projectConfig, ConfigManager configManager, EventStore eventStore, PostgresqlUserStorage storage, Metastore metastore, PostgresqlQueryExecutor executor)
     {
         super(storage);
         this.storage = storage;
@@ -66,6 +74,7 @@ public class PostgresqlUserService
         this.metastore = metastore;
         this.executor = executor;
         this.eventStore = eventStore;
+        this.configManager = configManager;
     }
 
     @Override
@@ -106,31 +115,73 @@ public class PostgresqlUserService
         });
     }
 
-    public static final String ANONYMOUS_ID_MAPPING = "$anonymous_id_mapping";
-    protected static final Schema ANONYMOUS_USER_MAPPING_SCHEMA = Schema.createRecord(of(
-            new Schema.Field("id", Schema.createUnion(of(Schema.create(NULL), Schema.create(STRING))), null, null),
-            new Schema.Field("_user", Schema.createUnion(of(Schema.create(NULL), Schema.create(STRING))), null, null),
-            new Schema.Field("created_at", Schema.createUnion(of(Schema.create(NULL), Schema.create(LONG))), null, null),
-            new Schema.Field("merged_at", Schema.createUnion(of(Schema.create(NULL), Schema.create(LONG))), null, null)
-    ));
-    protected static final List<SchemaField> ANONYMOUS_USER_MAPPING = of(
-            new SchemaField("id", FieldType.STRING),
-            new SchemaField("_user", FieldType.STRING),
-            new SchemaField("created_at", FieldType.TIMESTAMP),
-            new SchemaField("merged_at", FieldType.TIMESTAMP)
+    protected static final Map<FieldType, List<SchemaField>> ANONYMOUS_USER_MAPPING = ImmutableMap.of(
+            FieldType.STRING, of(
+                    new SchemaField("id", FieldType.STRING),
+                    new SchemaField("_user", FieldType.STRING),
+                    new SchemaField("created_at", FieldType.TIMESTAMP),
+                    new SchemaField("merged_at", FieldType.TIMESTAMP)),
+
+            FieldType.LONG, of(
+                    new SchemaField("id", FieldType.STRING),
+                    new SchemaField("_user", FieldType.STRING),
+                    new SchemaField("created_at", FieldType.TIMESTAMP),
+                    new SchemaField("merged_at", FieldType.TIMESTAMP)),
+
+            FieldType.INTEGER, of(
+                    new SchemaField("id", FieldType.STRING),
+                    new SchemaField("_user", FieldType.STRING),
+                    new SchemaField("created_at", FieldType.TIMESTAMP),
+                    new SchemaField("merged_at", FieldType.TIMESTAMP))
     );
+
+    public static final String ANONYMOUS_ID_MAPPING = "$anonymous_id_mapping";
+    protected static final Map<FieldType, Schema> ANONYMOUS_USER_MAPPING_SCHEMA = ImmutableMap.of(
+            FieldType.STRING, AvroUtil.convertAvroSchema(ANONYMOUS_USER_MAPPING.get(FieldType.STRING)),
+            FieldType.LONG, AvroUtil.convertAvroSchema(ANONYMOUS_USER_MAPPING.get(FieldType.LONG)),
+            FieldType.INTEGER, AvroUtil.convertAvroSchema(ANONYMOUS_USER_MAPPING.get(FieldType.INTEGER)));
+
+    public void mergeInternal(String project, Object user, Object anonymousId, Instant createdAt, Instant mergedAt)
+    {
+        FieldType config = configManager.getConfig(project, USER_TYPE.name(), FieldType.class);
+        GenericData.Record properties = new GenericData.Record(ANONYMOUS_USER_MAPPING_SCHEMA.get(config));
+        properties.put(0, anonymousId.toString());
+
+        try {
+            if(config == FieldType.STRING) {
+                properties.put(1, user.toString());
+            } else
+            if(config == FieldType.LONG) {
+                properties.put(1, Long.parseLong(user.toString()));
+            } else
+            if(config == FieldType.INTEGER) {
+                properties.put(1, Integer.parseInt(user.toString()));
+            } else {
+                throw new IllegalStateException();
+            }
+        }
+        catch (NumberFormatException e) {
+            throw new RakamException("User type doesn't match", HttpResponseStatus.BAD_REQUEST);
+        }
+
+        properties.put(2, createdAt.toEpochMilli());
+        properties.put(3, mergedAt.toEpochMilli());
+        eventStore.store(new Event(project, ANONYMOUS_ID_MAPPING, null, ANONYMOUS_USER_MAPPING.get(config), properties));
+    }
 
     @Override
     public void merge(String project, Object user, Object anonymousId, Instant createdAt, Instant mergedAt)
     {
-
-//        GenericData.Record properties = new GenericData.Record(ANONYMOUS_USER_MAPPING_SCHEMA);
-//        properties.put(0, anonymousId.toString());
-//        properties.put(1, user.toString());
-//        properties.put(2, createdAt.toEpochMilli());
-//        properties.put(3, mergedAt.toEpochMilli());
-//
-//        eventStore.store(new Event(project, ANONYMOUS_ID_MAPPING, null, ANONYMOUS_USER_MAPPING, properties));
+        try {
+            mergeInternal(project, user, anonymousId, createdAt, mergedAt);
+        }
+        catch (RuntimeException e) {
+            if(e.getCause() instanceof PSQLException && ((PSQLException) e.getCause()).getSQLState().equals("42P01")) {
+                new PostgresqlModule.UserMergeTableHook(projectConfig, executor)
+                        .createTable(project).join();
+                mergeInternal(project, user, anonymousId, createdAt, mergedAt);
+            }
+        }
     }
 
     private void syncAnonymousUser() {

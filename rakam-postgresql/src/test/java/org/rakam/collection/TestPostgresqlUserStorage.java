@@ -54,7 +54,7 @@ public class TestPostgresqlUserStorage
         configManager.setup();
         PostgresqlUserStorage userStorage = new PostgresqlUserStorage(queryExecutorService, materializedViewService, configManager, queryExecutor);
         PostgresqlEventStore postgresqlEventStore = new PostgresqlEventStore(dataSource, new FieldDependencyBuilder().build());
-        userService = new PostgresqlUserService(new ProjectConfig(), postgresqlEventStore, userStorage, metastore, queryExecutor);
+        userService = new PostgresqlUserService(new ProjectConfig(), configManager, postgresqlEventStore, userStorage, metastore, queryExecutor);
         super.setUp();
     }
 
