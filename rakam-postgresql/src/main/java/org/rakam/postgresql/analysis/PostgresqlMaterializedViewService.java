@@ -149,17 +149,15 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
         else {
             String materializedTableReference = tableName;
 
-            Instant lastUpdated = materializedView.lastUpdate;
-            Instant now = Instant.now();
-            boolean needsUpdate = lastUpdated == null || Duration
-                    .between(now, lastUpdated).compareTo(materializedView.updateInterval) > 0;
+            boolean willBeUpdated = database.updateMaterializedView(project, materializedView, f);
 
             QueryExecution queryExecution;
-            if (needsUpdate && database.updateMaterializedView(project, materializedView, f)) {
+            Instant now = Instant.now();
+            if (willBeUpdated) {
                 String query = formatSql(statement,
                         name -> {
-                            String predicate = lastUpdated != null ? format("between timezone('UTC', to_timestamp(%d)) and  timezone('UTC', to_timestamp(%d))",
-                                    lastUpdated.getEpochSecond(), now.getEpochSecond()) :
+                            String predicate =  materializedView.lastUpdate != null ? format("between timezone('UTC', to_timestamp(%d)) and  timezone('UTC', to_timestamp(%d))",
+                                    materializedView.lastUpdate.getEpochSecond(), now.getEpochSecond()) :
                                     format(" < timezone('UTC', to_timestamp(%d))", now.getEpochSecond());
 
                             String collection = queryExecutor.formatTableReference(project, name, Optional.empty(),
@@ -173,11 +171,11 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
             }
             else {
                 queryExecution = QueryExecution.completedQueryExecution("", QueryResult.empty());
-                f.complete(lastUpdated);
+                f.complete(materializedView.lastUpdate);
             }
 
             String reference;
-            if (!needsUpdate && !materializedView.realTime) {
+            if (!willBeUpdated && !materializedView.realTime) {
                 reference = materializedTableReference;
             }
             else {
@@ -186,7 +184,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
                             String collection = format("(SELECT * FROM %s %s) data",
                                     queryExecutor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of()),
                                     format("WHERE \"$server_time\" > to_timestamp(%d)",
-                                            (lastUpdated != null ? lastUpdated : now).getEpochSecond()));
+                                            ( materializedView.lastUpdate != null ?  materializedView.lastUpdate : now).getEpochSecond()));
                             return collection;
                         }, '"');
 
