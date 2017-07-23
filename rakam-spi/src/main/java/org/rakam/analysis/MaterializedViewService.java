@@ -12,6 +12,7 @@ import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
+import org.rakam.util.SqlUtil;
 
 import java.time.ZoneOffset;
 import java.util.HashMap;
@@ -26,7 +27,6 @@ import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERR
 
 public abstract class MaterializedViewService
 {
-    public final static SqlParser sqlParser = new SqlParser();
     private final QueryMetadataStore database;
     private final QueryExecutor queryExecutor;
     private final char escapeIdentifier;
@@ -111,7 +111,7 @@ public abstract class MaterializedViewService
     protected CompletableFuture<List<SchemaField>> metadata(String project, String query)
     {
         StringBuilder builder = new StringBuilder();
-        Query queryStatement = (Query) sqlParser.createStatement(checkNotNull(query, "query is required"));
+        Query queryStatement = (Query) SqlUtil.parseSql(query);
         CompletableFuture<List<SchemaField>> f = new CompletableFuture<>();
 
         try {

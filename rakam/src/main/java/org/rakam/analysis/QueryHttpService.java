@@ -1,9 +1,11 @@
 package org.rakam.analysis;
 
+import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.GroupingElement;
 import com.facebook.presto.sql.tree.Identifier;
+import com.facebook.presto.sql.tree.Literal;
 import com.facebook.presto.sql.tree.LongLiteral;
 import com.facebook.presto.sql.tree.Node;
 import com.facebook.presto.sql.tree.NodeLocation;
@@ -13,6 +15,7 @@ import com.facebook.presto.sql.tree.Relation;
 import com.facebook.presto.sql.tree.SelectItem;
 import com.facebook.presto.sql.tree.SingleColumn;
 import com.facebook.presto.sql.tree.SortItem;
+import com.facebook.presto.sql.tree.Statement;
 import com.facebook.presto.sql.tree.Union;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.collect.ImmutableList;
@@ -20,7 +23,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
 import io.airlift.log.Logger;
 import io.netty.channel.EventLoopGroup;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.datasource.CustomDataSource;
 import org.rakam.collection.SchemaField;
 import org.rakam.http.ForHttpServer;
 import org.rakam.plugin.EventStore.CopyType;
@@ -42,7 +47,9 @@ import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.ExportUtil;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.LogUtil;
+import org.rakam.util.RakamClient;
 import org.rakam.util.RakamException;
+import org.rakam.util.SqlUtil;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -51,8 +58,10 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 
+import java.net.URL;
 import java.time.Duration;
 import java.time.ZoneId;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -102,6 +111,7 @@ public class QueryHttpService
     )
     @JsonRequest
     public CompletableFuture<Response<QueryResult>> execute(
+            RakamHttpRequest request,
             @Named("project") String project,
             @BodyParam QueryRequest query)
     {
@@ -114,6 +124,16 @@ public class QueryHttpService
                 query.limit == null ? DEFAULT_QUERY_RESULT_COUNT : query.limit);
         return queryExecution
                 .getResult().thenApply(result -> {
+                    RakamClient.logEvent("run_query",
+                            ImmutableMap.<String, Object>builder()
+                                    .put("remote_address", Optional.ofNullable(request.getRemoteAddress()))
+                                    .put("origin", Optional.ofNullable(request.headers().get(HttpHeaders.Names.ORIGIN)))
+                                    .put("limit", Optional.ofNullable(query.limit))
+                                    .put("timezone", Optional.ofNullable(query.timezone).map(e -> e.getId()))
+                                    .put("sample_method", query.sample.map(e -> e.method.value()))
+                                    .put("sample_percentage", query.sample.map(e -> e.percentage))
+                                    .put("export_type", Optional.ofNullable(query.exportType)).build());
+
                     if (result.isFailed()) {
                         return Response.value(result, BAD_REQUEST);
                     }

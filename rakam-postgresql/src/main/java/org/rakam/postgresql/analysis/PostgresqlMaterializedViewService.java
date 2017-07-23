@@ -19,6 +19,7 @@ import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
+import org.rakam.util.SqlUtil;
 
 import javax.inject.Inject;
 
@@ -38,16 +39,12 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 public class PostgresqlMaterializedViewService extends MaterializedViewService {
-    private final SqlParser parser = new SqlParser();
-
     private final PostgresqlQueryExecutor queryExecutor;
     private final QueryMetadataStore database;
-    private final ProjectConfig projectConfig;
 
     @Inject
-    public PostgresqlMaterializedViewService(ProjectConfig projectConfig, PostgresqlQueryExecutor queryExecutor, QueryMetadataStore database) {
+    public PostgresqlMaterializedViewService(PostgresqlQueryExecutor queryExecutor, QueryMetadataStore database) {
         super(database, queryExecutor, '"');
-        this.projectConfig = projectConfig;
         this.queryExecutor = queryExecutor;
         this.database = database;
     }
@@ -59,10 +56,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
             materializedView.validateQuery();
 
             StringBuilder builder = new StringBuilder();
-            Query statement;
-            synchronized (parser) {
-                statement = (Query) parser.createStatement(materializedView.query);
-            }
+            Query statement = (Query) SqlUtil.parseSql(materializedView.query);
 
             new RakamSqlFormatter.Formatter(builder, name -> queryExecutor
                     .formatTableReference(project, name, Optional.empty(), new HashMap<String, String>() {
@@ -135,10 +129,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
 
         String tableName = queryExecutor.formatTableReference(project,
                 QualifiedName.of("materialized", materializedView.tableName), Optional.empty(), ImmutableMap.of());
-        Query statement;
-        synchronized (sqlParser) {
-            statement = (Query) sqlParser.createStatement(materializedView.query);
-        }
+        Query statement = (Query) SqlUtil.parseSql(materializedView.query);
 
         Map<String, String> sessionProperties = new HashMap<>();
         if (!materializedView.incremental) {

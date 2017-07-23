@@ -19,6 +19,7 @@ import org.rakam.plugin.MaterializedView;
 import org.rakam.util.LogUtil;
 import org.rakam.util.MaterializedViewNotExists;
 import org.rakam.util.NotExistsException;
+import org.rakam.util.RakamClient;
 import org.rakam.util.RakamException;
 
 import java.time.Clock;
@@ -85,14 +86,15 @@ public class QueryExecutorService
                 .filter(m -> m.queryExecution != null)
                 .collect(Collectors.toList());
 
+        QueryExecution execution;
         if (queryExecutions.isEmpty()) {
-            QueryExecution execution = executor.executeRawQuery(query, zoneId, sessionParameters);
+            execution = executor.executeRawQuery(query, zoneId, sessionParameters);
             if (materializedViews.isEmpty()) {
                 return execution;
             }
             else {
                 Map<String, Long> collect = materializedViews.entrySet().stream().collect(Collectors.toMap(v -> v.getKey().tableName, v -> v.getKey().lastUpdate != null ? v.getKey().lastUpdate.toEpochMilli() : -1));
-                return new DelegateQueryExecution(execution, result -> {
+                execution = new DelegateQueryExecution(execution, result -> {
                     result.setProperty("materializedViews", collect);
                     return result;
                 });
@@ -104,7 +106,7 @@ public class QueryExecutorService
                     .map(e -> e.queryExecution)
                     .collect(Collectors.toList());
 
-            return new DelegateQueryExecution(new ChainQueryExecution(executions, query, (results) -> {
+            execution = new DelegateQueryExecution(new ChainQueryExecution(executions, query, (results) -> {
                 for (MaterializedViewExecution queryExecution : queryExecutions) {
                     QueryResult result = queryExecution.queryExecution.getResult().join();
                     if (result.isFailed()) {
@@ -133,6 +135,8 @@ public class QueryExecutorService
                 return result;
             });
         }
+
+        return execution;
     }
 
     public QueryExecution executeQuery(String project, String sqlQuery)

@@ -44,11 +44,11 @@ public class TestPostgresqlEventExplorer
         PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(new ProjectConfig(), dataSource, metastore, new CustomDataSourceService(dataSource), false);
 
         QueryExecutorService executorService = new QueryExecutorService(queryExecutor, metastore,
-                new PostgresqlMaterializedViewService(new ProjectConfig(), queryExecutor, queryMetadataStore), Clock.systemUTC(), '"');
+                new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore), Clock.systemUTC(), '"');
         PostgresqlPseudoContinuousQueryService continuousQueryService = new PostgresqlPseudoContinuousQueryService(queryMetadataStore, executorService, queryExecutor);
 
         eventStore = new PostgresqlEventStore(dataSource, build);
-        PostgresqlMaterializedViewService materializedViewService = new PostgresqlMaterializedViewService(new ProjectConfig(), queryExecutor, queryMetadataStore);
+        PostgresqlMaterializedViewService materializedViewService = new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore);
         eventExplorer = new PostgresqlEventExplorer(
                 new ProjectConfig(),
                 new QueryExecutorService(queryExecutor, metastore, materializedViewService, Clock.systemUTC(), '"'),

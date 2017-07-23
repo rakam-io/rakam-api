@@ -6,6 +6,7 @@ import com.google.inject.Binder;
 import io.airlift.configuration.Config;
 import org.rakam.plugin.RakamModule;
 import org.rakam.util.LogUtil;
+import org.rakam.util.RakamClient;
 
 import java.io.IOException;
 import java.net.URL;
@@ -36,18 +37,7 @@ public class LogModule
                 sentryHandler.setTags(logConfig.getTags());
                 sentryHandler.setLevel(Level.SEVERE);
 
-                URL gitProps = LogUtil.class.getResource("/git.properties");
-
-                if (gitProps != null) {
-                    Properties properties = new Properties();
-                    try {
-                        properties.load(gitProps.openStream());
-                    }
-                    catch (IOException e) {
-                    }
-
-                    sentryHandler.setRelease(properties.get("git.commit.id.describe").toString());
-                }
+                sentryHandler.setRelease(RakamClient.RELEASE);
                 rootLogger.addHandler(sentryHandler);
             }
         }
