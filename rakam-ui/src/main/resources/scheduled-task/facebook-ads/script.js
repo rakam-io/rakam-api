@@ -63,8 +63,6 @@ var internal = function (parameters, url, events, day) {
         }
 
         campaign._time = campaign.date_start + "T00:00:00";
-        campaign._user = campaign.account_id;
-        campaign.account_id = undefined;
         events.push({collection: parameters.collection, properties: campaign});
     });
 
