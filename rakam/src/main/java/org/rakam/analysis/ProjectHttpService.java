@@ -218,7 +218,7 @@ public class ProjectHttpService
     }
 
     @JsonRequest
-    @ApiOperation(value = "Create API Keys")
+    @ApiOperation(value = "Check API Keys")
     @Path("/check-api-keys")
     public List<Boolean> checkApiKeys(@ApiParam("keys") List<ProjectApiKeys> keys, @ApiParam("project") String project)
     {

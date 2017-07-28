@@ -256,7 +256,7 @@ public class EventExplorerHttpService
         public final List<String> collections;
 
         @JsonCreator
-        public AnalyzeRequest(@ApiParam(value = "measure", required = false) EventExplorer.Measure measure,
+        public AnalyzeRequest(@ApiParam(value = "measure") EventExplorer.Measure measure,
                 @ApiParam(value = "grouping", required = false) EventExplorer.Reference grouping,
                 @ApiParam(value = "segment", required = false) EventExplorer.Reference segment,
                 @ApiParam(value = "filterExpression", required = false) String filterExpression,

@@ -239,15 +239,9 @@ public class ScheduledEmailService
 
         writer = new StringWriter();
         String path = "/" + task.project_id + "/dashboard/" + task.type_id;
-        Map<String, Object> project;
-        try (Handle handle = dbi.open()) {
-            project = handle.createQuery("select project, api_url from web_user_project where id = :id")
-                    .bind("id", task.project_id).first();
-        }
         template.execute(writer, of(
                 "domain", this.siteHost,
                 "session", webUserHttpService.getCookieForUser(task.user_id),
-                "active_project", URLEncoder.encode(encode(of("name", project.get("project"), "apiUrl", project.get("api_url"))), "UTF-8"),
                 "path", path));
         String txtContent = writer.toString();
 
