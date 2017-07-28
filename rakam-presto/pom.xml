@@ -5,7 +5,7 @@
     <parent>
         <artifactId>rakam-root</artifactId>
         <groupId>org.rakam</groupId>
-        <version>0.9</version>
+        <version>0.10-SNAPSHOT</version>
     </parent>
 
     <artifactId>rakam-presto</artifactId>
