@@ -109,6 +109,7 @@ public class RakamClient
                         throws IOException
                 {
                     logger.debug("Successfully logged %s event", collection);
+                    response.close();
                 }
             });
         }
