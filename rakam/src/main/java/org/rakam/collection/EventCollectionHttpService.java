@@ -268,11 +268,12 @@ public class EventCollectionHttpService
             }
 
             cookiesFuture.whenComplete((cookies, ex) -> {
-                if(ex != null) {
-                    if(ex instanceof RakamException) {
+                if (ex != null) {
+                    if (ex instanceof RakamException) {
                         LogUtil.logException(request, ex);
                         returnError(request, ex.getMessage(), ((RakamException) ex).getStatusCode());
-                    } else {
+                    }
+                    else {
                         LOGGER.error(ex, "Error while collecting event");
                         returnError(request, "An error occurred", INTERNAL_SERVER_ERROR);
                     }
@@ -398,7 +399,10 @@ public class EventCollectionHttpService
         storeEventsSync(request,
                 buff -> {
                     String contentType = request.headers().get(CONTENT_TYPE);
-                    if (contentType == null || "application/json".equals(contentType)) {
+                    if (contentType == null || contentType.isEmpty()) {
+                        return jsonMapper.readerFor(EventList.class).readValue(buff);
+                    }
+                    else if ("application/json".equals(contentType)) {
                         String apiKey = getParam(request.params(), MASTER_KEY.getKey());
                         String project = apiKeyService.getProjectOfApiKey(apiKey, MASTER_KEY);
                         String collection = getParam(request.params(), "collection");
