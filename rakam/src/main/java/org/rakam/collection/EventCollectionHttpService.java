@@ -399,7 +399,7 @@ public class EventCollectionHttpService
         storeEventsSync(request,
                 buff -> {
                     String contentType = request.headers().get(CONTENT_TYPE);
-                    if (contentType == null || contentType.isEmpty()) {
+                    if (contentType == null || contentType.isEmpty() || "application/json".equals(contentType)) {
                         return jsonMapper.readerFor(EventList.class).readValue(buff);
                     }
                     else if ("application/json".equals(contentType)) {
