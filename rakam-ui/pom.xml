@@ -239,6 +239,12 @@
                 </exclusion>
             </exclusions>
         </dependency>
+
+        <dependency>
+            <groupId>com.coveo</groupId>
+            <artifactId>saml-client</artifactId>
+            <version>1.1.0</version>
+        </dependency>
     </dependencies>
 
     <profiles>

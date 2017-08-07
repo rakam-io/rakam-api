@@ -290,7 +290,7 @@ public abstract class AbstractEventExplorer
         Optional<AggregationType> intermediateAggregation = getIntermediateAggregation(measure.aggregation);
 
         if (intermediateAggregation.isPresent()) {
-            if (grouping != null && grouping.type == COLUMN && segment.type == COLUMN) {
+            if (grouping != null && grouping.type == COLUMN && segment.type == COLUMN && !segment.equals(DEFAULT_SEGMENT)) {
                 query = format(" SELECT " +
                                 " CASE WHEN group_rank > 15 THEN 'Others' ELSE cast(%s as varchar) END,\n" +
                                 " CASE WHEN segment_rank > 20 THEN 'Others' ELSE cast(%s as varchar) END,\n" +
@@ -307,7 +307,7 @@ public abstract class AbstractEventExplorer
                         computeQuery);
             }
             else {
-                if ((grouping != null && grouping.type == COLUMN) || (segment != null && segment.type == COLUMN)) {
+                if ((grouping != null && grouping.type == COLUMN) || (segment != null && segment.type == COLUMN && !segment.equals(DEFAULT_SEGMENT))) {
                     String windowColumn = checkTableColumn(getColumnValue(timestampMapping,
                             (grouping != null && grouping.type == COLUMN) ? grouping : segment, false) +
                             ((grouping != null && grouping.type == COLUMN) ? "_group" : "_segment"));

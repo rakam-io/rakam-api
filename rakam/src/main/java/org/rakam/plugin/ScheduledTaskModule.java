@@ -8,6 +8,7 @@ import com.google.inject.multibindings.Multibinder;
 import com.google.inject.name.Named;
 import com.google.inject.name.Names;
 import com.mysql.jdbc.MySQLConnection;
+import io.airlift.configuration.Config;
 import org.postgresql.PGConnection;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.util.lock.LockService;
@@ -20,6 +21,8 @@ import javax.inject.Inject;
 import java.sql.Connection;
 import java.sql.SQLException;
 
+import static io.airlift.configuration.ConfigBinder.configBinder;
+
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "tasks.enable", value = "true")
 public class ScheduledTaskModule
@@ -28,6 +31,7 @@ public class ScheduledTaskModule
     @Override
     protected void setup(Binder binder)
     {
+        configBinder(binder).bindConfig(TaskConfig.class);
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(ScheduledTaskHttpService.class);
 
@@ -90,6 +94,22 @@ public class ScheduledTaskModule
                     }
                 }
             }
+        }
+    }
+
+    public static class TaskConfig {
+        public boolean enabled;
+
+        public boolean getEnabled()
+        {
+            return enabled;
+        }
+
+        @Config("tasks.enable")
+        public TaskConfig setEnabled(boolean enabled)
+        {
+            this.enabled = enabled;
+            return this;
         }
     }
 }
