@@ -290,24 +290,25 @@ public abstract class AbstractEventExplorer
         Optional<AggregationType> intermediateAggregation = getIntermediateAggregation(measure.aggregation);
 
         if (intermediateAggregation.isPresent()) {
-            if (grouping != null && grouping.type == COLUMN && segment.type == COLUMN && !segment.equals(DEFAULT_SEGMENT)) {
+            if (grouping != null && grouping.type == COLUMN && segment.type == COLUMN) {
+                boolean segmentRanked = !segment.equals(DEFAULT_SEGMENT);
                 query = format(" SELECT " +
                                 " CASE WHEN group_rank > 15 THEN 'Others' ELSE cast(%s as varchar) END,\n" +
-                                " CASE WHEN segment_rank > 20 THEN 'Others' ELSE cast(%s as varchar) END,\n" +
+                                " %s " +
                                 " %s FROM (\n" +
                                 "   SELECT *,\n" +
-                                "          row_number() OVER (ORDER BY %s DESC) AS group_rank,\n" +
-                                "          row_number() OVER (PARTITION BY %s ORDER BY value DESC) AS segment_rank\n" +
+                                "          %s" +
+                                "          row_number() OVER (ORDER BY %s DESC) AS group_rank\n" +
                                 "   FROM (%s) as data GROUP BY 1, 2, 3) as data GROUP BY 1, 2 ORDER BY 3 DESC",
                         checkTableColumn(getColumnReference(grouping) + "_group"),
-                        checkTableColumn(getColumnReference(segment) + "_segment"),
+                        format(segmentRanked ? " CASE WHEN segment_rank > 20 THEN 'Others' ELSE cast(%s as varchar) END,\n" : "cast(%s as varchar),", checkTableColumn(getColumnReference(segment) + "_segment")),
                         format(convertSqlFunction(intermediateAggregation.get(), measure.aggregation), "value"),
+                        segmentRanked ? format("row_number() OVER (PARTITION BY %s ORDER BY value DESC) AS segment_rank,\n", checkCollection(format(getColumnReference(grouping), "value") + "_group")) : "",
                         format(convertSqlFunction(intermediateAggregation.get(), measure.aggregation), "value"),
-                        checkCollection(format(getColumnReference(grouping), "value") + "_group"),
                         computeQuery);
             }
             else {
-                if ((grouping != null && grouping.type == COLUMN) || (segment != null && segment.type == COLUMN && !segment.equals(DEFAULT_SEGMENT))) {
+                if ((grouping != null && grouping.type == COLUMN) || (segment != null && segment.type == COLUMN)) {
                     String windowColumn = checkTableColumn(getColumnValue(timestampMapping,
                             (grouping != null && grouping.type == COLUMN) ? grouping : segment, false) +
                             ((grouping != null && grouping.type == COLUMN) ? "_group" : "_segment"));

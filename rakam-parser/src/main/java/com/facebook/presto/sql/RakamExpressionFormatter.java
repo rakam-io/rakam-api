@@ -671,35 +671,36 @@ public class RakamExpressionFormatter
 
     static String formatStringLiteral(String s)
     {
+        // ALERT: MYSQL DOES NOT SUPPORT THIS SCHEME
         s = s.replace("'", "''");
-        if (isAsciiPrintable(s)) {
+//        if (isAsciiPrintable(s)) {
             return "'" + s + "'";
-        }
+//        }
 
-        StringBuilder builder = new StringBuilder();
-        builder.append("U&'");
-        PrimitiveIterator.OfInt iterator = s.codePoints().iterator();
-        while (iterator.hasNext()) {
-            int codePoint = iterator.nextInt();
-            checkArgument(codePoint >= 0, "Invalid UTF-8 encoding in characters: " + s);
-            if (isAsciiPrintable(codePoint)) {
-                char ch = (char) codePoint;
-                if (ch == '\\') {
-                    builder.append(ch);
-                }
-                builder.append(ch);
-            }
-            else if (codePoint <= 0xFFFF) {
-                builder.append('\\');
-                builder.append(String.format("%04X", codePoint));
-            }
-            else {
-                builder.append("\\+");
-                builder.append(String.format("%06X", codePoint));
-            }
-        }
-        builder.append("'");
-        return builder.toString();
+//        StringBuilder builder = new StringBuilder();
+//        builder.append("U&'");
+//        PrimitiveIterator.OfInt iterator = s.codePoints().iterator();
+//        while (iterator.hasNext()) {
+//            int codePoint = iterator.nextInt();
+//            checkArgument(codePoint >= 0, "Invalid UTF-8 encoding in characters: " + s);
+//            if (isAsciiPrintable(codePoint)) {
+//                char ch = (char) codePoint;
+//                if (ch == '\\') {
+//                    builder.append(ch);
+//                }
+//                builder.append(ch);
+//            }
+//            else if (codePoint <= 0xFFFF) {
+//                builder.append('\\');
+//                builder.append(String.format("%04X", codePoint));
+//            }
+//            else {
+//                builder.append("\\+");
+//                builder.append(String.format("%06X", codePoint));
+//            }
+//        }
+//        builder.append("'");
+//        return builder.toString();
     }
 
     static String formatOrderBy(OrderBy orderBy, Function<QualifiedName, String> tableNameMapper, Optional<Function<String, String>> columnNameMapper, List<String> queryWithTables, char escapeIdentifier)
