@@ -38,7 +38,7 @@ public class ClickHouseQueryExecutor implements QueryExecutor
     }
 
     @Override
-    public QueryExecution executeRawQuery(String sqlQuery, ZoneId zoneId, Map<String, String> sessionParameters)
+    public QueryExecution executeRawQuery(String sqlQuery, ZoneId zoneId, Map<String, String> sessionParameters, String apiKey)
     {
         return new ClickHouseQueryExecution(config, sqlQuery);
     }

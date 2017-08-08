@@ -123,7 +123,7 @@ public abstract class MaterializedViewService
         }
 
         QueryExecution execution = queryExecutor.executeRawQuery(builder.toString() + " limit 0",
-                ZoneOffset.UTC, ImmutableMap.of());
+                ZoneOffset.UTC, ImmutableMap.of(), null);
         execution.getResult().thenAccept(result -> {
             if (result.isFailed()) {
                 f.completeExceptionally(new RakamException(result.getError().message, INTERNAL_SERVER_ERROR));

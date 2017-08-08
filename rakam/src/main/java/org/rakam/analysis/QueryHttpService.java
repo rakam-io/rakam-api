@@ -149,10 +149,13 @@ public class QueryHttpService
     @JsonRequest
     public void export(RakamHttpRequest request, @Named("project") String project, @BodyParam QueryRequest query)
     {
+        String apiKey = request.headers().get("read_key");
         executorService.executeQuery(project, query.query,
                 query.sample, Optional.ofNullable(query.defaultSchema).orElse("collection"),
                 query.timezone,
-                query.limit == null ? DEFAULT_QUERY_RESULT_COUNT : query.limit).getResult().thenAccept(result -> {
+                query.limit == null ? DEFAULT_QUERY_RESULT_COUNT : query.limit)
+
+                .getResult().thenAccept(result -> {
             if (result.isFailed()) {
                 throw new RakamException(result.getError().toString(), BAD_REQUEST);
             }

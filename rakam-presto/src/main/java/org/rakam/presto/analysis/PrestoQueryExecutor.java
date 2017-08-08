@@ -89,33 +89,33 @@ public class PrestoQueryExecutor
     }
 
     @Override
-    public QueryExecution executeRawQuery(String query, ZoneId timezone, Map<String, String> sessionParameters)
+    public QueryExecution executeRawQuery(String query, ZoneId timezone, Map<String, String> sessionParameters, String apiKey)
     {
-        return executeRawQuery(query, timezone, sessionParameters, null);
+        return executeRawQuery(query, timezone, sessionParameters, null, apiKey);
     }
 
     @Override
     public QueryExecution executeRawQuery(String query, Map<String, String> sessionProperties)
     {
-        return executeRawQuery(query, ZoneOffset.UTC, sessionProperties, null);
+        return executeRawQuery(query, ZoneOffset.UTC, sessionProperties, null, null);
     }
 
     @Override
     public QueryExecution executeRawStatement(String query, Map<String, String> sessionProperties)
     {
-        return executeRawStatement(query, ZoneOffset.UTC, sessionProperties, null);
+        return executeRawStatement(query, ZoneOffset.UTC, sessionProperties, null, null);
     }
 
-    public QueryExecution executeRawStatement(String query, ZoneId timezone, Map<String, String> sessionProperties, String catalog)
+    public QueryExecution executeRawStatement(String query, ZoneId timezone, Map<String, String> sessionProperties, String catalog, String user)
     {
-        return internalExecuteRawQuery(query, createSession(catalog, timezone, sessionProperties));
+        return internalExecuteRawQuery(query, createSession(catalog, timezone, sessionProperties, user));
     }
 
-    public ClientSession createSession(String catalog, ZoneId timezone, Map<String, String> sessionProperties) {
+    public ClientSession createSession(String catalog, ZoneId timezone, Map<String, String> sessionProperties, String user) {
         return new ClientSession(
                 prestoConfig.getAddress(),
+                user == null ? "rakam" : user,
                 "rakam",
-                "api-server",
                 null,
                 catalog == null ? "default" : catalog,
                 "default",
@@ -125,7 +125,7 @@ public class PrestoQueryExecutor
                 null, false, new Duration(1, TimeUnit.MINUTES));
     }
 
-    public QueryExecution executeRawQuery(String query, ZoneId timezone, Map<String, String> sessionProperties, String catalog)
+    public QueryExecution executeRawQuery(String query, ZoneId timezone, Map<String, String> sessionProperties, String catalog, String apiKey)
     {
         if (sessionProperties.containsKey("external.source_options")) {
             String encodedKey = sessionProperties.get("external.source_options");
@@ -146,7 +146,7 @@ public class PrestoQueryExecutor
             }
         }
 
-        return executeRawStatement(query, timezone, sessionProperties, catalog);
+        return executeRawStatement(query, timezone, sessionProperties, catalog, apiKey);
     }
 
     private QueryExecution getSingleQueryExecution(String query, DataSourceType type)

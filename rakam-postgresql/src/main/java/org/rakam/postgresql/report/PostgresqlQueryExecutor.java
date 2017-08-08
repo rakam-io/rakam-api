@@ -98,7 +98,7 @@ public class PostgresqlQueryExecutor
     }
 
     @Override
-    public QueryExecution executeRawQuery(String query, ZoneId zoneId, Map<String, String> sessionParameters)
+    public QueryExecution executeRawQuery(String query, ZoneId zoneId, Map<String, String> sessionParameters, String apiKey)
     {
         String remotedb = sessionParameters.get("remotedb");
         if (remotedb != null) {
@@ -110,7 +110,7 @@ public class PostgresqlQueryExecutor
     @Override
     public QueryExecution executeRawQuery(String query, Map<String, String> sessionParameters)
     {
-        return executeRawQuery(query, null, sessionParameters);
+        return executeRawQuery(query, null, sessionParameters, null);
     }
 
     @Override
