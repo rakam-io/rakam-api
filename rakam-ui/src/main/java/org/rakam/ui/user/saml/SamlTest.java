@@ -1,7 +1,5 @@
 package org.rakam.ui.user.saml;
 
-import com.coveo.saml.SamlClient;
-
 public class SamlTest
 {
     public static void main(String[] args)
