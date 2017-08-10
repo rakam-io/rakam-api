@@ -1,7 +1,5 @@
 package org.rakam.postgresql.plugin.user;
 
-import com.facebook.presto.sql.tree.QualifiedName;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -15,7 +13,6 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.EventStore;
-import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.postgresql.PostgresqlModule;
@@ -28,10 +25,6 @@ import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -45,10 +38,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.ImmutableList.of;
 import static java.lang.String.format;
-import static org.apache.avro.Schema.Type.INT;
-import static org.apache.avro.Schema.Type.LONG;
-import static org.apache.avro.Schema.Type.NULL;
-import static org.apache.avro.Schema.Type.STRING;
 import static org.rakam.analysis.InternalConfig.USER_TYPE;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkLiteral;
@@ -214,8 +203,8 @@ public class PostgresqlUserService
     }
 
     @Override
-    public void batch(String project, List<? extends ISingleUserBatchOperation> batchUserOperations)
+    public CompletableFuture<Void> batch(String project, List<? extends ISingleUserBatchOperation> batchUserOperations)
     {
-        storage.batch(project, batchUserOperations);
+        return storage.batch(project, batchUserOperations);
     }
 }

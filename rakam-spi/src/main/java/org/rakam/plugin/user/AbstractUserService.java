@@ -88,8 +88,8 @@ public abstract class AbstractUserService {
 
     public abstract QueryExecution preCalculate(String project, PreCalculateQuery query);
 
-    public void batch(String project, List<? extends ISingleUserBatchOperation> batchUserOperations) {
-        storage.batch(project, batchUserOperations);
+    public CompletableFuture<Void> batch(String project, List<? extends ISingleUserBatchOperation> batchUserOperations) {
+        return storage.batch(project, batchUserOperations);
     }
 
     public static class CollectionEvent {

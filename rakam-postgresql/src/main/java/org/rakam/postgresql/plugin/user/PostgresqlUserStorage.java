@@ -10,6 +10,7 @@ import org.rakam.plugin.user.UserPropertyMapper;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryExecutorService;
+import org.rakam.util.ProjectCollection;
 
 import javax.inject.Inject;
 
@@ -100,9 +101,9 @@ public class PostgresqlUserStorage
     }
 
     @Override
-    public String getUserTable(String project, boolean isEventFilterActive)
+    public ProjectCollection getUserTable(String project, boolean isEventFilterActive)
     {
-        return checkProject(project, '"') + "." + USER_TABLE;
+        return new ProjectCollection(checkProject(project, '"'), USER_TABLE);
     }
 
     @Override

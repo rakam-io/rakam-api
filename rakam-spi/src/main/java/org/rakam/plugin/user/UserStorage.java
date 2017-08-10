@@ -28,7 +28,7 @@ public interface UserStorage {
 
     List<Object> batchCreate(String project, List<User> users);
 
-    default void batch(String project, List<? extends ISingleUserBatchOperation> operations) {
+    default CompletableFuture<Void> batch(String project, List<? extends ISingleUserBatchOperation> operations) {
         for (ISingleUserBatchOperation operation : operations) {
             if (operation.getSetPropertiesOnce() != null) {
                 setUserProperties(project, operation.getUser(), operation.getSetProperties());
@@ -45,6 +45,7 @@ public interface UserStorage {
                 }
             }
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     CompletableFuture<QueryResult> searchUsers(String project, List<String> columns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, String offset);

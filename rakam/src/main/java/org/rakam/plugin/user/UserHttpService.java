@@ -76,6 +76,7 @@ import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
 import static org.rakam.collection.EventCollectionHttpService.getHeaderList;
 import static org.rakam.collection.EventCollectionHttpService.setBrowser;
+import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.server.http.HttpServer.returnError;
 
 @Path("/user")
@@ -358,13 +359,21 @@ public class UserHttpService
             List<Cookie> cookies = mapEvent(mapper ->
                     mapper.map(project, req.data, new HttpRequestParams(request), socketAddress));
 
-            service.batch(project, req.data);
+            service.batch(project, req.data).whenComplete((result, ex) -> {
+                setBrowser(request, response);
 
-            setBrowser(request, response);
-            if (cookies != null && !cookies.isEmpty()) {
-                response.headers().add(SET_COOKIE, STRICT.encode(cookies));
-            }
-            request.response(response).end();
+                if(ex != null) {
+                    request.response(JsonHelper.encode(errorMessage("An error occurred", INTERNAL_SERVER_ERROR)),
+                            INTERNAL_SERVER_ERROR);
+                    LOGGER.error(ex, "Error while performing batch user operation");
+                    return;
+                }
+
+                if (cookies != null && !cookies.isEmpty()) {
+                    response.headers().add(SET_COOKIE, STRICT.encode(cookies));
+                }
+                request.response(response).end();
+            });
         });
     }
 

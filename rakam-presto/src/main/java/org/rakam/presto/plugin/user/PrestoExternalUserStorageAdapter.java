@@ -17,6 +17,7 @@ import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
+import org.rakam.util.ProjectCollection;
 import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
@@ -239,12 +240,12 @@ public class PrestoExternalUserStorageAdapter
     }
 
     @Override
-    public String getUserTable(String project, boolean isEventFilterActive)
+    public ProjectCollection getUserTable(String project, boolean isEventFilterActive)
     {
         if (isEventFilterActive) {
-            return prestoConfig.getUserConnector() + ".users." + project;
+            return new ProjectCollection(prestoConfig.getUserConnector() + ".users", project);
         }
 
-        return "users." + project;
+        return new ProjectCollection("users", project);
     }
 }

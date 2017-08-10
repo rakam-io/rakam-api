@@ -78,11 +78,13 @@ import java.util.stream.Collectors;
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCEPT;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.util.Objects.requireNonNull;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY;
 import static org.rakam.report.QueryExecutorService.DEFAULT_QUERY_RESULT_COUNT;
 import static org.rakam.report.QueryExecutorService.MAX_QUERY_RESULT_LIMIT;
 import static org.rakam.server.http.HttpServer.errorMessage;
+import static org.rakam.server.http.HttpServer.returnError;
 import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.jsonObject;
 
@@ -153,19 +155,34 @@ public class QueryHttpService
         executorService.executeQuery(project, query.query,
                 query.sample, Optional.ofNullable(query.defaultSchema).orElse("collection"),
                 query.timezone,
-                query.limit == null ? DEFAULT_QUERY_RESULT_COUNT : query.limit)
+                query.limit == null ? DEFAULT_QUERY_RESULT_COUNT : query.limit, apiKey)
 
                 .getResult().thenAccept(result -> {
             if (result.isFailed()) {
-                throw new RakamException(result.getError().toString(), BAD_REQUEST);
+                returnError(request, result.getError().toString(), BAD_REQUEST);
+                return;
             }
             byte[] bytes;
             switch (query.exportType) {
                 case CSV:
-                    bytes = ExportUtil.exportAsCSV(result);
+                    try {
+                        bytes = ExportUtil.exportAsCSV(result);
+                    }
+                    catch (Exception e) {
+                        LOGGER.error(e);
+                        returnError(request, "Error while generating CSV.", INTERNAL_SERVER_ERROR);
+                        return;
+                    }
                     break;
                 case AVRO:
-                    bytes = ExportUtil.exportAsAvro(result);
+                    try {
+                        bytes = ExportUtil.exportAsAvro(result);
+                    }
+                    catch (Exception e) {
+                        LOGGER.error(e);
+                        returnError(request, "Error while generating CSV.", INTERNAL_SERVER_ERROR);
+                        return;
+                    }
                     break;
                 case JSON:
                     bytes = JsonHelper.encodeAsBytes(result.getResult());
@@ -454,7 +471,7 @@ public class QueryHttpService
                     .collect(Collectors.toList());
         }
         else {
-            orderBy =queryBody.getOrderBy().map(v -> v.getSortItems().stream().map(item ->
+            orderBy = queryBody.getOrderBy().map(v -> v.getSortItems().stream().map(item ->
                     new Ordering(item.getOrdering(), mapper.apply(item.getSortKey()), item.getSortKey().toString()))
                     .collect(Collectors.toList())).orElse(ImmutableList.of());
         }
