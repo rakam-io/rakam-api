@@ -32,7 +32,7 @@ RUN apt-get update \
     && gzip -d /tmp/GeoLite2-City.mmdb.gz
 
 # Make environment variable active
-RUN cd /var/app/rakam/rakam/target/rakam-*-bundle/rakam-*/etc/ && echo '-Denv=RAKAM_CONFIG' >> jvm.config
+RUN cd /var/app/rakam/rakam/target/rakam-*-bundle/rakam-*/etc/ && echo '\n -Denv=RAKAM_CONFIG' >> jvm.config
 
 WORKDIR /var/app/rakam
 
