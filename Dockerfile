@@ -33,10 +33,12 @@ RUN apt-get update \
 
 WORKDIR /var/app/rakam
 
+RUN echo '\n-Denv=RAKAM_CONFIG' >> rakam/target/rakam-*-bundle/rakam-*/etc/jvm.config
+
 EXPOSE 9999
 
 #-Dlog.enable-console=false
 #-Dlog.output-file=../logs/app.log
-ENTRYPOINT rakam/target/rakam-*-bundle/rakam-*/bin/launcher run --config ../config.properties -Denv=RAKAM_CONFIG
+ENTRYPOINT rakam/target/rakam-*-bundle/rakam-*/bin/launcher run --config ../config.properties
 
 RUN apt-get clean
