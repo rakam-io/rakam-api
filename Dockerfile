@@ -10,7 +10,6 @@ RUN echo 'org.rakam=INFO\n\
 io.netty=INFO' > log.properties
 
 RUN [ -s config.properties ] || (echo "store.adapter=postgresql\n\
-store.adapter.postgresql.url=postgres://rakam:dummy@rakam-db:5432/rakam\n\
 plugin.user.enabled=true\n\
 event.stream.enabled=true\n\
 event-explorer.enabled=true\n\
@@ -32,7 +31,7 @@ RUN apt-get update \
     && gzip -d /tmp/GeoLite2-City.mmdb.gz
 
 # Make environment variable active
-RUN cd /var/app/rakam/rakam/target/rakam-*-bundle/rakam-*/etc/ && echo '\n -Denv=RAKAM_CONFIG' >> jvm.config
+RUN cd /var/app/rakam/rakam/target/rakam-*-bundle/rakam-*/etc/ && echo '\n-Denv=RAKAM_CONFIG' >> jvm.config
 
 WORKDIR /var/app/rakam
 
