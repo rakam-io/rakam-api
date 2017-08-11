@@ -31,9 +31,10 @@ RUN apt-get update \
     && wget -P /tmp http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz \
     && gzip -d /tmp/GeoLite2-City.mmdb.gz
 
-WORKDIR /var/app/rakam
+# Make environment variable active
+RUN cd /var/app/rakam/rakam/target/rakam-*-bundle/rakam-*/etc/ && echo '-Denv=RAKAM_CONFIG' >> jvm.config
 
-RUN echo '\n-Denv=RAKAM_CONFIG' >> rakam/target/rakam-*-bundle/rakam-*/etc/jvm.config
+WORKDIR /var/app/rakam
 
 EXPOSE 9999
 
