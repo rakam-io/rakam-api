@@ -103,7 +103,7 @@ public class PostgresqlUserStorage
     @Override
     public ProjectCollection getUserTable(String project, boolean isEventFilterActive)
     {
-        return new ProjectCollection(checkProject(project, '"'), USER_TABLE);
+        return new ProjectCollection(project, USER_TABLE);
     }
 
     @Override

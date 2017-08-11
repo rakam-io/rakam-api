@@ -132,7 +132,7 @@ public abstract class AbstractPostgresqlUserStorage
         }
     }
 
-    private Map<String, FieldType> createMissingColumns(String project, Object id, Iterable<Map.Entry<String, JsonNode>> fields, Optional<Runnable> schemaChangeHook)
+    private Map<String, FieldType> createMissingColumns(String project, Object id, Iterable<Map.Entry<String, JsonNode>> fields, Runnable schemaChangeHook)
     {
         Map<String, FieldType> columns = propertyCache.getIfPresent(project);
         if (columns == null) {
@@ -146,7 +146,9 @@ public abstract class AbstractPostgresqlUserStorage
             if (fieldType == null && entry.getValue() != null && !entry.getKey().equals("created_at")) {
                 created = true;
                 // we need it in order to prevent race condition
-                schemaChangeHook.ifPresent(v -> v.run());
+                if (schemaChangeHook != null) {
+                    schemaChangeHook.run();
+                }
                 createColumn(project, id, entry.getKey(), entry.getValue());
             }
         }
@@ -190,14 +192,7 @@ public abstract class AbstractPostgresqlUserStorage
     {
         Iterable<Map.Entry<String, JsonNode>> properties = strip(_properties);
 
-        Map<String, FieldType> columns = createMissingColumns(project, id, properties, Optional.of(() -> {
-            try {
-                conn.commit();
-            }
-            catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        }));
+        Map<String, FieldType> columns = createMissingColumns(project, id, properties, new CommitConnection(conn));
 
             StringBuilder cols = new StringBuilder();
             StringBuilder parametrizedValues = new StringBuilder();
@@ -767,14 +762,8 @@ public abstract class AbstractPostgresqlUserStorage
             return;
         }
 
-        Map<String, FieldType> columns = createMissingColumns(project, userId, properties, Optional.of(() -> {
-            try {
-                connection.commit();
-            }
-            catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        }));
+
+        Map<String, FieldType> columns = createMissingColumns(project, userId, properties, new CommitConnection(connection));
 
         ProjectCollection userTable = getUserTable(project, false);
         String table = checkProject(userTable.project, '"') + "." + checkCollection(userTable.collection);
@@ -918,14 +907,7 @@ public abstract class AbstractPostgresqlUserStorage
     public void incrementProperty(Connection conn, String project, Object userId, String property, double value)
             throws SQLException
     {
-        Map<String, FieldType> columns = createMissingColumns(project, userId, ImmutableList.of(new SimpleImmutableEntry<>(property, new DoubleNode(value))), Optional.of(() -> {
-            try {
-                conn.commit();
-            }
-            catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        }));
+        Map<String, FieldType> columns = createMissingColumns(project, userId, ImmutableList.of(new SimpleImmutableEntry<>(property, new DoubleNode(value))), new CommitConnection(conn));
 
         FieldType fieldType = columns.get(property);
         if (fieldType == null) {
@@ -1034,6 +1016,31 @@ public abstract class AbstractPostgresqlUserStorage
         }
         else {
             throw new IllegalArgumentException();
+        }
+    }
+
+    public static class CommitConnection
+            implements Runnable
+    {
+
+        private final Connection connection;
+
+        public CommitConnection(Connection connection)
+        {
+            this.connection = connection;
+        }
+
+        @Override
+        public void run()
+        {
+            try {
+                if (!connection.getAutoCommit()) {
+                    connection.commit();
+                }
+            }
+            catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 }
