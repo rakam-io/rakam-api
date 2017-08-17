@@ -86,7 +86,7 @@ public class WebUserHttpService
         // TODO: implement captcha https://github.com/VividCortex/angular-recaptcha https://developers.google.com/recaptcha/docs/verify
         // keep a counter for ip in local nodes
         final WebUser user = service.createUser(email, password, name, null, null, null, false);
-        return getLoginResponseForUser(user);
+        return getLoginResponseForUser(encryptionConfig.getSecretKey(), user);
     }
 
     @JsonRequest
@@ -348,6 +348,7 @@ public class WebUserHttpService
         String encode = JsonHelper.jsonObject()
                 .put("success", false)
                 .put("message", UNAUTHORIZED.reasonPhrase())
+                .put("authentication", config.getAuthentication())
                 .put("googleApiKey", config.getGoogleClientId()).toString();
         if (jsonp.isPresent()) {
             encode = jsonp.get() + "(" + encode + ")";
@@ -371,7 +372,7 @@ public class WebUserHttpService
         final Optional<WebUser> user = service.login(email, password);
 
         if (user.isPresent()) {
-            return getLoginResponseForUser(user.get());
+            return getLoginResponseForUser(encryptionConfig.getSecretKey(), user.get());
         }
 
         throw new RakamException("Account couldn't found.", NOT_FOUND);
@@ -385,7 +386,7 @@ public class WebUserHttpService
         Oauth2 oauth2 = new Oauth2.Builder(new NetHttpTransport(),
                 new JacksonFactory(), credential).setApplicationName("Oauth2").build();
         Userinfoplus userinfo;
-        try {
+            try {
             userinfo = oauth2.userinfo().get().execute();
 
             if (!userinfo.getVerifiedEmail()) {
@@ -399,7 +400,7 @@ public class WebUserHttpService
                             userinfo.getGender(),
                             userinfo.getLocale(),
                             userinfo.getId(), false));
-            return getLoginResponseForUser(user);
+            return getLoginResponseForUser(encryptionConfig.getSecretKey(), user);
         }
         catch (IOException e) {
             LOGGER.error(e);
@@ -414,19 +415,25 @@ public class WebUserHttpService
         return Response.ok(SuccessMessage.success()).addCookie("session", "", null, true, -1L, "/", null);
     }
 
-    private Response getLoginResponseForUser(WebUser user)
+    public static Response getLoginResponseForUser(String secretKey, WebUser user)
     {
-        return Response.ok(user).addCookie("session", getCookieForUser(user.id),
+        return Response.ok(user).addCookie("session", getCookieForUser(secretKey, user.id),
                 null, true, Duration.ofDays(30).getSeconds(), "/", null);
     }
 
-    public String getCookieForUser(int userId) {
+    public String getCookieForUser(int userId)
+    {
+        return getCookieForUser(encryptionConfig.getSecretKey(), userId);
+    }
+
+    public static String getCookieForUser(String secretKey, int userId)
+    {
         final long expiringTimestamp = Instant.now().plus(7, ChronoUnit.DAYS).getEpochSecond();
         final StringBuilder cookieData = new StringBuilder()
                 .append(expiringTimestamp).append("|")
                 .append(userId);
 
-        final String secureKey = CryptUtil.encryptWithHMacSHA1(cookieData.toString(), encryptionConfig.getSecretKey());
+        final String secureKey = CryptUtil.encryptWithHMacSHA1(cookieData.toString(), secretKey);
         cookieData.append('|').append(secureKey);
         return cookieData.toString();
     }
