@@ -399,11 +399,18 @@ public class EventCollectionHttpService
         storeEventsSync(request,
                 buff -> {
                     String contentType = request.headers().get(CONTENT_TYPE);
-                    if (contentType == null || contentType.isEmpty() || "application/json".equals(contentType)) {
+                    if (contentType == null || contentType.isEmpty()) {
                         return jsonMapper.readerFor(EventList.class).readValue(buff);
                     }
                     else if ("application/json".equals(contentType)) {
-                        String apiKey = getParam(request.params(), MASTER_KEY.getKey());
+                        String apiKey;
+                        try {
+                            apiKey = getParam(request.params(), MASTER_KEY.getKey());
+                        }
+                        catch (Exception e) {
+                            apiKey = request.headers().get(MASTER_KEY.getKey());
+                        }
+
                         String project = apiKeyService.getProjectOfApiKey(apiKey, MASTER_KEY);
                         String collection = getParam(request.params(), "collection");
 

@@ -150,7 +150,7 @@ public class CustomEventMapperHttpService
         this.metastore = metastore;
         this.executor = new ThreadPoolExecutor(
                 0,
-                Runtime.getRuntime().availableProcessors() * 4,
+                Runtime.getRuntime().availableProcessors() * 100,
                 60L, SECONDS,
                 new SynchronousQueue<>());
 
