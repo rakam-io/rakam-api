@@ -34,7 +34,7 @@ public class EventExplorerListener
 
     public void createTable(String project)
     {
-        String query = format("select date_trunc('hour', %s) as _time, _collection, count(*) as total from _all group by 1, 2",
+        String query = format("select date_trunc('minute', %s) as _time, _collection, count(*) as total from _all group by 1, 2",
                 checkTableColumn(projectConfig.getTimeColumn()));
 
         MaterializedView report = new MaterializedView(tableName(),

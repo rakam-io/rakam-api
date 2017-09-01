@@ -29,13 +29,13 @@ public class Report
     public String userEmail;
 
     @JsonCreator
-    public Report(@ApiParam(value = "slug", description = "Short name of the report") String slug,
-            @ApiParam(value = "category", description = "Category of the report", required = false) String category,
-            @ApiParam(value = "name", description = "The name of the report") String name,
-            @ApiParam(value = "query", description = "The sql query that will be executed") String query,
-            @ApiParam(value = "options", description = "Additional information about the materialized view", required = false) Map<String, Object> options,
-            @ApiParam(value = "queryOptions", description = "Query options", required = false) Map<String, Object> queryOptions,
-            @ApiParam(value = "shared", required = false, description = "Shared with other users") boolean shared)
+    public Report(@JsonProperty(value = "slug", required = true) String slug,
+            @JsonProperty(value = "category") String category,
+            @JsonProperty(value = "name") String name,
+            @JsonProperty(value = "query") String query,
+            @JsonProperty(value = "options") Map<String, Object> options,
+            @JsonProperty(value = "queryOptions") Map<String, Object> queryOptions,
+            @JsonProperty(value = "shared") boolean shared)
     {
         this.name = checkNotNull(name, "name is required");
         this.slug = checkNotNull(slug, "slug is required");

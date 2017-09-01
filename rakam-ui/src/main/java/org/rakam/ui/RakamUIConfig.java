@@ -15,11 +15,13 @@ package org.rakam.ui;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.units.Duration;
 import org.rakam.ui.RakamUIModule.CustomPageBackend;
 
 import java.io.File;
 import java.net.URL;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 public class RakamUIConfig {
     private File uiDirectory;
@@ -32,6 +34,7 @@ public class RakamUIConfig {
     private URL screenCaptureService;
     private String authentication;
     private boolean disableTracking;
+    private Duration cookieDuration = Duration.succinctDuration(30, TimeUnit.DAYS);
 
     @Config("ui.directory")
     public RakamUIConfig setUIDirectory(File uiDirectory) {
@@ -136,5 +139,17 @@ public class RakamUIConfig {
 
     public boolean getDisableTracking() {
         return disableTracking;
+    }
+
+    public Duration getCookieDuration()
+    {
+        return cookieDuration;
+    }
+
+    @Config("ui.cookie-duration")
+    public RakamUIConfig setCookieDuration(Duration cookieDuration)
+    {
+        this.cookieDuration = cookieDuration;
+        return this;
     }
 }

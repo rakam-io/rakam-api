@@ -7,6 +7,7 @@ import com.google.api.services.oauth2.Oauth2;
 import com.google.api.services.oauth2.model.Userinfoplus;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
+import io.airlift.units.Duration;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
@@ -40,7 +41,6 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -86,7 +86,7 @@ public class WebUserHttpService
         // TODO: implement captcha https://github.com/VividCortex/angular-recaptcha https://developers.google.com/recaptcha/docs/verify
         // keep a counter for ip in local nodes
         final WebUser user = service.createUser(email, password, name, null, null, null, false);
-        return getLoginResponseForUser(encryptionConfig.getSecretKey(), user);
+        return getLoginResponseForUser(encryptionConfig.getSecretKey(), user, config.getCookieDuration());
     }
 
     @JsonRequest
@@ -372,7 +372,7 @@ public class WebUserHttpService
         final Optional<WebUser> user = service.login(email, password);
 
         if (user.isPresent()) {
-            return getLoginResponseForUser(encryptionConfig.getSecretKey(), user.get());
+            return getLoginResponseForUser(encryptionConfig.getSecretKey(), user.get(), config.getCookieDuration());
         }
 
         throw new RakamException("Account couldn't found.", NOT_FOUND);
@@ -386,7 +386,7 @@ public class WebUserHttpService
         Oauth2 oauth2 = new Oauth2.Builder(new NetHttpTransport(),
                 new JacksonFactory(), credential).setApplicationName("Oauth2").build();
         Userinfoplus userinfo;
-            try {
+        try {
             userinfo = oauth2.userinfo().get().execute();
 
             if (!userinfo.getVerifiedEmail()) {
@@ -400,7 +400,7 @@ public class WebUserHttpService
                             userinfo.getGender(),
                             userinfo.getLocale(),
                             userinfo.getId(), false));
-            return getLoginResponseForUser(encryptionConfig.getSecretKey(), user);
+            return getLoginResponseForUser(encryptionConfig.getSecretKey(), user, config.getCookieDuration());
         }
         catch (IOException e) {
             LOGGER.error(e);
@@ -415,10 +415,10 @@ public class WebUserHttpService
         return Response.ok(SuccessMessage.success()).addCookie("session", "", null, true, -1L, "/", null);
     }
 
-    public static Response getLoginResponseForUser(String secretKey, WebUser user)
+    public static Response getLoginResponseForUser(String secretKey, WebUser user, Duration duration)
     {
         return Response.ok(user).addCookie("session", getCookieForUser(secretKey, user.id),
-                null, true, Duration.ofDays(30).getSeconds(), "/", null);
+                null, true, duration.toMillis() / 1000, "/", null);
     }
 
     public String getCookieForUser(int userId)

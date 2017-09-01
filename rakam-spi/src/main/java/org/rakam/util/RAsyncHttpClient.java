@@ -1,4 +1,4 @@
-package org.rakam.plugin;
+package org.rakam.util;
 
 import com.google.common.base.Throwables;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -12,7 +12,7 @@ import okhttp3.RequestBody;
 import org.asynchttpclient.Response;
 import org.asynchttpclient.cookie.Cookie;
 import org.asynchttpclient.uri.Uri;
-import org.rakam.util.RakamException;
+import org.asynchttpclient.util.HttpConstants.Methods;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -24,14 +24,9 @@ import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.asynchttpclient.util.HttpConstants.Methods.DELETE;
-import static org.asynchttpclient.util.HttpConstants.Methods.GET;
-import static org.asynchttpclient.util.HttpConstants.Methods.POST;
-import static org.asynchttpclient.util.HttpConstants.Methods.PUT;
 
 public class RAsyncHttpClient
 {
@@ -55,27 +50,27 @@ public class RAsyncHttpClient
 
     public NashornHttpRequest get(String url)
     {
-        return request(GET, url);
+        return request(Methods.GET, url);
     }
 
     public NashornHttpRequest delete(String url)
     {
-        return request(DELETE, url);
+        return request(Methods.DELETE, url);
     }
 
     public NashornHttpRequest post(String url, String body)
     {
-        return request(POST, url).data(body);
+        return request(Methods.POST, url).data(body);
     }
 
     public NashornHttpRequest post(String url)
     {
-        return request(POST, url);
+        return request(Methods.POST, url);
     }
 
     public NashornHttpRequest put(String url, String body)
     {
-        return request(PUT, url).data(body);
+        return request(Methods.PUT, url).data(body);
     }
 
     public NashornHttpRequest request(String method, String url)

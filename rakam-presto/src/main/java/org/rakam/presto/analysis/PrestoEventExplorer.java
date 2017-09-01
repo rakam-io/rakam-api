@@ -40,9 +40,9 @@ public class PrestoEventExplorer extends AbstractEventExplorer {
             .put(DAY_OF_WEEK, "date_format(%s, '%%W')")
             .put(HOUR, "date_trunc('hour', %s)")
             .put(DAY, "cast(%s as date)")
-            .put(WEEK, "date_trunc('week', %s)")
-            .put(MONTH, "date_trunc('month', %s)")
-            .put(YEAR, "date_trunc('year', %s)")
+            .put(WEEK, "cast(date_trunc('week', %s) as date)")
+            .put(MONTH, "cast(date_trunc('month', %s) as date)")
+            .put(YEAR, "cast(date_trunc('year', %s) as date)")
             .build();
 
     @Inject

@@ -5,20 +5,22 @@ import io.airlift.units.Duration;
 
 import javax.validation.constraints.NotNull;
 
+import java.util.concurrent.TimeUnit;
+
 public class SamlConfig
 {
-    private Duration samlCacheTtl;
+    private Duration samlCookieTtl = Duration.succinctDuration(1, TimeUnit.HOURS);
     private String metadata;
 
-    public Duration getSamlCacheTtl()
+    public Duration getSamlCookieTtl()
     {
-        return samlCacheTtl;
+        return samlCookieTtl;
     }
 
-    @Config("ui.authentication.saml.cache-ttl")
-    public SamlConfig setSamlCacheTtl(Duration ldapCacheTtl)
+    @Config("ui.authentication.saml.cookie-ttl")
+    public SamlConfig setSamlCookieTtl(Duration samlCookieTtl)
     {
-        this.samlCacheTtl = ldapCacheTtl;
+        this.samlCookieTtl = samlCookieTtl;
         return this;
     }
 

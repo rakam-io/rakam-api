@@ -27,9 +27,9 @@ public class CustomReport {
     public final Object data;
 
     @JsonCreator
-    public CustomReport(@ApiParam("report_type") String reportType,
-                        @ApiParam("name") String name,
-                        @ApiParam("data") Object data) {
+    public CustomReport(@JsonProperty(value = "report_type", required = true) String reportType,
+                        @JsonProperty(value = "name", required = true) String name,
+                        @JsonProperty(value = "data", required = true) Object data) {
         this(reportType, name, null, null, data);
     }
 

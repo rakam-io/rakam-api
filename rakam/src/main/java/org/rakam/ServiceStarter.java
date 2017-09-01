@@ -53,7 +53,7 @@ import org.rakam.http.WebServiceModule;
 import org.rakam.http.WebServiceModule.ProjectPermissionParameterFactory;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.InjectionHook;
-import org.rakam.plugin.RAsyncHttpClient;
+import org.rakam.util.RAsyncHttpClient;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserStorage;

@@ -31,6 +31,7 @@ import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.ResultIterator;
 import org.skife.jdbi.v2.TransactionStatus;
+import org.skife.jdbi.v2.exceptions.CallbackFailedException;
 import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 import org.skife.jdbi.v2.util.BooleanMapper;
@@ -55,6 +56,7 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -600,7 +602,6 @@ public class WebUserService
             int exists = handle.createStatement("UPDATE web_user_api_key_permission SET " +
                     "read_permission = :readPermission, write_permission = :writePermission, master_permission = :masterPermission " +
                     "WHERE user_id = :newUserId")
-                    .bind("mainUser", userId)
                     .bind("newUserId", newUserId)
                     .bind("readPermission", readPermission)
                     .bind("writePermission", writePermission)
@@ -694,32 +695,40 @@ public class WebUserService
         }
 
         final int finalNewUserId = newUserId;
-        dbi.inTransaction((Handle handle, TransactionStatus transactionStatus) -> {
-            Integer apiKeyId = saveApiKeys(handle, userId, projectId, keys.readKey(), keys.writeKey(), keys.masterKey());
+        try {
+            dbi.inTransaction((Handle handle, TransactionStatus transactionStatus) -> {
+                Integer apiKeyId = saveApiKeys(handle, userId, projectId, keys.readKey(), keys.writeKey(), keys.masterKey());
 
-            int exists = handle.createStatement("UPDATE web_user_api_key_permission SET " +
-                    "read_permission = :readPermission, write_permission = :writePermission, master_permission = :masterPermission " +
-                    "WHERE user_id = :newUserId AND (SELECT bool_or(true) FROM web_user_api_key WHERE user_id = :newUserId AND project_id = :project)")
-                    .bind("mainUser", userId)
-                    .bind("newUserId", finalNewUserId)
-                    .bind("readPermission", readPermission)
-                    .bind("writePermission", writePermission)
-                    .bind("masterPermission", masterPermission)
-                    .bind("project", projectId).execute();
-
-            if (exists == 0) {
-                handle.createStatement("INSERT INTO web_user_api_key_permission (api_key_id, user_id, read_permission, write_permission, master_permission, scope_expression) " +
-                        " VALUES (:apiKeyId, :newUserId, :readPermission, :writePermission, :masterPermission, :scope)")
-                        .bind("apiKeyId", apiKeyId)
+                boolean exists = handle.createQuery("SELECT true FROM web_user_api_key_permission " +
+                        "WHERE user_id = :newUserId AND api_key_id IN (SELECT id FROM web_user_api_key WHERE project_id = :project)")
                         .bind("newUserId", finalNewUserId)
                         .bind("readPermission", readPermission)
                         .bind("writePermission", writePermission)
                         .bind("masterPermission", masterPermission)
-                        .bind("scope", scope_expression).execute();
-            }
+                        .bind("project", projectId).first() != null;
 
-            return null;
-        });
+                if (!exists) {
+                    handle.createStatement("INSERT INTO web_user_api_key_permission (api_key_id, user_id, read_permission, write_permission, master_permission, scope_expression) " +
+                            " VALUES (:apiKeyId, :newUserId, :readPermission, :writePermission, :masterPermission, :scope)")
+                            .bind("apiKeyId", apiKeyId)
+                            .bind("newUserId", finalNewUserId)
+                            .bind("readPermission", readPermission)
+                            .bind("writePermission", writePermission)
+                            .bind("masterPermission", masterPermission)
+                            .bind("scope", scope_expression).execute();
+                }
+                else {
+                    throw new RakamException("The user (" + email + ") already has access", BAD_REQUEST);
+                }
+
+                return null;
+            });
+        }
+        catch (CallbackFailedException e) {
+            if (e.getCause() instanceof RakamException) {
+                throw (RakamException) e.getCause();
+            }
+        }
     }
 
     public Integer saveApiKeys(int user, int projectId, String readKey, String writeKey, String masterKey)

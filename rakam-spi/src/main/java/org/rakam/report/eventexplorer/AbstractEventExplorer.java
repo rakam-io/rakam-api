@@ -443,7 +443,7 @@ public abstract class AbstractEventExplorer
             TimestampTransformation timestampTransformation = aggregationMethod.get();
 
             query = format("select collection, %s as %s, cast(sum(total) as bigint) from (%s) data where %s group by 1, 2 order by 2 desc",
-                    aggregationMethod.get() == HOUR ? "_time" : format(timestampMapping.get(timestampTransformation), "_time"),
+                    format(timestampMapping.get(timestampTransformation), "_time"),
                     aggregationMethod.get(),
                     sourceTable(collections),
                     timePredicate);

@@ -52,11 +52,13 @@ public class SamlHttpService
     private final SamlClient client;
     private final WebUserService service;
     private final String secretKey;
+    private final SamlConfig config;
 
     @Inject
     public SamlHttpService(EncryptionConfig encryptionConfig, WebUserService service, SamlConfig config)
     {
         this.service = service;
+        this.config = config;
         this.secretKey = encryptionConfig.getSecretKey();
         try {
             client = SamlClient.fromMetadata(null, "http://some/url/that/processes/assertions", new StringReader(config.getSamlMetadata()));
@@ -86,9 +88,6 @@ public class SamlHttpService
         request.response(response).end();
     }
 
-    @ApiOperation(value = "SAML callback operation",
-            authorizations = @Authorization(value = "master_key")
-    )
     @Path("/callback")
     @JsonRequest
     public void callback(RakamHttpRequest request)
@@ -129,7 +128,7 @@ public class SamlHttpService
                             null,
                             null, false));
 
-            Response loginResponseForUser = getLoginResponseForUser(secretKey, user);
+            Response loginResponseForUser = getLoginResponseForUser(secretKey, user, config.getSamlCookieTtl());
 
             DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, FOUND, Unpooled.wrappedBuffer(new byte[] {}));
             response.headers().add("Location", "/");

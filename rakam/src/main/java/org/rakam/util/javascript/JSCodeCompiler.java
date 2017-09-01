@@ -20,7 +20,7 @@ import org.rakam.util.javascript.JSCodeLoggerService.LogEntry;
 import org.rakam.collection.JsonEventDeserializer;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventStore;
-import org.rakam.plugin.RAsyncHttpClient;
+import org.rakam.util.RAsyncHttpClient;
 import org.rakam.util.CryptUtil;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
@@ -34,7 +34,6 @@ import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;

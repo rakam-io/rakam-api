@@ -18,7 +18,7 @@ import org.rakam.util.javascript.JSCodeLoggerService;
 import org.rakam.collection.JsonEventDeserializer;
 import org.rakam.util.javascript.JSCodeCompiler;
 import org.rakam.config.JDBCConfig;
-import org.rakam.plugin.RAsyncHttpClient;
+import org.rakam.util.RAsyncHttpClient;
 import org.rakam.plugin.tasks.ScheduledTaskHttpService.Environment;
 import org.rakam.ui.ScheduledTaskUIHttpService;
 import org.rakam.ui.ScheduledTaskUIHttpService.Parameter;
