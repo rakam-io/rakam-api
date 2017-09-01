@@ -46,11 +46,11 @@ public abstract class TestEventExplorer
             .put(MONTH_OF_YEAR, ImmutableSet.of(of("test", "January", 100L)))
             .put(QUARTER_OF_YEAR, ImmutableSet.of(of("test", "1th quarter", 100L)))
             .put(DAY_OF_WEEK, ImmutableSet.of(of("test", "Thursday", 100L)))
-            .put(HOUR, ImmutableSet.of(of("test", parse("1970-01-01T00:00:00Z"), 36L), of("test", parse("1970-01-01T01:00:00Z"), 36L), of("test", parse("1970-01-01T02:00:00Z"), 28L)))
+            .put(HOUR, ImmutableSet.of(of("test", LocalDate.parse("1970-01-01"), 36L), of("test", LocalDate.parse("1970-01-01"), 36L), of("test", LocalDate.parse("1970-01-01"), 28L)))
             .put(DAY, ImmutableSet.of(of("test", LocalDate.parse("1970-01-01"), 100L)))
-            .put(WEEK, ImmutableSet.of(of("test", parse("1969-12-29T00:00:00Z"), 100L)))
-            .put(MONTH, ImmutableSet.of(of("test", parse("1970-01-01T00:00:00Z"), 100L)))
-            .put(YEAR, ImmutableSet.of(of("test", parse("1970-01-01T00:00:00Z"), 100L))).build();
+            .put(WEEK, ImmutableSet.of(of("test", LocalDate.parse("1969-12-29"), 100L)))
+            .put(MONTH, ImmutableSet.of(of("test", LocalDate.parse("1970-01-01"), 100L)))
+            .put(YEAR, ImmutableSet.of(of("test", LocalDate.parse("1970-01-01"), 100L))).build();
 
     private static ZonedDateTime parse(String value) {
         return ZonedDateTime.parse(value).withZoneSameLocal(ZoneId.of("UTC"));
