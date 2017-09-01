@@ -373,6 +373,10 @@
                                 <ignoredUnusedDeclaredDependencies>
                                     <ignoredUnusedDeclaredDependency>org.glassfish.jersey.core:jersey-common</ignoredUnusedDeclaredDependency>
                                 </ignoredUnusedDeclaredDependencies>
+
+                                <ignoredUsedUndeclaredDependencies>
+                                    <ignoredUsedUndeclaredDependency>io.netty:netty-handler</ignoredUsedUndeclaredDependency>
+                                </ignoredUsedUndeclaredDependencies>
                             </configuration>
                         </execution>
                     </executions>
