@@ -56,7 +56,6 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -69,7 +68,6 @@ import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.EXPECTATION_FAILED;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
-import static io.netty.handler.codec.http.HttpResponseStatus.NOT_IMPLEMENTED;
 import static io.netty.handler.codec.http.HttpResponseStatus.PRECONDITION_REQUIRED;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.Boolean.TRUE;
@@ -153,7 +151,7 @@ public class WebUserService
             ps.executeUpdate();
         }
         catch (SQLException e) {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -290,14 +288,14 @@ public class WebUserService
                 webuser = new WebUser(id, email, name, false, ImmutableList.of());
             }
             catch (UnableToExecuteStatementException e) {
-                Map<String, Object> existingUser = handle.createQuery("SELECT created_at FROM web_user WHERE email = :email").bind("email", email).first();
+                Map<String, Object> existingUser = handle.createQuery("SELECT created_at FROM web_user WHERE lower(email) = lower(:email)").bind("email", email).first();
                 if (existingUser != null) {
                     if (existingUser.get("created_at") != null) {
                         throw new AlreadyExistsException("A user with same email address", EXPECTATION_FAILED);
                     }
                     else {
                         // somebody gave access for a project to this email address
-                        int id = handle.createStatement("UPDATE web_user SET password = :password, name = :name, created_at = now() WHERE email = :email")
+                        int id = handle.createStatement("UPDATE web_user SET password = :password, name = :name, created_at = now() WHERE lower(email) = lower(:email)")
                                 .bind("email", email)
                                 .bind("name", name)
                                 .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
@@ -372,7 +370,7 @@ public class WebUserService
             List<Map<String, Object>> list = handle.createQuery("SELECT api_key.id, api_key.master_key FROM web_user_api_key_permission permission " +
                     "JOIN web_user_api_key api_key ON (api_key.id = permission.api_key_id) " +
                     "WHERE project_id = :project AND permission.user_id = " +
-                    "(SELECT id FROM web_user WHERE email = :email)")
+                    "(SELECT id FROM web_user WHERE lower(email) = lower(:email))")
                     .bind("project", project)
                     .bind("email", email).list();
 
@@ -422,7 +420,7 @@ public class WebUserService
         final String scrypt = SCryptUtil.scrypt(newPassword, 2 << 14, 8, 1);
 
         try (Handle handle = dbi.open()) {
-            int execute = handle.createStatement("UPDATE web_user SET password = :password WHERE email = :email")
+            int execute = handle.createStatement("UPDATE web_user SET password = :password WHERE lower(email) = lower(:email)")
                     .bind("email", split[1])
                     .bind("password", scrypt).execute();
             if (execute == 0) {
@@ -592,7 +590,7 @@ public class WebUserService
                 throw new RakamException("You do not have master key permission", UNAUTHORIZED);
             }
 
-            Integer newUserId = handle.createQuery("SELECT id FROM web_user WHERE email = :email").bind("email", email)
+            Integer newUserId = handle.createQuery("SELECT id FROM web_user WHERE lower(email) = lower(:email)").bind("email", email)
                     .map(IntegerMapper.FIRST).first();
 
             if (newUserId == null) {
@@ -672,7 +670,7 @@ public class WebUserService
                 sendNewUserMail(projectConfigurations.name, email);
             }
             catch (Exception e) {
-                Map.Entry<Integer, Boolean> element = handle.createQuery("SELECT id, password is null FROM web_user WHERE email = :email").bind("email", email)
+                Map.Entry<Integer, Boolean> element = handle.createQuery("SELECT id, password is null FROM web_user WHERE lower(email) = lower(:email)").bind("email", email)
                         .map((ResultSetMapper<Map.Entry<Integer, Boolean>>) (index, r, ctx) -> new AbstractMap.SimpleImmutableEntry<>(r.getInt(1), r.getBoolean(2))).first();
                 newUserId = element.getKey();
 
@@ -783,7 +781,7 @@ public class WebUserService
         String passwordInDb;
         try (Handle handle = dbi.open()) {
             data = handle
-                    .createQuery("SELECT id, name, password, read_only FROM web_user WHERE email = :email")
+                    .createQuery("SELECT id, name, password, read_only FROM web_user WHERE lower(email) = lower(:email)")
                     .bind("email", email).first();
 
             if (authService != null) {
@@ -808,7 +806,7 @@ public class WebUserService
             if (!Objects.equals(password, passwordInDb)) {
                 try (Handle handle = dbi.open()) {
                     int updated = handle
-                            .createStatement("UPDATE web_user SET password = :password WHERE email = :email")
+                            .createStatement("UPDATE web_user SET password = :password WHERE lower(email) = lower(:email)")
                             .bind("password", password).execute();
                     if (updated == 0) {
                         throw new IllegalStateException();
@@ -842,7 +840,7 @@ public class WebUserService
 
         try (Handle handle = dbi.open()) {
             final Map<String, Object> data = handle
-                    .createQuery("SELECT id, name, read_only FROM web_user WHERE email = :email")
+                    .createQuery("SELECT id, name, read_only FROM web_user WHERE lower(email) = lower(:email)")
                     .bind("email", email).first();
             if (data == null) {
                 return Optional.empty();
