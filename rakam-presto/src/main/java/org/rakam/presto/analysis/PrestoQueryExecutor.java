@@ -103,15 +103,16 @@ public class PrestoQueryExecutor
     @Override
     public QueryExecution executeRawStatement(String query, Map<String, String> sessionProperties)
     {
-        return executeRawStatement(query, ZoneOffset.UTC, sessionProperties, null, null);
+        return executeRawStatement(query, ZoneOffset.UTC, sessionProperties, null, null, true);
     }
 
-    public QueryExecution executeRawStatement(String query, ZoneId timezone, Map<String, String> sessionProperties, String catalog, String user)
+    public QueryExecution executeRawStatement(String query, ZoneId timezone, Map<String, String> sessionProperties, String catalog, String user, boolean update)
     {
-        return internalExecuteRawQuery(query, createSession(catalog, timezone, sessionProperties, user));
+        return internalExecuteRawQuery(query, createSession(catalog, timezone, sessionProperties, user), update);
     }
 
-    public ClientSession createSession(String catalog, ZoneId timezone, Map<String, String> sessionProperties, String user) {
+    public ClientSession createSession(String catalog, ZoneId timezone, Map<String, String> sessionProperties, String user)
+    {
         return new ClientSession(
                 prestoConfig.getAddress(),
                 user == null ? "rakam" : user,
@@ -146,7 +147,7 @@ public class PrestoQueryExecutor
             }
         }
 
-        return executeRawStatement(query, timezone, sessionProperties, catalog, apiKey);
+        return executeRawStatement(query, timezone, sessionProperties, catalog, apiKey, false);
     }
 
     private QueryExecution getSingleQueryExecution(String query, DataSourceType type)
@@ -198,9 +199,9 @@ public class PrestoQueryExecutor
                 builder.toString(), false, Optional.empty(), false);
     }
 
-    public PrestoQueryExecution internalExecuteRawQuery(String query, ClientSession clientSession)
+    public PrestoQueryExecution internalExecuteRawQuery(String query, ClientSession clientSession, boolean update)
     {
-        return new PrestoQueryExecution(clientSession, query);
+        return new PrestoQueryExecution(clientSession, query, update);
     }
 
     @Override

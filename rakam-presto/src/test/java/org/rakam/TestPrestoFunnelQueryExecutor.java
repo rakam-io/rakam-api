@@ -52,7 +52,7 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
 
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(
                 new PrestoConfig(),
-                prestoQueryExecutor, metastore, inMemoryQueryMetadataStore);
+                prestoQueryExecutor, metastore, inMemoryQueryMetadataStore, Clock.systemUTC());
         QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, metastore,
                 materializedViewService, Clock.system(ZoneId.of("UTC")), '"');
 

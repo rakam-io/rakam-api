@@ -41,12 +41,14 @@ import static org.rakam.util.ValidationUtil.checkProject;
 public class PostgresqlMaterializedViewService extends MaterializedViewService {
     private final PostgresqlQueryExecutor queryExecutor;
     private final QueryMetadataStore database;
+    private final Clock clock;
 
     @Inject
-    public PostgresqlMaterializedViewService(PostgresqlQueryExecutor queryExecutor, QueryMetadataStore database) {
+    public PostgresqlMaterializedViewService(PostgresqlQueryExecutor queryExecutor, QueryMetadataStore database, Clock clock) {
         super(database, queryExecutor, '"');
         this.queryExecutor = queryExecutor;
         this.database = database;
+        this.clock = clock;
     }
 
     @Override
@@ -133,7 +135,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
 
         Map<String, String> sessionProperties = new HashMap<>();
         if (!materializedView.incremental) {
-            if (!materializedView.needsUpdate(Clock.systemUTC()) || !database.updateMaterializedView(project, materializedView, f)) {
+            if (!materializedView.needsUpdate(clock) || !database.updateMaterializedView(project, materializedView, f)) {
                 return new MaterializedViewExecution(null, tableName);
             }
 
@@ -149,7 +151,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
         else {
             String materializedTableReference = tableName;
 
-            boolean willBeUpdated = database.updateMaterializedView(project, materializedView, f);
+            boolean willBeUpdated = materializedView.needsUpdate(clock) && database.updateMaterializedView(project, materializedView, f);
 
             QueryExecution queryExecution;
             Instant now = Instant.now();

@@ -16,14 +16,18 @@ import org.rakam.util.NotExistsException;
 import org.rakam.util.ProjectCollection;
 import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
+import org.rakam.util.lock.LockService;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.ResultIterator;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 import org.skife.jdbi.v2.util.LongMapper;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
+import java.sql.Driver;
+import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -48,7 +52,7 @@ public class JDBCQueryMetadata
 {
     private final DBI dbi;
     private final LoadingCache<ProjectCollection, MaterializedView> materializedViewCache;
-    private final Clock clock;
+    private final LockService lockService;
 
     private ResultSetMapper<MaterializedView> materializedViewMapper = (index, r, ctx) -> {
         Long update_interval = r.getLong("update_interval");
@@ -70,10 +74,10 @@ public class JDBCQueryMetadata
                     JsonHelper.read(r.getString(5), Map.class));
 
     @Inject
-    public JDBCQueryMetadata(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource, Clock clock)
+    public JDBCQueryMetadata(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource, LockService lockService)
     {
         dbi = new DBI(dataSource);
-        this.clock = clock;
+        this.lockService = lockService;
 
         materializedViewCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<ProjectCollection, MaterializedView>()
         {
@@ -168,39 +172,30 @@ public class JDBCQueryMetadata
     @Override
     public boolean updateMaterializedView(String project, MaterializedView view, CompletableFuture<Instant> releaseLock)
     {
-        Handle handle = dbi.open();
-        try {
-            long lastUpdated = handle.createQuery("SELECT last_updated FROM materialized_views " +
-                    "WHERE project = :project AND table_name = :table_name FOR UPDATE")
-                    .bind("project", project)
-                    .bind("table_name", view.tableName)
-                    .map(LongMapper.FIRST).first();
+        LockService.Lock lock = lockService.tryLock(String.format("materialized.%s.%s", project, view.tableName));
 
-            view.lastUpdate = Instant.ofEpochSecond(lastUpdated);
-            if (!view.needsUpdate(clock)) {
-                handle.close();
-                return false;
-            }
+        if (lock == null) {
+            return false;
+        }
 
-            releaseLock.whenComplete((success, ex) -> {
+        releaseLock.whenComplete((success, ex) -> {
+            try {
                 if (success != null) {
                     view.lastUpdate = success;
-                    long lastUpdate = view.lastUpdate.getEpochSecond();
-                    handle.createStatement("UPDATE materialized_views SET last_updated = :last_updated " +
-                            "WHERE project = :project AND table_name = :table_name")
-                            .bind("project", project)
-                            .bind("table_name", view.tableName)
-                            .bind("last_updated", lastUpdate)
-                            .execute();
+                    try (Handle handle = dbi.open()) {
+                        handle.createStatement("UPDATE materialized_views SET last_updated = :last_updated " +
+                                "WHERE project = :project AND table_name = :table_name")
+                                .bind("project", project)
+                                .bind("table_name", view.tableName)
+                                .bind("last_updated", success.getEpochSecond())
+                                .execute();
+                    }
                 }
-
-                handle.close();
-            });
-        }
-        catch (Exception e) {
-            handle.close();
-            throw Throwables.propagate(e);
-        }
+            }
+            finally {
+                lock.release();
+            }
+        });
 
         return true;
     }
@@ -215,7 +210,7 @@ public class JDBCQueryMetadata
                     .bind("table_name", tableName)
                     .bind("real_time", realTime)
                     .execute();
-            if(execute == 0) {
+            if (execute == 0) {
                 throw new NotExistsException("Materialized view");
             }
         }

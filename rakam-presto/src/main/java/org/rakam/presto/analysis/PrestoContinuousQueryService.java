@@ -97,7 +97,7 @@ public class PrestoContinuousQueryService
                     Duration.succinctDuration(realTimeConfig.getWindowInterval().toMillis() * 2, MILLISECONDS).toString());
         }
 
-        prestoQueryExecution = executor.executeRawStatement(prestoQuery, ZoneOffset.UTC, builder.build(), config.getStreamingConnector(), null);
+        prestoQueryExecution = executor.executeRawStatement(prestoQuery, ZoneOffset.UTC, builder.build(), config.getStreamingConnector(), null, true);
 
         return new DelegateQueryExecution(prestoQueryExecution, result -> {
             if (!result.isFailed()) {
@@ -207,6 +207,6 @@ public class PrestoContinuousQueryService
                 config.getStreamingConnector(), project, tableName, query),
                 ZoneOffset.UTC,
                 ImmutableMap.of(config.getStreamingConnector() + ".append_data", "false"),
-                config.getStreamingConnector(), null);
+                config.getStreamingConnector(), null, true);
     }
 }

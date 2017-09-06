@@ -29,7 +29,6 @@ import com.facebook.presto.spi.type.TypeSignature;
 import com.facebook.presto.spi.type.TypeSignatureParameter;
 import com.facebook.presto.spi.type.VarbinaryType;
 import com.facebook.presto.spi.type.VarcharType;
-import com.facebook.presto.type.MapParametricType;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
@@ -56,7 +55,6 @@ import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
 import java.lang.invoke.MethodHandle;
-import java.net.URI;
 import java.sql.JDBCType;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -64,12 +62,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TimeZone;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -204,7 +200,7 @@ public class PrestoRakamRaptorMetastore
 
             query = format("CREATE TABLE %s.\"%s\".%s (%s) %s ",
                     prestoConfig.getColdStorageConnector(), project, checkCollection(collection), queryEnd, properties);
-            QueryResult join = new PrestoQueryExecution(defaultSession, query).getResult().join();
+            QueryResult join = new PrestoQueryExecution(defaultSession, query, false).getResult().join();
             if (join.isFailed()) {
                 if (join.getError().message.contains("exists") || join.getError().message.equals("Failed to perform metadata operation")) {
                     if (tryCount > 0) {
@@ -387,7 +383,7 @@ public class PrestoRakamRaptorMetastore
         for (String collectionName : getCollectionNames(project)) {
             String query = format("DROP TABLE %s.\"%s\".\"%s\"", prestoConfig.getColdStorageConnector(), project, collectionName);
 
-            QueryResult join = new PrestoQueryExecution(defaultSession, query).getResult().join();
+            QueryResult join = new PrestoQueryExecution(defaultSession, query, true).getResult().join();
 
             if (join.isFailed()) {
                 LOGGER.error("Error while deleting table %s.%s : %s", project, collectionName, join.getError().toString());

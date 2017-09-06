@@ -9,11 +9,7 @@ import com.facebook.presto.spi.type.StandardTypes;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.net.HostAndPort;
-import com.google.common.net.HttpHeaders;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.airlift.http.client.HttpRequestFilter;
-import io.airlift.http.client.Request;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import okhttp3.OkHttpClient;
@@ -26,10 +22,6 @@ import org.rakam.report.QueryStats;
 import org.rakam.util.LogUtil;
 import org.rakam.util.RakamException;
 
-import java.net.InetSocketAddress;
-import java.net.Proxy;
-import java.net.ProxySelector;
-import java.net.URI;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -77,6 +69,7 @@ public class PrestoQueryExecution
 
     private final List<List<Object>> data = Lists.newArrayList();
     private final String query;
+    private final boolean update;
     private List<SchemaField> columns;
 
     private final CompletableFuture<QueryResult> result = new CompletableFuture<>();
@@ -86,10 +79,11 @@ public class PrestoQueryExecution
     private StatementClient client;
     private final Instant startTime;
 
-    public PrestoQueryExecution(ClientSession session, String query)
+    public PrestoQueryExecution(ClientSession session, String query, boolean update)
     {
         this.startTime = Instant.now();
         this.query = query;
+        this.update = update;
         try {
             QUERY_EXECUTOR.execute(new QueryTracker(session));
         }
@@ -183,7 +177,9 @@ public class PrestoQueryExecution
     @Override
     public void kill()
     {
-        client.close();
+        if (!update) {
+            client.close();
+        }
     }
 
     private static final String SERVER_NOT_ACTIVE = "Database server is not active.";

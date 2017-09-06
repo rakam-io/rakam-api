@@ -57,12 +57,14 @@ public class JDBCQueryExecution
     private final CompletableFuture<QueryResult> result;
     private final String query;
     private final ZoneId zoneId;
+    private final boolean update;
     private Statement statement;
 
     public JDBCQueryExecution(ConnectionFactory connectionPool, String query, boolean update, Optional<ZoneId> optionalZoneId, boolean applyZone)
     {
         this.query = query;
         zoneId = applyZone ? optionalZoneId.map(v -> v == ZoneOffset.UTC ? UTC : v).orElse(UTC) : null;
+        this.update = update;
 
         this.result = CompletableFuture.supplyAsync(() -> {
             final QueryResult queryResult;
@@ -139,7 +141,7 @@ public class JDBCQueryExecution
     @Override
     public void kill()
     {
-        if (statement != null) {
+        if (statement != null && !update) {
             try {
                 statement.cancel();
             }

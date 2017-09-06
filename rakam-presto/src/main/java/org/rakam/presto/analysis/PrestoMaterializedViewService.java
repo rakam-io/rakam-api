@@ -24,6 +24,7 @@ import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,19 +50,22 @@ public class PrestoMaterializedViewService
     protected final QueryExecutor queryExecutor;
     private final PrestoAbstractMetastore metastore;
     private final PrestoConfig prestoConfig;
+    private final Clock clock;
 
     @Inject
     public PrestoMaterializedViewService(
             PrestoConfig prestoConfig,
             QueryExecutor queryExecutor,
             PrestoAbstractMetastore metastore,
-            QueryMetadataStore database)
+            QueryMetadataStore database,
+            Clock clock)
     {
         super(database, queryExecutor, '"');
         this.database = database;
         this.prestoConfig = prestoConfig;
         this.queryExecutor = queryExecutor;
         this.metastore = metastore;
+        this.clock = clock;
     }
 
     @Override
@@ -153,11 +157,11 @@ public class PrestoMaterializedViewService
 
         Map<String, String> sessionProperties = new HashMap<>();
         if (!materializedView.incremental) {
-            if (!database.updateMaterializedView(project, materializedView, f)) {
+            if (!materializedView.needsUpdate(clock) || !database.updateMaterializedView(project, materializedView, f)) {
                 return new MaterializedViewExecution(null, tableName);
             }
 
-            QueryResult join = queryExecutor.executeRawQuery(format("DELETE FROM %s", tableName)).getResult().join();
+            QueryResult join = queryExecutor.executeRawStatement(format("DELETE FROM %s", tableName)).getResult().join();
             if (join.isFailed()) {
                 throw new RakamException("Failed to delete table: " + join.getError().toString(), INTERNAL_SERVER_ERROR);
             }
@@ -186,7 +190,7 @@ public class PrestoMaterializedViewService
             Instant now = Instant.now();
 
             QueryExecution queryExecution;
-            if (database.updateMaterializedView(project, materializedView, f)) {
+            if (materializedView.needsUpdate(clock) && database.updateMaterializedView(project, materializedView, f)) {
                 String query = formatSql(statement,
                         name -> {
                             String predicate = lastUpdated != null ? String.format("between from_unixtime(%d) and from_unixtime(%d)",

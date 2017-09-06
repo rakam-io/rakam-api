@@ -61,7 +61,7 @@ public class TestPrestoEventExplorer
 
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(
                 new PrestoConfig(),
-                prestoQueryExecutor, metastore, queryMetadataStore);
+                prestoQueryExecutor, metastore, queryMetadataStore, Clock.systemUTC());
         QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, metastore, materializedViewService, Clock.systemUTC(), '"');
 
         eventExplorer = new PrestoEventExplorer(new ProjectConfig(), queryExecutorService, continuousQueryService, materializedViewService);
