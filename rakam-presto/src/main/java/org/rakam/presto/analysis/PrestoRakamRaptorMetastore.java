@@ -154,7 +154,7 @@ public class PrestoRakamRaptorMetastore
     @Override
     public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields)
     {
-        return getOrCreateCollectionFields(project, collection, fields, fields.size());
+        return getOrCreateCollectionFields(project, collection, fields, fields.size() + 1);
     }
 
     public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields, int tryCount)
@@ -243,7 +243,7 @@ public class PrestoRakamRaptorMetastore
                         catch (Exception e) {
                             if (e.getMessage().equals("Failed to perform metadata operation")) {
                                 // TODO: fix stackoverflow
-                                getOrCreateCollectionFields(project, collection, ImmutableSet.of(f), 1);
+                                getOrCreateCollectionFields(project, collection, ImmutableSet.of(f), 2);
                             }
                             else if (!e.getMessage().contains("exists")) {
                                 throw new IllegalStateException(e.getMessage());
