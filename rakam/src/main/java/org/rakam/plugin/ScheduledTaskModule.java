@@ -35,7 +35,6 @@ public class ScheduledTaskModule
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(ScheduledTaskHttpService.class);
 
-        binder.bind(LockService.class).toProvider(LockServiceProvider.class);
         binder.bind(String.class).annotatedWith(Names.named("timestamp_function"))
                 .toProvider(DatabaseFunction.class);
     }

@@ -53,6 +53,7 @@ import org.rakam.http.WebServiceModule;
 import org.rakam.http.WebServiceModule.ProjectPermissionParameterFactory;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.InjectionHook;
+import org.rakam.plugin.LockServiceProvider;
 import org.rakam.util.RAsyncHttpClient;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.user.AbstractUserService;
@@ -62,6 +63,7 @@ import org.rakam.server.http.HttpRequestHandler;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
 import org.rakam.util.NotFoundHandler;
+import org.rakam.util.lock.LockService;
 
 import javax.inject.Inject;
 
@@ -88,7 +90,8 @@ public final class ServiceStarter
             URL resource = ServiceStarter.class.getResource("/git.properties");
             if (resource == null) {
                 LOGGER.warn("git.properties doesn't exist.");
-            } else {
+            }
+            else {
                 inputStream = resource.openStream();
                 properties.load(inputStream);
             }
@@ -182,7 +185,7 @@ public final class ServiceStarter
         {
             binder.bind(Clock.class).toInstance(Clock.systemUTC());
 //            binder.bind(FlywayExecutor.class).asEagerSingleton();
-
+            binder.bind(LockService.class).toProvider(LockServiceProvider.class);
             binder.bind(FieldDependency.class).toProvider(FieldDependencyProvider.class).in(Scopes.SINGLETON);
 
             Multibinder.newSetBinder(binder, EventMapper.class);

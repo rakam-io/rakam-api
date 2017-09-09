@@ -44,7 +44,7 @@ public class LockServiceProvider
             }
         }
         catch (SQLException e) {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e);
         }
         finally {
             if (connection != null) {
