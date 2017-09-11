@@ -399,10 +399,10 @@ public class EventCollectionHttpService
         storeEventsSync(request,
                 buff -> {
                     String contentType = request.headers().get(CONTENT_TYPE);
-                    if (contentType == null || contentType.isEmpty()) {
+                    if (contentType == null || "application/json".equals(contentType)) {
                         return jsonMapper.readerFor(EventList.class).readValue(buff);
                     }
-                    else if ("application/json".equals(contentType)) {
+                    else if ("application/x-rawjson".equals(contentType) || "application/x-ndjson".equals(contentType)) {
                         String apiKey;
                         try {
                             apiKey = getParam(request.params(), MASTER_KEY.getKey());
