@@ -1,15 +1,13 @@
 package org.rakam.analysis.abtesting;
 
-import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
 import io.swagger.models.Tag;
 import org.rakam.config.MetadataConfig;
-import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.RakamModule;
 import org.rakam.server.http.HttpService;
+import org.rakam.util.ConditionalModule;
 
-@AutoService(RakamModule.class)
 @ConditionalModule(config="event.ab-testing.enabled", value = "true")
 public class ABTestingModule extends RakamModule {
 

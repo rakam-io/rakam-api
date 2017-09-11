@@ -1,7 +1,5 @@
 package org.rakam.automation;
 
-
-import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
@@ -14,7 +12,6 @@ import org.rakam.util.ConditionalModule;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 
-@AutoService(RakamModule.class)
 @ConditionalModule(config = "automation.enabled", value = "true")
 public class AutomationModule extends RakamModule {
     @Override

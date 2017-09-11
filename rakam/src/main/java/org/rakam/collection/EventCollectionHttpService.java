@@ -386,8 +386,8 @@ public class EventCollectionHttpService
     }
 
     @POST
-    @ApiOperation(value = "Collect Bulk events", request = EventList.class, response = SuccessMessage.class, notes = "Bulk API requires master_key as api key and built for importing the data without modifying (enrichment / sanitization http://rakam.io/doc/buremba/rakam-wiki/master/Event-Mappers). This endpoint is also more efficient then batch endpoint." +
-            "The endpoint also accepts application/avro and text/csv formats. You need need to set 'collection' and 'master_key' query parameters if the content-type is not application/json.")
+    @ApiOperation(value = "Collect Bulk events", request = EventList.class, response = SuccessMessage.class, notes = "Bulk API requires master_key as api key and built for importing the data without any rate limiting unlike event/batch" +
+            "This endpoint accepts application/json and the data format is same as event/batch. Additionally it supports application/x-rawjson for JSON dump data, application/x-ndjson for newline delimited JSON, application/avro for AVRO and text/csv for CSV formats. You need need to set 'collection' and 'master_key' query parameters if the content-type is not application/json.")
     @Path("/bulk")
     public void bulkEvents(RakamHttpRequest request)
     {
