@@ -172,7 +172,7 @@ public class PostgresqlQueryExecutor
                     return checkProject(prefix, '"') + "." + checkCollection(name.getSuffix());
             }
         }
-        else if (name.getSuffix().equals("users") || name.getSuffix().equals("_users")) {
+        else if (name.getSuffix().equals("users")) {
             if (userServiceIsPostgresql) {
                 return checkProject(project, '"') + "._users";
             }

@@ -217,7 +217,7 @@ public class PrestoQueryExecutor
         else if ("materialized".equals(prefix)) {
             return getTableReference(project, MATERIALIZED_VIEW_PREFIX + suffix, sample);
         }
-        else if ("collection".equals(prefix) || (prefix == null && !"_users".equals(suffix) && !"_all".equals(suffix))) {
+        else if ("collection".equals(prefix) || (prefix == null && !"users".equals(suffix) && !"_all".equals(suffix))) {
             return getTableReference(project, suffix, sample);
         }
         else {
@@ -232,7 +232,7 @@ public class PrestoQueryExecutor
 
             DataSourceType dataSourceType;
 
-            if (prefix == null && userJdbcConfig != null && suffix.equals("_users")) {
+            if (prefix == null && userJdbcConfig != null && suffix.equals("users")) {
                 URI uri = URI.create(userJdbcConfig.getUrl().substring(5));
                 JDBCSchemaConfig source = new JDBCSchemaConfig()
                         .setDatabase(uri.getPath().substring(1).split("\\?", 2)[0])
