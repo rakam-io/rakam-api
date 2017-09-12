@@ -1,9 +1,9 @@
-//@ sourceURL=rakam-ui/src/main/resources/scheduled-task/googleanalytics/script.js
+//@ sourceURL=rakam-ui/src/main/resources/scheduled-task/spotify/script.js
 
 var oauth_url = "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/spotify";
 var report_url = "https://api.spotify.com/v1/me/player/recently-played";
 
-var fetchItems = function (arr, access_token, before) {
+var fetchItems = function (arr, access_token, before, collection) {
     var response = http.get(report_url + '?limit=50&before=' + (before || (new Date().getTime())))
         .header("Authorization", "Bearer " + access_token).send();
 
@@ -13,9 +13,12 @@ var fetchItems = function (arr, access_token, before) {
 
     var body = JSON.parse(response.getResponseBody());
 
+    var max = 0;
+
     body.items.forEach(function (item) {
         var song = {};
         song._time = item.played_at;
+        max = Math.max(new Date(item.played_at).getTime(), max);
         song.track_duration = item.track.duration_ms;
         song.track_id = item.track.id;
         song.album_id = item.track.album.id;
@@ -32,14 +35,14 @@ var fetchItems = function (arr, access_token, before) {
                 song['external_id_' + key] = item.track.external_ids[key];
             })
         }
-        arr.push(song);
+        arr.push({collection: collection, properties: song});
     });
 
-    if (body.cursors && body.cursors.after) {
-        return fetchItems(arr, access_token, body.cursors.after);
-    }
+    // if (body.cursors && body.cursors.after) {
+    //     return fetchItems(arr, access_token, body.cursors.after, collection);
+    // }
 
-    return 0;
+    return max;
 }
 
 var fetch = function (parameters, offset) {
@@ -58,7 +61,7 @@ var fetch = function (parameters, offset) {
     var access_token = JSON.parse(response.getResponseBody()).access_token;
 
     var arr = [];
-    fetchItems(arr, access_token, offset);
+    var endDate = fetchItems(arr, access_token, offset, parameters.collection);
 
     eventStore.store(arr);
     config.set('offset', endDate);

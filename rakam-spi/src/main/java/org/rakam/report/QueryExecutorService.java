@@ -247,10 +247,6 @@ public class QueryExecutorService
                 return materializedViewExecution.computeQuery ;
             }
 
-            if(!node.getPrefix().isPresent() && defaultSchema != null) {
-                node = QualifiedName.of(defaultSchema, node.getSuffix());
-            }
-
             return executor.formatTableReference(project, node, sample, sessionParameters);
         };
     }
