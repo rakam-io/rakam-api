@@ -126,7 +126,7 @@ public class SamlHttpService
                             null, null,
                             null,
                             null,
-                            null, false));
+                            null, true));
 
             Response loginResponseForUser = getLoginResponseForUser(secretKey, user, config.getSamlCookieTtl());
 

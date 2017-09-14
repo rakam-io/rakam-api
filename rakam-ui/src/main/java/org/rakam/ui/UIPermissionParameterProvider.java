@@ -119,8 +119,9 @@ public class UIPermissionParameterProvider
                                     "JOIN web_user ON (web_user.id = key.user_id) " +
                                     "WHERE key.user_id = :user AND project.id = :id" +
                                     " UNION ALL " +
-                                    " SELECT false " +
+                                    " SELECT web_user.read_only " +
                                     "FROM web_user_api_key_permission permission \n" +
+                                    "JOIN web_user ON (web_user.id = permission.user_id) \n" +
                                     "JOIN web_user_api_key api_key ON (permission.api_key_id = api_key.id) \n" +
                                     "WHERE permission.user_id = :user AND api_key.project_id = :id AND (permission.master_permission OR permission.read_permission)")
                                     .map(BooleanMapper.FIRST)
@@ -128,7 +129,7 @@ public class UIPermissionParameterProvider
                                     .bind("id", project)
                                     .first();
                             if (readOnlyUser == null || readOnlyUser) {
-                                throw new RakamException("User is not allowed to perform this operation", UNAUTHORIZED);
+                                throw new RakamException("The user read only and is not allowed to perform this operation", UNAUTHORIZED);
                             }
                         }
                     }
