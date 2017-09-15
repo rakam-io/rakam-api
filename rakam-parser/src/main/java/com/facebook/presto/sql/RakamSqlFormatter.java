@@ -506,7 +506,7 @@ public final class RakamSqlFormatter
             process(node.getRelation(), indent);
 
             builder.append(' ')
-                    .append(node.getAlias());
+                    .append(formatName(node.getAlias()));
 
             appendAliasColumns(builder, node.getColumnNames());
 
