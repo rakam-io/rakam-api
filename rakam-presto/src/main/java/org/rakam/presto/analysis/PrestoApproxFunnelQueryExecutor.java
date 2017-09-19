@@ -80,7 +80,7 @@ public class PrestoApproxFunnelQueryExecutor
             query = String.format("select funnel_steps(array[%s])", queries);
         }
 
-        QueryExecution queryExecution = executor.executeQuery(project, query, Optional.empty(), "collection", zoneId, 10000);
+        QueryExecution queryExecution = executor.executeQuery(project, query, Optional.empty(), null, zoneId, 10000);
 
         return new DelegateQueryExecution(queryExecution,
                 result -> {

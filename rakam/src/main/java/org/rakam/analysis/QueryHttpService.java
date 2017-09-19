@@ -121,7 +121,7 @@ public class QueryHttpService
                 project,
                 query.query,
                 query.sample,
-                Optional.ofNullable(query.defaultSchema).orElse("collection"),
+                query.defaultSchema,
                 query.timezone,
                 query.limit == null ? DEFAULT_QUERY_RESULT_COUNT : query.limit);
         return queryExecution
@@ -153,7 +153,7 @@ public class QueryHttpService
     {
         String apiKey = request.headers().get("read_key");
         executorService.executeQuery(project, query.query,
-                query.sample, Optional.ofNullable(query.defaultSchema).orElse("collection"),
+                query.sample, query.defaultSchema,
                 query.timezone,
                 query.limit == null ? DEFAULT_QUERY_RESULT_COUNT : query.limit, apiKey)
 
@@ -206,7 +206,7 @@ public class QueryHttpService
         handleServerSentQueryExecution(request, QueryRequest.class, (project, query) ->
                 executorService.executeQuery(project, query.query,
                         query.sample,
-                        Optional.ofNullable(query.defaultSchema).orElse("collection"),
+                        query.defaultSchema,
                         query.timezone,
                         query.limit == null ? DEFAULT_QUERY_RESULT_COUNT : query.limit));
     }

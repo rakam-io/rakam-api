@@ -35,6 +35,7 @@ public class RakamUIConfig {
     private String authentication;
     private boolean disableTracking;
     private Duration cookieDuration = Duration.succinctDuration(30, TimeUnit.DAYS);
+    private String intercomSecretKey;
 
     @Config("ui.directory")
     public RakamUIConfig setUIDirectory(File uiDirectory) {
@@ -135,6 +136,17 @@ public class RakamUIConfig {
     public RakamUIConfig setDisableTracking(boolean disableTracking) {
         this.disableTracking = disableTracking;
         return this;
+    }
+
+    @Config("ui.tracking.intercom.secret-key")
+    public RakamUIConfig setIntercomSecretKey(String intercomSecretKey) {
+        this.intercomSecretKey = intercomSecretKey;
+        return this;
+    }
+
+    public String getIntercomSecretKey()
+    {
+        return intercomSecretKey;
     }
 
     public boolean getDisableTracking() {

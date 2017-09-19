@@ -146,13 +146,13 @@ public class QueryExecutorService
 
     public QueryExecution executeQuery(String project, String sqlQuery)
     {
-        return executeQuery(project, sqlQuery, Optional.empty(), "collection",
+        return executeQuery(project, sqlQuery, Optional.empty(), null,
                 ZoneOffset.UTC, DEFAULT_QUERY_RESULT_COUNT);
     }
 
     public QueryExecution executeQuery(String project, String sqlQuery, ZoneId timezone)
     {
-        return executeQuery(project, sqlQuery, Optional.empty(), "collection",
+        return executeQuery(project, sqlQuery, Optional.empty(), null,
                 timezone, DEFAULT_QUERY_RESULT_COUNT);
     }
 

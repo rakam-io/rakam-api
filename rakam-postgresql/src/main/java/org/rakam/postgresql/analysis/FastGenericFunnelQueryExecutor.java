@@ -110,7 +110,7 @@ public class FastGenericFunnelQueryExecutor
             query = format("SELECT * FROM (%s) data WHERE event0_count > 0", query);
         }
 
-        QueryExecution queryExecution = executor.executeQuery(project, query, Optional.empty(), "collection", timezone, 1000);
+        QueryExecution queryExecution = executor.executeQuery(project, query, Optional.empty(), null, timezone, 1000);
 
         return new DelegateQueryExecution(queryExecution,
                 result -> {

@@ -38,13 +38,19 @@ import org.skife.jdbi.v2.util.BooleanMapper;
 import org.skife.jdbi.v2.util.IntegerMapper;
 import org.skife.jdbi.v2.util.StringMapper;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import javax.mail.MessagingException;
+import javax.xml.bind.DatatypeConverter;
 
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -271,11 +277,7 @@ public class WebUserService
 
         WebUser webuser = null;
 
-        try (
-                Handle handle = dbi.open()
-        )
-
-        {
+        try (Handle handle = dbi.open()) {
             try {
                 int id = handle.createStatement("INSERT INTO web_user (email, password, name, created_at, gender, user_locale, google_id, external) VALUES (:email, :password, :name, now(), :gender, :locale, :googleId, :external)")
                         .bind("email", email)
@@ -285,7 +287,8 @@ public class WebUserService
                         .bind("external", external)
                         .bind("googleId", googleId)
                         .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
-                webuser = new WebUser(id, email, name, false, ImmutableList.of());
+
+                webuser = new WebUser(id, email, name, false, generateIntercomHash(email), ImmutableList.of());
             }
             catch (UnableToExecuteStatementException e) {
                 Map<String, Object> existingUser = handle.createQuery("SELECT created_at FROM web_user WHERE lower(email) = lower(:email)").bind("email", email).first();
@@ -300,7 +303,7 @@ public class WebUserService
                                 .bind("name", name)
                                 .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
                         if (id > 0) {
-                            webuser = new WebUser(id, email, name, false, ImmutableList.of());
+                            webuser = new WebUser(id, email, name, false, generateIntercomHash(email), ImmutableList.of());
                         }
                     }
                 }
@@ -321,6 +324,30 @@ public class WebUserService
                     .bind("id", id)
                     .bind("name", name)
                     .executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
+        }
+    }
+
+    public String generateIntercomHash(String email)
+    {
+        if (config.getIntercomSecretKey() == null) {
+            return null;
+        }
+
+        try {
+            Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
+            SecretKeySpec secret_key = new SecretKeySpec(config.getIntercomSecretKey().getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+            sha256_HMAC.init(secret_key);
+
+            byte[] hash = (sha256_HMAC.doFinal(email.getBytes()));
+            StringBuffer result = new StringBuffer();
+            for (byte b : hash) {
+                result.append(String.format("%02X", b));
+            }
+
+            return result.toString();
+        }
+        catch (NoSuchAlgorithmException | InvalidKeyException e) {
+            throw new IllegalStateException(e);
         }
     }
 
@@ -830,7 +857,7 @@ public class WebUserService
             int id = (int) data.get("id");
             boolean readOnly = (boolean) data.get("read_only");
             projects = getUserApiKeys(handle, id);
-            return Optional.of(new WebUser(id, email, name, readOnly, projects));
+            return Optional.of(new WebUser(id, email, name, readOnly, generateIntercomHash(email), projects));
         }
     }
 
@@ -850,7 +877,7 @@ public class WebUserService
             boolean readOnly = (boolean) data.get("read_only");
 
             projectDefinitions = getUserApiKeys(handle, id);
-            return Optional.of(new WebUser(id, email, name, readOnly, projectDefinitions));
+            return Optional.of(new WebUser(id, email, name, readOnly, generateIntercomHash(email), projectDefinitions));
         }
     }
 
@@ -871,7 +898,7 @@ public class WebUserService
 
             projectDefinitions = getUserApiKeys(handle, id);
             return Optional.of(new WebUser(id, email, name,
-                    (Boolean) data.get("read_only"), projectDefinitions));
+                    (Boolean) data.get("read_only"), generateIntercomHash(email), projectDefinitions));
         }
     }
 

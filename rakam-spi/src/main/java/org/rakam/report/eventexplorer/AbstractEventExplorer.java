@@ -455,11 +455,11 @@ public abstract class AbstractEventExplorer
 
         QueryExecution collection;
         try {
-            collection = executor.executeQuery(project, query, Optional.empty(), "collection", timezone, 20000);
+            collection = executor.executeQuery(project, query, Optional.empty(), null, timezone, 20000);
         }
         catch (MaterializedViewNotExists e) {
             new EventExplorerListener(projectConfig, materializedViewService).createTable(project);
-            collection = executor.executeQuery(project, query, Optional.empty(), "collection", timezone, 20000);
+            collection = executor.executeQuery(project, query, Optional.empty(), null, timezone, 20000);
         }
 
         return collection.getResult().thenApply(result -> {

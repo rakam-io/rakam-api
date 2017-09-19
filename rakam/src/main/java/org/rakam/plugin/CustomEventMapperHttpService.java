@@ -121,7 +121,7 @@ public class CustomEventMapperHttpService
             QueryExecution queryExecution =
                     queryExecutorService.executeQuery(
                             project, queryString,
-                    null, "collection", ZoneOffset.UTC, DEFAULT_QUERY_RESULT_COUNT);
+                    null, null, ZoneOffset.UTC, DEFAULT_QUERY_RESULT_COUNT);
             try {
                 QueryResult queryResult =  queryExecution.getResult().get();
                 if (queryResult.isFailed()){
