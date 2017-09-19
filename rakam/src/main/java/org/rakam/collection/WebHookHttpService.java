@@ -114,34 +114,36 @@ public class WebHookHttpService
         this.apiKeyService = apiKeyService;
         this.jsCodeCompiler = jsCodeCompiler;
         this.loggerService = loggerService;
-        functions = CacheBuilder.newBuilder().softValues().build(new CacheLoader<WebHookIdentifier, Invocable>()
-        {
+        functions = CacheBuilder.newBuilder()
+                .expireAfterWrite(5, TimeUnit.MINUTES)
+                .build(new CacheLoader<WebHookIdentifier, Invocable>()
+                {
 
-            @Override
-            public Invocable load(WebHookIdentifier key)
-                    throws Exception
-            {
-                WebHook webHook = get(key.project, key.identifier);
-                String prefix = "webhook." + key.project + "." + key.identifier;
-                return jsCodeCompiler.createEngine(
-                        webHook.script,
-                        loggerService.createLogger(key.project, prefix),
-                        null,
-                        jsCodeCompiler.createConfigManager(key.project, prefix), (engine, bindings) -> {
-                            Map<String, Parameter> parameters = webHook.parameters;
-                            Map<String, Object> map = new HashMap<>();
-                            parameters.forEach((k,v) -> map.put(k, v.value));
+                    @Override
+                    public Invocable load(WebHookIdentifier key)
+                            throws Exception
+                    {
+                        WebHook webHook = get(key.project, key.identifier);
+                        String prefix = "webhook." + key.project + "." + key.identifier;
+                        return jsCodeCompiler.createEngine(
+                                webHook.script,
+                                loggerService.createLogger(key.project, prefix),
+                                null,
+                                jsCodeCompiler.createConfigManager(key.project, prefix), (engine, bindings) -> {
+                                    Map<String, Parameter> parameters = webHook.parameters;
+                                    Map<String, Object> map = new HashMap<>();
+                                    parameters.forEach((k, v) -> map.put(k, v.value));
 
-                            bindings.put("$$params", map);
-                            try {
-                                engine.eval("var $$module = function(queryParams, body, headers) { return module(queryParams, body, $$params, headers)}");
-                            }
-                            catch (ScriptException e) {
-                                throw Throwables.propagate(e);
-                            }
-                        });
-            }
-        });
+                                    bindings.put("$$params", map);
+                                    try {
+                                        engine.eval("var $$module = function(queryParams, body, headers) { return module(queryParams, body, $$params, headers)}");
+                                    }
+                                    catch (ScriptException e) {
+                                        throw Throwables.propagate(e);
+                                    }
+                                });
+                    }
+                });
         this.dbi = new DBI(dataSource);
         this.eventStore = eventStore;
         jsonMapper = new ObjectMapper();
@@ -253,7 +255,6 @@ public class WebHookHttpService
 
                         ScriptObjectMirror json = (ScriptObjectMirror) ((ScriptObjectMirror) body).eval("JSON");
                         Object stringify = json.callMember("stringify", body);
-
 
                         try {
                             Event event = jsonMapper.readerFor(Event.class)
