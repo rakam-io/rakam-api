@@ -3,7 +3,7 @@
 var oauth_url = "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/google";
 var report_url = "https://analyticsreporting.googleapis.com/v4/reports:batchGet";
 
-var fetch = function (parameters, startDate, endDate, nextToken) {
+var fetch = function (parameters, startDate, endDate, nextToken, accessKey) {
     logger.debug("Fetching between " + startDate + " and " + (endDate || 'now') + (nextToken ? (' with token ' + nextToken) : ''));
     if (nextToken == null) {
         var token = config.get('cursor');
@@ -38,23 +38,26 @@ var fetch = function (parameters, startDate, endDate, nextToken) {
         return;
     }
 
-    var response = http.get(oauth_url)
-        .query('refresh_token', parameters.refresh_token)
-        .send();
+    if(accessKey == null) {
+        var response = http.get(oauth_url)
+            .query('refresh_token', parameters.refresh_token)
+            .send();
 
-    if (response.getStatusCode() == 0) {
-        throw new Error(response.getResponseBody());
+        if (response.getStatusCode() == 0) {
+            throw new Error(response.getResponseBody());
+        }
+
+        if (response.getStatusCode() != 200) {
+            throw new Error(response.getResponseBody());
+        }
+
+        accessKey = response.getResponseBody();
     }
 
-    if (response.getStatusCode() != 200) {
-        throw new Error(response.getResponseBody());
-    }
-
-    var token = response.getResponseBody();
     var metrics = parameters.metrics.split(',');
     var dimensions = parameters.dimensions.split(',');
     response = http.post(report_url)
-        .header('Authorization', token)
+        .header('Authorization', accessKey)
         .data(JSON.stringify({
             reportRequests: [
                 {
@@ -135,7 +138,7 @@ var fetch = function (parameters, startDate, endDate, nextToken) {
         eventStore.store(events);
         config.set('cursor', endDate + " " + report.nextPageToken);
         events = data = null;
-        return fetch(parameters, startDate, endDate, report.nextPageToken);
+        return fetch(parameters, startDate, endDate, report.nextPageToken, accessKey);
     }
 
     eventStore.store(events);
@@ -147,7 +150,7 @@ var fetch = function (parameters, startDate, endDate, nextToken) {
 
     if (nowStr != endDate) {
         events = data = null;
-        return fetch(parameters);
+        return fetch(parameters, endDate, null, 0, accessKey);
     }
 }
 

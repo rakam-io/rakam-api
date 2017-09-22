@@ -1,6 +1,7 @@
 package org.rakam.util;
 
 import com.google.common.base.Throwables;
+import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import okhttp3.FormBody;
@@ -30,6 +31,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class RAsyncHttpClient
 {
+    private final static Logger LOGGER = Logger.get(RAsyncHttpClient.class);
+
     private final OkHttpClient asyncHttpClient;
 
     public RAsyncHttpClient(OkHttpClient asyncHttpClient)
@@ -152,7 +155,9 @@ public class RAsyncHttpClient
                 requestBuilder.method(method, formParams.build());
             }
             try {
-                return new SuccessResponse(asyncHttpClient.newCall(requestBuilder.build()).execute());
+                okhttp3.Response response = asyncHttpClient.newCall(requestBuilder.build()).execute();
+                LOGGER.debug("Performed request to %s in %dms", url, response.receivedResponseAtMillis() - response.sentRequestAtMillis());
+                return new SuccessResponse(response);
             }
             catch (IOException e) {
                 return new ExceptionResponse(e);

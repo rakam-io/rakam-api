@@ -1,4 +1,5 @@
 rakam-presto/.test/
+log.properties
 .test/
 plugins/*
 _ui/*
