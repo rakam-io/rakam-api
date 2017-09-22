@@ -1,31 +1,36 @@
-//@ sourceURL=rakam-ui/src/main/resources/scheduled-task/googleanalytics/script.js
+//@ sourceURL=rakam-ui/src/main/resources/scheduled-task/google-analytics/script.js
 
 var oauth_url = "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/google";
 var report_url = "https://analyticsreporting.googleapis.com/v4/reports:batchGet";
 
 var fetch = function (parameters, startDate, endDate, nextToken) {
     logger.debug("Fetching between " + startDate + " and " + (endDate || 'now') + (nextToken ? (' with token ' + nextToken) : ''));
-    if(nextToken == null) {
+    if (nextToken == null) {
         var token = config.get('cursor');
         if (token != null) {
             var parsed = token.split(' ');
-            endDate = parsed[0];
+            startDate = parsed[0];
             nextToken = parsed[1];
         }
+    }
+
+    if (startDate == null) {
+        startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - 12);
+        startDate = startDate.toJSON().slice(0, 10);
     }
 
     if (endDate == null) {
         endDate = new Date();
         endDate.setDate(endDate.getDate() - 1);
+
+        var ONE_WEEK = 1000 * 60 * 60 * 24 * 7;
+        var tempStartDate = new Date(startDate).getTime();
+        if (endDate.getTime() - tempStartDate > ONE_WEEK) {
+            endDate = new Date(tempStartDate + ONE_WEEK);
+        }
+
         endDate = endDate.toJSON().slice(0, 10);
-    }
-
-    startDate = startDate || config.get('start_date');
-
-    if (startDate == null) {
-        startDate = new Date();
-        startDate.setMonth(startDate.getMonth() - 1);
-        startDate = startDate.toJSON().slice(0, 10);
     }
 
     if (startDate === endDate) {
@@ -105,7 +110,7 @@ var fetch = function (parameters, startDate, endDate, nextToken) {
             dimensions.forEach(function (dimension, idx) {
                 var value = row.dimensions[idx];
 
-                if (dimension == 'ga:dateHour') {
+                if (dimension === 'ga:dateHour') {
                     dimension = '_time';
                     // Sometimes GA group it as 'Others'
                     valid_time = value.indexOf('20') == 0;
@@ -120,7 +125,7 @@ var fetch = function (parameters, startDate, endDate, nextToken) {
                 properties[metric] = metricMappers[idx](metricValues.values[idx]);
             });
 
-            if(valid_time) {
+            if (valid_time) {
                 events.push({collection: parameters.collection, properties: properties});
             }
         });
@@ -129,12 +134,21 @@ var fetch = function (parameters, startDate, endDate, nextToken) {
     if (report.nextPageToken && report.nextPageToken) {
         eventStore.store(events);
         config.set('cursor', endDate + " " + report.nextPageToken);
+        events = data = null;
         return fetch(parameters, startDate, endDate, report.nextPageToken);
     }
 
     eventStore.store(events);
     config.set('cursor', null);
-    config.set('start_date', endDate);
+
+    var now = new Date();
+    now.setDate(now.getDate() - 1);
+    var nowStr = now.toJSON().slice(0, 10);
+
+    if (nowStr != endDate) {
+        events = data = null;
+        return fetch(parameters);
+    }
 }
 
 var main = function (parameters) {
