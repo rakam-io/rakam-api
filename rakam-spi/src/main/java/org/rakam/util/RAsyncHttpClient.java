@@ -4,12 +4,7 @@ import com.google.common.base.Throwables;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import okhttp3.FormBody;
-import okhttp3.HttpUrl;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
+import okhttp3.*;
 import org.asynchttpclient.Response;
 import org.asynchttpclient.cookie.Cookie;
 import org.asynchttpclient.uri.Uri;
@@ -155,7 +150,8 @@ public class RAsyncHttpClient
                 requestBuilder.method(method, formParams.build());
             }
             try {
-                okhttp3.Response response = asyncHttpClient.newCall(requestBuilder.build()).execute();
+                Call call = asyncHttpClient.newCall(requestBuilder.build());
+                okhttp3.Response response = call.execute();
                 LOGGER.debug("Performed request to %s in %dms", url, response.receivedResponseAtMillis() - response.sentRequestAtMillis());
                 return new SuccessResponse(response);
             }
@@ -318,7 +314,7 @@ public class RAsyncHttpClient
                 return response.body().bytes();
             }
             catch (IOException e) {
-                throw Throwables.propagate(e);
+                throw new RuntimeException(e);
             }
         }
 
@@ -341,7 +337,7 @@ public class RAsyncHttpClient
                 return new String(response.body().bytes(), charset);
             }
             catch (IOException e) {
-                throw Throwables.propagate(e);
+                throw new RuntimeException(e);
             }
         }
 
@@ -352,7 +348,7 @@ public class RAsyncHttpClient
                 return new String(response.body().bytes(), StandardCharsets.UTF_8);
             }
             catch (IOException e) {
-                throw Throwables.propagate(e);
+                throw new RuntimeException(e);
             }
         }
 

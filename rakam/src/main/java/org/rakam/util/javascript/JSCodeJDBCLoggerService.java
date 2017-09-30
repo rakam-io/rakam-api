@@ -26,19 +26,16 @@ import java.util.UUID;
 
 @Path("/javascript-logger")
 @Api(value = "/javascript-logger", nickname = "javascript-logs", description = "Javascript code logs", tags = "javascript")
-public class JSCodeLoggerService
-{
+public class JSCodeJDBCLoggerService implements JSLoggerService {
     private final DBI dbi;
 
     @Inject
-    public JSCodeLoggerService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource)
-    {
+    public JSCodeJDBCLoggerService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
         this.dbi = new DBI(dataSource);
     }
 
     @PostConstruct
-    public void setupLogger()
-    {
+    public void setupLogger() {
         try (Handle handle = dbi.open()) {
             handle.createStatement("CREATE TABLE IF NOT EXISTS javascript_logs (" +
                     "  id TEXT NOT NULL," +
@@ -50,8 +47,7 @@ public class JSCodeLoggerService
                     .execute();
             try {
                 handle.createStatement("ALTER TABLE javascript_logs ADD COLUMN created BIGINT NOT NULL DEFAULT 0").execute();
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 // ignore
             }
         }
@@ -60,8 +56,7 @@ public class JSCodeLoggerService
     @JsonRequest
     @ApiOperation(value = "Get logs", authorizations = @Authorization(value = "master_key"))
     @Path("/get_logs")
-    public List<LogEntry> getLogs(@Named("project") String project, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end, @ApiParam(value = "prefix") String prefix)
-    {
+    public List<LogEntry> getLogs(@Named("project") String project, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end, @ApiParam(value = "prefix") String prefix) {
         String sql = "SELECT id, type, error, created FROM javascript_logs WHERE project = :project AND prefix = :prefix";
         if (start != null) {
             sql += " AND created > :start";
@@ -90,58 +85,37 @@ public class JSCodeLoggerService
         }
     }
 
-    public static class LogEntry
-    {
-        public final String id;
-        public final Level level;
-        public final String message;
-        public final Instant timestamp;
 
-        public LogEntry(String id, Level level, String message, Instant timestamp)
-        {
-            this.id = id;
-            this.level = level;
-            this.message = message;
-            this.timestamp = timestamp;
-        }
-    }
-
-    public PersistentLogger createLogger(String project, String prefix)
-    {
+    public PersistentLogger createLogger(String project, String prefix) {
         return new PersistentLogger(project, prefix, UUID.randomUUID().toString());
     }
 
-    public PersistentLogger createLogger(String project, String prefix, String identifier)
-    {
+    public PersistentLogger createLogger(String project, String prefix, String identifier) {
         return new PersistentLogger(project, prefix, identifier);
     }
 
     public class PersistentLogger
-            implements ILogger
-    {
+            implements ILogger {
         private final String prefix;
         private final String project;
         private final String id;
 
-        public PersistentLogger(String project, String prefix, String id)
-        {
+        public PersistentLogger(String project, String prefix, String id) {
             this.project = project;
             this.prefix = prefix;
             this.id = id;
         }
 
         @Override
-        public void debug(String value)
-        {
+        public void debug(String value) {
             log("DEBUG", value);
         }
 
-        private void log(String type, String value)
-        {
+        private void log(String type, String value) {
             try (Handle handle = dbi.open()) {
                 PreparedStatement preparedStatement = handle.getConnection().prepareStatement(
                         "INSERT INTO javascript_logs (project, id, type, prefix, error, created) " +
-                        "VALUES (?, ?, ?, ?, ?, ?)");
+                                "VALUES (?, ?, ?, ?, ?, ?)");
                 preparedStatement.setString(1, project);
                 preparedStatement.setString(2, id);
                 preparedStatement.setString(3, type);
@@ -149,27 +123,23 @@ public class JSCodeLoggerService
                 preparedStatement.setString(5, value);
                 preparedStatement.setLong(6, Instant.now().toEpochMilli());
                 preparedStatement.execute();
-            }
-            catch (SQLException e) {
+            } catch (SQLException e) {
                 throw Throwables.propagate(e);
             }
         }
 
         @Override
-        public void warn(String value)
-        {
+        public void warn(String value) {
             log("WARN", value);
         }
 
         @Override
-        public void info(String value)
-        {
+        public void info(String value) {
             log("INFO", value);
         }
 
         @Override
-        public void error(String value)
-        {
+        public void error(String value) {
             log("ERROR", value);
         }
     }

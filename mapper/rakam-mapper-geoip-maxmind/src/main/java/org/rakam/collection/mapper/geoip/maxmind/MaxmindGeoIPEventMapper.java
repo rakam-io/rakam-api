@@ -37,6 +37,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static com.maxmind.db.Reader.FileMode.MEMORY;
 import static org.rakam.collection.FieldType.STRING;
 
 @Mapper(name = "Maxmind Event mapper", description = "Looks up geolocation data from _ip field using Maxmind and attaches geo-related attributed")
@@ -128,10 +129,10 @@ public class MaxmindGeoIPEventMapper
     {
         try {
             FileInputStream cityDatabase = new FileInputStream(MaxmindGeoIPModule.downloadOrGetFile(url));
-            return new DatabaseReader.Builder(cityDatabase).fileMode(Reader.FileMode.MEMORY).build();
+            return new DatabaseReader.Builder(cityDatabase).fileMode(MEMORY).build();
         }
         catch (Exception e) {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e);
         }
     }
 

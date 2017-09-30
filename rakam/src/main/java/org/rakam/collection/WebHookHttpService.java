@@ -26,7 +26,7 @@ import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.util.javascript.JSCodeCompiler;
-import org.rakam.util.javascript.JSCodeLoggerService;
+import org.rakam.util.javascript.JSCodeJDBCLoggerService;
 import org.rakam.plugin.EventStore;
 import org.rakam.server.http.HttpRequestException;
 import org.rakam.server.http.HttpService;
@@ -100,7 +100,7 @@ public class WebHookHttpService
     private final EventStore eventStore;
     private final ObjectMapper jsonMapper;
     private final JSCodeCompiler jsCodeCompiler;
-    private final JSCodeLoggerService loggerService;
+    private final JSCodeJDBCLoggerService loggerService;
 
     @Inject
     public WebHookHttpService(
@@ -108,7 +108,7 @@ public class WebHookHttpService
             JsonEventDeserializer deserializer,
             ApiKeyService apiKeyService,
             JSCodeCompiler jsCodeCompiler,
-            JSCodeLoggerService loggerService,
+            JSCodeJDBCLoggerService loggerService,
             EventStore eventStore)
     {
         this.apiKeyService = apiKeyService;
@@ -433,7 +433,7 @@ public class WebHookHttpService
     @ApiOperation(value = "Get logs", authorizations = @Authorization(value = "master_key"))
     @JsonRequest
     @Path("/get_logs")
-    public List<JSCodeLoggerService.LogEntry> getLogs(@Named("project") String project, @ApiParam("identifier") String identifier, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end)
+    public List<JSCodeJDBCLoggerService.LogEntry> getLogs(@Named("project") String project, @ApiParam("identifier") String identifier, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end)
     {
         return loggerService.getLogs(project, start, end, "webhook." + project + "." + identifier);
     }

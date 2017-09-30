@@ -63,6 +63,8 @@ import org.rakam.server.http.HttpRequestHandler;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
 import org.rakam.util.NotFoundHandler;
+import org.rakam.util.javascript.JSCodeJDBCLoggerService;
+import org.rakam.util.javascript.JSLoggerService;
 import org.rakam.util.lock.LockService;
 
 import javax.inject.Inject;
@@ -250,11 +252,11 @@ public final class ServiceStarter
 
             binder.bind(SchemaChecker.class).asEagerSingleton();
 
+            binder.bind(JSLoggerService.class).to(JSCodeJDBCLoggerService.class);
+
             binder.bind(RAsyncHttpClient.class)
                     .annotatedWith(Names.named("rakam-client"))
-                    .toProvider(() -> {
-                        return RAsyncHttpClient.create(1000 * 60 * 10, "rakam-custom-script");
-                    })
+                    .toProvider(() -> RAsyncHttpClient.create(1000 * 60 * 10, "rakam-custom-script"))
                     .in(Scopes.SINGLETON);
 
             OptionalBinder.newOptionalBinder(binder,

@@ -1,11 +1,12 @@
 //@ sourceURL=rakam-ui/src/main/resources/scheduled-task/google-analytics/script.js
 
+var ONE_WEEK = 1000 * 60 * 60 * 24 * 7;
 var oauth_url = "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/google";
 var report_url = "https://analyticsreporting.googleapis.com/v4/reports:batchGet";
 
 var fetch = function (parameters, startDate, endDate, nextToken, accessKey) {
     logger.debug("Fetching between " + startDate + " and " + (endDate || 'now') + (nextToken ? (' with token ' + nextToken) : ''));
-    if (nextToken == null) {
+    if (endDate == null) {
         var token = config.get('cursor');
         if (token != null) {
             var parsed = token.split(' ');
@@ -24,7 +25,6 @@ var fetch = function (parameters, startDate, endDate, nextToken, accessKey) {
         endDate = new Date();
         endDate.setDate(endDate.getDate() - 1);
 
-        var ONE_WEEK = 1000 * 60 * 60 * 24 * 7;
         var tempStartDate = new Date(startDate).getTime();
         if (endDate.getTime() - tempStartDate > ONE_WEEK) {
             endDate = new Date(tempStartDate + ONE_WEEK);
@@ -38,7 +38,7 @@ var fetch = function (parameters, startDate, endDate, nextToken, accessKey) {
         return;
     }
 
-    if(accessKey == null) {
+    if (accessKey == null) {
         var response = http.get(oauth_url)
             .query('refresh_token', parameters.refresh_token)
             .send();
@@ -65,8 +65,12 @@ var fetch = function (parameters, startDate, endDate, nextToken, accessKey) {
                     pageToken: nextToken,
                     pageSize: 10000,
                     dateRanges: [{"startDate": startDate, "endDate": endDate}],
-                    metrics: metrics.map(function (metric) { return {"expression": metric} }),
-                    dimensions: dimensions.map(function (dim) { return {"name": dim} }),
+                    metrics: metrics.map(function (metric) {
+                        return {"expression": metric}
+                    }),
+                    dimensions: dimensions.map(function (dim) {
+                        return {"name": dim}
+                    }),
                     segments: parameters.segment ? [{"segmentId": parameters.segment_id}] : undefined,
                     dimensionFilterClauses: parameters.dimension_filter ? [
                         {
@@ -99,7 +103,9 @@ var fetch = function (parameters, startDate, endDate, nextToken, accessKey) {
                 return parseFloat;
             }
             else {
-                return function (a) { return a };
+                return function (a) {
+                    return a
+                };
             }
         });
 
@@ -137,8 +143,7 @@ var fetch = function (parameters, startDate, endDate, nextToken, accessKey) {
     if (report.nextPageToken && report.nextPageToken) {
         eventStore.store(events);
         config.set('cursor', endDate + " " + report.nextPageToken);
-        events = data = null;
-        return fetch(parameters, startDate, endDate, report.nextPageToken, accessKey);
+        return [parameters, startDate, endDate, report.nextPageToken, accessKey]
     }
 
     eventStore.store(events);
@@ -149,11 +154,13 @@ var fetch = function (parameters, startDate, endDate, nextToken, accessKey) {
     var nowStr = now.toJSON().slice(0, 10);
 
     if (nowStr != endDate) {
-        events = data = null;
-        return fetch(parameters, endDate, null, 0, accessKey);
+        return [parameters, endDate, null, null, accessKey];
     }
 }
 
 var main = function (parameters) {
-    return fetch(parameters)
+    var nextCall = fetch(parameters);
+    while (nextCall != null) {
+        nextCall = fetch(nextCall[0], nextCall[1], nextCall[2], nextCall[3], nextCall[4])
+    }
 }

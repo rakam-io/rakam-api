@@ -14,7 +14,7 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.config.ProjectConfig;
-import org.rakam.util.javascript.JSCodeLoggerService;
+import org.rakam.util.javascript.JSCodeJDBCLoggerService;
 import org.rakam.collection.JsonEventDeserializer;
 import org.rakam.util.javascript.JSCodeCompiler;
 import org.rakam.config.JDBCConfig;
@@ -76,7 +76,7 @@ public class TestScheduledTask
 
         JSCodeCompiler jsCodeCompiler = new JSCodeCompiler(testingConfigManager,
                 RAsyncHttpClient.create(1000, ""),
-                (project, prefix) -> new JSCodeLoggerService(sa).createLogger(project, prefix),
+                (project, prefix) -> new JSCodeJDBCLoggerService(sa).createLogger(project, prefix),
                 true, true);
 
         ListenableFuture<Void> test = run(jsCodeCompiler, MoreExecutors.listeningDecorator(MoreExecutors.newDirectExecutorService()), "test", "load('../rakam-ui/src/main/resources/scheduled-task/facebook-ads/script.js')",

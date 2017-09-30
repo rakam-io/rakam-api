@@ -2,7 +2,6 @@ package org.rakam.util.javascript;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Level;
@@ -16,7 +15,6 @@ import org.rakam.analysis.ConfigManager;
 import org.rakam.collection.Event;
 import org.rakam.collection.EventCollectionHttpService;
 import org.rakam.collection.EventList;
-import org.rakam.util.javascript.JSCodeLoggerService.LogEntry;
 import org.rakam.collection.JsonEventDeserializer;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventStore;
@@ -74,7 +72,7 @@ public class JSCodeCompiler
     public JSCodeCompiler(
             ConfigManager configManager,
             @Named("rakam-client") RAsyncHttpClient httpClient,
-            JSCodeLoggerService loggerService,
+            JSLoggerService loggerService,
             JavascriptConfig config)
     {
         this(configManager, httpClient,
@@ -98,7 +96,7 @@ public class JSCodeCompiler
             localhost = InetAddress.getLocalHost();
         }
         catch (UnknownHostException e) {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -238,9 +236,9 @@ public class JSCodeCompiler
     public static class TestLogger
             implements ILogger
     {
-        List<LogEntry> entries = new ArrayList();
+        List<JSLoggerService.LogEntry> entries = new ArrayList();
 
-        public List<LogEntry> getEntries()
+        public List<JSLoggerService.LogEntry> getEntries()
         {
             return ImmutableList.copyOf(entries);
         }
@@ -248,25 +246,25 @@ public class JSCodeCompiler
         @Override
         public void debug(String value)
         {
-            entries.add(new LogEntry("", Level.DEBUG, value, Instant.now()));
+            entries.add(new JSLoggerService.LogEntry("", Level.DEBUG, value, Instant.now()));
         }
 
         @Override
         public void warn(String value)
         {
-            entries.add(new LogEntry("", Level.WARN, value, Instant.now()));
+            entries.add(new JSLoggerService.LogEntry("", Level.WARN, value, Instant.now()));
         }
 
         @Override
         public void info(String value)
         {
-            entries.add(new LogEntry("", Level.INFO, value, Instant.now()));
+            entries.add(new JSLoggerService.LogEntry("", Level.INFO, value, Instant.now()));
         }
 
         @Override
         public void error(String value)
         {
-            entries.add(new LogEntry("", Level.ERROR, value, Instant.now()));
+            entries.add(new JSLoggerService.LogEntry("", Level.ERROR, value, Instant.now()));
         }
     }
 

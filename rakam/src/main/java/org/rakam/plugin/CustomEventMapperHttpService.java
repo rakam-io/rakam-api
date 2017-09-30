@@ -35,7 +35,7 @@ import org.rakam.collection.FieldType;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
-import org.rakam.util.javascript.JSCodeLoggerService;
+import org.rakam.util.javascript.JSCodeJDBCLoggerService;
 import org.rakam.collection.SchemaField;
 import org.rakam.util.javascript.JSCodeCompiler;
 import org.rakam.server.http.HttpService;
@@ -54,7 +54,6 @@ import org.rakam.util.SuccessMessage;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.GeneratedKeys;
 import org.skife.jdbi.v2.Handle;
-import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 
 import javax.annotation.Nullable;
 import javax.annotation.PostConstruct;
@@ -99,7 +98,7 @@ public class CustomEventMapperHttpService
     private final ThreadPoolExecutor executor;
     private final JSCodeCompiler jsCodeCompiler;
     private final Metastore metastore;
-    private final JSCodeLoggerService loggerService;
+    private final JSCodeJDBCLoggerService loggerService;
     private final QueryExecutorService queryExecutorService;
 
     public class JSSQLExecutor {
@@ -141,7 +140,7 @@ public class CustomEventMapperHttpService
             @Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
             Metastore metastore,
             JSCodeCompiler jsCodeCompiler,
-            JSCodeLoggerService loggerService,
+            JSCodeJDBCLoggerService loggerService,
             QueryExecutorService queryExecutorService)
     {
         this.dbi = new DBI(dataSource);
@@ -255,7 +254,7 @@ public class CustomEventMapperHttpService
     @ApiOperation(value = "Get logs", authorizations = @Authorization(value = "master_key"))
     @JsonRequest
     @Path("/get_logs")
-    public List<JSCodeLoggerService.LogEntry> getLogs(@Named("project") String project, @ApiParam("id") int id, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end)
+    public List<JSCodeJDBCLoggerService.LogEntry> getLogs(@Named("project") String project, @ApiParam("id") int id, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end)
     {
         return loggerService.getLogs(project, start, end, "custom-event-mapper." + id);
     }

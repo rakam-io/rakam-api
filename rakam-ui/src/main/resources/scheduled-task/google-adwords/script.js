@@ -24,7 +24,7 @@ percentageValues.forEach(function (key) {
 });
 
 var oauth_url = "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/google";
-var report_url = "https://adwords.google.com/api/adwords/reportdownload/v201609";
+var report_url = "https://adwords.google.com/api/adwords/reportdownload/v201708";
 
 var fetch = function (parameters, events, index, startDate, endDate) {
     logger.debug("Fetching between " + startDate + " and " + (endDate || 'now') + (index == null ? "" : " for index" + index));

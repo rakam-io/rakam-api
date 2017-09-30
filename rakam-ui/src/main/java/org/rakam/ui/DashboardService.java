@@ -30,6 +30,7 @@ import org.rakam.util.RakamException;
 import org.rakam.util.SuccessMessage;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.Update;
 import org.skife.jdbi.v2.tweak.TransactionHandler;
 import org.skife.jdbi.v2.util.IntegerMapper;
 import org.skife.jdbi.v2.util.LongMapper;
@@ -52,14 +53,12 @@ import static java.lang.Boolean.TRUE;
 @Path("/ui/dashboard")
 @IgnoreApi
 public class DashboardService
-        extends HttpService
-{
+        extends HttpService {
     private final DBI dbi;
     private final UserDefaultService userDefaultService;
 
     @Inject
-    public DashboardService(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource, UserDefaultService userDefaultService)
-    {
+    public DashboardService(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource, UserDefaultService userDefaultService) {
         dbi = new DBI(dataSource);
         this.userDefaultService = userDefaultService;
     }
@@ -72,8 +71,7 @@ public class DashboardService
             @Named("user_id") Project project,
             @ApiParam("name") String name,
             @ApiParam(value = "shared_everyone", required = false) Boolean sharedEveryone,
-            @ApiParam(value = "options", required = false) Map<String, Object> options)
-    {
+            @ApiParam(value = "options", required = false) Map<String, Object> options) {
         try (Handle handle = dbi.open()) {
             int id;
             try {
@@ -82,8 +80,7 @@ public class DashboardService
                         .bind("user", project.userId)
                         .bind("options", JsonHelper.encode(options))
                         .bind("name", name).map(IntegerMapper.FIRST).first();
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 if (handle.createQuery("SELECT 1 FROM dashboard WHERE (project_id, name) = (:project, :name)")
                         .bind("project", project.project)
                         .bind("name", name).first() != null) {
@@ -99,8 +96,7 @@ public class DashboardService
     @JsonRequest
     @ApiOperation(value = "Get Report")
     @Path("/set-default")
-    public SuccessMessage setDefault(@Named("user_id") Project project, @ApiParam("id") int id)
-    {
+    public SuccessMessage setDefault(@Named("user_id") Project project, @ApiParam("id") int id) {
         try (Handle handle = dbi.open()) {
             userDefaultService.set(handle, project, "DASHBOARD", id);
             return SuccessMessage.success();
@@ -110,8 +106,7 @@ public class DashboardService
     @JsonRequest
     @ApiOperation(value = "Get Report")
     @Path("/get")
-    public List<DashboardItem> get(@Named("user_id") Project project, @ApiParam("id") int id)
-    {
+    public List<DashboardItem> get(@Named("user_id") Project project, @ApiParam("id") int id) {
         try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT id, name, directive, options, refresh_interval, last_updated," +
                     "(case when refresh_interval is null or now() - last_updated > refresh_interval * INTERVAL '1 second' then null else data end)" +
@@ -131,8 +126,7 @@ public class DashboardService
     @JsonRequest
     @ApiOperation(value = "Get dashboard users")
     @Path("/users")
-    public List<DashboardPermission> getUsers(@Named("user_id") Project project, @ApiParam("id") int id)
-    {
+    public List<DashboardPermission> getUsers(@Named("user_id") Project project, @ApiParam("id") int id) {
         try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT web_user.id, permission.shared_at" +
                     " FROM dashboard_permission permission " +
@@ -149,8 +143,7 @@ public class DashboardService
     @JsonRequest
     @ApiOperation(value = "Get dashboard users")
     @Path("/users/set")
-    public SuccessMessage setUsers(@Named("user_id") Project project, @ApiParam("dashboard") int id, @ApiParam("user_ids") int[] users)
-    {
+    public SuccessMessage setUsers(@Named("user_id") Project project, @ApiParam("dashboard") int id, @ApiParam("user_ids") int[] users) {
         TransactionHandler transactionHandler = dbi.getTransactionHandler();
         try (Handle handle = dbi.open()) {
             transactionHandler.begin(handle);
@@ -189,8 +182,7 @@ public class DashboardService
     public SuccessMessage cache(
             @Named("user_id") Project project,
             @ApiParam("item_id") int item_id,
-            @ApiParam("data") byte[] data)
-    {
+            @ApiParam("data") byte[] data) {
         try (Handle handle = dbi.open()) {
             handle.createStatement("UPDATE dashboard_items SET data = :data, last_updated = now() WHERE id = :id AND" +
                     " (SELECT project_id FROM dashboard_items item JOIN dashboard ON (dashboard.id = item.dashboard) WHERE item.id = :id AND dashboard.project_id = :project) is not null")
@@ -204,8 +196,7 @@ public class DashboardService
     @JsonRequest
     @ApiOperation(value = "List dashboards")
     @Path("/list")
-    public DashboardList list(@Named("user_id") Project project)
-    {
+    public DashboardList list(@Named("user_id") Project project) {
         try (Handle handle = dbi.open()) {
             Integer defaultDashboard = userDefaultService.get(handle, project, "DASHBOARD");
             List<Dashboard> dashboards = handle.createQuery("SELECT id, name, refresh_interval, options, shared_everyone, user_id FROM dashboard \n" +
@@ -223,32 +214,27 @@ public class DashboardService
         }
     }
 
-    public static class DashboardList
-    {
+    public static class DashboardList {
         public final List<Dashboard> dashboards;
         public final Integer defaultDashboard;
 
-        public DashboardList(List<Dashboard> dashboards, Integer defaultDashboard)
-        {
+        public DashboardList(List<Dashboard> dashboards, Integer defaultDashboard) {
             this.dashboards = dashboards;
             this.defaultDashboard = defaultDashboard;
         }
     }
 
-    public static class DashboardPermission
-    {
+    public static class DashboardPermission {
         public final int id;
         public final Instant sharedAt;
 
-        public DashboardPermission(int id, Instant sharedAt)
-        {
+        public DashboardPermission(int id, Instant sharedAt) {
             this.id = id;
             this.sharedAt = sharedAt;
         }
     }
 
-    public static class Dashboard
-    {
+    public static class Dashboard {
         public final int id;
         public final int userId;
         public final String name;
@@ -257,8 +243,7 @@ public class DashboardService
         public final boolean sharedEveryone;
 
         @JsonCreator
-        public Dashboard(int id, int userId, String name, Duration refresh_interval, Map<String, Object> options, boolean sharedEveryone)
-        {
+        public Dashboard(int id, int userId, String name, Duration refresh_interval, Map<String, Object> options, boolean sharedEveryone) {
             this.id = id;
             this.name = name;
             this.userId = userId;
@@ -268,8 +253,7 @@ public class DashboardService
         }
     }
 
-    public static class DashboardItem
-    {
+    public static class DashboardItem {
         public final Integer id;
         public final Map options;
         public final Duration refreshInterval;
@@ -285,14 +269,12 @@ public class DashboardService
                 @JsonProperty("directive") String directive,
                 @JsonProperty("options") Map options,
                 @JsonProperty("refreshInterval") Duration refreshInterval,
-                @JsonProperty("data") byte[] data)
-        {
+                @JsonProperty("data") byte[] data) {
             this(id, name, directive, options, refreshInterval, null, data);
         }
 
         public DashboardItem(Integer id, String name, String directive, Map options, Duration refreshInterval,
-                Instant lastUpdated, byte[] data)
-        {
+                             Instant lastUpdated, byte[] data) {
             this.id = id;
             this.options = options;
             this.refreshInterval = refreshInterval;
@@ -313,8 +295,7 @@ public class DashboardService
             @ApiParam("name") String itemName,
             @ApiParam("directive") String directive,
             @ApiParam(value = "refreshInterval", required = false) Duration refreshInterval,
-            @ApiParam("options") Map options)
-    {
+            @ApiParam("options") Map options) {
         try (Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO dashboard_items (dashboard, name, directive, options, refresh_interval) VALUES (:dashboard, :name, :directive, :options, :refreshInterval)")
                     .bind("project", project.project)
@@ -334,8 +315,7 @@ public class DashboardService
     public SuccessMessage updateDashboard(
             @Named("user_id") Project project,
             @ApiParam("dashboard") int dashboard,
-            @ApiParam("items") List<DashboardItem> items)
-    {
+            @ApiParam("items") List<DashboardItem> items) {
         dbi.inTransaction((handle, transactionStatus) -> {
             Long execute = handle.createQuery("SELECT id FROM dashboard WHERE id = :id AND project_id = :project")
                     .bind("id", dashboard)
@@ -368,25 +348,31 @@ public class DashboardService
             @Named("user_id") Project project,
             @ApiParam("dashboard") int dashboard,
             @ApiParam("name") String name,
-            @ApiParam("shared_everyone") boolean sharedEveryone,
+            @ApiParam(value = "shared_everyone", required = false) Boolean sharedEveryone,
             @ApiParam(value = "refresh_interval", required = false) Duration refreshDuration,
-            @ApiParam("options") Map<String, Object> options)
-    {
+            @ApiParam("options") Map<String, Object> options) {
         dbi.inTransaction((handle, transactionStatus) -> {
-            if (!sharedEveryone) {
+            if (sharedEveryone != null && !sharedEveryone) {
                 handle.createStatement("DELETE FROM dashboard_permission WHERE dashboard = :dashboard")
                         .bind("dashboard", dashboard).execute();
             }
-            int execute = handle.createStatement("UPDATE dashboard SET options = :options, refresh_interval = :refreshDuration, shared_everyone = :sharedEveryone, name = :name" +
+            Update bind = handle.createStatement("UPDATE dashboard SET options = :options, refresh_interval = :refreshDuration "
+                    + (sharedEveryone == null ? "" : sharedEveryone + ", name = :name") +
                     " WHERE id = :id AND project_id = :project")
                     .bind("id", dashboard)
                     .bind("name", name)
-                    .bind("sharedEveryone", sharedEveryone)
                     .bind("refreshDuration", refreshDuration != null ? refreshDuration.getSeconds() : null)
                     .bind("options", JsonHelper.encode(options))
-                    .bind("project", project.project)
+                    .bind("project", project.project);
+
+            if (sharedEveryone != null) {
+                bind = bind.bind("sharedEveryone", sharedEveryone);
+
+            }
+
+            int execute = bind
                     .execute();
-            if(execute == 0) {
+            if (execute == 0) {
                 throw new NotExistsException("Dashboard");
             }
             return null;
@@ -402,8 +388,7 @@ public class DashboardService
             @Named("user_id") Project project,
             @ApiParam("dashboard") int dashboard,
             @ApiParam("id") int id,
-            @ApiParam("name") String name)
-    {
+            @ApiParam("name") String name) {
         try (Handle handle = dbi.open()) {
             // todo: check project
             handle.createStatement("UPDATE dashboard_items SET name = :name WHERE id = :id")
@@ -420,8 +405,7 @@ public class DashboardService
     public SuccessMessage removeFromDashboard(
             @Named("user_id") Project project,
             @ApiParam("dashboard") int dashboard,
-            @ApiParam("id") int id)
-    {
+            @ApiParam("id") int id) {
         try (Handle handle = dbi.open()) {
             handle.createStatement("DELETE FROM dashboard_items " +
                     "WHERE dashboard = :dashboard AND id = :id")
@@ -437,8 +421,7 @@ public class DashboardService
     @Path("/delete")
     @ProtectEndpoint(writeOperation = true)
     public SuccessMessage delete(@Named("user_id") Project project,
-            @ApiParam("id") int dashboard)
-    {
+                                 @ApiParam("id") int dashboard) {
         try (Handle handle = dbi.open()) {
             int execute = handle.createStatement("DELETE FROM dashboard WHERE id = :id and project_id = :project")
                     .bind("id", dashboard).bind("project", project.project).execute();
