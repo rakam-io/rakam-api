@@ -73,8 +73,8 @@ public class FastGenericFunnelQueryExecutor
                     name -> name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
                     ValidationUtil::checkTableColumn, '"'));
 
-            leasts.add(String.format("least(%s)", IntStream.range(0, i)
-                    .mapToObj(idx -> String.format("event%d_count", idx)).collect(Collectors.joining(","))));
+            leasts.add(format("least(%s)", IntStream.range(0, i + 1)
+                    .mapToObj(idx -> format("event%d_count", idx)).collect(Collectors.joining(","))));
 
             if (i == 0) {
                 selects.add(format("sum(case when ts_event%d is not null then 1 else 0 end) as event%d_count", i, i));
