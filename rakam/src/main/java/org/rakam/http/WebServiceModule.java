@@ -117,7 +117,7 @@ public class WebServiceModule
 
         HttpServerBuilder httpServer = new HttpServerBuilder()
                 .setHttpServices(httpServices)
-                .setWebsockerServices(webSocketServices)
+                .setWebsocketServices(webSocketServices)
                 .setSwagger(swagger)
                 .setMaximumBody(Runtime.getRuntime().maxMemory() / 10)
                 .setEventLoopGroup(eventExecutors)
@@ -173,25 +173,7 @@ public class WebServiceModule
         binder().bind(HttpServer.class).toInstance(build);
     }
 
-    public static class ProjectPermissionParameterFactory
-            implements IRequestParameterFactory
-    {
-
-        private final ApiKeyService service;
-
-        public ProjectPermissionParameterFactory(ApiKeyService service)
-        {
-            this.service = service;
-        }
-
-        @Override
-        public IRequestParameter create(Method method)
-        {
-            return new ProjectPermissionIRequestParameter(service, method);
-        }
-    }
-
-    private static class ProjectPermissionIRequestParameter
+    public static class ProjectPermissionIRequestParameter
             implements IRequestParameter
     {
 

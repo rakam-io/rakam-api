@@ -1,18 +1,11 @@
 package org.rakam.collection;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import com.google.common.collect.ImmutableMultimap;
+import com.fasterxml.jackson.annotation.*;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.server.http.annotations.ApiParam;
 
 import java.util.List;
-import java.util.Map;
-
 @JsonPropertyOrder({"project", "collection", "api", "properties"})
 public class Event
 {
@@ -143,7 +136,7 @@ public class Event
         public final String version;
 
         @JsonCreator
-        public Library(@ApiParam("name") String name, @ApiParam("version") String version)
+        public Library(@ApiParam(value = "name", required = false) String name, @ApiParam(value = "version", required = false) String version)
         {
             this.name = name;
             this.version = version;

@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -47,6 +48,10 @@ public class FastGenericFunnelQueryExecutor
     @Override
     public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId timezone, Optional<List<String>> connectors, FunnelType funnelType)
     {
+        if(dimension.map(v -> projectConfig.getTimeColumn().equals(v) || projectConfig.getUserColumn().equals(v)).orElse(false)) {
+            throw new RakamException("user or time columns can't be used as dimension", BAD_REQUEST);
+        }
+
         if (funnelType == FunnelType.ORDERED) {
             throw new RakamException("Strict ordered funnel query is not supported", BAD_REQUEST);
         }
@@ -58,6 +63,7 @@ public class FastGenericFunnelQueryExecutor
         List<String> selects = new ArrayList<>();
         List<String> insideSelect = new ArrayList<>();
         List<String> mainSelect = new ArrayList<>();
+        List<String> leasts = new ArrayList();
 
         String connectorString = connectors.map(item -> item.stream().map(ValidationUtil::checkTableColumn).collect(Collectors.joining(", ")))
                 .orElse(checkTableColumn(projectConfig.getUserColumn()));
@@ -66,6 +72,9 @@ public class FastGenericFunnelQueryExecutor
             Optional<String> filterExp = steps.get(i).getExpression().map(value -> RakamSqlFormatter.formatExpression(value,
                     name -> name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
                     ValidationUtil::checkTableColumn, '"'));
+
+            leasts.add(String.format("least(%s)", IntStream.range(0, i)
+                    .mapToObj(idx -> String.format("event%d_count", idx)).collect(Collectors.joining(","))));
 
             if (i == 0) {
                 selects.add(format("sum(case when ts_event%d is not null then 1 else 0 end) as event%d_count", i, i));
@@ -106,8 +115,11 @@ public class FastGenericFunnelQueryExecutor
                 connectorString,
                 dimension.map(v -> " group by 1 order by 2 desc").orElse(""));
 
+        String collect = leasts.stream().collect(Collectors.joining(", "));
         if(dimension.isPresent()) {
-            query = format("SELECT * FROM (%s) data WHERE event0_count > 0", query);
+            query = format("SELECT %s %s FROM (%s) data WHERE event0_count > 0", dimensions, collect, query);
+        } else {
+            query = format("SELECT %s FROM (%s) data", collect, query);
         }
 
         QueryExecution queryExecution = executor.executeQuery(project, query, Optional.empty(), null, timezone, 1000);

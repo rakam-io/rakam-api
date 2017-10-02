@@ -2,7 +2,6 @@
 
 Rakam
 =======
-[![Join user group at https://groups.google.com/forum/#!forum/rakam](https://img.shields.io/badge/google-groups-green.svg?style=flat)](https://groups.google.com/forum/#!forum/rakam)
 
 Rakam is an analytics platform that allows you to create your analytics services.
 

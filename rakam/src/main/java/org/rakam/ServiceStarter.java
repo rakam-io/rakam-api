@@ -50,18 +50,15 @@ import org.rakam.http.ForHttpServer;
 import org.rakam.http.HttpServerConfig;
 import org.rakam.http.OptionMethodHttpService;
 import org.rakam.http.WebServiceModule;
-import org.rakam.http.WebServiceModule.ProjectPermissionParameterFactory;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.InjectionHook;
 import org.rakam.plugin.LockServiceProvider;
+import org.rakam.server.http.*;
 import org.rakam.util.RAsyncHttpClient;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserStorage;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
-import org.rakam.server.http.HttpRequestHandler;
-import org.rakam.server.http.HttpService;
-import org.rakam.server.http.WebSocketService;
 import org.rakam.util.NotFoundHandler;
 import org.rakam.util.javascript.JSCodeJDBCLoggerService;
 import org.rakam.util.javascript.JSLoggerService;
@@ -71,6 +68,7 @@ import javax.inject.Inject;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.time.Clock;
 import java.util.Properties;
@@ -286,7 +284,8 @@ public final class ServiceStarter
         @Override
         public CustomParameter get()
         {
-            return new CustomParameter("project", new ProjectPermissionParameterFactory(apiKeyService));
+            return new CustomParameter("project",
+                    method -> new WebServiceModule.ProjectPermissionIRequestParameter(apiKeyService, method));
         }
     }
 
