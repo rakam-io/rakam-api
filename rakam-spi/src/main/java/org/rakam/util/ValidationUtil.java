@@ -20,7 +20,7 @@ public final class ValidationUtil
     {
         checkArgument(project != null, "project is null");
         if (!project.matches("^[0-9A-Za-z_]+$")) {
-            throw new IllegalArgumentException("Project id is not valid.");
+            throw new IllegalArgumentException("Project id is not valid. It must be alphanumeric and should not include empty space.");
         }
         return project.toLowerCase(ENGLISH);
     }

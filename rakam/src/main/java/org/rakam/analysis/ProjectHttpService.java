@@ -85,7 +85,12 @@ public class ProjectHttpService
                 throw new RakamException("Lock key is invalid", FORBIDDEN);
             }
         }
-        String project = checkProject(name);
+        String project;
+        try {
+            project = checkProject(name);
+        } catch (IllegalArgumentException e) {
+            throw new RakamException(e.getMessage(), BAD_REQUEST);
+        }
         if (metastore.getProjects().contains(project)) {
             throw new RakamException("The project already exists.", BAD_REQUEST);
         }
