@@ -5,7 +5,6 @@ var oauth_url = "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/goo
 var report_url = "https://analyticsreporting.googleapis.com/v4/reports:batchGet";
 
 var fetch = function (parameters, startDate, endDate, nextToken, accessKey) {
-    logger.debug("Fetching between " + startDate + " and " + (endDate || 'now') + (nextToken ? (' with token ' + nextToken) : ''));
     if (endDate == null) {
         var token = config.get('cursor');
         if (token != null) {
@@ -33,6 +32,8 @@ var fetch = function (parameters, startDate, endDate, nextToken, accessKey) {
         endDate = endDate.toJSON().slice(0, 10);
     }
 
+    logger.debug("Fetching between " + startDate + " and " + endDate + (nextToken ? (' with token ' + nextToken) : ''));
+
     if (startDate === endDate) {
         logger.info("No data to process");
         return;
@@ -56,15 +57,19 @@ var fetch = function (parameters, startDate, endDate, nextToken, accessKey) {
 
     var metrics = parameters.metrics.split(',');
     var dimensions = parameters.dimensions.split(',');
+    var exclusiveEndDate = new Date(endDate);
+    exclusiveEndDate.setDate(exclusiveEndDate.getDate() - 1);
+    exclusiveEndDate = exclusiveEndDate.toJSON().slice(0, 10);
     response = http.post(report_url)
         .header('Authorization', accessKey)
+        .header('Accept-Encoding', "gzip")
         .data(JSON.stringify({
             reportRequests: [
                 {
                     viewId: parameters.profile_id,
                     pageToken: nextToken,
                     pageSize: 10000,
-                    dateRanges: [{"startDate": startDate, "endDate": endDate}],
+                    dateRanges: [{"startDate": startDate, "endDate": exclusiveEndDate}],
                     metrics: metrics.map(function (metric) {
                         return {"expression": metric}
                     }),
@@ -111,6 +116,7 @@ var fetch = function (parameters, startDate, endDate, nextToken, accessKey) {
 
     var events = [];
     var report = data.reports[0];
+    var sampled = false;
     (report.data.rows || []).forEach(function (row) {
         var valid_time;
 
@@ -136,6 +142,10 @@ var fetch = function (parameters, startDate, endDate, nextToken, accessKey) {
 
             if (valid_time) {
                 events.push({collection: parameters.collection, properties: properties});
+            } else
+            if(!sampled) {
+                sampled = true;
+                logger.debug("The data is sampled");
             }
         });
     });

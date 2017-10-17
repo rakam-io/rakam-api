@@ -165,7 +165,7 @@ public class RakamUIModule
                         .bind("id", event.project).map(IntegerMapper.FIRST).first();
             }
             Project project = new Project(event.project, id);
-            DashboardService.Dashboard dashboard = service.create(project, "My dashboard", true, null);
+            DashboardService.Dashboard dashboard = service.create(project, "My dashboard", true, null, null);
             service.setDefault(project, dashboard.id);
         }
     }

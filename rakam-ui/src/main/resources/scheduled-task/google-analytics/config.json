@@ -3,7 +3,7 @@
   "description": "Collects data from Google Analytics",
   "defaultDuration": "PT24H",
   "external": {
-     "url": "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/google?type=https://www.googleapis.com/auth/analytics.readonly",
+     "url": "https://us-central1-rakam-dev.cloudfunctions.net/google?type=https://www.googleapis.com/auth/analytics.readonly",
      "name": "Login with Google"
   },
   "parameters": {

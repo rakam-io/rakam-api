@@ -84,7 +84,7 @@ public class UIRecipeHandler
                                 .map(e -> new DashboardService.DashboardItem(e.id, e.name, e.directive, e.options, e.refreshInterval, null))
                                 .collect(Collectors.toList());
 
-                        return new DashboardBuilder(a.name, items);
+                        return new DashboardBuilder(a.name, items, a.options, a.refresh_interval);
                     })
                     .collect(Collectors.toList());
         }
@@ -122,12 +122,12 @@ public class UIRecipeHandler
                 .forEach(report -> {
                     int dashboard;
                     try {
-                        dashboard = dashboardService.get().create(p, report.name, null, ImmutableMap.of()).id;
+                        dashboard = dashboardService.get().create(p, report.name, null, report.options, report.refreshDuration).id;
                     }
                     catch (AlreadyExistsException e) {
                         dashboard = dashboardService.get().list(p).dashboards.stream().filter(a -> a.name.equals(report.name)).findAny().get().id;
                         dashboardService.get().delete(p, dashboard);
-                        dashboard = dashboardService.get().create(p, report.name, null, ImmutableMap.of()).id;
+                        dashboard = dashboardService.get().create(p, report.name, null, ImmutableMap.of(), report.refreshDuration).id;
                     }
 
                     for (DashboardService.DashboardItem item : report.items) {

@@ -14,6 +14,7 @@
 package org.rakam.ui;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.JDBCPoolDataSource;
@@ -71,14 +72,16 @@ public class DashboardService
             @Named("user_id") Project project,
             @ApiParam("name") String name,
             @ApiParam(value = "shared_everyone", required = false) Boolean sharedEveryone,
-            @ApiParam(value = "options", required = false) Map<String, Object> options) {
+            @ApiParam(value = "options", required = false) Map<String, Object> options,
+            @ApiParam(value = "refresh_duration", required = false) Duration refreshDuration) {
         try (Handle handle = dbi.open()) {
             int id;
             try {
-                id = handle.createQuery("INSERT INTO dashboard (project_id, name, user_id, options) VALUES (:project, :name, :user, :options) RETURNING id")
+                id = handle.createQuery("INSERT INTO dashboard (project_id, name, user_id, options, refresh_interval) VALUES (:project, :name, :user, :options, :refreshInterval) RETURNING id")
                         .bind("project", project.project)
                         .bind("user", project.userId)
                         .bind("options", JsonHelper.encode(options))
+                        .bind("refreshInterval", refreshDuration != null ? refreshDuration.getSeconds() : null)
                         .bind("name", name).map(IntegerMapper.FIRST).first();
             } catch (Exception e) {
                 if (handle.createQuery("SELECT 1 FROM dashboard WHERE (project_id, name) = (:project, :name)")
@@ -259,7 +262,9 @@ public class DashboardService
         public final Duration refreshInterval;
         public final String directive;
         public final String name;
+        @JsonInclude(JsonInclude.Include.NON_NULL)
         public final Instant lastUpdated;
+        @JsonInclude(JsonInclude.Include.NON_NULL)
         public final byte[] data;
 
         @JsonCreator

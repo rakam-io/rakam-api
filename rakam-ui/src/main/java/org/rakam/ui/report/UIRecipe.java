@@ -60,13 +60,19 @@ public class UIRecipe {
     public static class DashboardBuilder {
         public final String name;
         public final List<DashboardItem> items;
+        public final Map<String, Object> options;
+        public final Duration refreshDuration;
 
         @JsonCreator
         public DashboardBuilder(
                 @JsonProperty("name") String name,
-                @JsonProperty("items") List<DashboardItem> items) {
+                @JsonProperty("items") List<DashboardItem> items,
+                @JsonProperty("options") Map<String, Object> options,
+                @JsonProperty("refreshDuration") Duration refreshDuration) {
             this.name = name;
             this.items = items;
+            this.options = options;
+            this.refreshDuration = refreshDuration;
         }
     }
 }
