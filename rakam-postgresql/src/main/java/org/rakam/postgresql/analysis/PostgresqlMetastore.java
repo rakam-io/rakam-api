@@ -14,6 +14,8 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.AbstractMetastore;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
+import org.rakam.postgresql.PostgresqlModule;
+import org.rakam.postgresql.PostgresqlModule.PostgresqlVersion;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.ProjectCollection;
 import org.rakam.util.RakamException;
@@ -50,15 +52,17 @@ import static org.rakam.util.ValidationUtil.stripName;
 public class PostgresqlMetastore
         extends AbstractMetastore
 {
+    private final PostgresqlVersion.Version version;
     private LoadingCache<ProjectCollection, List<SchemaField>> schemaCache;
     private LoadingCache<String, Set<String>> collectionCache;
     private final JDBCPoolDataSource connectionPool;
 
     @Inject
-    public PostgresqlMetastore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, EventBus eventBus)
+    public PostgresqlMetastore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, PostgresqlVersion version, EventBus eventBus)
     {
         super(eventBus);
         this.connectionPool = connectionPool;
+        this.version = version.getVersion();
 
         schemaCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<ProjectCollection, List<SchemaField>>()
         {
@@ -88,7 +92,7 @@ public class PostgresqlMetastore
                                             "FROM pg_catalog.pg_class c\n" +
                                             "    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace\n" +
                                             "    LEFT JOIN pg_inherits i ON (i.inhrelid = c.oid)\n" +
-                                            "    WHERE n.nspname = '%s' and c.relkind IN ('r', '') and i.inhrelid is null\n" +
+                                            "    WHERE n.nspname = '%s' and c.relkind IN ('r', 'p', '') and i.inhrelid is null\n" +
                                             "    AND n.nspname <> 'pg_catalog'\n" +
                                             "    AND n.nspname <> 'information_schema'\n" +
                                             "    AND n.nspname !~ '^pg_toast' AND c.relname != '_users' and c.relname not like '\\$%%' ESCAPE '\\'",
@@ -190,7 +194,7 @@ public class PostgresqlMetastore
                         "    JOIN pg_type t ON (a.atttypid = t.oid)\n" +
                         "    WHERE n.nspname = '%s' and c.relname = '%s' " +
                         "    AND a.attname != '$server_time'\n" +
-                        "    AND c.relkind IN ('r', '') and i.inhrelid IS NULL\n" +
+                        "    AND c.relkind IN ('r', 'p', '') and i.inhrelid IS NULL\n" +
                         "    AND n.nspname <> 'pg_catalog'\n" +
                         "    AND n.nspname <> 'information_schema'\n" +
                         "    AND n.nspname !~ '^pg_toast'     \n" +
@@ -225,7 +229,7 @@ public class PostgresqlMetastore
                         "    LEFT JOIN pg_inherits i ON (i.inhrelid = c.oid)\n" +
                         "    JOIN pg_attribute a ON (a.attrelid=c.oid)\n" +
                         "    JOIN pg_type t ON (a.atttypid = t.oid)\n" +
-                        "    WHERE n.nspname = '%s' and c.relkind IN ('r', '') and i.inhrelid is null\n" +
+                        "    WHERE n.nspname = '%s' and c.relkind IN ('r', 'p', '') and i.inhrelid is null\n" +
                         "    AND n.nspname <> 'pg_catalog'\n" +
                         "    AND n.nspname <> 'information_schema'\n" +
                         "    AND n.nspname !~ '^pg_toast'     \n" +
@@ -295,7 +299,8 @@ public class PostgresqlMetastore
                 if (queryEnd.isEmpty()) {
                     return currentFields;
                 }
-                query = format("CREATE TABLE \"%s\".%s (%s)", project, checkCollection(stripName(collection, "collection")), queryEnd);
+                query = format("CREATE TABLE \"%s\".%s (%s) %s", project, checkCollection(stripName(collection, "collection")),
+                        queryEnd, version == PostgresqlVersion.Version.PG10 ? "PARTITION BY RANGE (_time)" : "");
                 task = () -> super.onCreateCollection(project, collection, schemaFields);
             }
             else {
@@ -354,7 +359,7 @@ public class PostgresqlMetastore
                     "        nspname, sum(reltuples)\n" +
                     "        FROM pg_class C\n" +
                     "        LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace)\n" +
-                    "        WHERE nspname = any(?) AND relkind='r' AND relname != '_users' GROUP BY 1");
+                    "        WHERE nspname = any(?) AND (relkind='r' or relkind='p') AND relname != '_users' GROUP BY 1");
             ps.setArray(1, conn.createArrayOf("text", projects.toArray()));
             ResultSet resultSet = ps.executeQuery();
             Map<String, Stats> map = new HashMap<>();

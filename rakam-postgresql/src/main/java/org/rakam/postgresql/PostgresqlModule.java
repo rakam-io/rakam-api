@@ -3,6 +3,7 @@ package org.rakam.postgresql;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.Subscribe;
@@ -53,8 +54,13 @@ import org.rakam.report.eventexplorer.EventExplorerConfig;
 import org.rakam.util.ConditionalModule;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 
 import java.net.URISyntaxException;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -68,11 +74,9 @@ import static org.rakam.util.ValidationUtil.checkTableColumn;
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "store.adapter", value = "postgresql")
 public class PostgresqlModule
-        extends RakamModule
-{
+        extends RakamModule {
     @Override
-    protected void setup(Binder binder)
-    {
+    protected void setup(Binder binder) {
         JDBCConfig config = buildConfigObject(JDBCConfig.class, "store.adapter.postgresql");
         PostgresqlConfig postgresqlConfig = buildConfigObject(PostgresqlConfig.class);
         MetadataConfig metadataConfig = buildConfigObject(MetadataConfig.class);
@@ -142,19 +146,16 @@ public class PostgresqlModule
     }
 
     @Override
-    public String name()
-    {
+    public String name() {
         return "Postgresql Module";
     }
 
     @Override
-    public String description()
-    {
+    public String description() {
         return "Postgresql deployment type module";
     }
 
-    public synchronized static Module getAsyncClientModule(JDBCConfig config)
-    {
+    public synchronized static Module getAsyncClientModule(JDBCConfig config) {
         JDBCConfig asyncClientConfig;
         try {
             final String url = config.getUrl();
@@ -168,16 +169,13 @@ public class PostgresqlModule
                     .setConnectionDisablePool(config.getConnectionDisablePool())
                     .setUrl("jdbc:pgsql" + url.substring("jdbc:postgresql".length()))
                     .setUsername(config.getUsername());
-        }
-        catch (URISyntaxException e) {
-            throw Throwables.propagate(e);
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
         }
 
-        return new AbstractConfigurationAwareModule()
-        {
+        return new AbstractConfigurationAwareModule() {
             @Override
-            protected void setup(Binder binder)
-            {
+            protected void setup(Binder binder) {
                 binder.bind(JDBCPoolDataSource.class)
                         .annotatedWith(Names.named("async-postgresql"))
                         .toProvider(new JDBCPoolDataSourceProvider(asyncClientConfig))
@@ -187,59 +185,76 @@ public class PostgresqlModule
     }
 
     private static class JDBCPoolDataSourceProvider
-            implements Provider<JDBCPoolDataSource>
-    {
+            implements Provider<JDBCPoolDataSource> {
         private final JDBCConfig asyncClientConfig;
 
-        public JDBCPoolDataSourceProvider(JDBCConfig asyncClientConfig)
-        {
+        public JDBCPoolDataSourceProvider(JDBCConfig asyncClientConfig) {
             this.asyncClientConfig = asyncClientConfig;
         }
 
         @Override
-        public JDBCPoolDataSource get()
-        {
+        public JDBCPoolDataSource get() {
             return JDBCPoolDataSource.getOrCreateDataSource(asyncClientConfig);
         }
     }
 
-    private static class CollectionFieldIndexerListener
-    {
+    public static class PostgresqlVersion {
+        public enum Version {
+            OLD, PG_MIN_9_5, PG10
+        }
+
+        private Version version;
+
+        @Inject
+        public PostgresqlVersion(@Named("store.adapter.postgresql") JDBCPoolDataSource dataSource) {
+            try (Connection conn = dataSource.getConnection()) {
+                Statement statement = conn.createStatement();
+                ResultSet resultsSet = statement.executeQuery("SHOW server_version");
+                resultsSet.next();
+                String version = resultsSet.getString(1);
+                String[] split = version.split("\\.", 2);
+
+                if (Integer.parseInt(split[0]) > 9) {
+                    this.version = Version.PG10;
+                } else if (Integer.parseInt(split[0]) == 9 && Double.parseDouble(split[1]) >= 5) {
+                    this.version = Version.PG_MIN_9_5;
+                } else {
+                    this.version = Version.OLD;
+                }
+            } catch (Exception e) {
+                this.version = Version.OLD;
+            }
+        }
+
+        public Version getVersion() {
+            return version;
+        }
+    }
+
+    private static class CollectionFieldIndexerListener {
         private final PostgresqlQueryExecutor executor;
         private final ProjectConfig projectConfig;
         boolean postgresql9_5;
 
         @Inject
-        public CollectionFieldIndexerListener(ProjectConfig projectConfig, PostgresqlQueryExecutor executor)
-        {
+        public CollectionFieldIndexerListener(ProjectConfig projectConfig, PostgresqlQueryExecutor executor, PostgresqlVersion version) {
             this.executor = executor;
             this.projectConfig = projectConfig;
-            try {
-                String version = executor.executeRawQuery("SHOW server_version")
-                        .getResult().join().getResult().get(0).get(0).toString();
-                String[] split = version.split("\\.", 2);
-                // Postgresql BRIN support came in 9.5 version
-                postgresql9_5 = Integer.parseInt(split[0]) > 9 || (Integer.parseInt(split[0]) == 9 && Double.parseDouble(split[1]) >= 5);
-            }
-            catch (Exception e) {
-                postgresql9_5 = false;
-            }
+            // Postgresql BRIN support came in 9.5 version
+            postgresql9_5 = version.getVersion() != PostgresqlVersion.Version.OLD;
         }
 
         @Subscribe
-        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event)
-        {
+        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
             onCreateCollectionFields(event.project, event.collection, event.fields);
         }
 
         @Subscribe
-        public void onCreateCollectionFields(SystemEvents.CollectionFieldCreatedEvent event)
-        {
+        public void onCreateCollectionFields(SystemEvents.CollectionFieldCreatedEvent event) {
             onCreateCollectionFields(event.project, event.collection, event.fields);
         }
 
-        public void onCreateCollectionFields(String project, String collection, List<SchemaField> fields)
-        {
+        public void onCreateCollectionFields(String project, String collection, List<SchemaField> fields) {
             for (SchemaField field : fields) {
                 try {
                     // We cant't use CONCURRENTLY because it causes dead-lock with ALTER TABLE and it's slow.
@@ -250,8 +265,7 @@ public class PostgresqlModule
                             project, checkCollection(collection),
                             (postgresql9_5 && field.getName().equals(projectConfig.getTimeColumn())) ? "BRIN" : "BTREE",
                             checkTableColumn(field.getName())));
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     if (postgresql9_5) {
                         throw e;
                     }
@@ -264,26 +278,22 @@ public class PostgresqlModule
                 FieldType.STRING, FieldType.TIMESTAMP, FieldType.TIME);
     }
 
-    public static class UserMergeTableHook
-    {
+    public static class UserMergeTableHook {
         private final PostgresqlQueryExecutor executor;
         private final ProjectConfig projectConfig;
 
         @Inject
-        public UserMergeTableHook(ProjectConfig projectConfig, PostgresqlQueryExecutor executor)
-        {
+        public UserMergeTableHook(ProjectConfig projectConfig, PostgresqlQueryExecutor executor) {
             this.projectConfig = projectConfig;
             this.executor = executor;
         }
 
         @Subscribe
-        public void onCreateProject(SystemEvents.ProjectCreatedEvent event)
-        {
+        public void onCreateProject(SystemEvents.ProjectCreatedEvent event) {
             createTable(event.project);
         }
 
-        public CompletableFuture<QueryResult> createTable(String project)
-        {
+        public CompletableFuture<QueryResult> createTable(String project) {
             return executor.executeRawStatement(format("CREATE TABLE %s(id VARCHAR, %s VARCHAR, " +
                             "created_at TIMESTAMP, merged_at TIMESTAMP)",
                     executor.formatTableReference(project, QualifiedName.of(ANONYMOUS_ID_MAPPING), Optional.empty(), ImmutableMap.of()),

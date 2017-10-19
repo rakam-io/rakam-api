@@ -1,6 +1,7 @@
 package org.rakam.postgresql.analysis;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
@@ -14,109 +15,198 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.SyncEventStore;
+import org.rakam.postgresql.PostgresqlModule;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 
 import java.math.BigDecimal;
-import java.sql.Connection;
+import java.sql.*;
 import java.sql.Date;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Time;
-import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
-import java.util.Calendar;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TimeZone;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static java.lang.String.format;
+import static org.rakam.postgresql.PostgresqlModule.PostgresqlVersion.Version.PG10;
+import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 @Singleton
 public class PostgresqlEventStore
-        implements SyncEventStore
-{
+        implements SyncEventStore {
     private final static Logger LOGGER = Logger.get(PostgresqlEventStore.class);
 
     private final Set<String> sourceFields;
     private final JDBCPoolDataSource connectionPool;
     public static final Calendar UTC_CALENDAR = Calendar.getInstance(TimeZone.getTimeZone(ZoneId.of("UTC")));
+    private final PostgresqlModule.PostgresqlVersion version;
 
     @Inject
-    public PostgresqlEventStore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, FieldDependency fieldDependency)
-    {
+    public PostgresqlEventStore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, PostgresqlModule.PostgresqlVersion version, FieldDependency fieldDependency) {
         this.connectionPool = connectionPool;
+        this.version = version;
         this.sourceFields = fieldDependency.dependentFields.keySet();
     }
 
     @Override
-    public void store(Event event)
-    {
+    public void store(Event event) {
+        store(event, false);
+    }
+
+    public void store(Event event, boolean partitionCheckDone) {
         GenericRecord record = event.properties();
         try (Connection connection = connectionPool.getConnection()) {
             Schema schema = event.properties().getSchema();
             PreparedStatement ps = connection.prepareStatement(getQuery(event.project(), event.collection(), schema));
             bindParam(connection, ps, event.schema(), record);
             ps.executeUpdate();
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
+            // check_violation -> https://www.postgresql.org/docs/8.2/static/errcodes-appendix.html
+            if (version.getVersion() == PG10 && !partitionCheckDone && "23514".equals(e.getSQLState())) {
+                generateMissingPartitions(event.project(), event.collection(), ImmutableList.of(event), 0);
+                store(event, true);
+            } else {
+                throw new RuntimeException(e);
+            }
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
+    private void generateMissingPartitions(String project, String collection, List<Event> events, int startFrom) {
+
+        Calendar cal = Calendar.getInstance(TimeZone.getTimeZone(ZoneId.of("UTC")));
+
+        HashSet<String> set = new HashSet<>();
+        for (int i = startFrom; i < events.size(); i++) {
+            Event event = events.get(i);
+            cal.setTimeInMillis(event.getAttribute("_time"));
+            int year = cal.get(Calendar.YEAR);
+            int month = cal.get(Calendar.MONDAY) + 1;
+            set.add(year + "_" + month);
+        }
+
+        try (Connection connection = connectionPool.getConnection()) {
+
+            HashSet<String> missingPartitions;
+            Statement statement = connection.createStatement();
+
+            if (set.size() > 1) {
+                missingPartitions = new HashSet<>();
+
+                String values = set.stream().map(item -> format("('%s')", item)).collect(Collectors.joining(", "));
+                ResultSet resultSet = statement.executeQuery(format("select part from (VALUES%s) data (part) where part not in (\n" +
+                        "\tselect substring(cchild.relname, %d)  from pg_catalog.pg_class c \n" +
+                        "\tJOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace \n" +
+                        "\tJOIN pg_inherits i on (i.inhparent = c.relfilenode)\n" +
+                        "\tJOIN pg_catalog.pg_class cchild ON cchild.relfilenode = i.inhrelid \n" +
+                        "\tWHERE n.nspname = '%s' and c.relname = '%s'\n" +
+                        ")", values, collection.length() + 2, project, collection));
+                while (resultSet.next()) {
+                    missingPartitions.add(resultSet.getString(1));
+                }
+            } else {
+                missingPartitions = set;
+            }
+
+            for (String missingPartition : missingPartitions) {
+                String[] split = missingPartition.split("_", 2);
+                int year = Integer.parseInt(split[0]);
+                int month = Integer.parseInt(split[1]);
+
+                try {
+                    statement.execute(format("CREATE TABLE %s.\"%s~%d_%d\" PARTITION OF %s.%s\n" +
+                                    "FOR VALUES FROM ('%s-%d-1 00:00:00.000000') to ( '%s-%d-1 00:00:00.000000')",
+                            checkProject(project, '"'),
+                            collection.replaceAll("\"", ""),
+                            year, month,
+                            checkProject(project, '"'),
+                            checkCollection(collection, '"'),
+                            year, month,
+                            month == 12 ? year + 1 : year,
+                            month == 12 ? 1 : month + 1));
+                } catch (SQLException e) {
+                    if (!"42P07".equals(e.getSQLState())) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public int storeBatchInline(Connection connection, String collection, List<Event> eventsForCollection, Map<String, Integer> successfulCollections, int checkpoint, boolean partitionCheckDone) throws SQLException {
+
+        // last event must have the last schema
+        Event lastEvent = getLastEvent(eventsForCollection);
+
+        PreparedStatement ps = connection.prepareStatement(getQuery(lastEvent.project(),
+                collection, lastEvent.properties().getSchema()));
+
+        int lastCheckpoint = checkpoint;
+        for (int i = checkpoint; i < eventsForCollection.size(); i++) {
+            Event event = eventsForCollection.get(i);
+            GenericRecord properties = event.properties();
+            bindParam(connection, ps, lastEvent.schema(), properties);
+            ps.addBatch();
+            if (i > 0 && i % 5000 == 0) {
+                try {
+                    ps.executeBatch();
+                } catch (SQLException e) {
+                    // check_violation -> https://www.postgresql.org/docs/8.2/static/errcodes-appendix.html
+                    if (version.getVersion() == PG10 && !partitionCheckDone && "23514".equals(e.getSQLState())) {
+                        generateMissingPartitions(event.project(), collection, eventsForCollection, 0);
+                        storeBatchInline(connection, collection, eventsForCollection, successfulCollections, lastCheckpoint, true);
+                    } else {
+                        return lastCheckpoint;
+                    }
+                }
+
+                lastCheckpoint = i;
+            }
+        }
+
+        try {
+            ps.executeBatch();
+        } catch (SQLException e) {
+            // check_violation -> https://www.postgresql.org/docs/8.2/static/errcodes-appendix.html
+            if (version.getVersion() == PG10 && !partitionCheckDone && "23514".equals(e.getSQLState())) {
+                generateMissingPartitions(lastEvent.project(), collection, eventsForCollection, 0);
+                storeBatchInline(connection, collection, eventsForCollection, successfulCollections, lastCheckpoint, true);
+            } else {
+                return lastCheckpoint;
+            }
+        }
+
+        connection.commit();
+        return eventsForCollection.size();
+    }
+
     @Override
-    public int[] storeBatch(List<Event> events)
-    {
+    public int[] storeBatch(List<Event> events) {
         Map<String, List<Event>> groupedByCollection = events.stream()
                 .collect(Collectors.groupingBy(Event::collection));
 
         Map<String, Integer> successfulCollections = new HashMap<>(groupedByCollection.size());
         try (Connection connection = connectionPool.getConnection()) {
+            connection.setAutoCommit(false);
+
             for (Map.Entry<String, List<Event>> entry : groupedByCollection.entrySet()) {
-                connection.setAutoCommit(false);
-                // last event must have the last schema
-                List<Event> eventsForCollection = entry.getValue();
-                Event lastEvent = getLastEvent(eventsForCollection);
-
-                PreparedStatement ps = connection.prepareStatement(getQuery(lastEvent.project(),
-                        entry.getKey(), lastEvent.properties().getSchema()));
-
-                for (int i = 0; i < eventsForCollection.size(); i++) {
-                    Event event = eventsForCollection.get(i);
-                    GenericRecord properties = event.properties();
-                    bindParam(connection, ps, lastEvent.schema(), properties);
-                    ps.addBatch();
-                    if (i > 0 && i % 5000 == 0) {
-                        ps.executeBatch();
-
-                        Integer value = successfulCollections.get(entry.getKey());
-                        if(value == null) {
-                            successfulCollections.put(entry.getKey(), i);
-                        } else {
-                            successfulCollections.put(entry.getKey(), i + value);
-                        }
-                    }
-                }
-
-                ps.executeBatch();
-
-                connection.commit();
-                successfulCollections.compute(entry.getKey(), (k, v) -> eventsForCollection.size());
+                int result = storeBatchInline(connection, entry.getKey(), entry.getValue(), successfulCollections, 0, false);
+                successfulCollections.put(entry.getKey(), result);
             }
 
             connection.setAutoCommit(true);
             return EventStore.SUCCESSFUL_BATCH;
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             List<Event> sample = events.size() > 5 ? events.subList(0, 5) : events;
 
             LOGGER.error(e.getNextException() != null ? e.getNextException() : e,
@@ -132,8 +222,7 @@ public class PostgresqlEventStore
     }
 
     // get the event with the last schema
-    private Event getLastEvent(List<Event> eventsForCollection)
-    {
+    private Event getLastEvent(List<Event> eventsForCollection) {
         Event event = eventsForCollection.get(0);
         for (int i = 1; i < eventsForCollection.size(); i++) {
             Event newEvent = eventsForCollection.get(i);
@@ -145,8 +234,7 @@ public class PostgresqlEventStore
     }
 
     private void bindParam(Connection connection, PreparedStatement ps, List<SchemaField> fields, GenericRecord record)
-            throws SQLException
-    {
+            throws SQLException {
         Object value;
         for (int i = 0; i < fields.size(); i++) {
             SchemaField field = fields.get(i);
@@ -178,8 +266,7 @@ public class PostgresqlEventStore
                     Timestamp x = new Timestamp(((Number) value).longValue());
                     if (x.getTime() < 0) {
                         ps.setTimestamp(i + 1, null);
-                    }
-                    else {
+                    } else {
                         ps.setTimestamp(i + 1, x, UTC_CALENDAR);
                     }
                     break;
@@ -199,22 +286,19 @@ public class PostgresqlEventStore
                     if (type.isArray()) {
                         String typeName = toPostgresqlPrimitiveTypeName(type.getArrayElementType());
                         ps.setArray(i + 1, connection.createArrayOf(typeName, ((List) value).toArray()));
-                    }
-                    else if (type.isMap()) {
+                    } else if (type.isMap()) {
                         PGobject jsonObject = new PGobject();
                         jsonObject.setType("jsonb");
                         jsonObject.setValue(JsonHelper.encode(value));
                         ps.setObject(i + 1, jsonObject);
-                    }
-                    else {
+                    } else {
                         throw new UnsupportedOperationException();
                     }
             }
         }
     }
 
-    private String getQuery(String project, String collection, Schema schema)
-    {
+    private String getQuery(String project, String collection, Schema schema) {
         StringBuilder query = new StringBuilder("INSERT INTO ")
                 .append(checkProject(project, '"'))
                 .append(".")
@@ -240,8 +324,7 @@ public class PostgresqlEventStore
         return query.append(") VALUES (").append(params.toString()).append(")").toString();
     }
 
-    public static String toPostgresqlPrimitiveTypeName(FieldType type)
-    {
+    public static String toPostgresqlPrimitiveTypeName(FieldType type) {
         switch (type) {
             case LONG:
                 return "int8";
