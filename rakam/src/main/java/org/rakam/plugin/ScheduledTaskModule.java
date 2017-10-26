@@ -11,6 +11,7 @@ import com.mysql.jdbc.MySQLConnection;
 import io.airlift.configuration.Config;
 import org.postgresql.PGConnection;
 import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.config.TaskConfig;
 import org.rakam.util.lock.LockService;
 import org.rakam.plugin.tasks.ScheduledTaskHttpService;
 import org.rakam.server.http.HttpService;
@@ -93,22 +94,6 @@ public class ScheduledTaskModule
                     }
                 }
             }
-        }
-    }
-
-    public static class TaskConfig {
-        public boolean enabled;
-
-        public boolean getEnabled()
-        {
-            return enabled;
-        }
-
-        @Config("tasks.enable")
-        public TaskConfig setEnabled(boolean enabled)
-        {
-            this.enabled = enabled;
-            return this;
         }
     }
 }

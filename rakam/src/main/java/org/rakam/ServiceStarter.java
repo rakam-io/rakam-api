@@ -236,7 +236,6 @@ public final class ServiceStarter
             httpServices.addBinding().to(ProjectHttpService.class);
             httpServices.addBinding().to(MaterializedViewHttpService.class);
             httpServices.addBinding().to(EventCollectionHttpService.class);
-            httpServices.addBinding().to(WebHookHttpService.class);
             httpServices.addBinding().to(ContinuousQueryHttpService.class);
             httpServices.addBinding().to(QueryHttpService.class);
             httpServices.addBinding().to(OptionMethodHttpService.class);
