@@ -51,6 +51,10 @@
       "description": "Funnel plugin depends on user attribute of events and allows you to run funnel queries.",
       "value": "true"
     },
+    "ENABLE_USER_PLUGIN": {
+      "description": "Enable user attribution module",
+      "value": "true"
+    },
     "ENABLE_RETENTION_ANALYSIS_PLUGIN": {
       "description": "Retention analysis plugin depends on user attribute of events and allows you to run retention queries.",
       "value": "true"
