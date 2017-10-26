@@ -35,9 +35,13 @@
       "description": "Maxmind GeoIP connection type url. Community version of Maxmind GeoIP is used by default but you can also provide your database URL",
       "value": "https://github.com/maxmind/MaxMind-DB/blob/master/test-data/GeoIP2-Connection-Type-Test.mmdb?raw=true"
     },
-    "ENABLE_EVENT_STREAM_PLUGIN": {
-      "description": "Event stream plugin subscribes event streams and notifies new events to you in real-time.",
+    "ENABLE_CUSTOM_DATA_SOURCES": {
+      "description": "Access data from your database",
       "value": "true"
+    },
+    "ALLOW_PROJECT_DELETION": {
+      "description": "Allow deleting project",
+      "value": "false"
     },
     "ENABLE_EVENT_EXPLORER_PLUGIN": {
       "description": "Event explorer plugin subscribes event streams and notifies new events to you in real-time.",

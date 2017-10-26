@@ -1,6 +1,6 @@
 //@ sourceURL=rakam-ui/src/main/resources/scheduled-task/google-analytics/script.js
 
-var ONE_WEEK = 1000 * 60 * 60 * 24 * 7;
+var ONE_DAY = 1000 * 60 * 60 * 24;
 var oauth_url = "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/google";
 var report_url = "https://analyticsreporting.googleapis.com/v4/reports:batchGet";
 
@@ -25,8 +25,8 @@ var fetch = function (parameters, startDate, endDate, nextToken, accessKey) {
         endDate.setDate(endDate.getDate() - 1);
 
         var tempStartDate = new Date(startDate).getTime();
-        if (endDate.getTime() - tempStartDate > ONE_WEEK) {
-            endDate = new Date(tempStartDate + ONE_WEEK);
+        if (endDate.getTime() - tempStartDate > ONE_DAY) {
+            endDate = new Date(tempStartDate + ONE_DAY);
         }
 
         endDate = endDate.toJSON().slice(0, 10);
@@ -57,9 +57,9 @@ var fetch = function (parameters, startDate, endDate, nextToken, accessKey) {
 
     var metrics = parameters.metrics.split(',');
     var dimensions = parameters.dimensions.split(',');
-    var exclusiveEndDate = new Date(endDate);
-    exclusiveEndDate.setDate(exclusiveEndDate.getDate() - 1);
-    exclusiveEndDate = exclusiveEndDate.toJSON().slice(0, 10);
+    // var exclusiveEndDate = new Date(endDate);
+    // exclusiveEndDate.setDate(exclusiveEndDate.getDate());
+    // exclusiveEndDate = exclusiveEndDate.toJSON().slice(0, 10);
     response = http.post(report_url)
         .header('Authorization', accessKey)
         .header('Accept-Encoding', "gzip")
@@ -68,8 +68,9 @@ var fetch = function (parameters, startDate, endDate, nextToken, accessKey) {
                 {
                     viewId: parameters.profile_id,
                     pageToken: nextToken,
-                    pageSize: 10000,
-                    dateRanges: [{"startDate": startDate, "endDate": exclusiveEndDate}],
+                    pageSize: 100,
+                    samplingLevel: 'LARGE',
+                    dateRanges: [{"startDate": startDate, "endDate": startDate}],
                     metrics: metrics.map(function (metric) {
                         return {"expression": metric}
                     }),
@@ -98,6 +99,10 @@ var fetch = function (parameters, startDate, endDate, nextToken, accessKey) {
     }
 
     var data = JSON.parse(response.getResponseBody());
+
+    if(data.containsSampledData) {
+        logger.debug("The data is sampled");
+    }
 
     var metricMappers = data.reports[0].columnHeader
         .metricHeader.metricHeaderEntries.map(function (item) {
@@ -129,7 +134,7 @@ var fetch = function (parameters, startDate, endDate, nextToken, accessKey) {
                     dimension = '_time';
                     // Sometimes GA group it as 'Others'
                     valid_time = value.indexOf('20') == 0;
-                    value = value.substring(0, 4) + '-' + value.substring(4, 6) + '-' + value.substring(6, 8) + "T" + value.substring(8, 10) + ":00:00";
+                    value = value.substring(0, 4) + '-' + value.substring(4, 6) + '-' + value.substring(6, 8) + "T" + value.substring(8, 10) + ":00:00Z";
                 }
                 if (value !== '(not set)') {
                     properties[dimension] = value;
@@ -157,7 +162,7 @@ var fetch = function (parameters, startDate, endDate, nextToken, accessKey) {
     }
 
     eventStore.store(events);
-    config.set('cursor', null);
+    config.set('cursor', endDate);
 
     var now = new Date();
     now.setDate(now.getDate() - 1);

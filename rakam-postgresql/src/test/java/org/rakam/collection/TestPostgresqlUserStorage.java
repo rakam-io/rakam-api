@@ -12,6 +12,7 @@ import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.postgresql.PostgresqlConfigManager;
+import org.rakam.postgresql.PostgresqlModule;
 import org.rakam.postgresql.analysis.PostgresqlEventStore;
 import org.rakam.postgresql.analysis.PostgresqlMaterializedViewService;
 import org.rakam.postgresql.analysis.PostgresqlMetastore;
@@ -43,7 +44,7 @@ public class TestPostgresqlUserStorage
         JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(testingPostgresqlServer.getPostgresqlConfig(), "set time zone 'UTC'");
 
         EventBus eventBus = new EventBus();
-        metastore = new PostgresqlMetastore(dataSource, eventBus);
+        metastore = new PostgresqlMetastore(dataSource, new PostgresqlModule.PostgresqlVersion(dataSource), eventBus);
 
         PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(new ProjectConfig(), dataSource, metastore, new CustomDataSourceService(dataSource), false);
 
@@ -53,7 +54,7 @@ public class TestPostgresqlUserStorage
         configManager = new PostgresqlConfigManager(dataSource);
         configManager.setup();
         PostgresqlUserStorage userStorage = new PostgresqlUserStorage(queryExecutorService, materializedViewService, configManager, queryExecutor);
-        PostgresqlEventStore postgresqlEventStore = new PostgresqlEventStore(dataSource, new FieldDependencyBuilder().build());
+        PostgresqlEventStore postgresqlEventStore = new PostgresqlEventStore(dataSource, new PostgresqlModule.PostgresqlVersion(dataSource), new FieldDependencyBuilder().build());
         userService = new PostgresqlUserService(new ProjectConfig(), configManager, postgresqlEventStore, userStorage, metastore, queryExecutor);
         super.setUp();
     }

@@ -74,7 +74,7 @@ public class ActiveModuleListBuilder {
                 RealTimeConfig realtimeConfig, EventStreamConfig eventStreamConfig,
                 EventExplorerConfig eventExplorerConfig, UserPluginConfig userStorage,
                 ProjectConfig projectConfig, boolean customDatabaseEnabled) {
-            this.userStorage = userPluginConfig.getStorageModule() != null;
+            this.userStorage = userPluginConfig.isEnabled();
             this.userMailbox = userStorageMailbox;
             this.funnelAnalysisEnabled = userPluginConfig.isFunnelAnalysisEnabled();
             this.automationEnabled = userPluginConfig.getAutomationEnabled();

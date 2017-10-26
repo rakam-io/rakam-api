@@ -39,6 +39,7 @@ import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_IMPLEMENTED;
 import static java.util.Locale.ENGLISH;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY;
@@ -48,8 +49,7 @@ import static org.rakam.util.ValidationUtil.checkProject;
 @Path("/project")
 @Api(value = "/project", nickname = "project", description = "Project operations", tags = "admin")
 public class ProjectHttpService
-        extends HttpService
-{
+        extends HttpService {
 
     private final Metastore metastore;
     private final ContinuousQueryService continuousQueryService;
@@ -60,12 +60,11 @@ public class ProjectHttpService
 
     @Inject
     public ProjectHttpService(Metastore metastore,
-            ProjectConfig projectConfig,
-            SchemaChecker schemaChecker,
-            MaterializedViewService materializedViewService,
-            ApiKeyService apiKeyService,
-            ContinuousQueryService continuousQueryService)
-    {
+                              ProjectConfig projectConfig,
+                              SchemaChecker schemaChecker,
+                              MaterializedViewService materializedViewService,
+                              ApiKeyService apiKeyService,
+                              ContinuousQueryService continuousQueryService) {
         this.continuousQueryService = continuousQueryService;
         this.materializedViewService = materializedViewService;
         this.apiKeyService = apiKeyService;
@@ -77,8 +76,7 @@ public class ProjectHttpService
     @ApiOperation(value = "Create project")
     @JsonRequest
     @Path("/create")
-    public ProjectApiKeys createProject(@ApiParam(value = "lock_key", required = false) String lockKey, @ApiParam("name") String name)
-    {
+    public ProjectApiKeys createProject(@ApiParam(value = "lock_key", required = false) String lockKey, @ApiParam("name") String name) {
         if (!Objects.equals(projectConfig.getLockKey(), lockKey)) {
             lockKey = lockKey == null ? "" : (lockKey.isEmpty() ? null : lockKey);
             if (!Objects.equals(projectConfig.getLockKey(), lockKey)) {
@@ -105,11 +103,9 @@ public class ProjectHttpService
     @JsonRequest
     @DELETE
     @Path("/delete")
-    public SuccessMessage deleteProject(@Named("project") String project)
-    {
-        // TODO: we don't really want to delete project data.
-        if (true) {
-            return SuccessMessage.success();
+    public SuccessMessage deleteProject(@Named("project") String project) {
+        if (!projectConfig.getAllowProjectDeletion()) {
+            throw new RakamException("Project deletion is disabled, you can enable it with `allow-project-deletion` config.", NOT_IMPLEMENTED);
         }
         checkProject(project);
         metastore.deleteProject(project.toLowerCase(ENGLISH));
@@ -132,15 +128,13 @@ public class ProjectHttpService
     @ApiOperation(value = "Get project stats")
     @JsonRequest
     @Path("/stats")
-    public Map<String, Metastore.Stats> getStats(@BodyParam List<String> apiKeys)
-    {
+    public Map<String, Metastore.Stats> getStats(@BodyParam List<String> apiKeys) {
         Map<String, String> keys = new LinkedHashMap<>();
         for (String apiKey : apiKeys) {
             String project;
             try {
                 project = apiKeyService.getProjectOfApiKey(apiKey, READ_KEY);
-            }
-            catch (RakamException e) {
+            } catch (RakamException e) {
                 if (e.getStatusCode() == FORBIDDEN) {
                     continue;
                 }
@@ -162,8 +156,7 @@ public class ProjectHttpService
     )
     @JsonRequest
     @Path("/list")
-    public Set<String> getProjects(@ApiParam(value = "lock_key", required = false) String lockKey)
-    {
+    public Set<String> getProjects(@ApiParam(value = "lock_key", required = false) String lockKey) {
         if (!Objects.equals(projectConfig.getLockKey(), lockKey)) {
             throw new RakamException("Lock key is invalid", FORBIDDEN);
         }
@@ -177,9 +170,8 @@ public class ProjectHttpService
 
     @Path("/schema/add")
     public List<SchemaField> addFieldsToSchema(@Named("project") String project,
-            @ApiParam("collection") String collection,
-            @ApiParam("fields") Set<SchemaField> fields)
-    {
+                                               @ApiParam("collection") String collection,
+                                               @ApiParam("fields") Set<SchemaField> fields) {
         return metastore.getOrCreateCollectionFieldList(project, collection,
                 schemaChecker.checkNewFields(collection, fields));
     }
@@ -190,10 +182,9 @@ public class ProjectHttpService
 
     @Path("/schema/add/custom")
     public List<SchemaField> addCustomFieldsToSchema(@Named("project") String project,
-            @ApiParam("collection") String collection,
-            @ApiParam("schema_type") SchemaConverter type,
-            @ApiParam("schema") String schema)
-    {
+                                                     @ApiParam("collection") String collection,
+                                                     @ApiParam("schema_type") SchemaConverter type,
+                                                     @ApiParam("schema") String schema) {
         return metastore.getOrCreateCollectionFieldList(project, collection,
                 schemaChecker.checkNewFields(collection, type.getMapper().apply(schema)));
     }
@@ -204,8 +195,7 @@ public class ProjectHttpService
 
     @Path("/schema")
     public List<Collection> schema(@Named("project") String project,
-            @ApiParam(value = "names", required = false) Set<String> names)
-    {
+                                   @ApiParam(value = "names", required = false) Set<String> names) {
         return metastore.getCollections(project).entrySet().stream()
                 .filter(entry -> names == null || names.contains(entry.getKey()))
                 .map(entry -> new Collection(entry.getKey(), entry.getValue()))
@@ -217,16 +207,14 @@ public class ProjectHttpService
             authorizations = @Authorization(value = "master_key"))
 
     @Path("/create-api-keys")
-    public ProjectApiKeys createApiKeys(@Named("project") String project)
-    {
+    public ProjectApiKeys createApiKeys(@Named("project") String project) {
         return transformKeys(apiKeyService.createApiKeys(project));
     }
 
     @JsonRequest
     @ApiOperation(value = "Check API Keys")
     @Path("/check-api-keys")
-    public List<Boolean> checkApiKeys(@ApiParam("keys") List<ProjectApiKeys> keys, @ApiParam("project") String project)
-    {
+    public List<Boolean> checkApiKeys(@ApiParam("keys") List<ProjectApiKeys> keys, @ApiParam("project") String project) {
         return keys.stream().map(key -> {
             try {
                 Consumer<String> stringConsumer = e -> {
@@ -238,19 +226,16 @@ public class ProjectHttpService
                 Optional.ofNullable(key.readKey()).map(k -> apiKeyService.getProjectOfApiKey(k, READ_KEY)).ifPresent(stringConsumer);
                 Optional.ofNullable(key.writeKey()).map(k -> apiKeyService.getProjectOfApiKey(k, WRITE_KEY)).ifPresent(stringConsumer);
                 return true;
-            }
-            catch (RakamException e) {
+            } catch (RakamException e) {
                 return false;
             }
         }).collect(Collectors.toList());
     }
 
-    private ProjectApiKeys transformKeys(ProjectApiKeys apiKeys)
-    {
+    private ProjectApiKeys transformKeys(ProjectApiKeys apiKeys) {
         if (projectConfig.getPassphrase() == null) {
             return ProjectApiKeys.create(apiKeys.masterKey(), apiKeys.readKey(), apiKeys.writeKey());
-        }
-        else {
+        } else {
             return ProjectApiKeys.create(
                     CryptUtil.encryptAES(apiKeys.masterKey(), projectConfig.getPassphrase()),
                     CryptUtil.encryptAES(apiKeys.readKey(), projectConfig.getPassphrase()),
@@ -263,27 +248,23 @@ public class ProjectHttpService
             authorizations = @Authorization(value = "read_key"))
 
     @Path("/collection")
-    public Set<String> collections(@Named("project") String project)
-    {
+    public Set<String> collections(@Named("project") String project) {
         return metastore.getCollectionNames(project);
     }
 
     @JsonRequest
     @ApiOperation(value = "Revoke API Keys")
     @Path("/revoke-api-keys")
-    public SuccessMessage revokeApiKeys(@ApiParam("project") String project, @ApiParam("master_key") String masterKey)
-    {
+    public SuccessMessage revokeApiKeys(@ApiParam("project") String project, @ApiParam("master_key") String masterKey) {
         apiKeyService.revokeApiKeys(project, masterKey);
         return SuccessMessage.success();
     }
 
-    public static class Collection
-    {
+    public static class Collection {
         public final String name;
         public final List<SchemaField> fields;
 
-        public Collection(String name, List<SchemaField> fields)
-        {
+        public Collection(String name, List<SchemaField> fields) {
             this.name = name;
             this.fields = fields;
         }

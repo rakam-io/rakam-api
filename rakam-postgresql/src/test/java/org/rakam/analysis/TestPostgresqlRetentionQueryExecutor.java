@@ -9,6 +9,8 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.EventStore;
 import org.rakam.postgresql.PostgresqlConfigManager;
+import org.rakam.postgresql.PostgresqlModule;
+import org.rakam.postgresql.PostgresqlModule.PostgresqlVersion;
 import org.rakam.postgresql.analysis.PostgresqlEventStore;
 import org.rakam.postgresql.analysis.PostgresqlMaterializedViewService;
 import org.rakam.postgresql.analysis.PostgresqlMetastore;
@@ -33,10 +35,10 @@ public class TestPostgresqlRetentionQueryExecutor extends TestRetentionQueryExec
         JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(testingPostgresqlServer.getPostgresqlConfig());
 
         FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
-        metastore = new PostgresqlMetastore(dataSource, new EventBus());
+        metastore = new PostgresqlMetastore(dataSource, new PostgresqlVersion(dataSource), new EventBus());
 
         PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(new ProjectConfig(), dataSource, metastore, new CustomDataSourceService(dataSource), false);
-        eventStore = new PostgresqlEventStore(dataSource, build);
+        eventStore = new PostgresqlEventStore(dataSource, new PostgresqlVersion(dataSource), build);
 
         retentionQueryExecutor = new PostgresqlRetentionQueryExecutor(new ProjectConfig(), queryExecutor, metastore);
         retentionQueryExecutor.setup();
