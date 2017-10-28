@@ -21,7 +21,7 @@ import org.rakam.config.JDBCConfig;
 import org.rakam.util.RAsyncHttpClient;
 import org.rakam.plugin.tasks.ScheduledTaskHttpService.Environment;
 import org.rakam.ui.ScheduledTaskUIHttpService;
-import org.rakam.ui.ScheduledTaskUIHttpService.Parameter;
+import org.rakam.plugin.Parameter;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.javascript.JSConfigManager;
 import org.testng.annotations.Test;
