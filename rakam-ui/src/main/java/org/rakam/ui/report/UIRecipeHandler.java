@@ -95,12 +95,12 @@ public class UIRecipeHandler
         return new UIRecipe(customReports, customPages, dashboards, reports);
     }
 
-    public void install(UIRecipe recipe, int userId, int project, boolean overrideExisting)
+    public RecipeResult install(UIRecipe recipe, int userId, int project, boolean overrideExisting)
     {
-        installInternal(recipe, userId, project, overrideExisting);
+        return installInternal(recipe, userId, project, overrideExisting);
     }
 
-    public void installInternal(UIRecipe recipe, int userId, int project, boolean overrideExisting)
+    public RecipeResult installInternal(UIRecipe recipe, int userId, int project, boolean overrideExisting)
     {
         recipe.getReports().stream()
                 .forEach(report -> {
@@ -118,13 +118,12 @@ public class UIRecipeHandler
                 });
 
         Project p = new Project(project, userId);
-        recipe.getDashboards().stream()
-                .forEach(report -> {
+        int[] dashboards = recipe.getDashboards().stream()
+                .mapToInt(report -> {
                     int dashboard;
                     try {
                         dashboard = dashboardService.get().create(p, report.name, null, report.options, report.refreshDuration).id;
-                    }
-                    catch (AlreadyExistsException e) {
+                    } catch (AlreadyExistsException e) {
                         dashboard = dashboardService.get().list(p).dashboards.stream().filter(a -> a.name.equals(report.name)).findAny().get().id;
                         dashboardService.get().delete(p, dashboard);
                         dashboard = dashboardService.get().create(p, report.name, null, ImmutableMap.of(), report.refreshDuration).id;
@@ -133,7 +132,9 @@ public class UIRecipeHandler
                     for (DashboardService.DashboardItem item : report.items) {
                         dashboardService.get().addToDashboard(p, dashboard, item.name, item.directive, item.refreshInterval, item.options);
                     }
-                });
+
+                    return dashboard;
+                }).toArray();
 
         recipe.getCustomReports().stream()
                 .forEach(customReport -> {
@@ -169,6 +170,16 @@ public class UIRecipeHandler
         }
         else if (recipe.getCustomPages().size() > 0) {
             throw new RakamException("Custom page feature is not supported", BAD_REQUEST);
+        }
+
+        return new RecipeResult(dashboards);
+    }
+
+    public static class RecipeResult {
+        public final int[] dashboardIds;
+
+        public RecipeResult(int[] dashboardIds) {
+            this.dashboardIds = dashboardIds;
         }
     }
 }

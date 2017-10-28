@@ -89,8 +89,8 @@ public class UIRecipeHttpService
             }
 
             try {
-                installer.install(recipe, project.userId, project.project, override);
-                request.response(JsonHelper.encode(SuccessMessage.success())).end();
+                UIRecipeHandler.RecipeResult install = installer.install(recipe, project.userId, project.project, override);
+                request.response(JsonHelper.encode(install)).end();
             }
             catch (Exception e) {
                 returnError(request, "Error loading recipe: " + e.getMessage(), HttpResponseStatus.BAD_REQUEST);
