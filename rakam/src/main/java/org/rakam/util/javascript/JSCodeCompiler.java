@@ -38,16 +38,13 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 
 import static com.fasterxml.jackson.core.JsonToken.START_OBJECT;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static java.lang.String.format;
 import static org.rakam.plugin.EventMapper.RequestParams.EMPTY_PARAMS;
 
 public class JSCodeCompiler
@@ -106,13 +103,15 @@ public class JSCodeCompiler
         private final String project;
         private final JsonEventDeserializer jsonEventDeserializer;
         private final List<EventMapper> eventMapperSet;
+        private final ILogger logger;
 
-        public JSEventStore(String project, JsonEventDeserializer jsonEventDeserializer, EventStore eventStore, List<EventMapper> eventMapperSet)
+        public JSEventStore(String project, JsonEventDeserializer jsonEventDeserializer, EventStore eventStore, List<EventMapper> eventMapperSet, ILogger logger)
         {
             this.project = project;
             this.jsonEventDeserializer = jsonEventDeserializer;
             this.eventStore = eventStore;
             this.eventMapperSet = eventMapperSet;
+            this.logger = logger;
         }
 
         public void store(String jsonRaw)
@@ -140,7 +139,10 @@ public class JSCodeCompiler
                     eventMapper -> eventMapper.mapAsync(new EventList(Event.EventContext.empty(), list),
                             EMPTY_PARAMS, localhost, HttpHeaders.EMPTY_HEADERS));
 
-            eventStore.storeBatch(list);
+            int[] ints = eventStore.storeBatch(list);
+            if(ints.length > 0) {
+                logger.error(format("Failed to save events: %s", Arrays.stream(ints).boxed().map(i -> i + "").collect(Collectors.joining(", "))));
+            }
         }
     }
 
@@ -175,9 +177,9 @@ public class JSCodeCompiler
         return new JSConfigManager(configManager, project, prefix);
     }
 
-    public JSEventStore getEventStore(String project, JsonEventDeserializer jsonEventDeserializer, EventStore eventStore, List<EventMapper> eventMappers)
+    public JSEventStore getEventStore(String project, JsonEventDeserializer jsonEventDeserializer, EventStore eventStore, List<EventMapper> eventMappers, ILogger logger)
     {
-        return new JSEventStore(project, jsonEventDeserializer, eventStore, eventMappers);
+        return new JSEventStore(project, jsonEventDeserializer, eventStore, eventMappers, logger);
     }
 
     public Invocable createEngine(String code, ILogger logger, JSEventStore eventStore, IJSConfigManager configManager)

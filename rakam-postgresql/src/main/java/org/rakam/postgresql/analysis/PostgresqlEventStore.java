@@ -143,7 +143,7 @@ public class PostgresqlEventStore
         }
     }
 
-    public int storeBatchInline(Connection connection, String collection, List<Event> eventsForCollection, Map<String, Integer> successfulCollections, int checkpoint, boolean partitionCheckDone) throws SQLException {
+    public int storeBatchInline(Connection connection, String collection, List<Event> eventsForCollection, int checkpoint, boolean partitionCheckDone) throws SQLException {
 
         // last event must have the last schema
         Event lastEvent = getLastEvent(eventsForCollection);
@@ -164,7 +164,9 @@ public class PostgresqlEventStore
                     // check_violation -> https://www.postgresql.org/docs/8.2/static/errcodes-appendix.html
                     if (version.getVersion() == PG10 && !partitionCheckDone && "23514".equals(e.getSQLState())) {
                         generateMissingPartitions(event.project(), collection, eventsForCollection, 0);
-                        storeBatchInline(connection, collection, eventsForCollection, successfulCollections, lastCheckpoint, true);
+                        ps.cancel();
+                        connection.rollback();
+                        storeBatchInline(connection, collection, eventsForCollection, lastCheckpoint, true);
                     } else {
                         return lastCheckpoint;
                     }
@@ -180,7 +182,9 @@ public class PostgresqlEventStore
             // check_violation -> https://www.postgresql.org/docs/8.2/static/errcodes-appendix.html
             if (version.getVersion() == PG10 && !partitionCheckDone && "23514".equals(e.getSQLState())) {
                 generateMissingPartitions(lastEvent.project(), collection, eventsForCollection, 0);
-                storeBatchInline(connection, collection, eventsForCollection, successfulCollections, lastCheckpoint, true);
+                ps.cancel();
+                connection.rollback();
+                storeBatchInline(connection, collection, eventsForCollection, lastCheckpoint, true);
             } else {
                 return lastCheckpoint;
             }
@@ -200,12 +204,30 @@ public class PostgresqlEventStore
             connection.setAutoCommit(false);
 
             for (Map.Entry<String, List<Event>> entry : groupedByCollection.entrySet()) {
-                int result = storeBatchInline(connection, entry.getKey(), entry.getValue(), successfulCollections, 0, false);
+                int result = storeBatchInline(connection, entry.getKey(), entry.getValue(), 0, false);
                 successfulCollections.put(entry.getKey(), result);
             }
 
             connection.setAutoCommit(true);
-            return EventStore.SUCCESSFUL_BATCH;
+            List<Integer> result = null;
+            for (Map.Entry<String, List<Event>> entries : groupedByCollection.entrySet()) {
+                int numberOfEvents = entries.getValue().size();
+                int checkPoint = Optional.of(successfulCollections.get(entries.getKey())).orElse(0);
+                if(numberOfEvents > checkPoint) {
+                    if(result == null) {
+                        result = new ArrayList<>();
+                    }
+                    for (int checkpoint = 0; checkpoint < numberOfEvents; checkpoint++) {
+                        result.add(events.indexOf(entries.getValue().get(checkPoint)));
+                    }
+                }
+            }
+
+            if(result == null) {
+                return EventStore.SUCCESSFUL_BATCH;
+            } else {
+                return result.stream().mapToInt(i -> i).toArray();
+            }
         } catch (SQLException e) {
             List<Event> sample = events.size() > 5 ? events.subList(0, 5) : events;
 
