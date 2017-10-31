@@ -58,7 +58,7 @@ public class ClickHouseFunnelQueryExecutor
 
     @Override
     public QueryExecution query(String project, List<FunnelStep> steps,
-            Optional<String> dimension, LocalDate startDate, LocalDate endDate,
+            Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate,
             Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, FunnelType funnelType)
     {
         if (steps.size() == 0) {

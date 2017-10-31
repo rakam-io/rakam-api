@@ -78,21 +78,21 @@ public class PrestoFunnelQueryExecutor
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, FunnelType funnelType)
+    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, FunnelType funnelType)
     {
         if (funnelType == FunnelType.APPROXIMATE) {
-            return approxFunnelQueryExecutor.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, funnelType);
+            return approxFunnelQueryExecutor.query(project, steps, dimension, segment, startDate, endDate, window, zoneId, connectors, funnelType);
         }
 
         if (funnelType != FunnelType.ORDERED) {
-            return fastPrestoFunnelQueryExecutor.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, funnelType);
+            return fastPrestoFunnelQueryExecutor.query(project, steps, dimension, segment, startDate, endDate, window, zoneId, connectors, funnelType);
         }
 
         if (dimension.isPresent() && projectConfig.getUserColumn().equals(dimension.get())) {
             throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
         }
 
-        return super.query(project, steps, dimension, startDate, endDate, window, zoneId, connectors, funnelType);
+        return super.query(project, steps, dimension, segment, startDate, endDate, window, zoneId, connectors, funnelType);
     }
 
     public String convertFunnel(String project, String connectorField, int idx, FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate)

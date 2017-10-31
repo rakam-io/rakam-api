@@ -65,7 +65,9 @@ public abstract class AbstractFunnelQueryExecutor
     @Override
     public QueryExecution query(String project,
             List<FunnelStep> steps,
-            Optional<String> dimension, LocalDate startDate,
+            Optional<String> dimension,
+            Optional<String> segment,
+            LocalDate startDate,
             LocalDate endDate, Optional<FunnelWindow> window, ZoneId timezone,
             Optional<List<String>> connectors,
             FunnelType type)

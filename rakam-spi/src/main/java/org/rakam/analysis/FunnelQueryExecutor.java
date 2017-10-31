@@ -20,7 +20,9 @@ public interface FunnelQueryExecutor
 {
     QueryExecution query(String project,
             List<FunnelStep> steps,
-            Optional<String> dimension, LocalDate startDate,
+            Optional<String> dimension,
+            Optional<String> segment,
+            LocalDate startDate,
             LocalDate endDate,
             Optional<FunnelWindow> window, ZoneId zoneId,
             Optional<List<String>> connectors,

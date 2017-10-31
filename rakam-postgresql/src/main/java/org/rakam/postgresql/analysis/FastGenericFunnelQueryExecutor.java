@@ -46,7 +46,7 @@ public class FastGenericFunnelQueryExecutor
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId timezone, Optional<List<String>> connectors, FunnelType funnelType)
+    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId timezone, Optional<List<String>> connectors, FunnelType funnelType)
     {
         if(dimension.map(v -> projectConfig.getTimeColumn().equals(v) || projectConfig.getUserColumn().equals(v)).orElse(false)) {
             throw new RakamException("user or time columns can't be used as dimension", BAD_REQUEST);

@@ -46,7 +46,7 @@ public class PrestoApproxFunnelQueryExecutor
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, FunnelType funnelType)
+    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, FunnelType funnelType)
     {
         String startDateStr = TIMESTAMP_FORMATTER.format(startDate.atStartOfDay(zoneId));
         String endDateStr = TIMESTAMP_FORMATTER.format(endDate.plusDays(1).atStartOfDay(zoneId));
