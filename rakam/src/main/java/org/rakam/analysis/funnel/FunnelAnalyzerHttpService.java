@@ -14,12 +14,14 @@
 package org.rakam.analysis.funnel;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.FunnelQueryExecutor.FunnelStep;
 import org.rakam.analysis.FunnelQueryExecutor.FunnelWindow;
 import org.rakam.analysis.QueryHttpService;
+import org.rakam.collection.FieldType;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -42,9 +44,12 @@ import javax.ws.rs.Path;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
@@ -134,6 +139,45 @@ public class FunnelAnalyzerHttpService
             }
         });
         return result;
+    }
+
+    @GET
+    @Path("/segments")
+    public Map<FieldType, List<FunnelSegment>> segments()
+    {
+        return ImmutableMap.of(FieldType.TIMESTAMP,
+                Arrays.stream(FunnelTimestampSegments.values()).map(e -> new FunnelSegment(e.name(), e.getDisplayName())).collect(Collectors.toList()));
+    }
+
+    public static class FunnelSegment {
+        public final String value;
+        public final String displayName;
+        public FunnelSegment(String value, String displayName) {
+            this.value = value;
+            this.displayName = displayName;
+        }
+    }
+
+    public enum FunnelTimestampSegments {
+        HOUR_OF_DAY("Hour of day"),
+        DAY_OF_MONTH("Day of month"),
+        WEEK_OF_YEAR("Week of year"),
+        MONTH_OF_YEAR("Month of year"),
+        QUARTER_OF_YEAR("Quarter of year"),
+        DAY_PART("Day part"),
+        DAY_OF_WEEK("Day of week"),
+        HOUR("Hour"),
+        DAY("Day"), WEEK("Week"),
+        MONTH("Month"),
+        YEAR("Year");
+        private final String displayName;
+        FunnelTimestampSegments(String displayName) {
+            this.displayName = displayName;
+
+        }
+        public String getDisplayName() {
+            return displayName;
+        }
     }
 
     private static class FunnelQuery
