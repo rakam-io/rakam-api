@@ -148,7 +148,7 @@ public class FunnelAnalyzerHttpService
     public Map<FieldType, List<FunnelSegment>> segments()
     {
         return ImmutableMap.of(FieldType.TIMESTAMP,
-                Arrays.stream(FunnelTimestampSegments.values()).map(e -> new FunnelSegment(e.name(), e.getDisplayName())).collect(Collectors.toList()));
+                Arrays.stream(FunnelQueryExecutor.FunnelTimestampSegments.values()).map(e -> new FunnelSegment(e.name(), e.getDisplayName())).collect(Collectors.toList()));
     }
 
     public static class FunnelSegment {
@@ -157,28 +157,6 @@ public class FunnelAnalyzerHttpService
         public FunnelSegment(String value, String displayName) {
             this.value = value;
             this.displayName = displayName;
-        }
-    }
-
-    public enum FunnelTimestampSegments {
-        HOUR_OF_DAY("Hour of day"),
-        DAY_OF_MONTH("Day of month"),
-        WEEK_OF_YEAR("Week of year"),
-        MONTH_OF_YEAR("Month of year"),
-        QUARTER_OF_YEAR("Quarter of year"),
-        DAY_PART("Day part"),
-        DAY_OF_WEEK("Day of week"),
-        HOUR("Hour"),
-        DAY("Day"), WEEK("Week"),
-        MONTH("Month"),
-        YEAR("Year");
-        private final String displayName;
-        FunnelTimestampSegments(String displayName) {
-            this.displayName = displayName;
-
-        }
-        public String getDisplayName() {
-            return displayName;
         }
     }
 

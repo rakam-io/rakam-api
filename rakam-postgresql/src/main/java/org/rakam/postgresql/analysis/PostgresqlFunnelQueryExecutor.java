@@ -15,8 +15,10 @@ package org.rakam.postgresql.analysis;
 
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.AbstractFunnelQueryExecutor;
+import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.config.ProjectConfig;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
@@ -33,11 +35,13 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
 import static java.lang.String.format;
+import static org.rakam.analysis.FunnelQueryExecutor.FunnelTimestampSegments.*;
 import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
@@ -47,12 +51,26 @@ public class PostgresqlFunnelQueryExecutor
     private final PostgresqlQueryExecutor executor;
     private final FastGenericFunnelQueryExecutor fastExecutor;
 
+    private static final Map<FunnelTimestampSegments, String> timeStampMapping = ImmutableMap.<FunnelQueryExecutor.FunnelTimestampSegments, String>builder()
+            .put(HOUR_OF_DAY, "lpad(cast(extract(hour FROM %s) as text), 2, '0')||':00'")
+            .put(DAY_OF_MONTH, "extract(day FROM %s)||'th day'")
+            .put(WEEK_OF_YEAR, "extract(doy FROM %s)||'th week'")
+            .put(MONTH_OF_YEAR, "rtrim(to_char(%s, 'Month'))")
+            .put(QUARTER_OF_YEAR, "extract(quarter FROM %s)||'th quarter'")
+            .put(DAY_OF_WEEK, "rtrim(to_char(%s, 'Day'))")
+            .put(HOUR, "date_trunc('hour', %s)")
+            .put(DAY, "cast(%s as date)")
+            .put(MONTH, "cast(date_trunc('month', %s) as date)")
+            .put(YEAR, "cast(date_trunc('year', %s) as date)")
+            .build();
+
     @Inject
     public PostgresqlFunnelQueryExecutor(FastGenericFunnelQueryExecutor fastExecutor, ProjectConfig projectConfig, Metastore metastore, PostgresqlQueryExecutor executor)
     {
         super(projectConfig, metastore, executor);
         this.executor = executor;
         this.fastExecutor = fastExecutor;
+        this.fastExecutor.setTimeStampMapping(timeStampMapping);
     }
 
     @PostConstruct

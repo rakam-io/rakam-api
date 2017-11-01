@@ -28,6 +28,27 @@ public interface FunnelQueryExecutor
             Optional<List<String>> connectors,
             FunnelType type);
 
+    enum FunnelTimestampSegments {
+        HOUR_OF_DAY("Hour of day"),
+        DAY_OF_MONTH("Day of month"),
+        WEEK_OF_YEAR("Week of year"),
+        MONTH_OF_YEAR("Month of year"),
+        QUARTER_OF_YEAR("Quarter of year"),
+        DAY_PART("Day part"),
+        DAY_OF_WEEK("Day of week"),
+        HOUR("Hour"),
+        DAY("Day"), WEEK("Week"),
+        MONTH("Month"),
+        YEAR("Year");
+        private final String displayName;
+        FunnelTimestampSegments(String displayName) {
+            this.displayName = displayName;
+        }
+        public String getDisplayName() {
+            return displayName;
+        }
+    }
+
     enum FunnelType
     {
         NORMAL, APPROXIMATE, ORDERED;
