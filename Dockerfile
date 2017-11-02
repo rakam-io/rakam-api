@@ -11,7 +11,6 @@ io.netty=INFO' > log.properties
 
 RUN [ -s config.properties ] || (echo "store.adapter=postgresql\n\
 plugin.user.enabled=true\n\
-event.stream.enabled=true\n\
 event-explorer.enabled=true\n\
 custom-data-source.enabled=true\n\
 user.funnel-analysis.enabled=true\n\
