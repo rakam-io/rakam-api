@@ -19,7 +19,6 @@ plugin.user.enable-user-mapping=true\n\
 user.retention-analysis.enabled=true\n\
 plugin.geoip.enabled=true\n\
 plugin.user.storage=postgresql\n\
-event-stream=server\n\
 http.server.address=0.0.0.0:9999\n\
 plugin.user.storage.identifier-column=id\n\
 plugin.geoip.database.url=file://tmp/GeoLite2-City.mmdb\n" > config.properties)
@@ -37,8 +36,6 @@ WORKDIR /var/app/rakam
 
 EXPOSE 9999
 
-#-Dlog.enable-console=false
-#-Dlog.output-file=../logs/app.log
 ENTRYPOINT rakam/target/rakam-*-bundle/rakam-*/bin/launcher run --config ../config.properties
 
 RUN apt-get clean

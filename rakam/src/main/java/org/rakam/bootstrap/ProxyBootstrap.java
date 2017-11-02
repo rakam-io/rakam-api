@@ -10,10 +10,8 @@ import io.airlift.log.Logger;
 import org.rakam.ServiceStarter;
 
 import java.lang.reflect.Field;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class ProxyBootstrap
         extends Bootstrap {
@@ -36,14 +34,18 @@ public class ProxyBootstrap
         }).build());
 
         String env = System.getProperty("env");
+        ArrayList<String> objects = new ArrayList<>();
         if (env != null) {
             LOGGER.info("Reading environment variables starting with `%s`", env);
             System.getenv().entrySet().stream()
                     .filter(entry -> entry.getKey().startsWith(env)).forEach(entry -> {
                 String configName = entry.getKey().substring(env.length() + 1)
                         .toLowerCase(Locale.ENGLISH).replaceAll("_", ".");
+                objects.add(configName);
                 this.setOptionalConfigurationProperty(configName, entry.getValue());
             });
+
+            LOGGER.info("Using environment variables %s", objects.stream().collect(Collectors.joining(". ")));
         }
 
         Injector initialize = super.initialize();
