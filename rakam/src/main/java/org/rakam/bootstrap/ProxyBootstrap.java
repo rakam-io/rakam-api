@@ -37,12 +37,11 @@ public class ProxyBootstrap
         ArrayList<String> objects = new ArrayList<>();
         if (env != null) {
             LOGGER.info("Reading environment variables starting with `%s`", env);
-            System.getenv().entrySet().stream().forEach(e -> System.out.println(e.getKey()));
 
             System.getenv().entrySet().stream()
                     .filter(entry -> entry.getKey().startsWith(env)).forEach(entry -> {
                 String configName = entry.getKey().substring(env.length() + 1)
-                        .toLowerCase(Locale.ENGLISH).replaceAll("_", ".");
+                        .toLowerCase(Locale.ENGLISH).replaceAll("__", "-").replaceAll("_", ".");
                 objects.add(configName);
                 this.setOptionalConfigurationProperty(configName, entry.getValue());
             });
