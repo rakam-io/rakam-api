@@ -6,6 +6,8 @@ import com.google.common.collect.ImmutableSet;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
+import io.airlift.log.Logger;
+import org.rakam.ServiceStarter;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -14,17 +16,16 @@ import java.util.Map;
 import java.util.Set;
 
 public class ProxyBootstrap
-        extends Bootstrap
-{
-    public ProxyBootstrap(Set<Module> modules)
-    {
+        extends Bootstrap {
+    private final static Logger LOGGER = Logger.get(ProxyBootstrap.class);
+
+    public ProxyBootstrap(Set<Module> modules) {
         super(modules);
     }
 
     @Override
     public Injector initialize()
-            throws Exception
-    {
+            throws Exception {
         Field modules = Bootstrap.class.getDeclaredField("modules");
         modules.setAccessible(true);
         List<Module> installedModules = (List<Module>) modules.get(this);
@@ -35,7 +36,8 @@ public class ProxyBootstrap
         }).build());
 
         String env = System.getProperty("env");
-        if(env != null) {
+        if (env != null) {
+            LOGGER.info("Reading environment variables starting with `%s`", env);
             System.getenv().entrySet().stream()
                     .filter(entry -> entry.getKey().startsWith(env)).forEach(entry -> {
                 String configName = entry.getKey().substring(env.length() + 1)
