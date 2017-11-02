@@ -37,6 +37,8 @@ public class ProxyBootstrap
         ArrayList<String> objects = new ArrayList<>();
         if (env != null) {
             LOGGER.info("Reading environment variables starting with `%s`", env);
+            System.getenv().entrySet().stream().forEach(e -> System.out.println(e.getKey()));
+
             System.getenv().entrySet().stream()
                     .filter(entry -> entry.getKey().startsWith(env)).forEach(entry -> {
                 String configName = entry.getKey().substring(env.length() + 1)
@@ -45,7 +47,7 @@ public class ProxyBootstrap
                 this.setOptionalConfigurationProperty(configName, entry.getValue());
             });
 
-            LOGGER.info("Using environment variables %s", objects.stream().collect(Collectors.joining(". ")));
+            LOGGER.info("Set the configurations using environment variables (%s)", objects.stream().collect(Collectors.joining(". ")));
         }
 
         Injector initialize = super.initialize();
