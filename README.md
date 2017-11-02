@@ -45,7 +45,7 @@ Digitalocean installer uses Docker under the hood. It will install Docker on you
 
 Run the following command to start a Postgresql server in docker container and Rakam API in your local environment.
 
-    docker run -d --name rakam-db -e POSTGRES_PASSWORD=dummy -e POSTGRES_USER=rakam postgres:9.6.1 && docker run --link rakam-db --name rakam -p 9999:9999 -e RAKAM_CONFIG_LOCK-KEY=mylockKey -e RAKAM_CONFIG_STORE_ADAPTER_POSTGRESQL_URL=postgres://rakam:dummy@rakam-db:5432/rakam buremba/rakam
+    docker run -d --name rakam-db -e POSTGRES_PASSWORD=dummy -e POSTGRES_USER=rakam postgres:9.6.1 && docker run --link rakam-db --name rakam -p 9999:9999 -e RAKAM_CONFIG_LOCK__KEY=mylockKey -e RAKAM_CONFIG_STORE_ADAPTER_POSTGRESQL_URL=postgres://rakam:dummy@rakam-db:5432/rakam buremba/rakam
 
 After docker container is started, visit [http://127.0.0.1:9999](http://127.0.0.1:9999) and follow the instructions. You can also register your local Rakam API to Rakam BI at
 [http://app.rakam.io/cluster/register](http://app.rakam.io/cluster/register?apiUrl=http:%2F%2F127.0.0.1:9999&lockKey=mylockKey)
@@ -64,13 +64,15 @@ We also provide docker-compose definition for Postgresql backend. Create a `dock
         image: buremba/rakam
         environment:
           - RAKAM_CONFIG_STORE_ADAPTER_POSTGRESQL_URL=postgres://rakam:dummy@rakam-db:5432/rakam
+          - RAKAM_CONFIG_LOCK__KEY=mylockKey
         ports:
           - "9999:9999"
         depends_on:
           - rakam-db
 
 You can set config variables for Rakam instance using environment variables. All properties in config.properties file can be set via environment variable `RAKAM_CONFIG_property_name_dots_replaced_by_underscore`.
-For example, if you want to set `store.adapter=postgresql` you need to set environment variable `RAKAM_CONFIG_STORE_ADAPTER=postgresql`.
+For example, if you want to set `store.adapter=postgresql` you need to set environment variable `RAKAM_CONFIG_STORE_ADAPTER=postgresql`. Also the dash `-` is replaced by double underscore character `__`. 
+Therefore the environment variable `RAKAM_CONFIG_LOCK__KEY` corresponds to `lock-key` config property. 
 
 Dockerfile will generate `config.properties` file from environment variables in docker container that start with `RAKAM_CONFIG` prefix.
 
