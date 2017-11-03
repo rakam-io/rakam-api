@@ -3,6 +3,7 @@ package org.rakam.postgresql.analysis;
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.google.common.collect.ImmutableList;
 import org.rakam.analysis.FunnelQueryExecutor;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
 import org.rakam.report.DelegateQueryExecution;
@@ -36,21 +37,56 @@ public class FastGenericFunnelQueryExecutor
 {
     private final ProjectConfig projectConfig;
     private final QueryExecutorService executor;
+    private final Metastore metastore;
     private Map<FunnelTimestampSegments, String> timeStampMapping;
-    private final String segmentName = "_segment";
+
 
     @Inject
-    public FastGenericFunnelQueryExecutor(QueryExecutorService executor, ProjectConfig projectConfig)
+    public FastGenericFunnelQueryExecutor(QueryExecutorService executor, ProjectConfig projectConfig, Metastore metastore)
     {
         this.projectConfig = projectConfig;
         this.executor = executor;
+        this.metastore = metastore;
     }
 
     @Override
     public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId timezone, Optional<List<String>> connectors, FunnelType funnelType)
     {
-        if(dimension.map(v -> projectConfig.getTimeColumn().equals(v) || projectConfig.getUserColumn().equals(v)).orElse(false)) {
-            throw new RakamException("user or time columns can't be used as dimension", BAD_REQUEST);
+
+        if(dimension.isPresent()) {
+
+            if(dimension.get().equals(projectConfig.getTimeColumn())) {
+                if(!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
+                    throw new RakamException("When dimension is time, segmenting should be done on timestamp field.", BAD_REQUEST);
+                }
+            }
+
+            if(metastore.getCollections(project).entrySet().stream()
+                    .filter(c -> !c.getValue().contains(dimension.get())).findAny().get().getValue().stream()
+                    .filter(d -> d.getName().equals(dimension.get())).findAny().get().getType().getPrettyName().equals("TIMESTAMP")) {
+                if(!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
+                    throw new RakamException("When dimension is of type TIMESTAMP, segmenting should be done on timestamp field.", BAD_REQUEST);
+                }
+            }
+        } else if(segment.isPresent()) {
+            throw new RakamException("Dimension can't be null when segment is not.", BAD_REQUEST);
+        }
+
+        if( projectConfig.getTimeColumn().equals(dimension.get()) ) {
+            try{
+                 if( !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase())) )
+                 {
+                     throw new RakamException("When dimension is _time, segment must be a timestamp segment.", BAD_REQUEST);
+                 }
+            }
+            catch (IllegalArgumentException e) {
+                throw new RakamException("When dimension is _time, segment must be a timestamp segment.", BAD_REQUEST);
+            }
+        }
+
+
+        if(dimension.map(v -> projectConfig.getUserColumn().equals(v)).orElse(false)) {
+            throw new RakamException("user column can't be used as dimension", BAD_REQUEST);
         }
 
         if (funnelType == FunnelType.ORDERED) {
@@ -60,6 +96,16 @@ public class FastGenericFunnelQueryExecutor
         if (dimension.isPresent() && connectors.isPresent() && connectors.get().contains(dimension)) {
             throw new RakamException("Dimension and connector field cannot be equal", BAD_REQUEST);
         }
+
+/*
+        dimension -> _time
+        segment -> HOUR_OF_DATE
+        query’deki karsiligi -> extract(hour from _time)
+*/
+
+
+
+
 
         if (dimension.isPresent() && segment.isPresent()) {
             throw new RakamException("Both dimension and time segment can not be present.", BAD_REQUEST);
@@ -91,7 +137,7 @@ public class FastGenericFunnelQueryExecutor
             insideSelect.add(format("min(case when step = %d then %s end) as ts_event%d", i, checkTableColumn(projectConfig.getTimeColumn()), i));
             mainSelect.add(format("select %s %s %d as step, %s, %s from %s where %s between timestamp '%s' and timestamp '%s' and %s",
                     dimension.map(v -> checkTableColumn(v) + ", ").orElse(""),
-                    segment.isPresent() ? format(timeStampMapping.get(FunnelTimestampSegments.valueOf(segment.get().replace(" ", "_").toUpperCase())), projectConfig.getTimeColumn())+ " as "  + checkTableColumn(projectConfig.getTimeColumn()+segmentName) + ",":  "",
+                    segment.isPresent() ? format(timeStampMapping.get(FunnelTimestampSegments.valueOf(segment.get().replace(" ", "_").toUpperCase())), projectConfig.getTimeColumn())+ " as "  + checkTableColumn(projectConfig.getTimeColumn()+"_segment") + ",":  "",
                     i,
                     connectorString,
                     checkTableColumn(projectConfig.getTimeColumn()),
@@ -103,10 +149,12 @@ public class FastGenericFunnelQueryExecutor
         }
 
         String dimensions = "";
-        if(dimension.isPresent())
+        if(dimension.isPresent()) {
             dimensions = dimension.map(v -> checkTableColumn(v) + ", ").orElse(""); // outer dimensions
-        else if(segment.isPresent())
-            dimensions = checkTableColumn(projectConfig.getTimeColumn()+segmentName) + ", ";
+        }
+        else if(segment.isPresent()) {
+            dimensions = checkTableColumn(projectConfig.getTimeColumn() + "_segment") + ", ";
+        }
 
         String query =  format("select %s %s\n" +
                         "from (select %s,\n" +
@@ -146,10 +194,9 @@ public class FastGenericFunnelQueryExecutor
                     List<SchemaField> metadata;
 
                     if (dimension.isPresent() || segment.isPresent()) {
-                        String schemaFieldName = dimension.isPresent() ? "dimension" : "segment";
                         metadata = ImmutableList.of(
                                 new SchemaField("step", STRING),
-                                new SchemaField(schemaFieldName, STRING),
+                                new SchemaField("dimension", STRING),
                                 new SchemaField("count", LONG));
 
                         for (List<Object> objects : result.getResult()) {

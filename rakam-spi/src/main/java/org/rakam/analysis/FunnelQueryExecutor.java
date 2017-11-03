@@ -47,6 +47,17 @@ public interface FunnelQueryExecutor
         public String getDisplayName() {
             return displayName;
         }
+
+        @JsonCreator
+        FunnelTimestampSegments get(String name) {
+            return valueOf(name.toUpperCase());
+        }
+
+        @JsonProperty
+        public String value() {
+            return name();
+        }
+
     }
 
     enum FunnelType
