@@ -52,6 +52,9 @@ public class FastGenericFunnelQueryExecutor
     @Override
     public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId timezone, Optional<List<String>> connectors, FunnelType funnelType)
     {
+        if(dimension.map(v -> projectConfig.getUserColumn().equals(v)).orElse(false)) {
+            throw new RakamException("user column can't be used as dimension", BAD_REQUEST);
+        }
 
         if(dimension.isPresent()) {
 
@@ -72,22 +75,7 @@ public class FastGenericFunnelQueryExecutor
             throw new RakamException("Dimension can't be null when segment is not.", BAD_REQUEST);
         }
 
-        if( projectConfig.getTimeColumn().equals(dimension.get()) ) {
-            try{
-                 if( !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase())) )
-                 {
-                     throw new RakamException("When dimension is _time, segment must be a timestamp segment.", BAD_REQUEST);
-                 }
-            }
-            catch (IllegalArgumentException e) {
-                throw new RakamException("When dimension is _time, segment must be a timestamp segment.", BAD_REQUEST);
-            }
-        }
 
-
-        if(dimension.map(v -> projectConfig.getUserColumn().equals(v)).orElse(false)) {
-            throw new RakamException("user column can't be used as dimension", BAD_REQUEST);
-        }
 
         if (funnelType == FunnelType.ORDERED) {
             throw new RakamException("Strict ordered funnel query is not supported", BAD_REQUEST);
@@ -95,20 +83,6 @@ public class FastGenericFunnelQueryExecutor
 
         if (dimension.isPresent() && connectors.isPresent() && connectors.get().contains(dimension)) {
             throw new RakamException("Dimension and connector field cannot be equal", BAD_REQUEST);
-        }
-
-/*
-        dimension -> _time
-        segment -> HOUR_OF_DATE
-        query’deki karsiligi -> extract(hour from _time)
-*/
-
-
-
-
-
-        if (dimension.isPresent() && segment.isPresent()) {
-            throw new RakamException("Both dimension and time segment can not be present.", BAD_REQUEST);
         }
 
         List<String> selects = new ArrayList<>();
@@ -135,12 +109,13 @@ public class FastGenericFunnelQueryExecutor
             }
 
             insideSelect.add(format("min(case when step = %d then %s end) as ts_event%d", i, checkTableColumn(projectConfig.getTimeColumn()), i));
-            mainSelect.add(format("select %s %s %d as step, %s, %s from %s where %s between timestamp '%s' and timestamp '%s' and %s",
+            mainSelect.add(format("select %s %s %d as step, %s %s from %s where %s between timestamp '%s' and timestamp '%s' and %s",
                     dimension.map(v -> checkTableColumn(v) + ", ").orElse(""),
-                    segment.isPresent() ? format(timeStampMapping.get(FunnelTimestampSegments.valueOf(segment.get().replace(" ", "_").toUpperCase())), projectConfig.getTimeColumn())+ " as "  + checkTableColumn(projectConfig.getTimeColumn()+"_segment") + ",":  "",
+                    segment.isPresent() ? format(timeStampMapping.get(FunnelTimestampSegments.valueOf(segment.get().replace(" ", "_").toUpperCase())),
+                            dimension.get())+ " as "  + checkTableColumn(dimension.get()+"_segment") + ",":  "",
                     i,
                     connectorString,
-                    checkTableColumn(projectConfig.getTimeColumn()),
+                    segment.isPresent() ? "" : ", " + checkTableColumn(projectConfig.getTimeColumn()),
                     checkCollection(steps.get(i).getCollection()),
                     checkTableColumn(projectConfig.getTimeColumn()),
                     startDate,
@@ -149,11 +124,11 @@ public class FastGenericFunnelQueryExecutor
         }
 
         String dimensions = "";
-        if(dimension.isPresent()) {
-            dimensions = dimension.map(v -> checkTableColumn(v) + ", ").orElse(""); // outer dimensions
-        }
-        else if(segment.isPresent()) {
+
+        if(segment.isPresent()) {
             dimensions = checkTableColumn(projectConfig.getTimeColumn() + "_segment") + ", ";
+        } else if(dimension.isPresent()) {
+            dimensions = dimension.map(v -> checkTableColumn(v) + ", ").orElse(""); // outer dimensions
         }
 
         String query =  format("select %s %s\n" +
@@ -163,7 +138,7 @@ public class FastGenericFunnelQueryExecutor
                         "     %s" +
                         "     ) t \n" +
                         "     group by %s %s\n" +
-                        "    ) t %s %s",
+                        "    ) t %s",
                 dimensions,
                 selects.stream().collect(Collectors.joining(",\n")),
                 connectorString,
@@ -172,8 +147,7 @@ public class FastGenericFunnelQueryExecutor
                 mainSelect.stream().collect(Collectors.joining(" UNION ALL\n")),
                 dimensions,
                 connectorString,
-                dimension.map(v -> " group by 1 order by 2 desc").orElse(""),
-                segment.map(v -> " group by 1 order by 2 desc").orElse(""));
+                dimension.map(v -> " group by 1 order by 2 desc").orElse(""));
 
         String collect = leasts.stream().collect(Collectors.joining(", "));
         if(dimension.isPresent() || segment.isPresent()) {
