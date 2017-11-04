@@ -1,6 +1,5 @@
 package org.rakam.presto.analysis;
 
-import com.facebook.presto.raptor.metadata.TableColumn;
 import com.facebook.presto.spi.type.TypeSignature;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
@@ -13,7 +12,6 @@ import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
 import com.google.inject.name.Named;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.analysis.metadata.AbstractMetastore;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
@@ -28,21 +26,13 @@ import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -50,7 +40,6 @@ import static com.facebook.presto.spi.type.ParameterKind.TYPE;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_IMPLEMENTED;
 import static java.lang.String.format;
-import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
 import static org.rakam.util.JDBCUtil.fromSql;
 import static org.rakam.util.JDBCUtil.toSql;
 import static org.rakam.util.ValidationUtil.checkLiteral;

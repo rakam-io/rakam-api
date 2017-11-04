@@ -6,25 +6,20 @@ import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.plugin.MaterializedView;
-import org.rakam.plugin.user.UserPropertyMapper;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
-import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.util.ProjectCollection;
 
 import javax.inject.Inject;
-
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static org.rakam.report.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkCollection;
-import static org.rakam.util.ValidationUtil.checkProject;
 
 public class PostgresqlUserStorage
         extends AbstractPostgresqlUserStorage

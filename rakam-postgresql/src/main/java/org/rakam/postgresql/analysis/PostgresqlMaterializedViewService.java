@@ -114,7 +114,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
         String type = materializedView.incremental ? "TABLE" : "MATERIALIZED VIEW";
         QueryExecution queryExecution = queryExecutor.executeRawStatement(format("DROP %s %s.%s",
                 type,
-                checkProject(project, '\"'), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName)));
+                checkProject(project, '"'), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName)));
         return queryExecution.getResult().thenApply(result -> {
             if(!result.isFailed())
                 database.deleteMaterializedView(project, name);

@@ -289,7 +289,7 @@ public class PrestoRetentionQueryExecutor
         return String.format("select %s as date, %s _user_set from %s where date %s",
                 String.format(timeColumn, "date"),
                 dimensionRequired ? "dimension, " : "",
-                "\"" + checkProject(schema) + "\"" + tableNameSuffix.map(e -> ".\"" + e + "\"").orElse(""), timePredicate);
+                "\"" + checkProject(schema, '"') + "\"" + tableNameSuffix.map(e -> ".\"" + e + "\"").orElse(""), timePredicate);
     }
 
     private String diffTimestamps(DateUnit dateUnit, String start, String end)

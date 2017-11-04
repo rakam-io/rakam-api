@@ -420,8 +420,6 @@ public abstract class AbstractEventExplorer
             LocalDate endDate,
             ZoneId timezone)
     {
-        checkProject(project);
-
         if (collections.isPresent() && collections.get().isEmpty()) {
             return CompletableFuture.completedFuture(QueryResult.empty());
         }

@@ -16,7 +16,6 @@ package org.rakam.postgresql.analysis;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
@@ -28,7 +27,6 @@ import org.rakam.report.QueryResult;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -36,27 +34,18 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalField;
 import java.time.temporal.WeekFields;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static com.google.common.primitives.Ints.checkedCast;
 import static java.lang.String.format;
 import static java.util.Locale.ENGLISH;
-import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.DAY;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.MONTH;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.WEEK;
 import static org.rakam.collection.FieldType.INTEGER;
 import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
-import static org.rakam.util.ValidationUtil.checkArgument;
-import static org.rakam.util.ValidationUtil.checkCollection;
-import static org.rakam.util.ValidationUtil.checkProject;
-import static org.rakam.util.ValidationUtil.checkTableColumn;
+import static org.rakam.util.ValidationUtil.*;
 
 public class PostgresqlRetentionQueryExecutor
         extends AbstractRetentionQueryExecutor

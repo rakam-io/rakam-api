@@ -233,7 +233,7 @@ public abstract class AbstractPostgresqlUserStorage
 
             ProjectCollection userTable = getUserTable(project, false);
 
-            String table = checkProject(userTable.project) + "." + checkCollection(userTable.collection);
+            String table = checkProject(userTable.project, '"') + "." + checkCollection(userTable.collection);
 
             PreparedStatement statement = conn.prepareStatement(
                     "INSERT INTO  " + table + " (" + cols + ") " +
@@ -435,7 +435,7 @@ public abstract class AbstractPostgresqlUserStorage
                 }
                 ProjectCollection userTable = getUserTable(project, false);
                 conn.createStatement().execute(format("alter table %s.%s add column %s %s",
-                        checkProject(userTable.project),
+                        checkProject(userTable.project, '"'),
                         checkCollection(userTable.collection),
                         checkTableColumn(column), getPostgresqlType(value)));
             }
@@ -587,7 +587,6 @@ public abstract class AbstractPostgresqlUserStorage
     @Override
     public CompletableFuture<User> getUser(String project, Object userId)
     {
-        checkProject(project);
         return CompletableFuture.supplyAsync(() -> {
             try (Connection conn = queryExecutor.getConnection()) {
                 ProjectCollection userTable = getUserTable(project, false);
@@ -855,7 +854,6 @@ public abstract class AbstractPostgresqlUserStorage
     @Override
     public void dropProjectIfExists(String project)
     {
-        checkProject(project);
         ProjectCollection userTable = getUserTable(project, false);
 
         String table = checkProject(userTable.project, '"') + "." + checkCollection(userTable.collection);

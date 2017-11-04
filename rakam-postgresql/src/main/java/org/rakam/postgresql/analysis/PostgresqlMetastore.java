@@ -403,7 +403,6 @@ public class PostgresqlMetastore
     @Override
     public void deleteProject(String project)
     {
-        checkProject(project);
         try (Connection conn = connectionPool.getConnection()) {
             conn.createStatement().execute(format("DROP SCHEMA %s CASCADE", checkProject(project, '"')));
         }

@@ -60,7 +60,7 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
     @Override
     public Message send(String project, Object fromUser, Object toUser, Integer parentId, String message, Instant date) {
         try (Connection connection = queryExecutor.getConnection()) {
-            PreparedStatement ps = connection.prepareStatement(String.format("INSERT INTO %s._user_mailbox (from_user, to_user, parentId, content, time) VALUES (?, ?, ?, ?, ?)", checkProject(project)),
+            PreparedStatement ps = connection.prepareStatement(String.format("INSERT INTO %s._user_mailbox (from_user, to_user, parentId, content, time) VALUES (?, ?, ?, ?, ?)", checkProject(project, '"')),
                     Statement.RETURN_GENERATED_KEYS);
             ps.setObject(1, fromUser);
             ps.setObject(2, toUser);

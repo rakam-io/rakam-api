@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import org.rakam.collection.SchemaField;
+import org.rakam.plugin.Parameter;
 import org.rakam.presto.analysis.PrestoRakamRaptorMetastore;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;

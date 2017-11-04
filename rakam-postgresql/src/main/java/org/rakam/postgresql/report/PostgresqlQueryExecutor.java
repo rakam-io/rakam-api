@@ -12,6 +12,7 @@ import io.airlift.log.Logger;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.datasource.CustomDataSource;
 import org.rakam.analysis.datasource.CustomDataSourceService;
+import org.rakam.analysis.datasource.CustomDataSourceService.ThirdPartyCustomDatabase;
 import org.rakam.analysis.datasource.SupportedCustomDatabase;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
@@ -24,7 +25,6 @@ import org.rakam.util.RakamException;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
-
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.ZoneId;
@@ -33,24 +33,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.EXPECTATION_FAILED;
-import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static java.lang.String.format;
 import static java.util.Optional.ofNullable;
-import static org.rakam.util.ValidationUtil.checkCollection;
-import static org.rakam.util.ValidationUtil.checkLiteral;
-import static org.rakam.util.ValidationUtil.checkProject;
-import static org.rakam.util.ValidationUtil.checkTableColumn;
+import static org.rakam.util.ValidationUtil.*;
 
 // forbid crosstab, dblink
 public class PostgresqlQueryExecutor
@@ -141,16 +132,7 @@ public class PostgresqlQueryExecutor
                         throw new RakamException("remotefile schema doesn't exist in Postgresql deployment", BAD_REQUEST);
                     }
 
-                    CustomDataSource dataSource;
-                    try {
-                        dataSource = customDataSource.getDatabase(project, prefix);
-                    }
-                    catch (RakamException e) {
-                        if (e.getStatusCode() == NOT_FOUND) {
-                            throw new RakamException("Schema does not exist: " + prefix, BAD_REQUEST);
-                        }
-                        throw e;
-                    }
+                    CustomDataSource dataSource = customDataSource.getDatabase(project, prefix);
 
                     String remoteDb = sessionParameters.get("remotedb");
                     List<CustomDataSource> state;

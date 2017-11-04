@@ -67,7 +67,7 @@ public class PostgresqlPseudoContinuousQueryService
     @Override
     public CompletableFuture<Boolean> delete(String project, String name)
     {
-        return executor.executeRawStatement(String.format("DROP VIEW %s.%s", checkProject(project), checkCollection(CONTINUOUS_QUERY_PREFIX + name))).getResult().thenApply(result -> {
+        return executor.executeRawStatement(String.format("DROP VIEW %s.%s", checkProject(project, '"'), checkCollection(CONTINUOUS_QUERY_PREFIX + name))).getResult().thenApply(result -> {
             if (!result.isFailed()) {
                 database.deleteContinuousQuery(project, name);
             }

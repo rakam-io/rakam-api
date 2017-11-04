@@ -14,17 +14,13 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Singleton;
 import io.airlift.units.Duration;
-import org.rakam.analysis.datasource.CustomDataSourceService;
-import org.rakam.analysis.datasource.RemoteTable;
+import org.rakam.analysis.datasource.*;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.JDBCConfig;
 import org.rakam.config.ProjectConfig;
 import org.rakam.postgresql.report.JDBCQueryExecution;
 import org.rakam.presto.PrestoModule.UserConfig;
-import org.rakam.analysis.datasource.CustomDataSource;
-import org.rakam.analysis.datasource.JDBCSchemaConfig;
-import org.rakam.analysis.datasource.SupportedCustomDatabase;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QuerySampling;
@@ -33,16 +29,10 @@ import org.rakam.util.RakamException;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
-
 import java.net.URI;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.TimeZone;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -58,7 +48,6 @@ import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZ
 import static org.rakam.presto.analysis.PrestoRakamRaptorMetastore.toType;
 import static org.rakam.util.JsonHelper.encodeAsBytes;
 import static org.rakam.util.ValidationUtil.checkCollection;
-import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 @Singleton

@@ -371,7 +371,6 @@ public class DashboardService
 
             if (sharedEveryone != null) {
                 bind = bind.bind("sharedEveryone", sharedEveryone);
-
             }
 
             int execute = bind.execute();

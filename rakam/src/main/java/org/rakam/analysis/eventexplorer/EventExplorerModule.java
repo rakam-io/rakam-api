@@ -10,7 +10,6 @@ import org.rakam.config.MetadataConfig;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.TimestampEventMapper;
-import org.rakam.report.eventexplorer.EventExplorerConfig;
 import org.rakam.server.http.HttpService;
 import org.rakam.util.ConditionalModule;
 
