@@ -118,15 +118,17 @@ public class PostgresqlFunnelQueryExecutor
                 ") t group by 1 %s order by 1";
     }
 
-    public String convertFunnel(String project, String connectorField, int idx, FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate)
+    public String convertFunnel(String project, String connectorField, int idx, FunnelStep funnelStep, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate)
     {
         String table = checkProject(project, '"') + "." + ValidationUtil.checkCollection(funnelStep.getCollection());
         Optional<String> filterExp = funnelStep.getExpression().map(value -> RakamSqlFormatter.formatExpression(value,
                 name -> name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
                 name -> formatIdentifier("step" + idx, '"') + "." + name, '"'));
 
-        String format = format("SELECT %s %s, %d as step, %s from %s %s %s",
-                dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ",").orElse(""),
+        String format = format("SELECT %s %s %s, %d as step, %s from %s %s %s",
+                segment.isPresent() ? "" : dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ",").orElse(""),
+                segment.isPresent() ? format(timeStampMapping.get(FunnelTimestampSegments.valueOf(segment.get().replace(" ", "_").toUpperCase())),
+                        dimension.get())+ " as "  + checkTableColumn(dimension.get()+"_segment") + ",":  "",
                 format(connectorField, "step" + idx),
                 idx + 1,
                 checkTableColumn(projectConfig.getTimeColumn()),

@@ -60,7 +60,7 @@ public abstract class AbstractFunnelQueryExecutor
 
     public abstract String getTemplate(List<FunnelStep> steps, Optional<String> dimension, Optional<FunnelWindow> window);
 
-    public abstract String convertFunnel(String project, String connectorField, int idx, FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate);
+    public abstract String convertFunnel(String project, String connectorField, int idx, FunnelStep funnelStep, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate);
 
     @Override
     public QueryExecution query(String project,
@@ -78,10 +78,11 @@ public abstract class AbstractFunnelQueryExecutor
                 .mapToObj(i -> convertFunnel(
                         project, connectors.orElse(ImmutableList.of(testDeviceIdExists(steps.get(i), collections) ? ("coalesce(cast(%s." + checkTableColumn(projectConfig.getUserColumn()) + " as varchar), _device_id) as " + checkTableColumn(projectConfig.getUserColumn())) : projectConfig.getUserColumn()))
                                 .stream().collect(Collectors.joining(", ")), i,
-                        steps.get(i), dimension, startDate, endDate))
+                        steps.get(i), dimension, segment, startDate, endDate))
                 .collect(Collectors.joining(" UNION ALL "));
-
-        String dimensionCol = dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ", ").orElse("");
+        
+        String segment2 = segment.map(v -> "_segment").orElse("");
+        String dimensionCol = dimension.map(v -> checkTableColumn(v+segment2) + ", ").orElse("");
         String query = format(getTemplate(steps, dimension, window), dimensionCol, dimensionCol, ctes,
                 TIMESTAMP_FORMATTER.format(startDate.atStartOfDay()),
                 TIMESTAMP_FORMATTER.format(endDate.plusDays(1).atStartOfDay()),
@@ -92,7 +93,7 @@ public abstract class AbstractFunnelQueryExecutor
         if (dimension.isPresent()) {
             query = String.format("SELECT (CASE WHEN rank > 15 THEN 'Others' ELSE cast(%s as varchar) END) as dimension, step, sum(total) from " +
                             "(select *, row_number() OVER(ORDER BY total DESC) rank from (%s) t) t GROUP BY 1, 2",
-                    dimension.map(ValidationUtil::checkTableColumn).get(), query);
+                    dimension.map(v -> checkTableColumn(v+segment2)).get(), query);
         }
         QueryExecution queryExecution = executor.executeRawQuery(query, timezone);
 
