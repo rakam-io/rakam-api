@@ -122,7 +122,7 @@ public class PrestoFunnelQueryExecutor
                 name -> formatIdentifier("step" + idx, '"') + "." + name, '"'));
 
         String format = format("SELECT %s %s, %d as step, %s.%s from %s.%s.%s %s %s %s",
-                dimension.map(ValidationUtil::checkTableColumn).map(v -> "step" + idx + "." + v + ",").map(v -> segment.isPresent() ? applySegment(v, segment) : "").orElse(""),
+                dimension.map(ValidationUtil::checkTableColumn).map(v -> "step" + idx + "." + v).map(v -> segment == null ? v  + "," : applySegment(v, segment) + " as \"_time_segment\"" + ",").orElse(""),
                 userMappingEnabled ? format("coalesce(mapping._user, %s._user, %s) as _user", "step" + idx, format(connectorField, "step" + idx)) : connectorField,
                 idx + 1,
                 "step" + idx, checkTableColumn(projectConfig.getTimeColumn()),
