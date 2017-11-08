@@ -85,6 +85,7 @@ public class PrestoFunnelQueryExecutor
         this.approxFunnelQueryExecutor = approxFunnelQueryExecutor;
         this.userMappingEnabled = userPluginConfig.getEnableUserMapping();
         this.fastPrestoFunnelQueryExecutor.setTimeStampMapping(timeStampMapping);
+        this.approxFunnelQueryExecutor.setTimeStampMapping(timeStampMapping);
     }
 
     @Override
@@ -122,7 +123,7 @@ public class PrestoFunnelQueryExecutor
                 name -> formatIdentifier("step" + idx, '"') + "." + name, '"'));
 
         String format = format("SELECT %s %s, %d as step, %s.%s from %s.%s.%s %s %s %s",
-                dimension.map(ValidationUtil::checkTableColumn).map(v -> "step" + idx + "." + v).map(v -> segment == null ? v  + "," : applySegment(v, segment) + " as \"_time_segment\"" + ",").orElse(""),
+                dimension.map(ValidationUtil::checkTableColumn).map(v -> "step" + idx + "." + v).map(v -> segment.isPresent() ? applySegment(v, segment) + " as \""+dimension.orElse("")+"_segment\"" + "," : v  + "," ).orElse(""),
                 userMappingEnabled ? format("coalesce(mapping._user, %s._user, %s) as _user", "step" + idx, format(connectorField, "step" + idx)) : format(connectorField, "step" + idx),
                 idx + 1,
                 "step" + idx, checkTableColumn(projectConfig.getTimeColumn()),

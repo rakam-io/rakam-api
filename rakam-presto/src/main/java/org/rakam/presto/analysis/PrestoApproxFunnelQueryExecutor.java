@@ -19,6 +19,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -37,6 +38,7 @@ public class PrestoApproxFunnelQueryExecutor
 {
     private final ProjectConfig projectConfig;
     private final QueryExecutorService executor;
+    private Map<FunnelTimestampSegments, String> timeStampMapping;
 
     @Inject
     public PrestoApproxFunnelQueryExecutor(ProjectConfig projectConfig, QueryExecutorService executor)
@@ -61,7 +63,8 @@ public class PrestoApproxFunnelQueryExecutor
         String query;
         if (dimension.isPresent()) {
             String queries = IntStream.range(0, steps.size()).mapToObj(step -> String.format("(select %s as dimension, %s as _user, %d as step from %s where %s between timestamp '%s' and timestamp '%s' and %s)",
-                    checkTableColumn(dimension.get()), checkTableColumn(projectConfig.getUserColumn()), step,
+                    dimension.map(ValidationUtil::checkTableColumn).map(v -> segment.isPresent() ? applySegment(v, segment) : v).orElse(""),
+                    checkTableColumn(projectConfig.getUserColumn()), step,
                     checkCollection(steps.get(step).getCollection()),
                     checkTableColumn(projectConfig.getTimeColumn()),
                     startDateStr, endDateStr,
@@ -120,5 +123,13 @@ public class PrestoApproxFunnelQueryExecutor
         return step.getExpression().map(value -> RakamSqlFormatter.formatExpression(value,
                 name -> name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
                 ValidationUtil::checkTableColumn, '"')).orElse("true");
+    }
+
+    public void setTimeStampMapping(Map<FunnelTimestampSegments, String> timeStampMapping) {
+        this.timeStampMapping = timeStampMapping;
+    }
+
+    private String applySegment(String v, Optional<String> segment) {
+        return String.format(timeStampMapping.get(FunnelTimestampSegments.valueOf(segment.get().replace(" ", "_").toUpperCase())), v);
     }
 }
