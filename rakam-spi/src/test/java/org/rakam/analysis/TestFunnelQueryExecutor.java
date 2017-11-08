@@ -224,8 +224,31 @@ public abstract class TestFunnelQueryExecutor {
                 Optional.of(FunnelQueryExecutor.FunnelTimestampSegments.DAY_OF_MONTH.value()),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR), Optional.empty(), UTC,
-                Optional.empty(), APPROXIMATE).getResult().join();
+                Optional.empty(), NORMAL).getResult().join();
+        assertFalse(query.isFailed());
+    }
 
+    @Test
+    public void testSegmentOrdered() throws Exception {
+        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
+                of(new FunnelStep("test0", Optional.of("teststr = 'test1'")), new FunnelStep("test1", Optional.of("teststr = 'test1'"))),
+                Optional.of("_time"),
+                Optional.of(FunnelQueryExecutor.FunnelTimestampSegments.DAY_OF_MONTH.value()),
+                LocalDate.ofEpochDay(0),
+                LocalDate.ofEpochDay(SCALE_FACTOR), Optional.empty(), UTC,
+                Optional.empty(), ORDERED).getResult().join();
+        assertFalse(query.isFailed());
+    }
+
+    @Test
+    public void testSegmentApproximate() throws Exception {
+        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
+                of(new FunnelStep("test0", Optional.of("teststr = 'test1'")), new FunnelStep("test1", Optional.of("teststr = 'test1'"))),
+                Optional.of("_time"),
+                Optional.of(FunnelQueryExecutor.FunnelTimestampSegments.DAY_OF_MONTH.value()),
+                LocalDate.ofEpochDay(0),
+                LocalDate.ofEpochDay(SCALE_FACTOR), Optional.empty(), UTC,
+                Optional.empty(), APPROXIMATE).getResult().join();
         assertFalse(query.isFailed());
     }
 
