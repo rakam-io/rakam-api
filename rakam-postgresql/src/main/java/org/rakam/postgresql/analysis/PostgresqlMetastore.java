@@ -14,28 +14,15 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.AbstractMetastore;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.postgresql.PostgresqlModule;
 import org.rakam.postgresql.PostgresqlModule.PostgresqlVersion;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.ProjectCollection;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 import javax.inject.Named;
-
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.sql.*;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -43,11 +30,7 @@ import java.util.stream.Collectors;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static org.rakam.util.JDBCUtil.fromSql;
-import static org.rakam.util.ValidationUtil.checkCollection;
-import static org.rakam.util.ValidationUtil.checkLiteral;
-import static org.rakam.util.ValidationUtil.checkProject;
-import static org.rakam.util.ValidationUtil.checkTableColumn;
-import static org.rakam.util.ValidationUtil.stripName;
+import static org.rakam.util.ValidationUtil.*;
 
 public class PostgresqlMetastore
         extends AbstractMetastore
@@ -294,7 +277,7 @@ public class PostgresqlMetastore
                     queryEnd += ", ";
                 }
 
-                queryEnd += "\"$server_time\" timestamp without time zone default (current_timestamp at time zone 'UTC')";
+                queryEnd += "\"$server_time\" timestamp with time zone default (current_timestamp at time zone 'UTC')";
 
                 if (queryEnd.isEmpty()) {
                     return currentFields;
@@ -428,7 +411,7 @@ public class PostgresqlMetastore
             case TIME:
                 return type.name();
             case TIMESTAMP:
-                return "timestamp without time zone";
+                return "timestamp with time zone";
             case DOUBLE:
                 return "DOUBLE PRECISION";
             default:

@@ -12,7 +12,6 @@ import io.airlift.log.Logger;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.datasource.CustomDataSource;
 import org.rakam.analysis.datasource.CustomDataSourceService;
-import org.rakam.analysis.datasource.CustomDataSourceService.ThirdPartyCustomDatabase;
 import org.rakam.analysis.datasource.SupportedCustomDatabase;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
@@ -38,7 +37,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static io.netty.handler.codec.http.HttpResponseStatus.*;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.EXPECTATION_FAILED;
 import static java.lang.String.format;
 import static java.util.Optional.ofNullable;
 import static org.rakam.util.ValidationUtil.*;
