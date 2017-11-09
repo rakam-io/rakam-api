@@ -226,6 +226,7 @@ public abstract class TestFunnelQueryExecutor {
                 LocalDate.ofEpochDay(SCALE_FACTOR), Optional.empty(), UTC,
                 Optional.empty(), NORMAL).getResult().join();
         assertFalse(query.isFailed());
+        assertEquals(query.getResult(), of(of("Step 1", "1th day", 3L), of("Step 2", "1th day", 3L)));
     }
 
     @Test
@@ -238,6 +239,7 @@ public abstract class TestFunnelQueryExecutor {
                 LocalDate.ofEpochDay(SCALE_FACTOR), Optional.empty(), UTC,
                 Optional.empty(), ORDERED).getResult().join();
         assertFalse(query.isFailed());
+        assertEquals(query.getResult(), of(of("Step 1", "1th day", 3L), of("Step 2", "1th day", 3L)));
     }
 
     @Test
@@ -250,6 +252,7 @@ public abstract class TestFunnelQueryExecutor {
                 LocalDate.ofEpochDay(SCALE_FACTOR), Optional.empty(), UTC,
                 Optional.empty(), APPROXIMATE).getResult().join();
         assertFalse(query.isFailed());
+        assertEquals(query.getResult(), of(of("Step 1", "1th day", 3L), of("Step 2", "1th day", 3L)));
     }
 
     @Test

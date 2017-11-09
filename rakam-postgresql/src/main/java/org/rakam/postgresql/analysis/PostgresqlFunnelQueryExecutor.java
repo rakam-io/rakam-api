@@ -71,7 +71,7 @@ public class PostgresqlFunnelQueryExecutor
         this.executor = executor;
         this.fastExecutor = fastExecutor;
         this.fastExecutor.setTimeStampMapping(timeStampMapping);
-        super.setTimeStampMapping(timeStampMapping);
+        super.timeStampMapping = timeStampMapping;
     }
 
     @PostConstruct

@@ -51,7 +51,7 @@ public abstract class AbstractFunnelQueryExecutor
     private final QueryExecutor executor;
     private final Metastore metastore;
     protected final ProjectConfig projectConfig;
-    private Map<FunnelTimestampSegments, String> timeStampMapping;
+    protected Map<FunnelTimestampSegments, String> timeStampMapping;
 
     public AbstractFunnelQueryExecutor(ProjectConfig projectConfig, Metastore metastore, QueryExecutor executor)
     {
@@ -177,9 +177,4 @@ public abstract class AbstractFunnelQueryExecutor
         }
         return schemaFields.stream().anyMatch(e -> e.getName().equals("_device_id"));
     }
-
-    public void setTimeStampMapping(Map<FunnelTimestampSegments, String> timeStampMapping) {
-        this.timeStampMapping = timeStampMapping;
-    }
-
 }

@@ -86,7 +86,7 @@ public class PrestoFunnelQueryExecutor
         this.userMappingEnabled = userPluginConfig.getEnableUserMapping();
         this.fastPrestoFunnelQueryExecutor.setTimeStampMapping(timeStampMapping);
         this.approxFunnelQueryExecutor.setTimeStampMapping(timeStampMapping);
-        super.setTimeStampMapping(timeStampMapping);
+        super.timeStampMapping = timeStampMapping;
     }
 
     @Override
