@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.of;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static org.rakam.collection.FieldType.LONG;
 import static org.rakam.collection.FieldType.STRING;
@@ -50,6 +51,7 @@ public abstract class AbstractFunnelQueryExecutor
     private final QueryExecutor executor;
     private final Metastore metastore;
     protected final ProjectConfig projectConfig;
+    private Map<FunnelTimestampSegments, String> timeStampMapping;
 
     public AbstractFunnelQueryExecutor(ProjectConfig projectConfig, Metastore metastore, QueryExecutor executor)
     {
@@ -73,6 +75,24 @@ public abstract class AbstractFunnelQueryExecutor
             FunnelType type)
     {
         Map<String, List<SchemaField>> collections = metastore.getCollections(project);
+
+        if(dimension.isPresent()) {
+            if(dimension.get().equals(projectConfig.getTimeColumn())) {
+                if(!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
+                    throw new RakamException("When dimension is time, segmenting should be done on timestamp field.", BAD_REQUEST);
+                }
+            }
+            if(metastore.getCollections(project).entrySet().stream()
+                    .filter(c -> !c.getValue().contains(dimension.get())).findAny().get().getValue().stream()
+                    .filter(d -> d.getName().equals(dimension.get())).findAny().get().getType().getPrettyName().equals("TIMESTAMP")) {
+                if(!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
+                    throw new RakamException("When dimension is of type TIMESTAMP, segmenting should be done on timestamp field.", BAD_REQUEST);
+                }
+            }
+        } else if(segment.isPresent()) {
+            throw new RakamException("Dimension can't be null when segment is not.", BAD_REQUEST);
+        }
+
 
         String ctes = IntStream.range(0, steps.size())
                 .mapToObj(i -> convertFunnel(
@@ -157,4 +177,9 @@ public abstract class AbstractFunnelQueryExecutor
         }
         return schemaFields.stream().anyMatch(e -> e.getName().equals("_device_id"));
     }
+
+    public void setTimeStampMapping(Map<FunnelTimestampSegments, String> timeStampMapping) {
+        this.timeStampMapping = timeStampMapping;
+    }
+
 }

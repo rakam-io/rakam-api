@@ -3,6 +3,7 @@ package org.rakam.presto.analysis;
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.google.common.collect.ImmutableList;
 import org.rakam.analysis.FunnelQueryExecutor;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
 import org.rakam.report.DelegateQueryExecution;
@@ -39,17 +40,37 @@ public class PrestoApproxFunnelQueryExecutor
     private final ProjectConfig projectConfig;
     private final QueryExecutorService executor;
     private Map<FunnelTimestampSegments, String> timeStampMapping;
+    private final Metastore metastore;
 
     @Inject
-    public PrestoApproxFunnelQueryExecutor(ProjectConfig projectConfig, QueryExecutorService executor)
+    public PrestoApproxFunnelQueryExecutor(ProjectConfig projectConfig, QueryExecutorService executor, Metastore metastore)
     {
         this.projectConfig = projectConfig;
         this.executor = executor;
+        this.metastore = metastore;
     }
 
     @Override
     public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, FunnelType funnelType)
     {
+
+        if(dimension.isPresent()) {
+            if(dimension.get().equals(projectConfig.getTimeColumn())) {
+                if(!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
+                    throw new RakamException("When dimension is time, segmenting should be done on timestamp field.", BAD_REQUEST);
+                }
+            }
+            if(metastore.getCollections(project).entrySet().stream()
+                    .filter(c -> !c.getValue().contains(dimension.get())).findAny().get().getValue().stream()
+                    .filter(d -> d.getName().equals(dimension.get())).findAny().get().getType().getPrettyName().equals("TIMESTAMP")) {
+                if(!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
+                    throw new RakamException("When dimension is of type TIMESTAMP, segmenting should be done on timestamp field.", BAD_REQUEST);
+                }
+            }
+        } else if(segment.isPresent()) {
+            throw new RakamException("Dimension can't be null when segment is not.", BAD_REQUEST);
+        }
+
         String startDateStr = TIMESTAMP_FORMATTER.format(startDate.atStartOfDay(zoneId));
         String endDateStr = TIMESTAMP_FORMATTER.format(endDate.plusDays(1).atStartOfDay(zoneId));
         if (funnelType == FunnelType.ORDERED) {

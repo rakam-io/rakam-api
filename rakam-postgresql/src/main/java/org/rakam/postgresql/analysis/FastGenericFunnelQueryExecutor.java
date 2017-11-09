@@ -57,13 +57,11 @@ public class FastGenericFunnelQueryExecutor
         }
 
         if(dimension.isPresent()) {
-
             if(dimension.get().equals(projectConfig.getTimeColumn())) {
                 if(!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
                     throw new RakamException("When dimension is time, segmenting should be done on timestamp field.", BAD_REQUEST);
                 }
             }
-
             if(metastore.getCollections(project).entrySet().stream()
                     .filter(c -> !c.getValue().contains(dimension.get())).findAny().get().getValue().stream()
                     .filter(d -> d.getName().equals(dimension.get())).findAny().get().getType().getPrettyName().equals("TIMESTAMP")) {
@@ -74,8 +72,6 @@ public class FastGenericFunnelQueryExecutor
         } else if(segment.isPresent()) {
             throw new RakamException("Dimension can't be null when segment is not.", BAD_REQUEST);
         }
-
-
 
         if (funnelType == FunnelType.ORDERED) {
             throw new RakamException("Strict ordered funnel query is not supported", BAD_REQUEST);
