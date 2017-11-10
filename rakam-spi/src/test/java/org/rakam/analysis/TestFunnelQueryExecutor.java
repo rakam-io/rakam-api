@@ -253,8 +253,20 @@ public abstract class TestFunnelQueryExecutor {
                 LocalDate.ofEpochDay(SCALE_FACTOR), Optional.empty(), UTC,
                 Optional.empty(), APPROXIMATE).getResult().join();
         assertFalse(query.isFailed());
-        assertTrue( query.getResult().equals(of(of("Step 0", "1th day", 3), of("Step 1", "1th day", 3 ))) ||
-                             query.getResult().equals(of(of("Step 1", "1th day", 3L), of("Step 2", "1th day", 3L ))));
+        assertEquals( query.getResult(), of(of("Step 1", "1th day", 3L), of("Step 2", "1th day", 3L )));
+    }
+
+    @Test
+    public void testApproximate() throws Exception {
+        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
+                of(new FunnelStep("test0", Optional.of("teststr = 'test1'")), new FunnelStep("test1", Optional.of("teststr = 'test1'"))),
+                Optional.empty(),
+                Optional.empty(),
+                LocalDate.ofEpochDay(0),
+                LocalDate.ofEpochDay(SCALE_FACTOR), Optional.empty(), UTC,
+                Optional.empty(), APPROXIMATE).getResult().join();
+        assertFalse(query.isFailed());
+        assertEquals(query.getResult(), of(of("Step 1", 3L), of("Step 2", 3L)));
     }
 
     @Test
