@@ -31,6 +31,7 @@ import static org.rakam.analysis.FunnelQueryExecutor.FunnelType.ORDERED;
 import static org.rakam.analysis.FunnelQueryExecutor.WindowType.DAY;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
 public abstract class TestFunnelQueryExecutor {
     private static final int SCALE_FACTOR = 10;
@@ -79,6 +80,7 @@ public abstract class TestFunnelQueryExecutor {
     public void testSingleStep(FunnelQueryExecutor.FunnelType funnelType) throws Exception {
         QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME, of(new FunnelStep("test0", null)),
                 Optional.empty(),
+                Optional.empty(),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR), Optional.of(new FunnelWindow(30, DAY)), UTC,
                 Optional.empty(), funnelType).getResult().join();
@@ -91,6 +93,7 @@ public abstract class TestFunnelQueryExecutor {
     public void testSingleStepApproximate() throws Exception {
         QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME, of(new FunnelStep("test0", null)),
                 Optional.empty(),
+                Optional.empty(),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR), Optional.empty(), UTC,
                 Optional.empty(), FunnelQueryExecutor.FunnelType.APPROXIMATE).getResult().join();
@@ -102,6 +105,7 @@ public abstract class TestFunnelQueryExecutor {
     public void testMultipleSteps(FunnelQueryExecutor.FunnelType funnelType) throws Exception {
         QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
                 of(new FunnelStep("test0", null), new FunnelStep("test1", null), new FunnelStep("test2", null)),
+                Optional.empty(),
                 Optional.empty(),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR), Optional.of(new FunnelWindow(30, DAY)), UTC,
@@ -116,6 +120,7 @@ public abstract class TestFunnelQueryExecutor {
         QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
                 of(new FunnelStep("test0", null), new FunnelStep("test1", null), new FunnelStep("test2", null)),
                 Optional.empty(),
+                Optional.empty(),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR), Optional.empty(), UTC,
                 Optional.empty(), APPROXIMATE).getResult().join();
@@ -128,6 +133,7 @@ public abstract class TestFunnelQueryExecutor {
         QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
                 of(new FunnelStep("test0", null), new FunnelStep("test1", null), new FunnelStep("test2", null)),
                 Optional.of("teststr"),
+                Optional.empty(),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR), Optional.of(new FunnelWindow(30, DAY)), UTC,
                 Optional.empty(), funnelType).getResult().join();
@@ -144,6 +150,7 @@ public abstract class TestFunnelQueryExecutor {
         QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
                 of(new FunnelStep("test0", null), new FunnelStep("test1", null), new FunnelStep("test2", null)),
                 Optional.of("teststr"),
+                Optional.empty(),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR), Optional.empty(), UTC,
                 Optional.empty(), APPROXIMATE).getResult().join();
@@ -156,6 +163,7 @@ public abstract class TestFunnelQueryExecutor {
         QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
                 of(new FunnelStep("test0", null), new FunnelStep("test1", null)),
                 Optional.of("teststr"),
+                Optional.empty(),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR), Optional.of(new FunnelWindow(30, DAY)), UTC,
                 Optional.empty(), funnelType).getResult().join();
@@ -174,6 +182,7 @@ public abstract class TestFunnelQueryExecutor {
         QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
                 of(new FunnelStep("test0", null), new FunnelStep("test1", null)),
                 Optional.of("teststr"),
+                Optional.empty(),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR), Optional.of(new FunnelWindow(30, DAY)), UTC,
                 Optional.empty(), NORMAL).getResult().join();
@@ -186,6 +195,7 @@ public abstract class TestFunnelQueryExecutor {
         QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
                 of(new FunnelStep("test0", Optional.of("teststr = 'test1'")), new FunnelStep("test1", Optional.of("teststr = 'test1'"))),
                 Optional.of("teststr"),
+                Optional.empty(),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR), Optional.of(new FunnelWindow(30, DAY)), UTC,
                 Optional.empty(), funnelType).getResult().join();
@@ -199,11 +209,52 @@ public abstract class TestFunnelQueryExecutor {
         QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
                 of(new FunnelStep("test0", Optional.of("teststr = 'test1'")), new FunnelStep("test1", Optional.of("teststr = 'test1'"))),
                 Optional.of("teststr"),
+                Optional.empty(),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR), Optional.empty(), UTC,
                 Optional.empty(), APPROXIMATE).getResult().join();
 
         assertFalse(query.isFailed());
+    }
+
+    @Test
+    public void testSegment() throws Exception {
+        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
+                of(new FunnelStep("test0", Optional.of("teststr = 'test1'")), new FunnelStep("test1", Optional.of("teststr = 'test1'"))),
+                Optional.of("_time"),
+                Optional.of(FunnelQueryExecutor.FunnelTimestampSegments.DAY_OF_MONTH.value()),
+                LocalDate.ofEpochDay(0),
+                LocalDate.ofEpochDay(SCALE_FACTOR), Optional.empty(), UTC,
+                Optional.empty(), NORMAL).getResult().join();
+        assertFalse(query.isFailed());
+        assertEquals(query.getResult(), of(of("Step 1", "1th day", 3L), of("Step 2", "1th day", 3L)));
+    }
+
+    @Test
+    public void testSegmentOrdered() throws Exception {
+        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
+                of(new FunnelStep("test0", Optional.of("teststr = 'test1'")), new FunnelStep("test1", Optional.of("teststr = 'test1'"))),
+                Optional.of("_time"),
+                Optional.of(FunnelQueryExecutor.FunnelTimestampSegments.DAY_OF_MONTH.value()),
+                LocalDate.ofEpochDay(0),
+                LocalDate.ofEpochDay(SCALE_FACTOR), Optional.empty(), UTC,
+                Optional.empty(), ORDERED).getResult().join();
+        assertFalse(query.isFailed());
+        assertEquals(query.getResult(), of(of("Step 1", "1th day", 3L), of("Step 2", "1th day", 3L)));
+    }
+
+    @Test
+    public void testSegmentApproximate() throws Exception {
+        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
+                of(new FunnelStep("test0", Optional.of("teststr = 'test1'")), new FunnelStep("test1", Optional.of("teststr = 'test1'"))),
+                Optional.of("_time"),
+                Optional.of(FunnelQueryExecutor.FunnelTimestampSegments.DAY_OF_MONTH.value()),
+                LocalDate.ofEpochDay(0),
+                LocalDate.ofEpochDay(SCALE_FACTOR), Optional.empty(), UTC,
+                Optional.empty(), APPROXIMATE).getResult().join();
+        assertFalse(query.isFailed());
+        assertTrue( query.getResult().equals(of(of("Step 0", "1th day", 3), of("Step 1", "1th day", 3 ))) ||
+                             query.getResult().equals(of(of("Step 1", "1th day", 3L), of("Step 2", "1th day", 3L ))));
     }
 
     @Test

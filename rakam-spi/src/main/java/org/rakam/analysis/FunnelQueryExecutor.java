@@ -20,11 +20,45 @@ public interface FunnelQueryExecutor
 {
     QueryExecution query(String project,
             List<FunnelStep> steps,
-            Optional<String> dimension, LocalDate startDate,
+            Optional<String> dimension,
+            Optional<String> segment,
+            LocalDate startDate,
             LocalDate endDate,
             Optional<FunnelWindow> window, ZoneId zoneId,
             Optional<List<String>> connectors,
             FunnelType type);
+
+    enum FunnelTimestampSegments {
+        HOUR_OF_DAY("Hour of day"),
+        DAY_OF_MONTH("Day of month"),
+        WEEK_OF_YEAR("Week of year"),
+        MONTH_OF_YEAR("Month of year"),
+        QUARTER_OF_YEAR("Quarter of year"),
+        DAY_PART("Day part"),
+        DAY_OF_WEEK("Day of week"),
+        HOUR("Hour"),
+        DAY("Day"), WEEK("Week"),
+        MONTH("Month"),
+        YEAR("Year");
+        private final String displayName;
+        FunnelTimestampSegments(String displayName) {
+            this.displayName = displayName;
+        }
+        public String getDisplayName() {
+            return displayName;
+        }
+
+        @JsonCreator
+        FunnelTimestampSegments get(String name) {
+            return valueOf(name.toUpperCase());
+        }
+
+        @JsonProperty
+        public String value() {
+            return name();
+        }
+
+    }
 
     enum FunnelType
     {

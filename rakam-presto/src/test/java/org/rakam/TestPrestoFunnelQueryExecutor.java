@@ -56,8 +56,8 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
         QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, metastore,
                 materializedViewService, Clock.system(ZoneId.of("UTC")), '"');
 
-        FastGenericFunnelQueryExecutor fastGenericFunnelQueryExecutor = new FastGenericFunnelQueryExecutor(queryExecutorService, new ProjectConfig());
-        PrestoApproxFunnelQueryExecutor prestoApproxFunnelQueryExecutor = new PrestoApproxFunnelQueryExecutor( new ProjectConfig(), queryExecutorService);
+        FastGenericFunnelQueryExecutor fastGenericFunnelQueryExecutor = new FastGenericFunnelQueryExecutor(queryExecutorService, new ProjectConfig(), metastore);
+        PrestoApproxFunnelQueryExecutor prestoApproxFunnelQueryExecutor = new PrestoApproxFunnelQueryExecutor( new ProjectConfig(), queryExecutorService, metastore);
         funnelQueryExecutor = new PrestoFunnelQueryExecutor(new ProjectConfig(), new PrestoConfig(),
                 fastGenericFunnelQueryExecutor, prestoApproxFunnelQueryExecutor, metastore, prestoQueryExecutor,
              new UserPluginConfig());

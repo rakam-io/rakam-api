@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.of;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static org.rakam.collection.FieldType.LONG;
 import static org.rakam.collection.FieldType.STRING;
@@ -50,6 +51,7 @@ public abstract class AbstractFunnelQueryExecutor
     private final QueryExecutor executor;
     private final Metastore metastore;
     protected final ProjectConfig projectConfig;
+    protected Map<FunnelTimestampSegments, String> timeStampMapping;
 
     public AbstractFunnelQueryExecutor(ProjectConfig projectConfig, Metastore metastore, QueryExecutor executor)
     {
@@ -60,26 +62,47 @@ public abstract class AbstractFunnelQueryExecutor
 
     public abstract String getTemplate(List<FunnelStep> steps, Optional<String> dimension, Optional<FunnelWindow> window);
 
-    public abstract String convertFunnel(String project, String connectorField, int idx, FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate);
+    public abstract String convertFunnel(String project, String connectorField, int idx, FunnelStep funnelStep, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate);
 
     @Override
     public QueryExecution query(String project,
             List<FunnelStep> steps,
-            Optional<String> dimension, LocalDate startDate,
+            Optional<String> dimension,
+            Optional<String> segment,
+            LocalDate startDate,
             LocalDate endDate, Optional<FunnelWindow> window, ZoneId timezone,
             Optional<List<String>> connectors,
             FunnelType type)
     {
         Map<String, List<SchemaField>> collections = metastore.getCollections(project);
 
+        if(dimension.isPresent()) {
+            if(dimension.get().equals(projectConfig.getTimeColumn())) {
+                if(!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
+                    throw new RakamException("When dimension is time, segmenting should be done on timestamp field.", BAD_REQUEST);
+                }
+            }
+            if(metastore.getCollections(project).entrySet().stream()
+                    .filter(c -> !c.getValue().contains(dimension.get())).findAny().get().getValue().stream()
+                    .filter(d -> d.getName().equals(dimension.get())).findAny().get().getType().getPrettyName().equals("TIMESTAMP")) {
+                if(!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
+                    throw new RakamException("When dimension is of type TIMESTAMP, segmenting should be done on timestamp field.", BAD_REQUEST);
+                }
+            }
+        } else if(segment.isPresent()) {
+            throw new RakamException("Dimension can't be null when segment is not.", BAD_REQUEST);
+        }
+
+
         String ctes = IntStream.range(0, steps.size())
                 .mapToObj(i -> convertFunnel(
                         project, connectors.orElse(ImmutableList.of(testDeviceIdExists(steps.get(i), collections) ? ("coalesce(cast(%s." + checkTableColumn(projectConfig.getUserColumn()) + " as varchar), _device_id) as " + checkTableColumn(projectConfig.getUserColumn())) : projectConfig.getUserColumn()))
                                 .stream().collect(Collectors.joining(", ")), i,
-                        steps.get(i), dimension, startDate, endDate))
+                        steps.get(i), dimension, segment, startDate, endDate))
                 .collect(Collectors.joining(" UNION ALL "));
-
-        String dimensionCol = dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ", ").orElse("");
+        
+        String segment2 = segment.map(v -> "_segment").orElse("");
+        String dimensionCol = dimension.map(v -> checkTableColumn(v+segment2) + ", ").orElse("");
         String query = format(getTemplate(steps, dimension, window), dimensionCol, dimensionCol, ctes,
                 TIMESTAMP_FORMATTER.format(startDate.atStartOfDay()),
                 TIMESTAMP_FORMATTER.format(endDate.plusDays(1).atStartOfDay()),
@@ -90,7 +113,7 @@ public abstract class AbstractFunnelQueryExecutor
         if (dimension.isPresent()) {
             query = String.format("SELECT (CASE WHEN rank > 15 THEN 'Others' ELSE cast(%s as varchar) END) as dimension, step, sum(total) from " +
                             "(select *, row_number() OVER(ORDER BY total DESC) rank from (%s) t) t GROUP BY 1, 2",
-                    dimension.map(ValidationUtil::checkTableColumn).get(), query);
+                    dimension.map(v -> checkTableColumn(v+segment2)).get(), query);
         }
         QueryExecution queryExecution = executor.executeRawQuery(query, timezone);
 

@@ -3,6 +3,7 @@ package org.rakam.postgresql.analysis;
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.google.common.collect.ImmutableList;
 import org.rakam.analysis.FunnelQueryExecutor;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
 import org.rakam.report.DelegateQueryExecution;
@@ -16,9 +17,9 @@ import javax.inject.Inject;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -28,7 +29,6 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static org.rakam.collection.FieldType.LONG;
 import static org.rakam.collection.FieldType.STRING;
-import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
@@ -37,19 +37,40 @@ public class FastGenericFunnelQueryExecutor
 {
     private final ProjectConfig projectConfig;
     private final QueryExecutorService executor;
+    private final Metastore metastore;
+    private Map<FunnelTimestampSegments, String> timeStampMapping;
+
 
     @Inject
-    public FastGenericFunnelQueryExecutor(QueryExecutorService executor, ProjectConfig projectConfig)
+    public FastGenericFunnelQueryExecutor(QueryExecutorService executor, ProjectConfig projectConfig, Metastore metastore)
     {
         this.projectConfig = projectConfig;
         this.executor = executor;
+        this.metastore = metastore;
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId timezone, Optional<List<String>> connectors, FunnelType funnelType)
+    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId timezone, Optional<List<String>> connectors, FunnelType funnelType)
     {
-        if(dimension.map(v -> projectConfig.getTimeColumn().equals(v) || projectConfig.getUserColumn().equals(v)).orElse(false)) {
-            throw new RakamException("user or time columns can't be used as dimension", BAD_REQUEST);
+        if(dimension.map(v -> projectConfig.getUserColumn().equals(v)).orElse(false)) {
+            throw new RakamException("user column can't be used as dimension", BAD_REQUEST);
+        }
+
+        if(dimension.isPresent()) {
+            if(dimension.get().equals(projectConfig.getTimeColumn())) {
+                if(!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
+                    throw new RakamException("When dimension is time, segmenting should be done on timestamp field.", BAD_REQUEST);
+                }
+            }
+            if(metastore.getCollections(project).entrySet().stream()
+                    .filter(c -> !c.getValue().contains(dimension.get())).findAny().get().getValue().stream()
+                    .filter(d -> d.getName().equals(dimension.get())).findAny().get().getType().getPrettyName().equals("TIMESTAMP")) {
+                if(!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
+                    throw new RakamException("When dimension is of type TIMESTAMP, segmenting should be done on timestamp field.", BAD_REQUEST);
+                }
+            }
+        } else if(segment.isPresent()) {
+            throw new RakamException("Dimension can't be null when segment is not.", BAD_REQUEST);
         }
 
         if (funnelType == FunnelType.ORDERED) {
@@ -84,11 +105,13 @@ public class FastGenericFunnelQueryExecutor
             }
 
             insideSelect.add(format("min(case when step = %d then %s end) as ts_event%d", i, checkTableColumn(projectConfig.getTimeColumn()), i));
-            mainSelect.add(format("select %s %d as step, %s, %s from %s where %s between timestamp '%s' and timestamp '%s' and %s",
+            mainSelect.add(format("select %s %s %d as step, %s %s from %s where %s between timestamp '%s' and timestamp '%s' and %s",
                     dimension.map(v -> checkTableColumn(v) + ", ").orElse(""),
+                    segment.isPresent() ? format(timeStampMapping.get(FunnelTimestampSegments.valueOf(segment.get().replace(" ", "_").toUpperCase())),
+                            dimension.get())+ " as "  + checkTableColumn(dimension.get()+"_segment") + ",":  "",
                     i,
                     connectorString,
-                    checkTableColumn(projectConfig.getTimeColumn()),
+                    segment.isPresent() ? "" : ", " + checkTableColumn(projectConfig.getTimeColumn()),
                     checkCollection(steps.get(i).getCollection()),
                     checkTableColumn(projectConfig.getTimeColumn()),
                     startDate,
@@ -96,7 +119,14 @@ public class FastGenericFunnelQueryExecutor
                     filterExp.orElse("true")));
         }
 
-        String dimensions = dimension.map(v -> checkTableColumn(v) + ", ").orElse("");
+        String dimensions = "";
+
+        if(segment.isPresent()) {
+            dimensions = checkTableColumn(projectConfig.getTimeColumn() + "_segment") + ", ";
+        } else if(dimension.isPresent()) {
+            dimensions = dimension.map(v -> checkTableColumn(v) + ", ").orElse(""); // outer dimensions
+        }
+
         String query =  format("select %s %s\n" +
                         "from (select %s,\n" +
                         "            %s %s" +
@@ -116,7 +146,7 @@ public class FastGenericFunnelQueryExecutor
                 dimension.map(v -> " group by 1 order by 2 desc").orElse(""));
 
         String collect = leasts.stream().collect(Collectors.joining(", "));
-        if(dimension.isPresent()) {
+        if(dimension.isPresent() || segment.isPresent()) {
             query = format("SELECT %s %s FROM (%s) data WHERE event0_count > 0", dimensions, collect, query);
         } else {
             query = format("SELECT %s FROM (%s) data", collect, query);
@@ -133,7 +163,7 @@ public class FastGenericFunnelQueryExecutor
                     List<List<Object>> newResult = new ArrayList<>();
                     List<SchemaField> metadata;
 
-                    if (dimension.isPresent()) {
+                    if (dimension.isPresent() || segment.isPresent()) {
                         metadata = ImmutableList.of(
                                 new SchemaField("step", STRING),
                                 new SchemaField("dimension", STRING),
@@ -161,5 +191,9 @@ public class FastGenericFunnelQueryExecutor
 
                     return new QueryResult(metadata, newResult, result.getProperties());
                 });
+    }
+
+    public void setTimeStampMapping(Map<FunnelTimestampSegments, String> timeStampMapping) {
+        this.timeStampMapping = timeStampMapping;
     }
 }
