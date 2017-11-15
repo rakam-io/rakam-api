@@ -22,6 +22,7 @@ import org.rakam.util.RakamException;
 import javax.inject.Inject;
 import javax.inject.Named;
 import java.sql.*;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -360,6 +361,11 @@ public class PostgresqlMetastore
         catch (SQLException e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    @Override
+    public List<String> getAttributes(String project, String collection, SchemaField field, Optional<LocalDate> startDate, Optional<LocalDate> endDate, Optional<String> query) {
+        return null;
     }
 
     public HashSet<String> getViews(String project)

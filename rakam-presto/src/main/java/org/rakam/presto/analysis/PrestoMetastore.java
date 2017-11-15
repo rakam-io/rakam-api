@@ -30,6 +30,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -315,6 +316,11 @@ public class PrestoMetastore
                 throw new IllegalStateException(e.getMessage());
             }
         }
+    }
+
+    @Override
+    public List<String> getAttributes(String project, String collection, SchemaField field, Optional<LocalDate> startDate, Optional<LocalDate> endDate, Optional<String> query) {
+        return null;
     }
 
     @VisibleForTesting

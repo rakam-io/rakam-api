@@ -10,12 +10,8 @@ import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.collection.SchemaField;
 import org.rakam.util.NotExistsException;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.time.LocalDate;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -77,5 +73,10 @@ public class InMemoryMetastore extends AbstractMetastore {
         collections.remove(project);
         apiKeyService.revokeAllKeys(project);
         super.onDeleteProject(project);
+    }
+
+    @Override
+    public List<String> getAttributes(String project, String collection, SchemaField field, Optional<LocalDate> startDate, Optional<LocalDate> endDate, Optional<String> query) {
+        return null;
     }
 }

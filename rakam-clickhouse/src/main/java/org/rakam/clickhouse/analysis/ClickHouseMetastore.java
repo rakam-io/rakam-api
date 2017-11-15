@@ -13,6 +13,7 @@ import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -227,5 +228,10 @@ public class ClickHouseMetastore
     public void deleteProject(String project)
     {
 
+    }
+
+    @Override
+    public List<String> getAttributes(String project, String collection, SchemaField field, Optional<LocalDate> startDate, Optional<LocalDate> endDate, Optional<String> query) {
+        return null;
     }
 }
