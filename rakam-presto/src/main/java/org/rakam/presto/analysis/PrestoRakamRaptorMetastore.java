@@ -435,7 +435,8 @@ public class PrestoRakamRaptorMetastore
     }
 
     @Override
-    public List<String> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate, Optional<LocalDate> endDate, Optional<String> query) {
+    public List<String> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate,
+                                      Optional<LocalDate> endDate, Optional<String> query, Optional<String> filter) {
 
         if(project == null) {
             return ImmutableList.of();
@@ -464,10 +465,12 @@ public class PrestoRakamRaptorMetastore
         if(startDate.isPresent() || endDate.isPresent()) {
             String startDateStr = startDate.isPresent() ? startDate.get().toString() : "1970-1-1";
             String endDateStr = endDate.isPresent() ? endDate.get().plusDays(1).toString() : LocalDate.now().toString();
-            prestoQuery += format(" where %s BETWEEN date '%s' and date '%s' LIMIT 10",
+            prestoQuery += format(" where %s BETWEEN date '%s' and date '%s' and %s like '%s%%' LIMIT 10",
                     checkTableColumn(projectConfig.getTimeColumn()),
                     startDateStr,
-                    endDateStr);
+                    endDateStr,
+                    attribute,
+                    filter.orElse(""));
         }
         try {
             QueryResult queryResult = new PrestoQueryExecution(defaultSession, prestoQuery, true).getResult().get();

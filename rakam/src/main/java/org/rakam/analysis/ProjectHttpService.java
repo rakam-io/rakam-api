@@ -270,8 +270,10 @@ public class ProjectHttpService
                                    @ApiParam("attribute") String attribute,
                                    @ApiParam(value = "startDate", required = false) LocalDate startDate,
                                    @ApiParam(value = "endDate", required = false) LocalDate endDate,
-                                   @ApiParam(value = "query", required = false) String query) {
-        return metastore.getAttributes(project, collection, attribute, Optional.ofNullable(startDate), Optional.ofNullable(endDate), Optional.ofNullable(query));
+                                   @ApiParam(value = "query", required = false) String query,
+                                   @ApiParam(value = "filter", required = false) String filter)  {
+        return metastore.getAttributes(project, collection, attribute, Optional.ofNullable(startDate),
+                Optional.ofNullable(endDate), Optional.ofNullable(query), Optional.ofNullable(filter));
     }
 
     public static class Collection {
