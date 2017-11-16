@@ -267,11 +267,11 @@ public class ProjectHttpService
     @Path("/attributes")
     public List<String> attributes(@ApiParam("project") String project,
                                    @ApiParam("collection") String collection,
-                                   @ApiParam("field") SchemaField field,
+                                   @ApiParam("attribute") String attribute,
                                    @ApiParam(value = "startDate", required = false) LocalDate startDate,
                                    @ApiParam(value = "endDate", required = false) LocalDate endDate,
                                    @ApiParam(value = "query", required = false) String query) {
-        return metastore.getAttributes(project, collection, field, Optional.ofNullable(startDate), Optional.ofNullable(endDate), Optional.ofNullable(query));
+        return metastore.getAttributes(project, collection, attribute, Optional.ofNullable(startDate), Optional.ofNullable(endDate), Optional.ofNullable(query));
     }
 
     public static class Collection {

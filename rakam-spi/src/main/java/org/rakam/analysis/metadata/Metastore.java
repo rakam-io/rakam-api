@@ -24,7 +24,7 @@ public interface Metastore {
 
     Map<String, Stats> getStats(Collection<String> projects);
 
-    List<String> getAttributes(String project, String collection, SchemaField field, Optional<LocalDate> startDate, Optional<LocalDate> endDate, Optional<String> query);
+    List<String> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate, Optional<LocalDate> endDate, Optional<String> query);
 
     default void setup() {}
 

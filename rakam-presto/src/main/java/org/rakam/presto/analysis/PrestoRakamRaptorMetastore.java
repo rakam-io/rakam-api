@@ -99,6 +99,7 @@ public class PrestoRakamRaptorMetastore
     private final PrestoConfig prestoConfig;
     private final ClientSession defaultSession;
     private final ProjectConfig projectConfig;
+    private final static double samplingThreshold = 1000000;
 
     @Inject
     public PrestoRakamRaptorMetastore(
@@ -434,26 +435,28 @@ public class PrestoRakamRaptorMetastore
     }
 
     @Override
-    public List<String> getAttributes(String project, String collection, SchemaField field, Optional<LocalDate> startDate, Optional<LocalDate> endDate, Optional<String> query) {
+    public List<String> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate, Optional<LocalDate> endDate, Optional<String> query) {
 
         if(project == null) {
             return ImmutableList.of();
         }
 
         int samplePercentage = 100;
-        long numRows = 0;
-        String countQuery = format("select sum(shards.row_count) as row_count from tables join shards on (shards.table_id = tables.table_id) where table_name = \"%s\"", collection);
+        long numRows;
         try (Handle handle = dbi.open()) {
-            numRows = handle.createQuery(countQuery).map(LongMapper.FIRST).iterator().next();
+            numRows = handle.createQuery("select sum(shards.row_count) as row_count from tables join shards on (shards.table_id = tables.table_id) where table_name = :collection and schema_name = :schema")
+                    .bind("collection", collection)
+                    .bind("schema", project)
+                    .map(LongMapper.FIRST).iterator().next();
         }
 
-        if(numRows > 100000) {
-            samplePercentage = (int) ((100000.0d / numRows) * 100) ;
+        if(numRows > samplingThreshold) {
+            samplePercentage = (int) ((samplingThreshold / numRows) * 100) ;
         }
 
         String prestoQuery;
         prestoQuery = format("select distinct %s from %s.\"%s\".\"%s\" tablesample system (%d)",
-                field.getName(),
+                attribute,
                 prestoConfig.getColdStorageConnector(),
                 project,
                 collection,
