@@ -24,6 +24,7 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import java.sql.*;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -373,6 +374,11 @@ public class PostgresqlMetastore
         try(Connection conn = connectionPool.getConnection()) {
             String queryPrep = String.format("SELECT DISTINCT %s as result FROM %s.%s where %s like ?", attribute, project, collection, attribute);
             if(startDate.isPresent() || endDate.isPresent()) {
+                if(startDate.isPresent() && endDate.isPresent()) {
+                    if(ChronoUnit.DAYS.between(startDate.get(), endDate.get()) > 30) {
+                        throw new UnsupportedOperationException("Start date and end date must be within 30 days.");
+                    }
+                }
                 String startDateStr = startDate.isPresent() ? startDate.get().toString() : endDate.get().minusDays(30).toString();
                 String endDateStr = endDate.isPresent() ? endDate.get().plusDays(1).toString() : startDate.get().plusDays(30).toString();
                 queryPrep = String.format("%s AND %s >= '%s'::date AND %s <= '%s'::date",

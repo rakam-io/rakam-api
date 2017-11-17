@@ -46,19 +46,17 @@ import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.*;
 import org.skife.jdbi.v2.exceptions.DBIException;
-import org.skife.jdbi.v2.util.IntegerMapper;
 import org.skife.jdbi.v2.util.LongMapper;
 import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.annotation.PostConstruct;
-import javax.annotation.concurrent.Immutable;
 import javax.inject.Inject;
 
 import java.lang.invoke.MethodHandle;
 import java.sql.JDBCType;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiPredicate;
@@ -86,7 +84,6 @@ import static org.rakam.collection.FieldType.LONG;
 import static org.rakam.collection.FieldType.TIMESTAMP;
 import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
 import static org.rakam.presto.analysis.PrestoQueryExecution.isServerInactive;
-import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
 import static org.rakam.util.ValidationUtil.*;
 
 public class PrestoRakamRaptorMetastore
@@ -451,8 +448,18 @@ public class PrestoRakamRaptorMetastore
                     .map(LongMapper.FIRST).iterator().next();
         }
 
-        if(numRows > samplingThreshold) {
-            samplePercentage = (int) ((samplingThreshold / numRows) * 100) ;
+        String getNodeCount = "select count(*) from system.runtime.nodes";
+        long nodeCount = 1;
+        try {
+            QueryResult queryResult = new PrestoQueryExecution(defaultSession, getNodeCount, true).getResult().get();
+            nodeCount = ((Long) queryResult.getResult().get(0).get(0));
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.error("Couldn't get node count", e.getMessage());
+        }
+
+        double adjustedSamplingThreshold = samplingThreshold * nodeCount;
+        if(numRows > adjustedSamplingThreshold) {
+            samplePercentage = (int) ((adjustedSamplingThreshold / numRows) * 100) ;
         }
 
         String prestoQuery;
@@ -463,8 +470,13 @@ public class PrestoRakamRaptorMetastore
                 collection,
                 samplePercentage);
         if(startDate.isPresent() || endDate.isPresent()) {
-            String startDateStr = startDate.isPresent() ? startDate.get().toString() : "1970-1-1";
-            String endDateStr = endDate.isPresent() ? endDate.get().plusDays(1).toString() : LocalDate.now().toString();
+            if(startDate.isPresent() && endDate.isPresent()) {
+                if(ChronoUnit.DAYS.between(startDate.get(), endDate.get()) > 30) {
+                    throw new UnsupportedOperationException("Start date and end date must be within 30 days.");
+                }
+            }
+            String startDateStr = startDate.isPresent() ? startDate.get().toString() : endDate.get().minusDays(30).toString();
+            String endDateStr = endDate.isPresent() ? endDate.get().plusDays(1).toString() : startDate.get().plusDays(30).toString();
             prestoQuery += format(" where %s BETWEEN date '%s' and date '%s' and %s like '%s%%' LIMIT 10",
                     checkTableColumn(projectConfig.getTimeColumn()),
                     startDateStr,
@@ -474,7 +486,9 @@ public class PrestoRakamRaptorMetastore
         }
         try {
             QueryResult queryResult = new PrestoQueryExecution(defaultSession, prestoQuery, true).getResult().get();
-            return queryResult.getResult().stream().map(v -> v.toString()).collect(Collectors.toList());
+            return queryResult.getResult().stream()
+                    .map(object -> Objects.toString(object.get(0), null))
+                    .collect(Collectors.toList());
         } catch (InterruptedException | ExecutionException e) {
             LOGGER.error("Query failed", e.getMessage());
             return ImmutableList.of();
