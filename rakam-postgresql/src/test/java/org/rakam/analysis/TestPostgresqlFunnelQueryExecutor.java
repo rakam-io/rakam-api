@@ -34,7 +34,7 @@ public class TestPostgresqlFunnelQueryExecutor extends TestFunnelQueryExecutor {
         JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(testingPostgresqlServer.getPostgresqlConfig());
 
         FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
-        metastore = new PostgresqlMetastore(dataSource, new PostgresqlModule.PostgresqlVersion(dataSource), new EventBus());
+        metastore = new PostgresqlMetastore(dataSource, new PostgresqlModule.PostgresqlVersion(dataSource), new EventBus(), new ProjectConfig());
 
         PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(new ProjectConfig(), dataSource, metastore, new CustomDataSourceService(dataSource), false);
         eventStore = new PostgresqlEventStore(dataSource, new PostgresqlModule.PostgresqlVersion(dataSource), build);

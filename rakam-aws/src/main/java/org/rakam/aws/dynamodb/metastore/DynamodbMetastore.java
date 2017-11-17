@@ -273,7 +273,7 @@ public class DynamodbMetastore
 
     @Override
     public List<String> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate,
-                                      Optional<LocalDate> endDate, Optional<String> query, Optional<String> filter) {
+                                      Optional<LocalDate> endDate, Optional<String> filter) {
         throw new UnsupportedOperationException();
     }
 
