@@ -91,7 +91,7 @@ public class PrestoApproxFunnelQueryExecutor
                     startDateStr, endDateStr,
                     getFilterExp(steps.get(step)))).collect(Collectors.joining(" union all "));
 
-            query = format("select step, dimension, approx_funnel(user_sets) OVER (PARTITION BY dimension ORDER BY step) as count from (select dimension, step, approx_set(_user) user_sets from (%s) where dimension is not null group by 1, 2)", queries);
+            query = format("select step, dimension, cast(approx_funnel(user_sets) OVER (PARTITION BY dimension ORDER BY step) as bigint) as count from (select dimension, step, approx_set(_user) user_sets from (%s) where dimension is not null group by 1, 2)", queries);
         }
         else {
             String queries = steps.stream().map(step -> String.format("(select approx_set(%s) from %s where %s between timestamp '%s' and timestamp '%s' and %s )",
@@ -120,7 +120,7 @@ public class PrestoApproxFunnelQueryExecutor
                         newResult = result.getResult();
 
                         for (List<Object> objects : result.getResult()) {
-                            objects.set(0, "Step "+objects.get(0));
+                            objects.set(0, "Step "+ ((int) objects.get(0)+1));
                         }
                     }
                     else {
