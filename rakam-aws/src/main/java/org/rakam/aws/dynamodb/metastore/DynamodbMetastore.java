@@ -37,6 +37,7 @@ import org.rakam.util.RakamException;
 
 import javax.annotation.PostConstruct;
 
+import java.time.LocalDate;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -268,6 +269,12 @@ public class DynamodbMetastore
         }
 
         throw new RakamException("Unable to delete project", HttpResponseStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @Override
+    public List<String> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate,
+                                      Optional<LocalDate> endDate, Optional<String> filter) {
+        throw new UnsupportedOperationException();
     }
 
     @VisibleForTesting

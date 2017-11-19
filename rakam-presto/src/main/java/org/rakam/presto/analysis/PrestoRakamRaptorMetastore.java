@@ -29,6 +29,7 @@ import com.facebook.presto.spi.type.TypeSignature;
 import com.facebook.presto.spi.type.TypeSignatureParameter;
 import com.facebook.presto.spi.type.VarbinaryType;
 import com.facebook.presto.spi.type.VarcharType;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
@@ -43,12 +44,9 @@ import org.rakam.report.QueryResult;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
-import org.skife.jdbi.v2.DBI;
-import org.skife.jdbi.v2.Handle;
-import org.skife.jdbi.v2.IDBI;
-import org.skife.jdbi.v2.TransactionCallback;
-import org.skife.jdbi.v2.TransactionStatus;
+import org.skife.jdbi.v2.*;
 import org.skife.jdbi.v2.exceptions.DBIException;
+import org.skife.jdbi.v2.util.LongMapper;
 import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.annotation.PostConstruct;
@@ -56,16 +54,11 @@ import javax.inject.Inject;
 
 import java.lang.invoke.MethodHandle;
 import java.sql.JDBCType;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.TimeZone;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -91,9 +84,7 @@ import static org.rakam.collection.FieldType.LONG;
 import static org.rakam.collection.FieldType.TIMESTAMP;
 import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
 import static org.rakam.presto.analysis.PrestoQueryExecution.isServerInactive;
-import static org.rakam.util.ValidationUtil.checkCollection;
-import static org.rakam.util.ValidationUtil.checkLiteral;
-import static org.rakam.util.ValidationUtil.checkProject;
+import static org.rakam.util.ValidationUtil.*;
 
 public class PrestoRakamRaptorMetastore
         extends PrestoAbstractMetastore
@@ -105,6 +96,7 @@ public class PrestoRakamRaptorMetastore
     private final PrestoConfig prestoConfig;
     private final ClientSession defaultSession;
     private final ProjectConfig projectConfig;
+    private final static double samplingThreshold = 1000000;
 
     @Inject
     public PrestoRakamRaptorMetastore(
@@ -436,6 +428,70 @@ public class PrestoRakamRaptorMetastore
             }
 
             return map;
+        }
+    }
+
+    @Override
+    public List<String> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate,
+                                      Optional<LocalDate> endDate, Optional<String> filter) {
+
+        if(project == null) {
+            return ImmutableList.of();
+        }
+
+        int samplePercentage = 100;
+        long numRows;
+        try (Handle handle = dbi.open()) {
+            numRows = handle.createQuery("select sum(shards.row_count) as row_count from tables join shards on (shards.table_id = tables.table_id) where table_name = :collection and schema_name = :schema")
+                    .bind("collection", collection)
+                    .bind("schema", project)
+                    .map(LongMapper.FIRST).iterator().next();
+        }
+
+        String getNodeCount = "select count(*) from system.runtime.nodes";
+        long nodeCount = 1;
+        try {
+            QueryResult queryResult = new PrestoQueryExecution(defaultSession, getNodeCount, true).getResult().get();
+            nodeCount = ((Long) queryResult.getResult().get(0).get(0));
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.error("Couldn't get node count", e.getMessage());
+        }
+
+        double adjustedSamplingThreshold = samplingThreshold * nodeCount;
+        if(numRows > adjustedSamplingThreshold) {
+            samplePercentage = (int) ((adjustedSamplingThreshold / numRows) * 100) ;
+        }
+
+        String prestoQuery;
+        prestoQuery = format("select distinct %s from %s.\"%s\".\"%s\" tablesample system (%d)",
+                attribute,
+                prestoConfig.getColdStorageConnector(),
+                project,
+                collection,
+                samplePercentage);
+        if(startDate.isPresent() || endDate.isPresent()) {
+            if(startDate.isPresent() && endDate.isPresent()) {
+                if(ChronoUnit.DAYS.between(startDate.get(), endDate.get()) > 30) {
+                    throw new UnsupportedOperationException("Start date and end date must be within 30 days.");
+                }
+            }
+            String startDateStr = startDate.isPresent() ? startDate.get().toString() : endDate.get().minusDays(30).toString();
+            String endDateStr = endDate.isPresent() ? endDate.get().plusDays(1).toString() : startDate.get().plusDays(30).toString();
+            prestoQuery += format(" where %s BETWEEN date '%s' and date '%s' and %s like '%s%%' LIMIT 10",
+                    checkTableColumn(projectConfig.getTimeColumn()),
+                    startDateStr,
+                    endDateStr,
+                    attribute,
+                    filter.orElse(""));
+        }
+        try {
+            QueryResult queryResult = new PrestoQueryExecution(defaultSession, prestoQuery, true).getResult().get();
+            return queryResult.getResult().stream()
+                    .map(object -> Objects.toString(object.get(0), null))
+                    .collect(Collectors.toList());
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.error("Query failed", e.getMessage());
+            return ImmutableList.of();
         }
     }
 
