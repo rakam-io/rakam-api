@@ -29,7 +29,7 @@ public class TestPostgresqlContinuousQueryService extends TestContinuousQuerySer
         InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();
         JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(testingPostgresqlServer.getPostgresqlConfig());
 
-        metastore = new PostgresqlMetastore(dataSource, new PostgresqlModule.PostgresqlVersion(dataSource), new EventBus());
+        metastore = new PostgresqlMetastore(dataSource, new PostgresqlModule.PostgresqlVersion(dataSource), new EventBus(), new ProjectConfig());
 
         PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(new ProjectConfig(), dataSource, metastore, new CustomDataSourceService(dataSource), false);
         QueryExecutorService executorService = new QueryExecutorService(queryExecutor, metastore,

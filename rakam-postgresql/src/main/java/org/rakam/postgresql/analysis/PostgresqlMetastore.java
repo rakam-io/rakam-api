@@ -14,6 +14,7 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.AbstractMetastore;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
+import org.rakam.config.ProjectConfig;
 import org.rakam.postgresql.PostgresqlModule.PostgresqlVersion;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.ProjectCollection;
@@ -22,6 +23,8 @@ import org.rakam.util.RakamException;
 import javax.inject.Inject;
 import javax.inject.Named;
 import java.sql.*;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -39,13 +42,15 @@ public class PostgresqlMetastore
     private LoadingCache<ProjectCollection, List<SchemaField>> schemaCache;
     private LoadingCache<String, Set<String>> collectionCache;
     private final JDBCPoolDataSource connectionPool;
+    private final ProjectConfig projectConfig;
 
     @Inject
-    public PostgresqlMetastore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, PostgresqlVersion version, EventBus eventBus)
+    public PostgresqlMetastore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, PostgresqlVersion version, EventBus eventBus, ProjectConfig projectConfig)
     {
         super(eventBus);
         this.connectionPool = connectionPool;
         this.version = version.getVersion();
+        this.projectConfig = projectConfig;
 
         schemaCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<ProjectCollection, List<SchemaField>>()
         {
@@ -358,6 +363,38 @@ public class PostgresqlMetastore
             return map;
         }
         catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    @Override
+    public List<String> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate,
+                                      Optional<LocalDate> endDate, Optional<String> filter) {
+
+        try(Connection conn = connectionPool.getConnection()) {
+            String queryPrep = String.format("SELECT DISTINCT %s as result FROM %s.%s where %s like ?", attribute, project, collection, attribute);
+            if(startDate.isPresent() || endDate.isPresent()) {
+                if(startDate.isPresent() && endDate.isPresent()) {
+                    if(ChronoUnit.DAYS.between(startDate.get(), endDate.get()) > 30) {
+                        throw new UnsupportedOperationException("Start date and end date must be within 30 days.");
+                    }
+                }
+                String startDateStr = startDate.isPresent() ? startDate.get().toString() : endDate.get().minusDays(30).toString();
+                String endDateStr = endDate.isPresent() ? endDate.get().plusDays(1).toString() : startDate.get().plusDays(30).toString();
+                queryPrep = String.format("%s AND %s >= '%s'::date AND %s <= '%s'::date",
+                        queryPrep, projectConfig.getTimeColumn(), startDateStr, projectConfig.getTimeColumn(), endDateStr);
+            }
+            queryPrep += " LIMIT 10";
+            PreparedStatement getCount = conn.prepareStatement(queryPrep);
+            getCount.setString(1, filter.orElse("")+ "%");
+            ResultSet rs = getCount.executeQuery();
+
+            List<String> result = new ArrayList<>();
+            while(rs.next()) {
+                result.add(rs.getString("result"));
+            }
+            return result;
+        } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
     }

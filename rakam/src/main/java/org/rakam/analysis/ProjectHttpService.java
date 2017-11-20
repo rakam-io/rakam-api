@@ -27,6 +27,7 @@ import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -258,6 +259,20 @@ public class ProjectHttpService
     public SuccessMessage revokeApiKeys(@ApiParam("project") String project, @ApiParam("master_key") String masterKey) {
         apiKeyService.revokeApiKeys(project, masterKey);
         return SuccessMessage.success();
+    }
+
+    @JsonRequest
+    @ApiOperation(value = "Get possible attribute values",
+            authorizations = @Authorization(value = "read_key"))
+    @Path("/attributes")
+    public List<String> attributes(@ApiParam("project") String project,
+                                   @ApiParam("collection") String collection,
+                                   @ApiParam("attribute") String attribute,
+                                   @ApiParam(value = "startDate", required = false) LocalDate startDate,
+                                   @ApiParam(value = "endDate", required = false) LocalDate endDate,
+                                   @ApiParam(value = "filter", required = false) String filter)  {
+        return metastore.getAttributes(project, collection, attribute, Optional.ofNullable(startDate),
+                Optional.ofNullable(endDate), Optional.ofNullable(filter));
     }
 
     public static class Collection {

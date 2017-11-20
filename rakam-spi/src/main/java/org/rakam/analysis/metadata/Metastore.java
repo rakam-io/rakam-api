@@ -3,10 +3,8 @@ package org.rakam.analysis.metadata;
 import org.rakam.collection.SchemaField;
 import org.rakam.util.NotExistsException;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.time.LocalDate;
+import java.util.*;
 
 
 public interface Metastore {
@@ -25,6 +23,8 @@ public interface Metastore {
     void deleteProject(String project);
 
     Map<String, Stats> getStats(Collection<String> projects);
+
+    List<String> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate, Optional<LocalDate> endDate, Optional<String> filter);
 
     default void setup() {}
 
