@@ -9,42 +9,23 @@ import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.server.http.HttpService;
-import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.BodyParam;
-import org.rakam.server.http.annotations.HeaderParam;
-import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.*;
 import org.rakam.util.CryptUtil;
-import org.rakam.util.SuccessMessage;
 import org.rakam.util.RakamException;
+import org.rakam.util.SuccessMessage;
 
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-
 import java.time.LocalDate;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
-import static io.netty.handler.codec.http.HttpResponseStatus.NOT_IMPLEMENTED;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static java.util.Locale.ENGLISH;
-import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
-import static org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY;
-import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.*;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 @Path("/project")
@@ -265,7 +246,7 @@ public class ProjectHttpService
     @ApiOperation(value = "Get possible attribute values",
             authorizations = @Authorization(value = "read_key"))
     @Path("/attributes")
-    public List<String> attributes(@ApiParam("project") String project,
+    public List<String> attributes(@Named("project") String project,
                                    @ApiParam("collection") String collection,
                                    @ApiParam("attribute") String attribute,
                                    @ApiParam(value = "startDate", required = false) LocalDate startDate,
