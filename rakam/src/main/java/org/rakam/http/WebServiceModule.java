@@ -11,12 +11,8 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.swagger.models.Contact;
-import io.swagger.models.Info;
-import io.swagger.models.License;
+import io.swagger.models.*;
 import io.swagger.models.Response;
-import io.swagger.models.Swagger;
-import io.swagger.models.Tag;
 import io.swagger.models.auth.ApiKeyAuthDefinition;
 import io.swagger.models.auth.In;
 import io.swagger.models.properties.RefProperty;
@@ -26,34 +22,19 @@ import org.rakam.ServiceStarter;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.CustomParameter;
 import org.rakam.analysis.RequestPreProcessorItem;
-import org.rakam.server.http.HttpRequestException;
-import org.rakam.server.http.HttpRequestHandler;
-import org.rakam.server.http.HttpServer;
-import org.rakam.server.http.HttpServerBuilder;
+import org.rakam.server.http.*;
 import org.rakam.server.http.HttpServerBuilder.IRequestParameterFactory;
-import org.rakam.server.http.HttpService;
-import org.rakam.server.http.IRequestParameter;
-import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.server.http.WebSocketService;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.Authorization;
-import org.rakam.ui.RakamUIWebService;
-import org.rakam.util.AllowCookie;
-import org.rakam.util.JsonHelper;
-import org.rakam.util.NotFoundHandler;
-import org.rakam.util.RakamException;
-import org.rakam.util.LogUtil;
+import org.rakam.util.*;
 
-import javax.annotation.Nullable;
 import javax.inject.Inject;
-
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
-import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_CREDENTIALS;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 
@@ -100,7 +81,6 @@ public class WebServiceModule
                         .url("http://www.apache.org/licenses/LICENSE-2.0.html"));
 
         Swagger swagger = new Swagger().info(info)
-                .host("app.rakam.io")
                 .basePath("/")
                 .tags(ImmutableList.copyOf(tags))
                 .securityDefinition("write_key", new ApiKeyAuthDefinition().in(In.HEADER).name("write_key"))

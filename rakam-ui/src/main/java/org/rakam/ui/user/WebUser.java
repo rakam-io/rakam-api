@@ -3,6 +3,7 @@ package org.rakam.ui.user;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.analysis.ApiKeyService.ProjectApiKeys;
 
+import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
 
@@ -13,11 +14,13 @@ public class WebUser {
     public final boolean readOnly;
     public final String intercomHash;
     public final List<Project> projects;
+    public final Instant createdAt;
 
-    public WebUser(int id, String email, String name, boolean readOnly, String intercomHash, List<Project> projects) {
+    public WebUser(int id, String email, String name, boolean readOnly, Instant createdAt, String intercomHash, List<Project> projects) {
         this.id = id;
         this.email = email;
         this.name = name;
+        this.createdAt = createdAt;
         this.readOnly = readOnly;
         this.intercomHash = intercomHash;
         this.projects = projects;

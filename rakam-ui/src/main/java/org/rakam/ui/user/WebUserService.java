@@ -41,8 +41,6 @@ import org.skife.jdbi.v2.util.StringMapper;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import javax.mail.MessagingException;
-import javax.xml.bind.DatatypeConverter;
-
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -51,31 +49,18 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.zone.ZoneRulesException;
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.google.common.base.Charsets.UTF_8;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.EXPECTATION_FAILED;
-import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
-import static io.netty.handler.codec.http.HttpResponseStatus.PRECONDITION_REQUIRED;
-import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static java.lang.Boolean.TRUE;
 import static java.lang.String.format;
 import static java.time.temporal.ChronoUnit.HOURS;
@@ -288,7 +273,7 @@ public class WebUserService
                         .bind("googleId", googleId)
                         .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
 
-                webuser = new WebUser(id, email, name, false, generateIntercomHash(email), ImmutableList.of());
+                webuser = new WebUser(id, email, name, false, Instant.now(), generateIntercomHash(email), ImmutableList.of());
             }
             catch (UnableToExecuteStatementException e) {
                 Map<String, Object> existingUser = handle.createQuery("SELECT created_at FROM web_user WHERE lower(email) = lower(:email)").bind("email", email).first();
@@ -303,7 +288,7 @@ public class WebUserService
                                 .bind("name", name)
                                 .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
                         if (id > 0) {
-                            webuser = new WebUser(id, email, name, false, generateIntercomHash(email), ImmutableList.of());
+                            webuser = new WebUser(id, email, name, false, Instant.now(), generateIntercomHash(email), ImmutableList.of());
                         }
                     }
                 }
@@ -808,7 +793,7 @@ public class WebUserService
         String passwordInDb;
         try (Handle handle = dbi.open()) {
             data = handle
-                    .createQuery("SELECT id, name, password, read_only FROM web_user WHERE lower(email) = lower(:email)")
+                    .createQuery("SELECT id, name, password, read_only, created_at FROM web_user WHERE lower(email) = lower(:email)")
                     .bind("email", email).first();
 
             if (authService != null) {
@@ -856,8 +841,9 @@ public class WebUserService
             String name = (String) data.get("name");
             int id = (int) data.get("id");
             boolean readOnly = (boolean) data.get("read_only");
+            Timestamp createdAt = (Timestamp) data.get("created_at");
             projects = getUserApiKeys(handle, id);
-            return Optional.of(new WebUser(id, email, name, readOnly, generateIntercomHash(email), projects));
+            return Optional.of(new WebUser(id, email, name, readOnly, createdAt.toInstant(), generateIntercomHash(email), projects));
         }
     }
 
@@ -867,7 +853,7 @@ public class WebUserService
 
         try (Handle handle = dbi.open()) {
             final Map<String, Object> data = handle
-                    .createQuery("SELECT id, name, read_only FROM web_user WHERE lower(email) = lower(:email)")
+                    .createQuery("SELECT id, name, read_only, created_at FROM web_user WHERE lower(email) = lower(:email)")
                     .bind("email", email).first();
             if (data == null) {
                 return Optional.empty();
@@ -875,9 +861,10 @@ public class WebUserService
             String name = (String) data.get("name");
             int id = (int) data.get("id");
             boolean readOnly = (boolean) data.get("read_only");
+            Timestamp createdAt = (Timestamp) data.get("created_at");
 
             projectDefinitions = getUserApiKeys(handle, id);
-            return Optional.of(new WebUser(id, email, name, readOnly, generateIntercomHash(email), projectDefinitions));
+            return Optional.of(new WebUser(id, email, name, readOnly, createdAt.toInstant(), generateIntercomHash(email), projectDefinitions));
         }
     }
 
@@ -887,18 +874,19 @@ public class WebUserService
 
         try (Handle handle = dbi.open()) {
             final Map<String, Object> data = handle
-                    .createQuery("SELECT id, name, email, read_only FROM web_user WHERE id = :id")
+                    .createQuery("SELECT id, name, email, read_only, created_at FROM web_user WHERE id = :id")
                     .bind("id", id).first();
             if (data == null) {
                 return Optional.empty();
             }
             String name = (String) data.get("name");
             String email = (String) data.get("email");
+            Timestamp createdAt = (Timestamp) data.get("created_at");
             id = (int) data.get("id");
 
             projectDefinitions = getUserApiKeys(handle, id);
             return Optional.of(new WebUser(id, email, name,
-                    (Boolean) data.get("read_only"), generateIntercomHash(email), projectDefinitions));
+                    (Boolean) data.get("read_only"), createdAt.toInstant(), generateIntercomHash(email), projectDefinitions));
         }
     }
 
