@@ -51,15 +51,20 @@ After docker container is started, visit [http://127.0.0.1:9999](http://127.0.0.
 [http://app.rakam.io/cluster/register](http://app.rakam.io/cluster/register?apiUrl=http:%2F%2F127.0.0.1:9999&lockKey=mylockKey)
 or directly use Rakam API. You may also consult to [API documentation](https://api.rakam.io) for details of the API.
 
-We also provide docker-compose definition for Postgresql backend. Create a `docker-compose.yml` with from this definition and run the command  `docker-compose run rakam-api -f docker-compose.yml`.
+We also provide a docker-compose definition for a Postgresql backend. Create a `docker-compose.yml` with this definition and run the command `docker-compose -f docker-compose.yml up -d`.
 
-    version: '2'
+    version: '2.1'
     services:
       rakam-db:
         image: postgres:10.1
         environment:
           - POSTGRES_PASSWORD=dummy
           - POSTGRES_USER=rakam
+        healthcheck:
+          test: ["CMD-SHELL", "pg_isready"]
+          interval: 5s
+          timeout: 5s
+          retries: 3
       rakam-api:
         image: buremba/rakam
         environment:
@@ -68,7 +73,8 @@ We also provide docker-compose definition for Postgresql backend. Create a `dock
         ports:
           - "9999:9999"
         depends_on:
-          - rakam-db
+          rakam-db:
+            condition: service_healthy
 
 You can set config variables for Rakam instance using environment variables. All properties in config.properties file can be set via environment variable `RAKAM_CONFIG_property_name_dots_replaced_by_underscore`.
 For example, if you want to set `store.adapter=postgresql` you need to set environment variable `RAKAM_CONFIG_STORE_ADAPTER=postgresql`. Also the dash `-` is replaced by double underscore character `__`. 
