@@ -42,6 +42,7 @@ public class PostgresqlMetastore
     private LoadingCache<String, Set<String>> collectionCache;
     private final JDBCPoolDataSource connectionPool;
     private final ProjectConfig projectConfig;
+    private final static double samplingThreshold = 1000000;
 
     @Inject
     public PostgresqlMetastore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, PostgresqlVersion version, EventBus eventBus, ProjectConfig projectConfig) {
@@ -345,10 +346,25 @@ public class PostgresqlMetastore
                                       Optional<LocalDate> endDate, Optional<String> filter) {
 
         try (Connection conn = connectionPool.getConnection()) {
-            String queryPrep = format("SELECT DISTINCT %s as result FROM %s.%s",
-                    checkCollection(attribute),
+
+            int samplePercentage = 100;
+            String countRows = format("SELECT COUNT(*) as row_count from %s.%s",
                     checkProject(project),
                     checkProject(collection));
+            PreparedStatement countRowsSt = conn.prepareStatement(countRows);
+            ResultSet totalRows = countRowsSt.executeQuery();
+            totalRows.next();
+            long totalRowCount = totalRows.getLong("row_count");
+
+            if (totalRowCount > samplingThreshold) {
+                samplePercentage = (int) ((samplingThreshold / totalRowCount) * 100) ;
+            }
+
+            String queryPrep = format("SELECT DISTINCT %s as result FROM %s.%s TABLESAMPLE SYSTEM(%d)",
+                    checkCollection(attribute),
+                    checkProject(project),
+                    checkProject(collection),
+                    samplePercentage);
             if (filter.isPresent() && !filter.get().isEmpty()) {
                 queryPrep += format(" where %s like ? escape '\\'", checkCollection(attribute));
             }

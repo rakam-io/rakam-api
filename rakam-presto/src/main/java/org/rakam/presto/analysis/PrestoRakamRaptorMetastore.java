@@ -443,8 +443,8 @@ public class PrestoRakamRaptorMetastore
         long numRows;
         try (Handle handle = dbi.open()) {
             numRows = handle.createQuery("select sum(shards.row_count) as row_count from tables join shards on (shards.table_id = tables.table_id) where table_name = :collection and schema_name = :schema")
-                    .bind("collection", collection)
-                    .bind("schema", project)
+                    .bind("collection", checkProject(collection))
+                    .bind("schema", checkProject(project))
                     .map(LongMapper.FIRST).iterator().next();
         }
 
@@ -464,10 +464,10 @@ public class PrestoRakamRaptorMetastore
 
         String prestoQuery;
         prestoQuery = format("select distinct %s from %s.\"%s\".\"%s\" tablesample system (%d)",
-                attribute,
+                checkCollection(attribute),
                 prestoConfig.getColdStorageConnector(),
-                project,
-                collection,
+                checkProject(project),
+                checkProject(collection),
                 samplePercentage);
         if(startDate.isPresent() || endDate.isPresent()) {
             if(startDate.isPresent() && endDate.isPresent()) {
@@ -477,12 +477,18 @@ public class PrestoRakamRaptorMetastore
             }
             String startDateStr = startDate.isPresent() ? startDate.get().toString() : endDate.get().minusDays(30).toString();
             String endDateStr = endDate.isPresent() ? endDate.get().plusDays(1).toString() : startDate.get().plusDays(30).toString();
-            prestoQuery += format(" where %s BETWEEN date '%s' and date '%s' and %s like '%s%%' LIMIT 10",
+            prestoQuery += format(" where %s BETWEEN date '%s' and date '%s' and %s like ",
                     checkTableColumn(projectConfig.getTimeColumn()),
                     startDateStr,
                     endDateStr,
-                    attribute,
-                    filter.orElse(""));
+                    checkCollection(attribute));
+
+            if (filter.isPresent() && !filter.get().isEmpty()) {
+                prestoQuery += "'%" + filter.get().replaceAll("%", "\\%").replaceAll("_", "\\_") + "%'";
+            } else {
+                prestoQuery += "'%'";
+            }
+            prestoQuery += " escape '\\' LIMIT 10";
         }
         try {
             QueryResult queryResult = new PrestoQueryExecution(defaultSession, prestoQuery, true).getResult().get();

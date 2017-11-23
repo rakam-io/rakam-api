@@ -7,6 +7,7 @@ import org.testng.annotations.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -159,5 +160,17 @@ public abstract class TestMetastore
                         String.format("%s not in %s", schemaFields.get(i), allSchemas));
             }
         }
+    }
+
+    @Test
+    public void testGetAttributes() {
+        getMetastore().createProject(PROJECT_NAME);
+
+        getMetastore().getOrCreateCollectionFields(PROJECT_NAME, "test", ImmutableSet.of());
+
+        ImmutableSet<SchemaField> schema = ImmutableSet.of(new SchemaField("test", STRING));
+        getMetastore().getOrCreateCollectionFields(PROJECT_NAME, "test", schema);
+        
+        assertEquals(getMetastore().getAttributes(PROJECT_NAME, "test", "test", Optional.empty(), Optional.empty(), Optional.empty()).size(), 0);
     }
 }
