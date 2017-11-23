@@ -31,6 +31,7 @@ import org.rakam.util.*;
 
 import javax.inject.Inject;
 import java.lang.reflect.Method;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -122,7 +123,7 @@ public class WebServiceModule
                         LogUtil.logException(request, ex);
                     }
                 })
-                .setOverridenMappings(ImmutableMap.of(GenericRecord.class, PrimitiveType.OBJECT))
+                .setOverridenMappings(ImmutableMap.of(GenericRecord.class, PrimitiveType.OBJECT, ZoneId.class, PrimitiveType.STRING))
                 .addPostProcessor(response -> response.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"),
                         method -> method.isAnnotationPresent(AllowCookie.class));
 
