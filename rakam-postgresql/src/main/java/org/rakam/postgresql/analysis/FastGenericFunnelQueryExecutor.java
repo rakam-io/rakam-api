@@ -61,7 +61,7 @@ public class FastGenericFunnelQueryExecutor
                     throw new RakamException("Segment is supported only for TIMESTAMP columns.", BAD_REQUEST);
                 }
 
-                if (timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
+                if (!timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
                     throw new RakamException("When dimension is of type TIMESTAMP, segmenting should be done on TIMESTAMP field.", BAD_REQUEST);
                 }
             } else {
