@@ -10,25 +10,7 @@ import com.facebook.presto.spi.block.Block;
 import com.facebook.presto.spi.block.BlockBuilder;
 import com.facebook.presto.spi.block.BlockBuilderStatus;
 import com.facebook.presto.spi.function.OperatorType;
-import com.facebook.presto.spi.type.AbstractType;
-import com.facebook.presto.spi.type.ArrayType;
-import com.facebook.presto.spi.type.BigintType;
-import com.facebook.presto.spi.type.BooleanType;
-import com.facebook.presto.spi.type.DateType;
-import com.facebook.presto.spi.type.DecimalType;
-import com.facebook.presto.spi.type.DoubleType;
-import com.facebook.presto.spi.type.IntegerType;
-import com.facebook.presto.spi.type.MapType;
-import com.facebook.presto.spi.type.ParametricType;
-import com.facebook.presto.spi.type.StandardTypes;
-import com.facebook.presto.spi.type.TimeType;
-import com.facebook.presto.spi.type.TimestampType;
-import com.facebook.presto.spi.type.Type;
-import com.facebook.presto.spi.type.TypeManager;
-import com.facebook.presto.spi.type.TypeSignature;
-import com.facebook.presto.spi.type.TypeSignatureParameter;
-import com.facebook.presto.spi.type.VarbinaryType;
-import com.facebook.presto.spi.type.VarcharType;
+import com.facebook.presto.spi.type.*;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -51,44 +33,35 @@ import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-
 import java.lang.invoke.MethodHandle;
 import java.sql.JDBCType;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static com.facebook.presto.raptor.metadata.DatabaseShardManager.maxColumn;
-import static com.facebook.presto.raptor.metadata.DatabaseShardManager.minColumn;
-import static com.facebook.presto.raptor.metadata.DatabaseShardManager.shardIndexTable;
+import static com.facebook.presto.raptor.metadata.DatabaseShardManager.*;
 import static com.facebook.presto.raptor.storage.ShardStats.MAX_BINARY_INDEX_SIZE;
 import static com.facebook.presto.raptor.util.DatabaseUtil.metadataError;
 import static com.facebook.presto.raptor.util.DatabaseUtil.onDemandDao;
 import static com.facebook.presto.spi.type.ParameterKind.TYPE;
 import static com.google.common.base.Throwables.propagateIfInstanceOf;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_GATEWAY;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static java.lang.String.format;
 import static java.sql.JDBCType.VARBINARY;
 import static java.util.Locale.ENGLISH;
 import static java.util.concurrent.TimeUnit.MINUTES;
-import static org.rakam.collection.FieldType.DATE;
-import static org.rakam.collection.FieldType.LONG;
-import static org.rakam.collection.FieldType.TIMESTAMP;
+import static org.rakam.collection.FieldType.*;
 import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
 import static org.rakam.presto.analysis.PrestoQueryExecution.isServerInactive;
 import static org.rakam.util.ValidationUtil.*;
 
 public class PrestoRakamRaptorMetastore
-        extends PrestoAbstractMetastore
-{
+        extends PrestoAbstractMetastore {
     private static final Logger LOGGER = Logger.get(PrestoRakamRaptorMetastore.class);
 
     private final DBI dbi;
@@ -103,8 +76,7 @@ public class PrestoRakamRaptorMetastore
             @Named("presto.metastore.jdbc") JDBCPoolDataSource prestoMetastoreDataSource,
             EventBus eventBus,
             ProjectConfig projectConfig,
-            PrestoConfig prestoConfig)
-    {
+            PrestoConfig prestoConfig) {
         super(eventBus);
         dbi = new DBI(prestoMetastoreDataSource);
         dbi.registerMapper(new TableColumn.Mapper(new SignatureReferenceTypeManager()));
@@ -127,13 +99,11 @@ public class PrestoRakamRaptorMetastore
 
     @PostConstruct
     @Override
-    public void setup()
-    {
+    public void setup() {
         setupTables();
     }
 
-    private void setupTables()
-    {
+    private void setupTables() {
         dbi.inTransaction((Handle handle, TransactionStatus transactionStatus) -> {
             handle.createStatement("CREATE TABLE IF NOT EXISTS project (" +
                     "  name VARCHAR(255) NOT NULL, \n" +
@@ -144,13 +114,11 @@ public class PrestoRakamRaptorMetastore
     }
 
     @Override
-    public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields)
-    {
+    public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields) {
         return getOrCreateCollectionFields(project, collection, fields, fields.size() + 1);
     }
 
-    public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields, int tryCount)
-    {
+    public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields, int tryCount) {
         String query;
         List<SchemaField> schemaFields = getCollection(project, collection);
         List<SchemaField> lastFields;
@@ -197,8 +165,7 @@ public class PrestoRakamRaptorMetastore
                 if (join.getError().message.contains("exists") || join.getError().message.equals("Failed to perform metadata operation")) {
                     if (tryCount > 0) {
                         return getOrCreateCollectionFields(project, collection, fields, tryCount - 1);
-                    }
-                    else {
+                    } else {
                         String description = format("%s.%s: %s: %s",
                                 project, collection, Arrays.toString(fields.toArray()),
                                 join.getError().toString());
@@ -207,8 +174,7 @@ public class PrestoRakamRaptorMetastore
                         LOGGER.error(message, description);
                         throw new RakamException(message + " " + description, INTERNAL_SERVER_ERROR);
                     }
-                }
-                else {
+                } else {
                     if (isServerInactive(join.getError())) {
                         throw new RakamException("Database is not active", BAD_GATEWAY);
                     }
@@ -218,26 +184,23 @@ public class PrestoRakamRaptorMetastore
             }
 
             lastFields = fields.stream().collect(Collectors.toList());
-        }
-        else {
+        } else {
             List<SchemaField> newFields = new ArrayList<>();
 
             fields.stream()
                     .filter(field -> schemaFields.stream().noneMatch(f -> f.getName().equals(field.getName())))
                     .forEach(f -> {
-                        if(f.getName().equals(prestoConfig.getCheckpointColumn())) {
+                        if (f.getName().equals(prestoConfig.getCheckpointColumn())) {
                             throw new RakamException("Checkpoint column is reserved", BAD_REQUEST);
                         }
                         newFields.add(f);
                         try {
                             addColumn(tableInformation, project, collection, f.getName(), f.getType());
-                        }
-                        catch (Exception e) {
+                        } catch (Exception e) {
                             if (e.getMessage().equals("Failed to perform metadata operation")) {
                                 // TODO: fix stackoverflow
                                 getOrCreateCollectionFields(project, collection, ImmutableSet.of(f), 2);
-                            }
-                            else if (!e.getMessage().contains("exists")) {
+                            } else if (!e.getMessage().contains("exists")) {
                                 throw new IllegalStateException(e.getMessage());
                             }
                         }
@@ -250,27 +213,23 @@ public class PrestoRakamRaptorMetastore
         return lastFields;
     }
 
-    public static <T> void daoTransaction(IDBI dbi, Class<T> daoType, Consumer<T> callback)
-    {
+    public static <T> void daoTransaction(IDBI dbi, Class<T> daoType, Consumer<T> callback) {
         runTransaction(dbi, (handle, status) -> {
             callback.accept(handle.attach(daoType));
             return null;
         });
     }
 
-    public static <T> T runTransaction(IDBI dbi, TransactionCallback<T> callback)
-    {
+    public static <T> T runTransaction(IDBI dbi, TransactionCallback<T> callback) {
         try {
             return dbi.inTransaction(callback);
-        }
-        catch (DBIException e) {
+        } catch (DBIException e) {
             propagateIfInstanceOf(e.getCause(), PrestoException.class);
             throw metadataError(e);
         }
     }
 
-    private void addColumn(Table table, String schema, String tableName, String columnName, FieldType fieldType)
-    {
+    private void addColumn(Table table, String schema, String tableName, String columnName, FieldType fieldType) {
         List<TableColumn> existingColumns = dao.listTableColumns(schema, tableName);
         TableColumn lastColumn = existingColumns.get(existingColumns.size() - 1);
         long columnId = lastColumn.getColumnId() + 1;
@@ -295,14 +254,12 @@ public class PrestoRakamRaptorMetastore
 
         try (Handle handle = dbi.open()) {
             handle.execute(sql);
-        }
-        catch (DBIException e) {
+        } catch (DBIException e) {
             throw metadataError(e);
         }
     }
 
-    private static String sqlColumnType(FieldType type)
-    {
+    private static String sqlColumnType(FieldType type) {
         JDBCType jdbcType = jdbcType(type);
         if (jdbcType != null) {
             switch (jdbcType) {
@@ -322,8 +279,7 @@ public class PrestoRakamRaptorMetastore
         return null;
     }
 
-    public static JDBCType jdbcType(FieldType type)
-    {
+    public static JDBCType jdbcType(FieldType type) {
         if (type.equals(FieldType.BOOLEAN)) {
             return JDBCType.BOOLEAN;
         }
@@ -346,8 +302,7 @@ public class PrestoRakamRaptorMetastore
     }
 
     @Override
-    public List<SchemaField> getCollection(String project, String collection)
-    {
+    public List<SchemaField> getCollection(String project, String collection) {
         return dao.listTableColumns(project, collection).stream()
                 .filter(a -> !a.getColumnName().startsWith("$"))
                 // this field should be removed since the server sets it
@@ -363,8 +318,7 @@ public class PrestoRakamRaptorMetastore
     }
 
     @Override
-    public void deleteProject(String project)
-    {
+    public void deleteProject(String project) {
         checkProject(project);
 
         try (Handle handle = dbi.open()) {
@@ -386,8 +340,7 @@ public class PrestoRakamRaptorMetastore
     }
 
     @Override
-    public Map<String, Stats> getStats(Collection<String> projects)
-    {
+    public Map<String, Stats> getStats(Collection<String> projects) {
         if (projects.isEmpty()) {
             return ImmutableMap.of();
         }
@@ -407,11 +360,9 @@ public class PrestoRakamRaptorMetastore
                 Stats stats = map.get(resultSet.getString(1));
                 if (resultSet.getString(2).equals("today")) {
                     stats.dailyEvents = resultSet.getLong(3);
-                }
-                else if (resultSet.getString(2).equals("month")) {
+                } else if (resultSet.getString(2).equals("month")) {
                     stats.monthlyEvents = resultSet.getLong(3);
-                }
-                else if (resultSet.getString(2).equals("total")) {
+                } else if (resultSet.getString(2).equals("total")) {
                     stats.allEvents = resultSet.getLong(3);
                 }
                 return null;
@@ -435,7 +386,7 @@ public class PrestoRakamRaptorMetastore
     public List<String> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate,
                                       Optional<LocalDate> endDate, Optional<String> filter) {
 
-        if(project == null) {
+        if (project == null) {
             return ImmutableList.of();
         }
 
@@ -449,35 +400,35 @@ public class PrestoRakamRaptorMetastore
         }
 
         String getNodeCount = "select count(*) from system.runtime.nodes";
-        long nodeCount = 1;
-        try {
-            QueryResult queryResult = new PrestoQueryExecution(defaultSession, getNodeCount, true).getResult().get();
-            nodeCount = ((Long) queryResult.getResult().get(0).get(0));
-        } catch (InterruptedException | ExecutionException e) {
-            LOGGER.error("Couldn't get node count", e.getMessage());
+        long nodeCount;
+        QueryResult queryResult = new PrestoQueryExecution(defaultSession, getNodeCount, true).getResult().join();
+        if (queryResult.isFailed()) {
+            throw new RakamException(queryResult.getError().message, SERVICE_UNAVAILABLE);
         }
 
+        nodeCount = ((long) queryResult.getResult().get(0).get(0));
+
         double adjustedSamplingThreshold = samplingThreshold * nodeCount;
-        if(numRows > adjustedSamplingThreshold) {
-            samplePercentage = (int) ((adjustedSamplingThreshold / numRows) * 100) ;
+        if (numRows > adjustedSamplingThreshold) {
+            samplePercentage = (int) ((adjustedSamplingThreshold / numRows) * 100);
         }
 
         String prestoQuery;
-        prestoQuery = format("select distinct %s from %s.\"%s\".\"%s\" tablesample system (%d)",
-                checkCollection(attribute),
+        prestoQuery = format("select distinct %s from %s.%s.%s tablesample system (%d) where %s is not null ",
+                checkTableColumn(attribute),
                 prestoConfig.getColdStorageConnector(),
-                checkProject(project),
-                checkProject(collection),
-                samplePercentage);
-        if(startDate.isPresent() || endDate.isPresent()) {
-            if(startDate.isPresent() && endDate.isPresent()) {
-                if(ChronoUnit.DAYS.between(startDate.get(), endDate.get()) > 30) {
+                checkProject(project, '"'),
+                checkCollection(collection, '"'),
+                samplePercentage, checkTableColumn(attribute));
+        if (startDate.isPresent() || endDate.isPresent()) {
+            if (startDate.isPresent() && endDate.isPresent()) {
+                if (ChronoUnit.DAYS.between(startDate.get(), endDate.get()) > 30) {
                     throw new UnsupportedOperationException("Start date and end date must be within 30 days.");
                 }
             }
             String startDateStr = startDate.isPresent() ? startDate.get().toString() : endDate.get().minusDays(30).toString();
             String endDateStr = endDate.isPresent() ? endDate.get().plusDays(1).toString() : startDate.get().plusDays(30).toString();
-            prestoQuery += format(" where %s BETWEEN date '%s' and date '%s' and %s like ",
+            prestoQuery += format(" AND %s BETWEEN date '%s' and date '%s' and %s like ",
                     checkTableColumn(projectConfig.getTimeColumn()),
                     startDateStr,
                     endDateStr,
@@ -490,25 +441,19 @@ public class PrestoRakamRaptorMetastore
             }
             prestoQuery += " escape '\\' LIMIT 10";
         }
-        try {
-            QueryResult queryResult = new PrestoQueryExecution(defaultSession, prestoQuery, true).getResult().get();
-            return queryResult.getResult().stream()
-                    .map(object -> Objects.toString(object.get(0), null))
-                    .collect(Collectors.toList());
-        } catch (InterruptedException | ExecutionException e) {
-            LOGGER.error("Query failed", e.getMessage());
-            return ImmutableList.of();
-        }
+
+        QueryResult result = new PrestoQueryExecution(defaultSession, prestoQuery, true).getResult().join();
+        return result.getResult().stream()
+                .map(object -> Objects.toString(object.get(0), null))
+                .collect(Collectors.toList());
     }
 
     @Override
-    public Map<String, List<SchemaField>> getCollections(String project)
-    {
+    public Map<String, List<SchemaField>> getCollections(String project) {
         return getTables(project, this::filterTables);
     }
 
-    private boolean filterTables(String tableName, String tableColumn)
-    {
+    private boolean filterTables(String tableName, String tableColumn) {
         return !tableName.startsWith(MATERIALIZED_VIEW_PREFIX)
                 && !tableColumn.startsWith("$")
                 && !tableName.startsWith("$")
@@ -516,16 +461,14 @@ public class PrestoRakamRaptorMetastore
     }
 
     @Override
-    public Set<String> getCollectionNames(String project)
-    {
+    public Set<String> getCollectionNames(String project) {
         return dao.listTables(project).stream().map(e -> e.getTableName())
                 .filter(tableName -> !tableName.startsWith(MATERIALIZED_VIEW_PREFIX))
                 .collect(Collectors.toSet());
     }
 
     @Override
-    public void createProject(String project)
-    {
+    public void createProject(String project) {
         checkProject(project);
 
         try (Handle handle = dbi.open()) {
@@ -533,8 +476,7 @@ public class PrestoRakamRaptorMetastore
                 handle.createStatement("INSERT INTO project (name) VALUES(:name)")
                         .bind("name", project)
                         .execute();
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 if (getProjects().contains(project)) {
                     throw new AlreadyExistsException("project", BAD_REQUEST);
                 }
@@ -545,8 +487,7 @@ public class PrestoRakamRaptorMetastore
     }
 
     @Override
-    public Set<String> getProjects()
-    {
+    public Set<String> getProjects() {
         try (Handle handle = dbi.open()) {
             return ImmutableSet.copyOf(
                     handle.createQuery("select name from project")
@@ -555,13 +496,11 @@ public class PrestoRakamRaptorMetastore
     }
 
     @Override
-    public Map<String, List<SchemaField>> getSchemas(String project, Predicate<String> filter)
-    {
+    public Map<String, List<SchemaField>> getSchemas(String project, Predicate<String> filter) {
         return getTables(project, (t, c) -> filter.test(t));
     }
 
-    public Map<String, List<SchemaField>> getTables(String project, BiPredicate<String, String> filter)
-    {
+    public Map<String, List<SchemaField>> getTables(String project, BiPredicate<String, String> filter) {
         HashMap<String, List<SchemaField>> map = new HashMap<>();
         for (TableColumn tableColumn : dao.listTableColumns(project, null)) {
             if (tableColumn.getColumnName().startsWith("$") || !filter.test(tableColumn.getTable().getTableName(), tableColumn.getColumnName())) {
@@ -580,93 +519,77 @@ public class PrestoRakamRaptorMetastore
     }
 
     public static class SignatureReferenceType
-            extends AbstractType
-    {
+            extends AbstractType {
 
-        public SignatureReferenceType(TypeSignature signature, Class<?> javaType)
-        {
+        public SignatureReferenceType(TypeSignature signature, Class<?> javaType) {
             super(signature, javaType);
         }
 
         @Override
-        public BlockBuilder createBlockBuilder(BlockBuilderStatus blockBuilderStatus, int i, int i1)
-        {
+        public BlockBuilder createBlockBuilder(BlockBuilderStatus blockBuilderStatus, int i, int i1) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public BlockBuilder createBlockBuilder(BlockBuilderStatus blockBuilderStatus, int i)
-        {
+        public BlockBuilder createBlockBuilder(BlockBuilderStatus blockBuilderStatus, int i) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public Object getObjectValue(ConnectorSession connectorSession, Block block, int i)
-        {
+        public Object getObjectValue(ConnectorSession connectorSession, Block block, int i) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void appendTo(Block block, int i, BlockBuilder blockBuilder)
-        {
+        public void appendTo(Block block, int i, BlockBuilder blockBuilder) {
             throw new UnsupportedOperationException();
         }
     }
 
     public static class SignatureReferenceTypeManager
-            implements TypeManager
-    {
+            implements TypeManager {
         @Override
-        public Type getType(TypeSignature typeSignature)
-        {
+        public Type getType(TypeSignature typeSignature) {
             return new SignatureReferenceType(typeSignature, Object.class);
         }
 
         @Override
-        public Type getParameterizedType(String s, List<TypeSignatureParameter> list)
-        {
+        public Type getParameterizedType(String s, List<TypeSignatureParameter> list) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public List<Type> getTypes()
-        {
+        public List<Type> getTypes() {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public Collection<ParametricType> getParametricTypes()
-        {
+        public Collection<ParametricType> getParametricTypes() {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public boolean isTypeOnlyCoercion(Type actualType, Type expectedType)
-        {
+        public boolean isTypeOnlyCoercion(Type actualType, Type expectedType) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public Optional<Type> coerceTypeBase(Type sourceType, String resultTypeBase)
-        {
+        public Optional<Type> coerceTypeBase(Type sourceType, String resultTypeBase) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public MethodHandle resolveOperator(OperatorType operatorType, List<? extends Type> argumentTypes)
-        {
+        public MethodHandle resolveOperator(OperatorType operatorType, List<? extends Type> argumentTypes) {
             return null;
         }
 
         @Override
-        public Optional<Type> getCommonSuperType(Type type, Type type1)
-        {
+        public Optional<Type> getCommonSuperType(Type type, Type type1) {
             return null;
         }
     }
 
-    public static String toSql(FieldType type)
-    {
+    public static String toSql(FieldType type) {
         switch (type) {
             case LONG:
                 return StandardTypes.BIGINT;
@@ -693,8 +616,7 @@ public class PrestoRakamRaptorMetastore
         }
     }
 
-    public static Type toType(FieldType type)
-    {
+    public static Type toType(FieldType type) {
         switch (type) {
             case DOUBLE:
                 return DoubleType.DOUBLE;
