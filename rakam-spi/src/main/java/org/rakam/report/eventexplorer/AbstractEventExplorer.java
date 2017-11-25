@@ -18,18 +18,11 @@ import org.rakam.report.realtime.AggregationType;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.MaterializedViewNotExists;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -42,13 +35,9 @@ import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.Optional.ofNullable;
 import static org.rakam.analysis.EventExplorer.ReferenceType.COLUMN;
 import static org.rakam.analysis.EventExplorer.ReferenceType.REFERENCE;
-import static org.rakam.analysis.EventExplorer.TimestampTransformation.HOUR;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.fromString;
 import static org.rakam.report.realtime.AggregationType.COUNT;
-import static org.rakam.util.ValidationUtil.checkCollection;
-import static org.rakam.util.ValidationUtil.checkProject;
-import static org.rakam.util.ValidationUtil.checkTableColumn;
-import static org.rakam.util.ValidationUtil.stripName;
+import static org.rakam.util.ValidationUtil.*;
 
 public abstract class AbstractEventExplorer
         implements EventExplorer
@@ -364,7 +353,7 @@ public abstract class AbstractEventExplorer
             }
         }
         if (segment != null) {
-            selectBuilder.append((!segment.equals(DEFAULT_SEGMENT) ? getColumnValue(timestampMapping, segment, true) : "'" + stripName(collection, "collection") + "'") + " as "
+            selectBuilder.append((!segment.equals(DEFAULT_SEGMENT) ? getColumnValue(timestampMapping, segment, true) : "'" + checkLiteral(collection) + "'") + " as "
                     + checkTableColumn(getColumnReference(segment) + "_segment"));
         }
         return selectBuilder.toString();
@@ -473,7 +462,7 @@ public abstract class AbstractEventExplorer
     public String sourceTable(Optional<Set<String>> collections)
     {
         String predicate = collections.map(e -> "WHERE _collection IN (" +
-                e.stream().map(n -> "'" + ValidationUtil.checkLiteral(n) + "'").collect(Collectors.joining(", ")) + ")").orElse("");
+                e.stream().map(n -> "'" + checkLiteral(n) + "'").collect(Collectors.joining(", ")) + ")").orElse("");
         return format("select _time, total, _collection as collection from materialized.%s %s",
                 EventExplorerListener.tableName(), predicate);
     }

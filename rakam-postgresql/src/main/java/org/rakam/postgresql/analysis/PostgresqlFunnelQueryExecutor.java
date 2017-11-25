@@ -23,13 +23,11 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.config.ProjectConfig;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecution;
-import org.rakam.report.QueryExecutorService;
 import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
