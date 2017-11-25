@@ -77,7 +77,7 @@ public class FunnelAnalyzerHttpService
     @Path("/analyze")
     public void analyzeFunnel(RakamHttpRequest request) {
         queryService.handleServerSentQueryExecution(request, FunnelQuery.class, (project, query) -> {
-                    if (query.dimension != null) {
+                    if (query.dimension != null && query.segment == null) {
                         if (projectConfig.getTimeColumn().equals(query.dimension)) {
                             throw new RakamException("You should use segments in order to group by with time column", BAD_REQUEST);
                         }
