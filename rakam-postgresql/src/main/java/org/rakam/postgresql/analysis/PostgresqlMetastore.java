@@ -350,7 +350,6 @@ public class PostgresqlMetastore
         int samplePercentage;
         long totalRowCount;
         try (Connection conn = connectionPool.getConnection()) {
-
             samplePercentage = 100;
             String countRows = format("SELECT COUNT(*) as row_count from %s.%s",
                     checkProject(project),
@@ -391,9 +390,7 @@ public class PostgresqlMetastore
         queryPrep += " LIMIT 10";
 
         JDBCQueryExecution execution = new JDBCQueryExecution(() -> connectionPool.getConnection(), queryPrep, false, Optional.empty(), false);
-        return execution.getResult().thenApply(v -> v.getResult().stream().map(str -> (String) str.get(0)).collect(Collectors.toList()));
-
-
+        return execution.getResult().thenApply(v -> v.getResult().stream().map(str -> (String) str.get(0)).sorted().collect(Collectors.toList()));
     }
 
     public HashSet<String> getViews(String project) {

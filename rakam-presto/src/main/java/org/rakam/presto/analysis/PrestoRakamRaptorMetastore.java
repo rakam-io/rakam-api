@@ -36,7 +36,6 @@ import java.lang.invoke.MethodHandle;
 import java.sql.JDBCType;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiPredicate;
@@ -410,25 +409,21 @@ public class PrestoRakamRaptorMetastore
                 checkProject(project, '"'),
                 checkCollection(collection, '"'),
                 samplePercentage, checkTableColumn(attribute));
-        if (startDate.isPresent() || endDate.isPresent()) {
-            if (startDate.isPresent() && endDate.isPresent()) {
-                if (ChronoUnit.DAYS.between(startDate.get(), endDate.get()) > 30) {
-                    throw new UnsupportedOperationException("Start date and end date must be within 30 days.");
-                }
-            }
-            String startDateStr = startDate.isPresent() ? startDate.get().toString() : endDate.get().minusDays(30).toString();
-            String endDateStr = endDate.isPresent() ? endDate.get().plusDays(1).toString() : startDate.get().plusDays(30).toString();
-            prestoQuery += format(" AND %s BETWEEN date '%s' and date '%s' ",
-                    checkTableColumn(projectConfig.getTimeColumn()),
-                    startDateStr,
-                    endDateStr,
-                    checkCollection(attribute));
 
-            if (filter.isPresent() && !filter.get().isEmpty()) {
-                prestoQuery += " AND %s LIKE '%" + filter.get().replaceAll("%", "\\%").replaceAll("_", "\\_") + "%' ESCAPE '\\'";
-            }
-            prestoQuery += " LIMIT 10";
+        String startDateStr = startDate.isPresent() ? startDate.get().toString() : endDate.get().minusDays(30).toString();
+        String endDateStr = endDate.isPresent() ? endDate.get().plusDays(1).toString() : startDate.get().plusDays(30).toString();
+        prestoQuery += format(" AND %s BETWEEN date '%s' and date '%s' ",
+                checkTableColumn(projectConfig.getTimeColumn()),
+                startDateStr,
+                endDateStr,
+                checkCollection(attribute));
+
+        if (filter.isPresent() && !filter.get().isEmpty()) {
+            prestoQuery += String.format(" AND %s LIKE '%s' ESCAPE '\\'", checkTableColumn(attribute),
+                    filter.get().replaceAll("%", "\\%").replaceAll("_", "\\_") + "%");
         }
+
+        prestoQuery += " LIMIT 10";
 
         CompletableFuture<QueryResult> result = new PrestoQueryExecution(defaultSession, prestoQuery, true).getResult();
         return result.thenApply(v -> {
@@ -437,6 +432,7 @@ public class PrestoRakamRaptorMetastore
             }
 
             return v.getResult().stream().map(object -> Objects.toString(object.get(0), null))
+                    .sorted()
                     .collect(Collectors.toList());
         });
     }
