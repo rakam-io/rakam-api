@@ -171,6 +171,6 @@ public abstract class TestMetastore
         ImmutableSet<SchemaField> schema = ImmutableSet.of(new SchemaField("test", STRING));
         getMetastore().getOrCreateCollectionFields(PROJECT_NAME, "test", schema);
         
-        assertEquals(getMetastore().getAttributes(PROJECT_NAME, "test", "test", Optional.empty(), Optional.empty(), Optional.empty()).size(), 0);
+        assertEquals(getMetastore().getAttributes(PROJECT_NAME, "test", "test", Optional.empty(), Optional.empty(), Optional.empty()).join().size(), 0);
     }
 }

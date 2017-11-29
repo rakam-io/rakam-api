@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -231,8 +232,8 @@ public class ClickHouseMetastore
     }
 
     @Override
-    public List<String> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate,
-                                      Optional<LocalDate> endDate, Optional<String> filter) {
+    public CompletableFuture<List<String>> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate,
+                                                         Optional<LocalDate> endDate, Optional<String> filter) {
         throw new UnsupportedOperationException();
     }
 }

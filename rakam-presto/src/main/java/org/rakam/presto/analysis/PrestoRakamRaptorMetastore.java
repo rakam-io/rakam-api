@@ -11,7 +11,6 @@ import com.facebook.presto.spi.block.BlockBuilder;
 import com.facebook.presto.spi.block.BlockBuilderStatus;
 import com.facebook.presto.spi.function.OperatorType;
 import com.facebook.presto.spi.type.*;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
@@ -39,6 +38,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -69,7 +69,7 @@ public class PrestoRakamRaptorMetastore
     private final PrestoConfig prestoConfig;
     private final ClientSession defaultSession;
     private final ProjectConfig projectConfig;
-    private final static double samplingThreshold = 1000000;
+    private final static double SAMPLING_THRESHOLD = 5_000_000;
 
     @Inject
     public PrestoRakamRaptorMetastore(
@@ -383,14 +383,8 @@ public class PrestoRakamRaptorMetastore
     }
 
     @Override
-    public List<String> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate,
-                                      Optional<LocalDate> endDate, Optional<String> filter) {
-
-        if (project == null) {
-            return ImmutableList.of();
-        }
-
-        int samplePercentage = 100;
+    public CompletableFuture<List<String>> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate,
+                                                         Optional<LocalDate> endDate, Optional<String> filter) {
         long numRows;
         try (Handle handle = dbi.open()) {
             numRows = handle.createQuery("select sum(shards.row_count) as row_count from tables join shards on (shards.table_id = tables.table_id) where table_name = :collection and schema_name = :schema")
@@ -399,22 +393,18 @@ public class PrestoRakamRaptorMetastore
                     .map(LongMapper.FIRST).iterator().next();
         }
 
-        String getNodeCount = "select count(*) from system.runtime.nodes";
-        long nodeCount;
-        QueryResult queryResult = new PrestoQueryExecution(defaultSession, getNodeCount, true).getResult().join();
-        if (queryResult.isFailed()) {
-            throw new RakamException(queryResult.getError().message, SERVICE_UNAVAILABLE);
-        }
+        int nodeCount = 1;
 
-        nodeCount = ((long) queryResult.getResult().get(0).get(0));
-
-        double adjustedSamplingThreshold = samplingThreshold * nodeCount;
+        double samplePercentage;
+        double adjustedSamplingThreshold = SAMPLING_THRESHOLD * nodeCount;
         if (numRows > adjustedSamplingThreshold) {
-            samplePercentage = (int) ((adjustedSamplingThreshold / numRows) * 100);
+            samplePercentage = ((adjustedSamplingThreshold / numRows) * 100);
+        } else {
+            samplePercentage = 100;
         }
 
         String prestoQuery;
-        prestoQuery = format("select distinct %s from %s.%s.%s tablesample system (%d) where %s is not null ",
+        prestoQuery = format("SELECT DISTINCT %s FROM %s.%s.%s TABLESAMPLE BERNOULLI (%f) WHERE %s IS NOT NULL",
                 checkTableColumn(attribute),
                 prestoConfig.getColdStorageConnector(),
                 checkProject(project, '"'),
@@ -428,24 +418,27 @@ public class PrestoRakamRaptorMetastore
             }
             String startDateStr = startDate.isPresent() ? startDate.get().toString() : endDate.get().minusDays(30).toString();
             String endDateStr = endDate.isPresent() ? endDate.get().plusDays(1).toString() : startDate.get().plusDays(30).toString();
-            prestoQuery += format(" AND %s BETWEEN date '%s' and date '%s' and %s like ",
+            prestoQuery += format(" AND %s BETWEEN date '%s' and date '%s' ",
                     checkTableColumn(projectConfig.getTimeColumn()),
                     startDateStr,
                     endDateStr,
                     checkCollection(attribute));
 
             if (filter.isPresent() && !filter.get().isEmpty()) {
-                prestoQuery += "'%" + filter.get().replaceAll("%", "\\%").replaceAll("_", "\\_") + "%'";
-            } else {
-                prestoQuery += "'%'";
+                prestoQuery += " AND %s LIKE '%" + filter.get().replaceAll("%", "\\%").replaceAll("_", "\\_") + "%' ESCAPE '\\'";
             }
-            prestoQuery += " escape '\\' LIMIT 10";
+            prestoQuery += " LIMIT 10";
         }
 
-        QueryResult result = new PrestoQueryExecution(defaultSession, prestoQuery, true).getResult().join();
-        return result.getResult().stream()
-                .map(object -> Objects.toString(object.get(0), null))
-                .collect(Collectors.toList());
+        CompletableFuture<QueryResult> result = new PrestoQueryExecution(defaultSession, prestoQuery, true).getResult();
+        return result.thenApply(v -> {
+            if (v.isFailed()) {
+                throw new RakamException(v.getError().message, SERVICE_UNAVAILABLE);
+            }
+
+            return v.getResult().stream().map(object -> Objects.toString(object.get(0), null))
+                    .collect(Collectors.toList());
+        });
     }
 
     @Override

@@ -3,17 +3,14 @@ package org.rakam.analysis;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.EventBus;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.metadata.AbstractMetastore;
-import org.rakam.collection.FieldDependencyBuilder;
-import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.collection.SchemaField;
 import org.rakam.util.NotExistsException;
 
 import java.time.LocalDate;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 public class InMemoryMetastore extends AbstractMetastore {
     private final Map<String, Map<String, List<SchemaField>>> collections = new ConcurrentHashMap<>();
@@ -76,7 +73,7 @@ public class InMemoryMetastore extends AbstractMetastore {
     }
 
     @Override
-    public List<String> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate, Optional<LocalDate> endDate, Optional<String> filter) {
+    public CompletableFuture<List<String>> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate, Optional<LocalDate> endDate, Optional<String> filter) {
         throw new UnsupportedOperationException();
     }
 }

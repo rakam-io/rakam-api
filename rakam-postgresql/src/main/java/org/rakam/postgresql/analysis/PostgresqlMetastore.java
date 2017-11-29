@@ -16,6 +16,7 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
 import org.rakam.postgresql.PostgresqlModule.PostgresqlVersion;
+import org.rakam.postgresql.report.JDBCQueryExecution;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.ProjectCollection;
 import org.rakam.util.RakamException;
@@ -24,14 +25,15 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import java.sql.*;
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
+import static java.time.temporal.ChronoUnit.DAYS;
 import static org.rakam.util.JDBCUtil.fromSql;
 import static org.rakam.util.ValidationUtil.*;
 
@@ -342,60 +344,56 @@ public class PostgresqlMetastore
     }
 
     @Override
-    public List<String> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate,
-                                      Optional<LocalDate> endDate, Optional<String> filter) {
+    public CompletableFuture<List<String>> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate,
+                                                         Optional<LocalDate> endDate, Optional<String> filter) {
 
+        int samplePercentage;
+        long totalRowCount;
         try (Connection conn = connectionPool.getConnection()) {
 
-            int samplePercentage = 100;
+            samplePercentage = 100;
             String countRows = format("SELECT COUNT(*) as row_count from %s.%s",
                     checkProject(project),
                     checkProject(collection));
             PreparedStatement countRowsSt = conn.prepareStatement(countRows);
             ResultSet totalRows = countRowsSt.executeQuery();
             totalRows.next();
-            long totalRowCount = totalRows.getLong("row_count");
-
-            if (totalRowCount > samplingThreshold) {
-                samplePercentage = (int) ((samplingThreshold / totalRowCount) * 100) ;
-            }
-
-            String queryPrep = format("SELECT DISTINCT %s as result FROM %s.%s TABLESAMPLE SYSTEM(%d)",
-                    checkCollection(attribute),
-                    checkProject(project),
-                    checkProject(collection),
-                    samplePercentage);
-            if (filter.isPresent() && !filter.get().isEmpty()) {
-                queryPrep += format(" where %s like ? escape '\\'", checkCollection(attribute));
-            }
-
-            if (startDate.isPresent() || endDate.isPresent()) {
-                if (startDate.isPresent() && endDate.isPresent()) {
-                    if (ChronoUnit.DAYS.between(startDate.get(), endDate.get()) > 30) {
-                        throw new UnsupportedOperationException("Start date and end date must be within 30 days.");
-                    }
-                }
-                String startDateStr = startDate.isPresent() ? startDate.get().toString() : endDate.get().minusDays(30).toString();
-                String endDateStr = endDate.isPresent() ? endDate.get().plusDays(1).toString() : startDate.get().plusDays(30).toString();
-                queryPrep = format("%s AND %s >= '%s'::date AND %s <= '%s'::date",
-                        queryPrep, projectConfig.getTimeColumn(), startDateStr, projectConfig.getTimeColumn(), endDateStr);
-            }
-            queryPrep += " LIMIT 10";
-            PreparedStatement getCount = conn.prepareStatement(queryPrep);
-            if (filter.isPresent() && !filter.get().isEmpty()) {
-                getCount.setString(1, "%" + filter.get().replaceAll("%", "\\%").replaceAll("_", "\\_") + "%");
-            }
-
-            ResultSet rs = getCount.executeQuery();
-
-            List<String> result = new ArrayList<>();
-            while (rs.next()) {
-                result.add(rs.getString("result"));
-            }
-            return result;
+            totalRowCount = totalRows.getLong("row_count");
         } catch (SQLException e) {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e);
         }
+
+        if (totalRowCount > samplingThreshold) {
+            samplePercentage = (int) ((samplingThreshold / totalRowCount) * 100);
+        }
+
+        String queryPrep = format("SELECT DISTINCT %s as result FROM %s.%s TABLESAMPLE SYSTEM(%d)",
+                checkCollection(attribute),
+                checkProject(project),
+                checkProject(collection),
+                samplePercentage);
+        if (filter.isPresent() && !filter.get().isEmpty()) {
+            String value = "%" + filter.get().replaceAll("%", "\\%").replaceAll("_", "\\_") + "%";
+            queryPrep += format(" where %s like '%s' escape '\\'", checkCollection(attribute), checkLiteral(value));
+        }
+
+        if (startDate.isPresent() || endDate.isPresent()) {
+            if (startDate.isPresent() && endDate.isPresent()) {
+                if (DAYS.between(startDate.get(), endDate.get()) > 30) {
+                    throw new UnsupportedOperationException("Start date and end date must be within 30 days.");
+                }
+            }
+            String startDateStr = startDate.isPresent() ? startDate.get().toString() : endDate.get().minusDays(30).toString();
+            String endDateStr = endDate.isPresent() ? endDate.get().plusDays(1).toString() : startDate.get().plusDays(30).toString();
+            queryPrep = format("%s AND %s >= '%s'::date AND %s <= '%s'::date",
+                    queryPrep, projectConfig.getTimeColumn(), startDateStr, projectConfig.getTimeColumn(), endDateStr);
+        }
+        queryPrep += " LIMIT 10";
+
+        JDBCQueryExecution execution = new JDBCQueryExecution(() -> connectionPool.getConnection(), queryPrep, false, Optional.empty(), false);
+        return execution.getResult().thenApply(v -> v.getResult().stream().map(str -> (String) str.get(0)).collect(Collectors.toList()));
+
+
     }
 
     public HashSet<String> getViews(String project) {

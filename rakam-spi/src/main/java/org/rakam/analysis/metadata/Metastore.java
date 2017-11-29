@@ -5,6 +5,7 @@ import org.rakam.util.NotExistsException;
 
 import java.time.LocalDate;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 
 public interface Metastore {
@@ -24,7 +25,7 @@ public interface Metastore {
 
     Map<String, Stats> getStats(Collection<String> projects);
 
-    List<String> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate, Optional<LocalDate> endDate, Optional<String> filter);
+    CompletableFuture<List<String>> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate, Optional<LocalDate> endDate, Optional<String> filter);
 
     default void setup() {}
 

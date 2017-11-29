@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.services.dynamodbv2.model.ComparisonOperator.EQ;
@@ -272,8 +273,8 @@ public class DynamodbMetastore
     }
 
     @Override
-    public List<String> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate,
-                                      Optional<LocalDate> endDate, Optional<String> filter) {
+    public CompletableFuture<List<String>> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate,
+                                                         Optional<LocalDate> endDate, Optional<String> filter) {
         throw new UnsupportedOperationException();
     }
 

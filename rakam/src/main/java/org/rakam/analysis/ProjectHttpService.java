@@ -20,6 +20,7 @@ import javax.ws.rs.DELETE;
 import javax.ws.rs.Path;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -246,12 +247,12 @@ public class ProjectHttpService
     @ApiOperation(value = "Get possible attribute values",
             authorizations = @Authorization(value = "read_key"))
     @Path("/attributes")
-    public List<String> attributes(@Named("project") String project,
-                                   @ApiParam("collection") String collection,
-                                   @ApiParam("attribute") String attribute,
-                                   @ApiParam(value = "startDate", required = false) LocalDate startDate,
-                                   @ApiParam(value = "endDate", required = false) LocalDate endDate,
-                                   @ApiParam(value = "filter", required = false) String filter)  {
+    public CompletableFuture<List<String>> attributes(@Named("project") String project,
+                                                     @ApiParam("collection") String collection,
+                                                     @ApiParam("attribute") String attribute,
+                                                     @ApiParam(value = "startDate", required = false) LocalDate startDate,
+                                                     @ApiParam(value = "endDate", required = false) LocalDate endDate,
+                                                     @ApiParam(value = "filter", required = false) String filter)  {
         return metastore.getAttributes(project, collection, attribute, Optional.ofNullable(startDate),
                 Optional.ofNullable(endDate), Optional.ofNullable(filter));
     }
