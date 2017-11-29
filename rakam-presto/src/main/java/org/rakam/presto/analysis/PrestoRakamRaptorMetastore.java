@@ -410,13 +410,19 @@ public class PrestoRakamRaptorMetastore
                 checkCollection(collection, '"'),
                 samplePercentage, checkTableColumn(attribute));
 
-        String startDateStr = startDate.isPresent() ? startDate.get().toString() : endDate.get().minusDays(30).toString();
-        String endDateStr = endDate.isPresent() ? endDate.get().plusDays(1).toString() : startDate.get().plusDays(30).toString();
-        prestoQuery += format(" AND %s BETWEEN date '%s' and date '%s' ",
-                checkTableColumn(projectConfig.getTimeColumn()),
-                startDateStr,
-                endDateStr,
-                checkCollection(attribute));
+        if (startDate.isPresent()) {
+            prestoQuery += format(" AND %s >= date '%s'",
+                    checkTableColumn(projectConfig.getTimeColumn()),
+                    startDate.get().toString(),
+                    checkCollection(attribute));
+        }
+
+        if (endDate.isPresent()) {
+            prestoQuery += format(" AND %s < date '%s'",
+                    checkTableColumn(projectConfig.getTimeColumn()),
+                    endDate.get().toString(),
+                    checkCollection(attribute));
+        }
 
         if (filter.isPresent() && !filter.get().isEmpty()) {
             prestoQuery += String.format(" AND %s LIKE '%s' ESCAPE '\\'", checkTableColumn(attribute),
