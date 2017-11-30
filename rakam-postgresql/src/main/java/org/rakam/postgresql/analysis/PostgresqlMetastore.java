@@ -44,7 +44,7 @@ public class PostgresqlMetastore
     private LoadingCache<String, Set<String>> collectionCache;
     private final JDBCPoolDataSource connectionPool;
     private final ProjectConfig projectConfig;
-    private final static double samplingThreshold = 1000000;
+    private final static double SAMPLING_THRESHOLD = 1_000_000;
 
     @Inject
     public PostgresqlMetastore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, PostgresqlVersion version, EventBus eventBus, ProjectConfig projectConfig) {
@@ -349,21 +349,26 @@ public class PostgresqlMetastore
 
         int samplePercentage;
         long totalRowCount;
+
         try (Connection conn = connectionPool.getConnection()) {
-            samplePercentage = 100;
-            String countRows = format("SELECT COUNT(*) as row_count from %s.%s",
-                    checkProject(project),
-                    checkProject(collection));
-            PreparedStatement countRowsSt = conn.prepareStatement(countRows);
-            ResultSet totalRows = countRowsSt.executeQuery();
-            totalRows.next();
-            totalRowCount = totalRows.getLong("row_count");
+            PreparedStatement ps = conn.prepareStatement("SELECT sum(reltuples)" +
+                    "        FROM pg_class C\n" +
+                    "        LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace)\n" +
+                    "        WHERE nspname = ? AND (relkind='r' or relkind='p') AND relname = ?");
+
+            ps.setString(1, project);
+            ps.setString(2, collection);
+            ResultSet resultSet = ps.executeQuery();
+            resultSet.next();
+            totalRowCount = resultSet.getLong(1);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
 
-        if (totalRowCount > samplingThreshold) {
-            samplePercentage = (int) ((samplingThreshold / totalRowCount) * 100);
+        if (totalRowCount > SAMPLING_THRESHOLD) {
+            samplePercentage = (int) ((SAMPLING_THRESHOLD / totalRowCount) * 100);
+        } else {
+            samplePercentage = 100;
         }
 
         String queryPrep = format("SELECT DISTINCT %s as result FROM %s.%s TABLESAMPLE SYSTEM(%d)",

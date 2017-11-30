@@ -11,6 +11,8 @@ import com.facebook.presto.spi.block.BlockBuilder;
 import com.facebook.presto.spi.block.BlockBuilderStatus;
 import com.facebook.presto.spi.function.OperatorType;
 import com.facebook.presto.spi.type.*;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
@@ -68,7 +70,8 @@ public class PrestoRakamRaptorMetastore
     private final PrestoConfig prestoConfig;
     private final ClientSession defaultSession;
     private final ProjectConfig projectConfig;
-    private final static double SAMPLING_THRESHOLD = 5_000_000;
+    private final Supplier<Integer> activeNodeCount;
+    private final static double SAMPLING_THRESHOLD = 1_000_000;
 
     @Inject
     public PrestoRakamRaptorMetastore(
@@ -94,6 +97,16 @@ public class PrestoRakamRaptorMetastore
                 ImmutableMap.of(),
                 null,
                 false, Duration.succinctDuration(1, MINUTES));
+
+        activeNodeCount = Suppliers.memoizeWithExpiration(() -> {
+            String getNodeCount = "select count(*) from system.runtime.nodes where state = 'active'";
+            QueryResult queryResult = new PrestoQueryExecution(defaultSession, getNodeCount, false).getResult().join();
+            if (queryResult.isFailed()) {
+                throw new RakamException(queryResult.getError().message, SERVICE_UNAVAILABLE);
+            }
+
+            return ((int) queryResult.getResult().get(0).get(0));
+        }, 5, MINUTES);
     }
 
     @PostConstruct
@@ -392,10 +405,8 @@ public class PrestoRakamRaptorMetastore
                     .map(LongMapper.FIRST).iterator().next();
         }
 
-        int nodeCount = 1;
-
         double samplePercentage;
-        double adjustedSamplingThreshold = SAMPLING_THRESHOLD * nodeCount;
+        double adjustedSamplingThreshold = SAMPLING_THRESHOLD * activeNodeCount.get();
         if (numRows > adjustedSamplingThreshold) {
             samplePercentage = ((adjustedSamplingThreshold / numRows) * 100);
         } else {
@@ -425,8 +436,8 @@ public class PrestoRakamRaptorMetastore
         }
 
         if (filter.isPresent() && !filter.get().isEmpty()) {
-            prestoQuery += String.format(" AND %s LIKE '%s' ESCAPE '\\'", checkTableColumn(attribute),
-                    filter.get().replaceAll("%", "\\%").replaceAll("_", "\\_") + "%");
+            prestoQuery += String.format(" AND lower(%s) LIKE '%s' ESCAPE '\\'", checkTableColumn(attribute),
+                    filter.get().replaceAll("%", "\\%").replaceAll("_", "\\_").toLowerCase(ENGLISH) + "%");
         }
 
         prestoQuery += " LIMIT 10";
