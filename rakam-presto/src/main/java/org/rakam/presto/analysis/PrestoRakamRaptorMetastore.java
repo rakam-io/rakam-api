@@ -31,6 +31,7 @@ import org.skife.jdbi.v2.*;
 import org.skife.jdbi.v2.exceptions.DBIException;
 import org.skife.jdbi.v2.util.LongMapper;
 import org.skife.jdbi.v2.util.StringMapper;
+import parquet.Ints;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
@@ -105,7 +106,7 @@ public class PrestoRakamRaptorMetastore
                 throw new RakamException(queryResult.getError().message, SERVICE_UNAVAILABLE);
             }
 
-            return ((int) queryResult.getResult().get(0).get(0));
+            return Ints.checkedCast((long) queryResult.getResult().get(0).get(0));
         }, 5, MINUTES);
     }
 
