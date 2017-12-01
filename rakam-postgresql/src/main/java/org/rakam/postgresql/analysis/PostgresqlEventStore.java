@@ -1,6 +1,5 @@
 package org.rakam.postgresql.analysis;
 
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
@@ -20,7 +19,6 @@ import org.rakam.util.JsonHelper;
 import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
-
 import java.math.BigDecimal;
 import java.sql.*;
 import java.sql.Date;
@@ -33,9 +31,7 @@ import java.util.stream.IntStream;
 
 import static java.lang.String.format;
 import static org.rakam.postgresql.PostgresqlModule.PostgresqlVersion.Version.PG10;
-import static org.rakam.util.ValidationUtil.checkCollection;
-import static org.rakam.util.ValidationUtil.checkProject;
-import static org.rakam.util.ValidationUtil.checkTableColumn;
+import static org.rakam.util.ValidationUtil.*;
 
 @Singleton
 public class PostgresqlEventStore
@@ -86,7 +82,8 @@ public class PostgresqlEventStore
         HashSet<String> set = new HashSet<>();
         for (int i = startFrom; i < events.size(); i++) {
             Event event = events.get(i);
-            cal.setTimeInMillis(event.getAttribute("_time"));
+            Number time = event.getAttribute("_time");
+            cal.setTimeInMillis(time.longValue());
             int year = cal.get(Calendar.YEAR);
             int month = cal.get(Calendar.MONDAY) + 1;
             set.add(year + "_" + month);

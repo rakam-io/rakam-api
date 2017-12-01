@@ -58,9 +58,7 @@ import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
 import static org.rakam.analysis.InternalConfig.FIXED_SCHEMA;
 import static org.rakam.analysis.InternalConfig.USER_TYPE;
-import static org.rakam.collection.FieldType.ARRAY_STRING;
-import static org.rakam.collection.FieldType.MAP_STRING;
-import static org.rakam.collection.FieldType.STRING;
+import static org.rakam.collection.FieldType.*;
 import static org.rakam.util.AvroUtil.convertAvroSchema;
 import static org.rakam.util.ValidationUtil.checkCollectionValid;
 import static org.rakam.util.ValidationUtil.stripName;
@@ -275,8 +273,7 @@ public class JsonEventDeserializer
                             if (type.isArray() || type.isMap()) {
                                 throw new RakamException("_user field must be numeric or string.", BAD_REQUEST);
                             }
-                            final FieldType eventUserType = type.isNumeric() ? (type != FieldType.INTEGER ? FieldType.LONG : FieldType.INTEGER) :
-                                    STRING;
+                            final FieldType eventUserType = type.isNumeric() ? (type != INTEGER ? LONG : INTEGER) : STRING;
                             type = configManager.setConfigOnce(project, USER_TYPE.name(), eventUserType);
                         }
 
