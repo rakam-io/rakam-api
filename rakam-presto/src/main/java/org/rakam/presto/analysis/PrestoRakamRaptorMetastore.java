@@ -16,6 +16,7 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
+import com.google.common.primitives.Ints;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
@@ -31,7 +32,6 @@ import org.skife.jdbi.v2.*;
 import org.skife.jdbi.v2.exceptions.DBIException;
 import org.skife.jdbi.v2.util.LongMapper;
 import org.skife.jdbi.v2.util.StringMapper;
-import parquet.Ints;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
