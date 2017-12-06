@@ -422,8 +422,9 @@ public class PostgresqlMetastore
         try (Connection conn = connectionPool.getConnection()) {
             conn.createStatement().execute(format("DROP SCHEMA %s CASCADE", checkProject(project, '"')));
         } catch (SQLException e) {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e);
         }
+
         super.onDeleteProject(project);
     }
 

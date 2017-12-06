@@ -1,4 +1,4 @@
-package org.rakam;
+package org.rakam.pg9;
 
 import com.google.common.base.Throwables;
 import io.airlift.testing.postgresql.TestingPostgreSqlServer;
@@ -6,15 +6,13 @@ import org.rakam.config.JDBCConfig;
 
 import java.io.IOException;
 
-public class TestingEnvironment
-{
+public class TestingEnvironmentPg9 {
     private static TestingPostgreSqlServer testingPostgresqlServer;
     private static JDBCConfig postgresqlConfig;
 
-    public TestingEnvironment()
-    {
+    public TestingEnvironmentPg9() {
         if (testingPostgresqlServer == null) {
-            synchronized (TestingEnvironment.class) {
+            synchronized (TestingEnvironmentPg9.class) {
                 if (testingPostgresqlServer == null) {
                     try {
                         testingPostgresqlServer = new TestingPostgreSqlServer("testuser", "testdb");
@@ -27,15 +25,13 @@ public class TestingEnvironment
                                         () -> {
                                             try {
                                                 testingPostgresqlServer.close();
-                                            }
-                                            catch (IOException e) {
+                                            } catch (IOException e) {
                                                 e.printStackTrace();
                                             }
                                         }
                                 )
                         );
-                    }
-                    catch (Exception e) {
+                    } catch (Exception e) {
                         throw Throwables.propagate(e);
                     }
                 }
@@ -43,8 +39,7 @@ public class TestingEnvironment
         }
     }
 
-    public JDBCConfig getPostgresqlConfig()
-    {
+    public JDBCConfig getPostgresqlConfig() {
         if (postgresqlConfig == null) {
             throw new UnsupportedOperationException();
         }

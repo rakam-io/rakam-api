@@ -7,7 +7,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 
 import java.util.List;
@@ -19,18 +18,15 @@ public class Recipe
     private final Strategy strategy;
     private final Map<String, CollectionDefinition> collections;
     private final List<MaterializedView> materializedViews;
-    private final List<ContinuousQuery> continuousQueries;
 
     @JsonCreator
     public Recipe(@JsonProperty("strategy") Strategy strategy,
             @JsonProperty("collections") Map<String, CollectionDefinition> collections,
-            @JsonProperty("materialized_views") List<MaterializedView> materializedQueries,
-            @JsonProperty("continuous_queries") List<ContinuousQuery> continuousQueries)
+            @JsonProperty("materialized_views") List<MaterializedView> materializedQueries)
     {
         this.strategy = strategy;
         this.collections = collections != null ? ImmutableMap.copyOf(collections) : ImmutableMap.of();
         this.materializedViews = materializedQueries == null ? ImmutableList.of() : ImmutableList.copyOf(materializedQueries);
-        this.continuousQueries = continuousQueries == null ? ImmutableList.of() : ImmutableList.copyOf(continuousQueries);
     }
 
     @JsonProperty("strategy")
@@ -49,12 +45,6 @@ public class Recipe
     public List<MaterializedView> getMaterializedViewBuilders()
     {
         return materializedViews;
-    }
-
-    @JsonProperty("continuous_queries")
-    public List<ContinuousQuery> getContinuousQueryBuilders()
-    {
-        return continuousQueries;
     }
 
     public static class CollectionDefinition

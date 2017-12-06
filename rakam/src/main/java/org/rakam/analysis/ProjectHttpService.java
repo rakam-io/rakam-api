@@ -6,7 +6,6 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
-import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.*;
@@ -18,9 +17,7 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.Path;
-import java.time.LocalDate;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -35,7 +32,6 @@ public class ProjectHttpService
         extends HttpService {
 
     private final Metastore metastore;
-    private final ContinuousQueryService continuousQueryService;
     private final MaterializedViewService materializedViewService;
     private final ApiKeyService apiKeyService;
     private final ProjectConfig projectConfig;
@@ -46,9 +42,7 @@ public class ProjectHttpService
                               ProjectConfig projectConfig,
                               SchemaChecker schemaChecker,
                               MaterializedViewService materializedViewService,
-                              ApiKeyService apiKeyService,
-                              ContinuousQueryService continuousQueryService) {
-        this.continuousQueryService = continuousQueryService;
+                              ApiKeyService apiKeyService) {
         this.materializedViewService = materializedViewService;
         this.apiKeyService = apiKeyService;
         this.metastore = metastore;
@@ -92,11 +86,6 @@ public class ProjectHttpService
         }
         checkProject(project);
         metastore.deleteProject(project.toLowerCase(ENGLISH));
-
-        List<ContinuousQuery> list = continuousQueryService.list(project);
-        for (ContinuousQuery continuousQuery : list) {
-            continuousQueryService.delete(project, continuousQuery.tableName);
-        }
 
         List<MaterializedView> views = materializedViewService.list(project);
         for (MaterializedView view : views) {
@@ -241,20 +230,6 @@ public class ProjectHttpService
     public SuccessMessage revokeApiKeys(@ApiParam("project") String project, @ApiParam("master_key") String masterKey) {
         apiKeyService.revokeApiKeys(project, masterKey);
         return SuccessMessage.success();
-    }
-
-    @JsonRequest
-    @ApiOperation(value = "Get possible attribute values",
-            authorizations = @Authorization(value = "read_key"))
-    @Path("/attributes")
-    public CompletableFuture<List<String>> attributes(@Named("project") String project,
-                                                     @ApiParam("collection") String collection,
-                                                     @ApiParam("attribute") String attribute,
-                                                     @ApiParam(value = "startDate", required = false) LocalDate startDate,
-                                                     @ApiParam(value = "endDate", required = false) LocalDate endDate,
-                                                     @ApiParam(value = "filter", required = false) String filter)  {
-        return metastore.getAttributes(project, collection, attribute, Optional.ofNullable(startDate),
-                Optional.ofNullable(endDate), Optional.ofNullable(filter));
     }
 
     public static class Collection {

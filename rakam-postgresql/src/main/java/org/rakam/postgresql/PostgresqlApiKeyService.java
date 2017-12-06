@@ -1,6 +1,5 @@
 package org.rakam.postgresql;
 
-import com.google.common.base.Throwables;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.postgresql.analysis.JDBCApiKeyService;
 
@@ -29,7 +28,7 @@ public class PostgresqlApiKeyService extends JDBCApiKeyService {
                     "PRIMARY KEY (id)\n" +
                     "  )");
         } catch (SQLException e) {
-            Throwables.propagate(e);
+            throw new RuntimeException(e);
         }
     }
 }

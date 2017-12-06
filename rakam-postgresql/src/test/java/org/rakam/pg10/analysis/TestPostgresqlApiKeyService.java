@@ -1,9 +1,11 @@
-package org.rakam.analysis;
+package org.rakam.pg10.analysis;
 
-import org.rakam.TestingEnvironment;
+import org.rakam.analysis.ApiKeyService;
+import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.analysis.TestApiKeyService;
+import org.rakam.pg10.TestingEnvironmentPg10;
 import org.rakam.postgresql.PostgresqlApiKeyService;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.BeforeSuite;
 
 public class TestPostgresqlApiKeyService extends TestApiKeyService
@@ -12,7 +14,7 @@ public class TestPostgresqlApiKeyService extends TestApiKeyService
 
     @BeforeSuite
     public void setup() {
-        TestingEnvironment testingEnvironment = new TestingEnvironment();
+        TestingEnvironmentPg10 testingEnvironment = new TestingEnvironmentPg10();
         JDBCPoolDataSource apiKeyServiceDataSource = JDBCPoolDataSource
                 .getOrCreateDataSource(testingEnvironment.getPostgresqlConfig());
 

@@ -1,36 +1,32 @@
-package org.rakam.analysis;
+package org.rakam.pg10.analysis;
 
 import com.google.common.eventbus.EventBus;
-import org.rakam.TestingConfigManager;
-import org.rakam.TestingEnvironment;
+import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.analysis.RetentionQueryExecutor;
+import org.rakam.analysis.TestRetentionQueryExecutor;
 import org.rakam.analysis.datasource.CustomDataSourceService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.config.ProjectConfig;
+import org.rakam.pg10.TestingEnvironmentPg10;
 import org.rakam.plugin.EventStore;
-import org.rakam.postgresql.PostgresqlConfigManager;
-import org.rakam.postgresql.PostgresqlModule;
 import org.rakam.postgresql.PostgresqlModule.PostgresqlVersion;
 import org.rakam.postgresql.analysis.PostgresqlEventStore;
-import org.rakam.postgresql.analysis.PostgresqlMaterializedViewService;
 import org.rakam.postgresql.analysis.PostgresqlMetastore;
 import org.rakam.postgresql.analysis.PostgresqlRetentionQueryExecutor;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
-import org.rakam.report.QueryExecutorService;
 import org.testng.annotations.BeforeSuite;
-
-import java.time.Clock;
 
 public class TestPostgresqlRetentionQueryExecutor extends TestRetentionQueryExecutor {
 
-    private TestingEnvironment testingPostgresqlServer;
+    private TestingEnvironmentPg10 testingPostgresqlServer;
     private PostgresqlMetastore metastore;
     private PostgresqlEventStore eventStore;
     private PostgresqlRetentionQueryExecutor retentionQueryExecutor;
 
     @BeforeSuite
     public void setup() throws Exception {
-        testingPostgresqlServer = new TestingEnvironment();
+        testingPostgresqlServer = new TestingEnvironmentPg10();
 
         JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(testingPostgresqlServer.getPostgresqlConfig());
 

@@ -14,7 +14,6 @@
 package org.rakam.postgresql.report;
 
 import com.google.common.collect.ImmutableMap;
-import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.config.ProjectConfig;
 import org.rakam.report.QueryExecutorService;
@@ -45,10 +44,9 @@ public class PostgresqlEventExplorer
             .build();
 
     @Inject
-    public PostgresqlEventExplorer(ProjectConfig projectConfig, QueryExecutorService service, MaterializedViewService materializedViewService,
-            ContinuousQueryService continuousQueryService)
+    public PostgresqlEventExplorer(ProjectConfig projectConfig, QueryExecutorService service, MaterializedViewService materializedViewService)
     {
-        super(projectConfig, service, materializedViewService, continuousQueryService, timestampMapping);
+        super(projectConfig, service, materializedViewService, timestampMapping);
     }
 
     @Override

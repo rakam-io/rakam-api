@@ -15,7 +15,6 @@ import io.airlift.configuration.Config;
 import io.airlift.configuration.InvalidConfigurationException;
 import io.swagger.models.Tag;
 import org.rakam.analysis.ConfigManager;
-import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.SchemaChecker;
@@ -147,12 +146,11 @@ public class RecipeModule extends RakamModule {
 
         @Inject
         public RecipeLoader(Recipe recipe, Metastore metastore,
-                            ContinuousQueryService continuousQueryService,
                             ConfigManager configManager,
                             SchemaChecker schemaChecker,
                             MaterializedViewService materializedViewService) {
             this.recipe = recipe;
-            this.installer = new RecipeHandler(metastore, continuousQueryService, configManager, schemaChecker, materializedViewService);
+            this.installer = new RecipeHandler(metastore, configManager, schemaChecker, materializedViewService);
         }
 
         @Subscribe

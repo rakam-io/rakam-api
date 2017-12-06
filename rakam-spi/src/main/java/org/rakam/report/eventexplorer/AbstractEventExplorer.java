@@ -5,7 +5,6 @@ import com.facebook.presto.sql.tree.DefaultExpressionTraversalVisitor;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.Identifier;
 import io.airlift.log.Logger;
-import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.EventExplorerListener;
 import org.rakam.analysis.MaterializedViewService;
@@ -52,21 +51,18 @@ public abstract class AbstractEventExplorer
 
     private final Map<TimestampTransformation, String> timestampMapping;
     private final MaterializedViewService materializedViewService;
-    private final ContinuousQueryService continuousQueryService;
     private final ProjectConfig projectConfig;
 
     public AbstractEventExplorer(
             ProjectConfig projectConfig,
             QueryExecutorService executor,
             MaterializedViewService materializedViewService,
-            ContinuousQueryService continuousQueryService,
             Map<TimestampTransformation, String> timestampMapping)
     {
         this.projectConfig = projectConfig;
         this.executor = executor;
         this.timestampMapping = timestampMapping;
         this.materializedViewService = materializedViewService;
-        this.continuousQueryService = continuousQueryService;
     }
 
     public static void checkReference(String refValue, LocalDate startDate, LocalDate endDate, int size)
@@ -190,14 +186,6 @@ public abstract class AbstractEventExplorer
                 .map(view -> JsonHelper.convert(view.options.get("olap_table"), OLAPTable.class))
                 .filter(table -> groupedMetricsPredicate.test(table)).findAny()
                 .map(view -> new AbstractMap.SimpleImmutableEntry<>(view, "materialized." + checkCollection(view.tableName)));
-
-        if (!preComputedTable.isPresent()) {
-            preComputedTable = continuousQueryService.list(project).stream()
-                    .filter(view -> view.options != null && view.options.containsKey("olap_table"))
-                    .map(view -> JsonHelper.convert(view.options.get("olap_table"), OLAPTable.class))
-                    .filter(table -> groupedMetricsPredicate.test(table)).findAny()
-                    .map(view -> new AbstractMap.SimpleImmutableEntry<>(view, "continuous." + checkCollection(view.tableName)));
-        }
 
         String timeFilter = format(" %s between date '%s' and date '%s' + interval '1' day",
                 checkTableColumn(projectConfig.getTimeColumn()), startDate.format(ISO_DATE), endDate.format(ISO_DATE));

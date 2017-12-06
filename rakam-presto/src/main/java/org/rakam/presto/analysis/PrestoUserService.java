@@ -1,27 +1,21 @@
 package org.rakam.presto.analysis;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
-import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.config.ProjectConfig;
-import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.plugin.user.UserStorage;
-import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -36,13 +30,9 @@ import static com.google.common.collect.ImmutableList.of;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_IMPLEMENTED;
 import static java.lang.String.format;
-import static org.apache.avro.Schema.Type.LONG;
-import static org.apache.avro.Schema.Type.NULL;
-import static org.apache.avro.Schema.Type.STRING;
+import static org.apache.avro.Schema.Type.*;
 import static org.rakam.collection.FieldType.BINARY;
-import static org.rakam.util.ValidationUtil.checkCollection;
-import static org.rakam.util.ValidationUtil.checkProject;
-import static org.rakam.util.ValidationUtil.checkTableColumn;
+import static org.rakam.util.ValidationUtil.*;
 
 public class PrestoUserService
         extends AbstractUserService
@@ -58,7 +48,6 @@ public class PrestoUserService
     private final Metastore metastore;
     private final PrestoConfig prestoConfig;
     private final PrestoQueryExecutor executor;
-    private final ContinuousQueryService continuousQueryService;
     private final UserPluginConfig config;
     private final EventStore eventStore;
     private final ProjectConfig projectConfig;
@@ -67,14 +56,12 @@ public class PrestoUserService
     public PrestoUserService(
             UserStorage storage,
             ProjectConfig projectConfig,
-            ContinuousQueryService continuousQueryService,
             EventStore eventStore, Metastore metastore,
             UserPluginConfig config,
             PrestoConfig prestoConfig,
             PrestoQueryExecutor executor)
     {
         super(storage);
-        this.continuousQueryService = continuousQueryService;
         this.metastore = metastore;
         this.prestoConfig = prestoConfig;
         this.executor = executor;
@@ -113,7 +100,7 @@ public class PrestoUserService
                                     if (field.getType().isArray() || field.getType().isMap()) {
                                         return format("\"%1$s\": '|| json_format(try_cast(%1$s as json)) ||'", field.getName());
                                     }
-                                    return format("\"%1$s\": \"'|| COALESCE(replace(try_cast(%1$s as varchar), '\n', '\\n'), 'null')||'\"", field.getName());
+                                    return format("\"%1$s\": \"'|| COALESCE(replaceView(try_cast(%1$s as varchar), '\n', '\\n'), 'null')||'\"", field.getName());
                                 })
                                 .collect(Collectors.joining(", ")) +
                                 format(" }' as json, %s from %s where %s = %s %s",
@@ -169,15 +156,16 @@ public class PrestoUserService
                 Optional.ofNullable(query.dimension).map(v -> v + " as dimension,").orElse(""), table,
                 Optional.ofNullable(query.dimension).map(v -> ", 2").orElse(""));
 
-        ContinuousQuery continuousQuery = new ContinuousQuery(tableName, name, sqlQuery,
-                ImmutableList.of("date"), ImmutableMap.of());
-        return new DelegateQueryExecution(continuousQueryService.create(project, continuousQuery, true), result -> {
-            if (result.isFailed()) {
-                throw new RakamException("Failed to create continuous query: " + JsonHelper.encode(result.getError()), INTERNAL_SERVER_ERROR);
-            }
-            result.setProperty("preCalculated", new PreCalculatedTable(name, tableName));
-            return result;
-        });
+//        ContinuousQuery continuousQuery = new ContinuousQuery(tableName, name, sqlQuery,
+//                ImmutableList.of("date"), ImmutableMap.of());
+//        return new DelegateQueryExecution(continuousQueryService.create(project, continuousQuery, true), result -> {
+//            if (result.isFailed()) {
+//                throw new RakamException("Failed to create continuous query: " + JsonHelper.encode(result.getError()), INTERNAL_SERVER_ERROR);
+//            }
+//            result.setProperty("preCalculated", new PreCalculatedTable(name, tableName));
+//            return result;
+//        });
+        return null;
     }
 
     public void merge(String project, Object user, Object anonymousId, Instant createdAt, Instant mergedAt)

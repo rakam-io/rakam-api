@@ -13,9 +13,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.rakam.Mapper;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
-import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.SyncEventMapper;
 import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.plugin.user.UserPropertyMapper;
@@ -26,6 +24,8 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
+
+import static org.rakam.collection.FieldType.STRING;
 
 @Mapper(name = "Website Referrer Event mapper", description = "Parses referrer string and attaches new field related with the referrer of the user")
 public class ReferrerEventMapper
@@ -151,14 +151,12 @@ public class ReferrerEventMapper
     @Override
     public void addFieldDependency(FieldDependencyBuilder builder)
     {
-        ImmutableList<SchemaField> list = ImmutableList.of(
-                new SchemaField("_referrer_medium", FieldType.STRING),
-                new SchemaField("_referrer_source", FieldType.STRING),
-                new SchemaField("_referrer_term", FieldType.STRING),
-                new SchemaField("_referrer_domain", FieldType.STRING),
-                new SchemaField("_referrer_path", FieldType.STRING)
-        );
-        builder.addFields("_referrer", list);
-        builder.addFields("_host", list);
+        builder.addFields("_referrer", ImmutableList.of(
+                new SchemaField("_referrer_medium", STRING),
+                new SchemaField("_referrer_source", STRING),
+                new SchemaField("_referrer_term", STRING),
+                new SchemaField("_referrer_domain", STRING),
+                new SchemaField("_referrer_path", STRING)
+        ));
     }
 }

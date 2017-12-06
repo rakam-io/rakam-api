@@ -18,25 +18,19 @@ import org.rakam.collection.EventList;
 import org.rakam.collection.JsonEventDeserializer;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventStore;
-import org.rakam.util.RAsyncHttpClient;
 import org.rakam.util.CryptUtil;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.RAsyncHttpClient;
 import org.rakam.util.RakamException;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Named;
-import javax.script.Bindings;
-import javax.script.Invocable;
-import javax.script.ScriptContext;
-import javax.script.ScriptEngine;
-import javax.script.ScriptException;
-
+import javax.script.*;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.URL;
-import java.net.UnknownHostException;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.BiConsumer;
@@ -89,12 +83,7 @@ public class JSCodeCompiler
         this.loggerService = loggerService;
         this.loadAllowed = loadAllowed;
         this.customEnabled = customEnabled;
-        try {
-            localhost = InetAddress.getLocalHost();
-        }
-        catch (UnknownHostException e) {
-            throw new RuntimeException(e);
-        }
+        localhost = InetAddress.getLoopbackAddress();
     }
 
     public class JSEventStore
