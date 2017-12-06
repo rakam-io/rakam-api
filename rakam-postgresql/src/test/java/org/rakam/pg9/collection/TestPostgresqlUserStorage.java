@@ -1,7 +1,6 @@
 package org.rakam.pg9.collection;
 
 import com.google.common.eventbus.EventBus;
-import org.rakam.TestingEnvironmentPg9;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.InMemoryQueryMetadataStore;
 import org.rakam.analysis.JDBCPoolDataSource;
@@ -10,6 +9,7 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.TestUserStorage;
 import org.rakam.config.ProjectConfig;
+import org.rakam.pg9.TestingEnvironmentPg9;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.postgresql.PostgresqlConfigManager;
 import org.rakam.postgresql.PostgresqlModule;
