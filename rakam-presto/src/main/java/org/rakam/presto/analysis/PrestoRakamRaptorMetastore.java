@@ -28,6 +28,7 @@ import org.rakam.report.QueryResult;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 import org.skife.jdbi.v2.*;
 import org.skife.jdbi.v2.exceptions.DBIException;
 import org.skife.jdbi.v2.util.LongMapper;
@@ -128,6 +129,8 @@ public class PrestoRakamRaptorMetastore
 
     @Override
     public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields) {
+        ValidationUtil.checkCollectionValid(collection);
+
         return getOrCreateCollectionFields(project, collection, fields, fields.size() + 1);
     }
 

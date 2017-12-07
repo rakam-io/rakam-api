@@ -5,22 +5,16 @@ import com.google.inject.Inject;
 import io.airlift.http.client.StringResponseHandler.StringResponse;
 import org.rakam.analysis.metadata.AbstractMetastore;
 import org.rakam.clickhouse.ClickHouseConfig;
-import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -107,6 +101,7 @@ public class ClickHouseMetastore
     public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields)
             throws NotExistsException
     {
+        ValidationUtil.checkCollectionValid(collection);
         return getOrCreateCollectionFields(project, collection, fields, fields.size());
     }
 

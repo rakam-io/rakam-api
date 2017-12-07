@@ -20,6 +20,7 @@ import org.rakam.postgresql.report.JDBCQueryExecution;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.ProjectCollection;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -226,6 +227,14 @@ public class PostgresqlMetastore
     @Override
     public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields)
             throws NotExistsException {
+        ValidationUtil.checkCollectionValid(collection);
+        return getOrCreateCollectionFieldsInternal(project, collection, fields, 20);
+    }
+
+    public List<SchemaField> getOrCreateCollectionFieldsInternal(String project, String collection, Set<SchemaField> fields, int remainingTry)
+            throws NotExistsException {
+        ValidationUtil.checkCollectionValid(collection);
+
         List<SchemaField> currentFields = new ArrayList<>();
         String query;
         Runnable task;
@@ -302,8 +311,10 @@ public class PostgresqlMetastore
             } else
                 // column or table already exists
                 if (e.getMessage().contains("already exists")) {
-                    // TODO: should we try again until this operation is done successfully, what about infinite loops?
-                    return getOrCreateCollectionFieldList(project, collection, fields);
+                    if (remainingTry == 0) {
+                        throw new RuntimeException("Unable to change schema");
+                    }
+                    return getOrCreateCollectionFieldsInternal(project, collection, fields, remainingTry - 1);
                 } else {
                     throw new IllegalStateException(e.getMessage());
                 }

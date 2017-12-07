@@ -7,15 +7,8 @@ import org.rakam.collection.SchemaField;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
 
-import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -113,7 +106,7 @@ public class SchemaChecker
 
                 if (!collect.isEmpty()) {
                     try {
-                        metastore.getOrCreateCollectionFieldList(project, collection, collect);
+                        metastore.getOrCreateCollectionFields(project, collection, collect);
                     }
                     catch (NotExistsException e) {
                         throw Throwables.propagate(e);

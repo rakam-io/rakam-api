@@ -144,7 +144,7 @@ public class ProjectHttpService
     public List<SchemaField> addFieldsToSchema(@Named("project") String project,
                                                @ApiParam("collection") String collection,
                                                @ApiParam("fields") Set<SchemaField> fields) {
-        return metastore.getOrCreateCollectionFieldList(project, collection,
+        return metastore.getOrCreateCollectionFields(project, collection,
                 schemaChecker.checkNewFields(collection, fields));
     }
 
@@ -157,7 +157,7 @@ public class ProjectHttpService
                                                      @ApiParam("collection") String collection,
                                                      @ApiParam("schema_type") SchemaConverter type,
                                                      @ApiParam("schema") String schema) {
-        return metastore.getOrCreateCollectionFieldList(project, collection,
+        return metastore.getOrCreateCollectionFields(project, collection,
                 schemaChecker.checkNewFields(collection, type.getMapper().apply(schema)));
     }
 

@@ -164,7 +164,7 @@ public class CsvEventDeserializer
         }
 
         if (!newFields.isEmpty()) {
-            fields = metastore.getOrCreateCollectionFieldList(project, collection,
+            fields = metastore.getOrCreateCollectionFields(project, collection,
                     schemaChecker.checkNewFields(collection, newFields));
         }
 

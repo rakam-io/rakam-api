@@ -38,7 +38,7 @@ public class TestCSVParser {
                 new CsvEventDeserializer(metastore, new ProjectConfig(), new TestingConfigManager(), new SchemaChecker(metastore, build), build)));
 
         metastore.createProject("project");
-        metastore.getOrCreateCollectionFieldList("project", "collection",
+        metastore.getOrCreateCollectionFields("project", "collection",
                 of(new SchemaField("price", DOUBLE)));
 
         String csv = "Transaction_date,Product,Price\n" +

@@ -38,7 +38,7 @@ public class EventBuilder {
         List<SchemaField> fields;
         List<SchemaField> generatedSchema = generateSchema(properties);
         if (cache == null || !generatedSchema.stream().allMatch(f -> cache.contains(f))) {
-            fields = metastore.getOrCreateCollectionFieldList(project, collection, ImmutableSet.copyOf(generatedSchema));
+            fields = metastore.getOrCreateCollectionFields(project, collection, ImmutableSet.copyOf(generatedSchema));
             fieldCache.put(collection, fields);
         } else {
             fields = cache;

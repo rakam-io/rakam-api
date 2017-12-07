@@ -1,25 +1,15 @@
 package org.rakam.analysis.metadata;
 
 import com.google.common.eventbus.EventBus;
-import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
-import org.rakam.util.NotExistsException;
-import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static java.lang.String.format;
 
 public abstract class AbstractMetastore
         implements Metastore
@@ -51,16 +41,7 @@ public abstract class AbstractMetastore
         eventBus.post(new SystemEvents.CollectionFieldCreatedEvent(project, collection, fields));
     }
 
-    @Override
-    public List<SchemaField> getOrCreateCollectionFieldList(String project, String collection, Set<SchemaField> fieldList)
-            throws NotExistsException
-    {
-        ValidationUtil.checkCollectionValid(collection);
-        return getOrCreateCollectionFields(project, collection, fieldList);
-    }
-
     public abstract List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields);
-
 
     @Override
     public Map<String, Stats> getStats(Collection<String> projects)

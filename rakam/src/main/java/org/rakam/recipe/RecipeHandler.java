@@ -92,7 +92,7 @@ public class RecipeHandler
                     .collect(Collectors.toList());
 
             HashSet<SchemaField> schemaFields = schemaChecker.checkNewFields(collectionName, ImmutableSet.copyOf(build));
-            List<SchemaField> fields = metastore.getOrCreateCollectionFieldList(project, collectionName, schemaFields);
+            List<SchemaField> fields = metastore.getOrCreateCollectionFields(project, collectionName, schemaFields);
 
             List<SchemaField> collisions = build.stream()
                     .filter(f -> fields.stream().anyMatch(field -> field.getName().equals(f.getName()) && !f.getType().equals(field.getType())))

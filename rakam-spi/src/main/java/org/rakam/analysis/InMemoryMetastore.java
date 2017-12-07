@@ -6,6 +6,7 @@ import com.google.common.eventbus.EventBus;
 import org.rakam.analysis.metadata.AbstractMetastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.util.NotExistsException;
+import org.rakam.util.ValidationUtil;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -54,6 +55,8 @@ public class InMemoryMetastore extends AbstractMetastore {
 
     @Override
     public synchronized List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields) throws NotExistsException {
+        ValidationUtil.checkCollectionValid(collection);
+
         Map<String, List<SchemaField>> list = collections.get(project);
         if(list == null) {
             throw new NotExistsException("Project");
