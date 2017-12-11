@@ -76,7 +76,7 @@
         <java.version>1.8</java.version>
         <jackson.version>2.8.1</jackson.version>
         <aws.library>1.10.66</aws.library>
-        <netty.rest.version>0.92</netty.rest.version>
+        <netty.rest.version>0.93</netty.rest.version>
         <swagger.version>1.5.12</swagger.version>
 
         <!--Plugin versions-->
