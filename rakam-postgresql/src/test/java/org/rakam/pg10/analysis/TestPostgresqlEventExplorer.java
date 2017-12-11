@@ -1,18 +1,21 @@
-package org.rakam.analysis;
+package org.rakam.pg10.analysis;
 
 import com.google.common.eventbus.EventBus;
-import org.rakam.TestingEnvironment;
+import org.rakam.analysis.EventExplorer;
+import org.rakam.analysis.InMemoryQueryMetadataStore;
+import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.analysis.TestEventExplorer;
 import org.rakam.analysis.datasource.CustomDataSourceService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.config.ProjectConfig;
+import org.rakam.pg10.TestingEnvironmentPg10;
 import org.rakam.plugin.EventStore;
 import org.rakam.postgresql.PostgresqlModule;
 import org.rakam.postgresql.analysis.PostgresqlEventStore;
 import org.rakam.postgresql.analysis.PostgresqlMaterializedViewService;
 import org.rakam.postgresql.analysis.PostgresqlMetastore;
 import org.rakam.postgresql.report.PostgresqlEventExplorer;
-import org.rakam.postgresql.report.PostgresqlPseudoContinuousQueryService;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecutorService;
 import org.testng.annotations.BeforeSuite;
@@ -23,7 +26,7 @@ public class TestPostgresqlEventExplorer
         extends TestEventExplorer
 {
 
-    private TestingEnvironment testingPostgresqlServer;
+    private TestingEnvironmentPg10 testingPostgresqlServer;
     private PostgresqlMetastore metastore;
     private PostgresqlEventStore eventStore;
     private PostgresqlEventExplorer eventExplorer;
@@ -33,7 +36,7 @@ public class TestPostgresqlEventExplorer
     public void setup()
             throws Exception
     {
-        testingPostgresqlServer = new TestingEnvironment();
+        testingPostgresqlServer = new TestingEnvironmentPg10();
 
         InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();
         JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(testingPostgresqlServer.getPostgresqlConfig(), "set time zone 'UTC'");
@@ -45,17 +48,13 @@ public class TestPostgresqlEventExplorer
         PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(new ProjectConfig(), dataSource, metastore, new CustomDataSourceService(dataSource), false);
 
         PostgresqlMaterializedViewService postgresqlMaterializedViewService = new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore, Clock.systemUTC());
-        QueryExecutorService executorService = new QueryExecutorService(queryExecutor, metastore,
-                postgresqlMaterializedViewService, Clock.systemUTC(), '"');
-        PostgresqlPseudoContinuousQueryService continuousQueryService = new PostgresqlPseudoContinuousQueryService(queryMetadataStore, executorService, queryExecutor);
 
         eventStore = new PostgresqlEventStore(dataSource, new PostgresqlModule.PostgresqlVersion(dataSource), build);
         PostgresqlMaterializedViewService materializedViewService = postgresqlMaterializedViewService;
         eventExplorer = new PostgresqlEventExplorer(
                 new ProjectConfig(),
                 new QueryExecutorService(queryExecutor, metastore, materializedViewService, Clock.systemUTC(), '"'),
-                materializedViewService,
-                continuousQueryService);
+                materializedViewService);
         super.setup();
     }
 

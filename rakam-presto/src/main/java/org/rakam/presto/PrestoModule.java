@@ -13,7 +13,6 @@ import com.google.inject.multibindings.OptionalBinder;
 import com.google.inject.name.Names;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.ConfigManager;
-import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EscapeIdentifier;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.FunnelQueryExecutor;
@@ -42,7 +41,6 @@ import org.rakam.postgresql.plugin.user.AbstractPostgresqlUserStorage;
 import org.rakam.presto.analysis.MysqlConfigManager;
 import org.rakam.presto.analysis.PrestoAbstractMetastore;
 import org.rakam.presto.analysis.PrestoConfig;
-import org.rakam.presto.analysis.PrestoContinuousQueryService;
 import org.rakam.presto.analysis.PrestoEventExplorer;
 import org.rakam.presto.analysis.PrestoEventStream;
 import org.rakam.presto.analysis.PrestoFunnelQueryExecutor;
@@ -95,7 +93,6 @@ public class PrestoModule
 
         JDBCPoolDataSource metadataDataSource;
         if ("rakam_raptor".equals(prestoConfig.getColdStorageConnector())) {
-            binder.bind(ContinuousQueryService.class).to(PrestoPseudoContinuousQueryService.class);
             metadataDataSource = bindJDBCConfig(binder, "presto.metastore.jdbc");
 
             if (buildConfigObject(EventStreamConfig.class).getEventStreamEnabled()) {
@@ -105,7 +102,6 @@ public class PrestoModule
         }
         else {
             metadataDataSource = bindJDBCConfig(binder, "report.metadata.store.jdbc");
-            binder.bind(ContinuousQueryService.class).to(PrestoPseudoContinuousQueryService.class);
         }
 
         binder.bind(ApiKeyService.class).toInstance(new JDBCApiKeyService(metadataDataSource));

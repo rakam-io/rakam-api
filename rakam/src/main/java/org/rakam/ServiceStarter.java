@@ -175,7 +175,6 @@ public final class ServiceStarter
             Multibinder.newSetBinder(binder, EventMapper.class);
             Multibinder.newSetBinder(binder, InjectionHook.class);
             OptionalBinder.newOptionalBinder(binder, AbstractUserService.class);
-            OptionalBinder.newOptionalBinder(binder, ContinuousQueryService.class);
             OptionalBinder.newOptionalBinder(binder, UserStorage.class);
             OptionalBinder.newOptionalBinder(binder, UserMailboxStorage.class);
 

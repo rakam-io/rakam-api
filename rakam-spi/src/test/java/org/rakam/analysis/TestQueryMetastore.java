@@ -3,7 +3,6 @@ package org.rakam.analysis;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.metadata.QueryMetadataStore;
-import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 import org.testng.annotations.Test;
 
@@ -29,20 +28,5 @@ public abstract class TestQueryMetastore
 
         assertEquals(getQuerymetastore().getMaterializedViews(PROJECT_NAME),
                 ImmutableList.of(materializedView));
-    }
-
-    @Test
-    public void testContinuousQueryCreateGetList()
-            throws Exception
-    {
-        ContinuousQuery continuousQuery = new ContinuousQuery("test", "test",
-                "select 1", ImmutableList.of(), ImmutableMap.of());
-        getQuerymetastore().createContinuousQuery(PROJECT_NAME, continuousQuery);
-
-        assertEquals(getQuerymetastore().getContinuousQuery(PROJECT_NAME, "test"),
-                continuousQuery);
-
-        assertEquals(getQuerymetastore().getContinuousQueries(PROJECT_NAME),
-                ImmutableList.of(continuousQuery));
     }
 }

@@ -11,19 +11,9 @@ import org.rakam.util.CryptUtil;
 import org.rakam.util.RakamException;
 
 import javax.annotation.PostConstruct;
-
 import java.net.URI;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ExecutionException;
+import java.sql.*;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
@@ -101,7 +91,7 @@ public class JDBCApiKeyService
                     "  )");
         }
         catch (SQLException e) {
-            Throwables.propagate(e);
+            throw new RuntimeException(e);
         }
     }
 

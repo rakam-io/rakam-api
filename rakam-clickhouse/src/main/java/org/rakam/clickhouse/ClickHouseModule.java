@@ -1,12 +1,9 @@
 package org.rakam.clickhouse;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
-import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.Multibinder;
-import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EscapeIdentifier;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.FunnelQueryExecutor;
@@ -26,18 +23,9 @@ import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.eventexplorer.EventExplorerConfig;
-import org.rakam.report.realtime.AggregationType;
 import org.rakam.util.ConditionalModule;
 
-import java.util.List;
-
 import static io.airlift.configuration.ConfigBinder.configBinder;
-import static org.rakam.report.realtime.AggregationType.APPROXIMATE_UNIQUE;
-import static org.rakam.report.realtime.AggregationType.COUNT;
-import static org.rakam.report.realtime.AggregationType.COUNT_UNIQUE;
-import static org.rakam.report.realtime.AggregationType.MAXIMUM;
-import static org.rakam.report.realtime.AggregationType.MINIMUM;
-import static org.rakam.report.realtime.AggregationType.SUM;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "store.adapter", value = "clickhouse")
@@ -54,7 +42,6 @@ public class ClickHouseModule
 
         binder.bind(QueryExecutor.class).to(ClickHouseQueryExecutor.class);
         binder.bind(EventStore.class).to(AWSKinesisClickhouseEventStore.class);
-        binder.bind(ContinuousQueryService.class).to(ClickHouseContinuousQueryService.class);
         binder.bind(MaterializedViewService.class).to(ClickHouseMaterializedViewService.class);
         binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class)
                 .toInstance("toUnixTimestamp");

@@ -646,7 +646,7 @@ public class CustomEventMapperHttpService
                     return;
                 }
 
-                List<SchemaField> fields = metastore.getOrCreateCollectionFieldList(event.project(), event.collection(),
+                List<SchemaField> fields = metastore.getOrCreateCollectionFields(event.project(), event.collection(),
                         ImmutableSet.of(new SchemaField(attr, attrValue.fieldType)));
 
                 List<Schema.Field> oldFields = event.properties().getSchema().getFields();

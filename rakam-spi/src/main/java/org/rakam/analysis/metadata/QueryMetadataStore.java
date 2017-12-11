@@ -1,12 +1,9 @@
 package org.rakam.analysis.metadata;
 
-import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 
 import java.time.Instant;
-import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 
@@ -23,11 +20,5 @@ public interface QueryMetadataStore {
 
     void changeMaterializedView(String project, String tableName, boolean realTime);
 
-    void createContinuousQuery(String project, ContinuousQuery report);
-
-    void deleteContinuousQuery(String project, String tableName);
-
-    List<ContinuousQuery> getContinuousQueries(String project);
-
-    ContinuousQuery getContinuousQuery(String project, String tableNme);
+    void alter(String project, MaterializedView view);
 }

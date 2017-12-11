@@ -34,6 +34,7 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.annotation.PostConstruct;
 
@@ -110,6 +111,8 @@ public class DynamodbMetastore
     @Override
     public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> newFields)
     {
+        ValidationUtil.checkCollectionValid(collection);
+
         List<SchemaField> fields = getCollection(project, collection);
         int i = 0;
         for (SchemaField newField : newFields) {

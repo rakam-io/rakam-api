@@ -14,21 +14,13 @@
 package org.rakam.analysis.retention;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
 import io.swagger.models.Tag;
-import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.config.MetadataConfig;
-import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.SystemEvents;
 import org.rakam.server.http.HttpService;
 import org.rakam.util.ConditionalModule;
-
-import javax.inject.Inject;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "user.retention-analysis.enabled", value = "true")

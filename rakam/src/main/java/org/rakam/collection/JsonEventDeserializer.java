@@ -338,7 +338,7 @@ public class JsonEventDeserializer
                 }
             }
 
-            rakamSchema = metastore.getOrCreateCollectionFieldList(project, collection,
+            rakamSchema = metastore.getOrCreateCollectionFields(project, collection,
                     schemaChecker.checkNewFields(collection, ImmutableSet.copyOf(newFields)));
             Schema newAvroSchema = convertAvroSchema(rakamSchema, conditionalMagicFields);
 

@@ -2,7 +2,6 @@ package org.rakam.analysis;
 
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.metadata.QueryMetadataStore;
-import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.MaterializedViewNotExists;
@@ -21,7 +20,6 @@ import java.util.stream.Collectors;
 public class InMemoryQueryMetadataStore
         implements QueryMetadataStore
 {
-    private final Map<String, Set<ContinuousQuery>> continuousQueries = new HashMap<>();
     private final Map<String, Set<MaterializedView>> materializedViews = new HashMap<>();
 
     @Override
@@ -89,34 +87,12 @@ public class InMemoryQueryMetadataStore
     }
 
     @Override
-    public void createContinuousQuery(String project, ContinuousQuery report)
-    {
-        Set<ContinuousQuery> continuousQueries = this.continuousQueries.computeIfAbsent(project, (key) -> new HashSet<>());
-        if (continuousQueries.contains(report)) {
-            throw new AlreadyExistsException("Continuous query", HttpResponseStatus.BAD_REQUEST);
+    public void alter(String project, MaterializedView view) {
+        Set<MaterializedView> materializedViews = this.materializedViews.computeIfAbsent(project, (key) -> new HashSet<>());
+
+        if (!materializedViews.contains(view)) {
+            throw new NotExistsException("Materialized view");
         }
-        continuousQueries.add(report);
-    }
-
-    @Override
-    public void deleteContinuousQuery(String project, String name)
-    {
-        continuousQueries.computeIfAbsent(project, (key) -> new HashSet<>()).remove(getContinuousQuery(project, name));
-    }
-
-    @Override
-    public List<ContinuousQuery> getContinuousQueries(String project)
-    {
-        return continuousQueries.computeIfAbsent(project, (key) -> new HashSet<>()).stream()
-                .filter(report -> project.equals(project))
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public ContinuousQuery getContinuousQuery(String project, String name)
-    {
-        return continuousQueries.computeIfAbsent(project, (key) -> new HashSet<>()).stream()
-                .filter(view -> project.equals(project) && view.tableName.equals(name))
-                .findAny().get();
+        materializedViews.add(view);
     }
 }

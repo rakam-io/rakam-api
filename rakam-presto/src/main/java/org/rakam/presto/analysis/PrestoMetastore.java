@@ -18,6 +18,7 @@ import org.rakam.config.ProjectConfig;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.ProjectCollection;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.TransactionStatus;
@@ -246,6 +247,8 @@ public class PrestoMetastore
     public synchronized List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields)
             throws NotExistsException
     {
+        ValidationUtil.checkCollectionValid(collection);
+
         if (!collection.matches("^[a-zA-Z0-9_]*$")) {
             throw new IllegalArgumentException("Only alphanumeric characters allowed in collection name.");
         }
@@ -311,7 +314,7 @@ public class PrestoMetastore
             // column or table already exists
             if (e.getMessage().contains("exists")) {
                 // TODO: should we try again until this operation is done successfully, what about infinite loops?
-                return getOrCreateCollectionFieldList(project, collection, fields);
+                return getOrCreateCollectionFields(project, collection, fields);
             }
             else {
                 throw new IllegalStateException(e.getMessage());

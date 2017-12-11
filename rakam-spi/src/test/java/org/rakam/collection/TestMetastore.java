@@ -151,7 +151,7 @@ public abstract class TestMetastore
         getMetastore().createProject("test");
 
         List<List<SchemaField>> collect = IntStream.range(0, 10).parallel().mapToObj(i ->
-                getMetastore().getOrCreateCollectionFieldList("test", "test", ImmutableSet.of(new SchemaField("test" + i, STRING))))
+                getMetastore().getOrCreateCollectionFields("test", "test", ImmutableSet.of(new SchemaField("test" + i, STRING))))
                 .collect(Collectors.toList());
 
         Set<SchemaField> allSchemas = ImmutableSet.copyOf(collect.stream().sorted((o1, o2) -> o2.size() - o1.size()).findFirst().get());

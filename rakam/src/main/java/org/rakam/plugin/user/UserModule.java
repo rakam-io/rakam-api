@@ -13,7 +13,6 @@ import io.netty.handler.codec.http.cookie.Cookie;
 import io.swagger.models.Tag;
 import org.rakam.Mapper;
 import org.rakam.analysis.ConfigManager;
-import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.config.MetadataConfig;
@@ -149,13 +148,11 @@ public class UserModule
     public static class UserPrecomputationListener
     {
         private final AbstractUserService service;
-        private final ContinuousQueryService continuousQueryService;
 
         @Inject
-        public UserPrecomputationListener(AbstractUserService service, ContinuousQueryService continuousQueryService)
+        public UserPrecomputationListener(AbstractUserService service)
         {
             this.service = service;
-            this.continuousQueryService = continuousQueryService;
         }
 
         @Subscribe
@@ -178,7 +175,7 @@ public class UserModule
         {
             if (collection != null) {
                 try {
-                    continuousQueryService.get(project, "_users_daily_" + collection);
+//                    continuousQueryService.get(project, "_users_daily_" + collection);
                 }
                 catch (RakamException e) {
                     try {
@@ -190,7 +187,7 @@ public class UserModule
             }
 
             try {
-                continuousQueryService.get(project, "_users_daily");
+//                continuousQueryService.get(project, "_users_daily");
             }
             catch (RakamException e) {
                 try {

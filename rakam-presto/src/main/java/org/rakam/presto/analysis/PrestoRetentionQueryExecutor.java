@@ -16,56 +16,37 @@ package org.rakam.presto.analysis;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.common.primitives.Ints;
 import org.rakam.analysis.CalculatedUserSet;
-import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.user.UserPluginConfig;
-import org.rakam.report.AbstractRetentionQueryExecutor;
-import org.rakam.report.DelegateQueryExecution;
-import org.rakam.report.PreComputedTableSubQueryVisitor;
-import org.rakam.report.QueryExecution;
-import org.rakam.report.QueryExecutorService;
-import org.rakam.report.QueryResult;
+import org.rakam.report.*;
 
 import javax.inject.Inject;
-
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalField;
 import java.time.temporal.WeekFields;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static java.time.temporal.ChronoUnit.DAYS;
-import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.DAY;
-import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.MONTH;
-import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.WEEK;
+import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.*;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.presto.analysis.PrestoUserService.ANONYMOUS_ID_MAPPING;
 import static org.rakam.util.DateTimeUtils.LOCAL_DATE_FORMATTER;
-import static org.rakam.util.ValidationUtil.checkArgument;
-import static org.rakam.util.ValidationUtil.checkCollection;
-import static org.rakam.util.ValidationUtil.checkProject;
-import static org.rakam.util.ValidationUtil.checkTableColumn;
+import static org.rakam.util.ValidationUtil.*;
 
 public class PrestoRetentionQueryExecutor
         extends AbstractRetentionQueryExecutor
 {
     private final Metastore metastore;
     private final MaterializedViewService materializedViewService;
-    private final ContinuousQueryService continuousQueryService;
     private final QueryExecutorService executor;
     private final boolean userMappingEnabled;
     private final ProjectConfig projectConfig;
@@ -76,14 +57,12 @@ public class PrestoRetentionQueryExecutor
             QueryExecutorService executor,
             Metastore metastore,
             MaterializedViewService materializedViewService,
-            UserPluginConfig userPluginConfig,
-            ContinuousQueryService continuousQueryService)
+            UserPluginConfig userPluginConfig)
     {
         this.projectConfig = projectConfig;
         this.executor = executor;
         this.metastore = metastore;
         this.materializedViewService = materializedViewService;
-        this.continuousQueryService = continuousQueryService;
         this.userMappingEnabled = userPluginConfig.getEnableUserMapping();
     }
 
@@ -252,14 +231,14 @@ public class PrestoRetentionQueryExecutor
             try {
                 String preComputedTablePrefix = tableName + "_by_";
                 return Optional.of(new PreComputedTableSubQueryVisitor(columnName -> {
-                    if (continuousQueryService.list(project).stream().anyMatch(e ->
-                            e.tableName.equals(preComputedTablePrefix + columnName) && Objects.equals(zoneId.getId(), e.getOptions().get("timezone")))) {
-                        return Optional.of("continuous." + preComputedTablePrefix + columnName);
-                    }
-                    else if (materializedViewService.list(project).stream().anyMatch(
-                            e -> e.tableName.equals(preComputedTablePrefix + columnName) && Objects.equals(zoneId.getId(), e.options.get("timezone")))) {
-                        return Optional.of("materialized." + preComputedTablePrefix + columnName);
-                    }
+//                    if (continuousQueryService.list(project).stream().anyMatch(e ->
+//                            e.tableName.equals(preComputedTablePrefix + columnName) && Objects.equals(zoneId.getId(), e.getOptions().get("timezone")))) {
+//                        return Optional.of("continuous." + preComputedTablePrefix + columnName);
+//                    }
+//                    else if (materializedViewService.list(project).stream().anyMatch(
+//                            e -> e.tableName.equals(preComputedTablePrefix + columnName) && Objects.equals(zoneId.getId(), e.options.get("timezone")))) {
+//                        return Optional.of("materialized." + preComputedTablePrefix + columnName);
+//                    }
 
                     missingPreComputedTables.add(new CalculatedUserSet(collection, Optional.of(columnName)));
                     return Optional.empty();
@@ -270,9 +249,9 @@ public class PrestoRetentionQueryExecutor
             }
         }
 
-        if (continuousQueryService.list(project).stream().anyMatch(e -> e.tableName.equals(tableName))) {
-            return Optional.of(generatePreCalculatedTableSql(Optional.of(tableName), "continuous", timePredicate, timeColumn, dimensionRequired));
-        }
+//        if (continuousQueryService.list(project).stream().anyMatch(e -> e.tableName.equals(tableName))) {
+//            return Optional.of(generatePreCalculatedTableSql(Optional.of(tableName), "continuous", timePredicate, timeColumn, dimensionRequired));
+//        }
         else if (materializedViewService.list(project).stream().anyMatch(e -> e.tableName.equals(tableName))) {
             return Optional.of(generatePreCalculatedTableSql(Optional.of(tableName), "materialized", timePredicate, timeColumn, dimensionRequired));
         }

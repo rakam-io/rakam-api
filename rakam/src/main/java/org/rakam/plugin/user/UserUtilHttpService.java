@@ -213,7 +213,7 @@ public class UserUtilHttpService
             for (int i = 0; i < metadata.size(); i++) {
                 final Cell cell = headerRow.createCell(i);
                 cell.setCellType(Cell.CELL_TYPE_STRING);
-                cell.setCellValue(metadata.get(i).getDescriptiveName());
+                cell.setCellValue(metadata.get(i).getName());
             }
 
             for (int i = 0; i < result.getResult().size(); i++) {

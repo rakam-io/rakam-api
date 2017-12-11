@@ -2,8 +2,6 @@ package org.rakam.postgresql;
 
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.auto.service.AutoService;
-import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.Subscribe;
@@ -15,7 +13,6 @@ import com.google.inject.name.Names;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.ConfigManager;
-import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EscapeIdentifier;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.FunnelQueryExecutor;
@@ -46,7 +43,6 @@ import org.rakam.postgresql.plugin.user.AbstractPostgresqlUserStorage;
 import org.rakam.postgresql.plugin.user.PostgresqlUserService;
 import org.rakam.postgresql.plugin.user.PostgresqlUserStorage;
 import org.rakam.postgresql.report.PostgresqlEventExplorer;
-import org.rakam.postgresql.report.PostgresqlPseudoContinuousQueryService;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
@@ -59,7 +55,6 @@ import javax.inject.Named;
 import java.net.URISyntaxException;
 import java.sql.Connection;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 import java.util.Optional;
@@ -93,7 +88,6 @@ public class PostgresqlModule
 
         binder.bind(MaterializedViewService.class).to(PostgresqlMaterializedViewService.class).in(Scopes.SINGLETON);
         binder.bind(QueryExecutor.class).to(PostgresqlQueryExecutor.class).in(Scopes.SINGLETON);
-        binder.bind(ContinuousQueryService.class).to(PostgresqlPseudoContinuousQueryService.class).in(Scopes.SINGLETON);
         binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class).toInstance("to_unixtime");
 
         boolean isUserModulePostgresql = "postgresql".equals(getConfig("plugin.user.storage"));

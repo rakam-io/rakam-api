@@ -1,4 +1,4 @@
-package org.rakam.analysis;
+package org.rakam;
 
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.IdentifierSymbol;

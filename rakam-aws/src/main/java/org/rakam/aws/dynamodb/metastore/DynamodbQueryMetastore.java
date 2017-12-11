@@ -1,47 +1,24 @@
 package org.rakam.aws.dynamodb.metastore;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
-import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.amazonaws.services.dynamodbv2.model.ComparisonOperator;
-import com.amazonaws.services.dynamodbv2.model.Condition;
-import com.amazonaws.services.dynamodbv2.model.CreateTableRequest;
-import com.amazonaws.services.dynamodbv2.model.DeleteItemRequest;
-import com.amazonaws.services.dynamodbv2.model.DescribeTableResult;
-import com.amazonaws.services.dynamodbv2.model.ExpectedAttributeValue;
-import com.amazonaws.services.dynamodbv2.model.GetItemRequest;
-import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
-import com.amazonaws.services.dynamodbv2.model.KeyType;
-import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
-import com.amazonaws.services.dynamodbv2.model.PutItemRequest;
-import com.amazonaws.services.dynamodbv2.model.QueryRequest;
-import com.amazonaws.services.dynamodbv2.model.QueryResult;
-import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
-import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
-import com.amazonaws.services.dynamodbv2.model.ScanRequest;
+import com.amazonaws.services.dynamodbv2.model.*;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.aws.AWSConfig;
-import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.NotExistsException;
 
 import javax.annotation.PostConstruct;
-
 import java.time.Instant;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import static com.amazonaws.services.dynamodbv2.model.ComparisonOperator.BEGINS_WITH;
 import static com.google.common.collect.ImmutableMap.of;
 
 public class DynamodbQueryMetastore
@@ -162,51 +139,7 @@ public class DynamodbQueryMetastore
     }
 
     @Override
-    public void createContinuousQuery(String project, ContinuousQuery report)
-    {
-        dynamoDBClient.putItem(new PutItemRequest().withTableName(tableConfig.getTableName())
-                .withItem(of(
-                        "project", new AttributeValue(project),
-                        "type_table_name", new AttributeValue("continuous_" + report.tableName),
-                        "value", new AttributeValue(JsonHelper.encode(report)))));
-    }
-
-    @Override
-    public void deleteContinuousQuery(String project, String tableName)
-    {
-        dynamoDBClient.deleteItem(new DeleteItemRequest().withTableName(tableConfig.getTableName())
-                .withKey(of(
-                        "project", new AttributeValue(project),
-                        "type_table_name", new AttributeValue("continuous_" + tableName))));
-    }
-
-    @Override
-    public List<ContinuousQuery> getContinuousQueries(String project)
-    {
-        List<Map<String, AttributeValue>> items = dynamoDBClient.scan(new ScanRequest()
-                .withTableName(tableConfig.getTableName())
-                .withFilterExpression("#P = :pValue AND begins_with(type_table_name, :prefix)")
-                .withExpressionAttributeNames(of("#P", "project"))
-                .withExpressionAttributeValues(of(
-                        ":pValue", new AttributeValue(project),
-                        ":prefix", new AttributeValue("continuous_")))).getItems();
-        return items.stream()
-                .map(item -> JsonHelper.read(item.get("value").getS(), ContinuousQuery.class))
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public ContinuousQuery getContinuousQuery(String project, String tableName)
-    {
-        Map<String, AttributeValue> item = dynamoDBClient.getItem(new GetItemRequest().withTableName(tableConfig.getTableName())
-                .withAttributesToGet("value")
-                .withKey(of(
-                        "project", new AttributeValue(project),
-                        "type_table_name", new AttributeValue("continuous_" + tableName)))).getItem();
-        if (item == null) {
-            throw new NotExistsException("Materialized view");
-        }
-
-        return JsonHelper.read(item.get("value").getS(), ContinuousQuery.class);
+    public void alter(String project, MaterializedView view) {
+        throw new UnsupportedOperationException();
     }
 }

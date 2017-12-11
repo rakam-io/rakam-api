@@ -57,7 +57,7 @@ public enum SchemaConverter {
                 new RakamException("Unsupported Avro type" + avroSchema, BAD_REQUEST);
             }
 
-            rakamFields.add(new SchemaField(field.name(), fieldType.get(), null, avroSchema.getFullName(), avroSchema.getDoc(), null));
+            rakamFields.add(new SchemaField(field.name(), fieldType.get(), avroSchema.getFullName(), avroSchema.getDoc(), null));
         }
         return rakamFields;
     });

@@ -9,14 +9,8 @@ import org.rakam.config.ProjectConfig;
 import org.rakam.event.TestingEnvironment;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.user.UserPluginConfig;
-import org.rakam.presto.analysis.PrestoConfig;
-import org.rakam.presto.analysis.PrestoContinuousQueryService;
-import org.rakam.presto.analysis.PrestoMaterializedViewService;
-import org.rakam.presto.analysis.PrestoRakamRaptorMetastore;
-import org.rakam.presto.analysis.PrestoQueryExecutor;
-import org.rakam.presto.analysis.PrestoRetentionQueryExecutor;
+import org.rakam.presto.analysis.*;
 import org.rakam.report.QueryExecutorService;
-import org.rakam.report.realtime.RealTimeConfig;
 import org.testng.annotations.BeforeSuite;
 
 import java.time.Clock;
@@ -41,11 +35,10 @@ public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(
                 new PrestoConfig(),
                 queryExecutor, metastore, queryMetadataStore, Clock.systemUTC());
-        PrestoContinuousQueryService continuousQueryService = new PrestoContinuousQueryService(queryMetadataStore, new RealTimeConfig(), queryExecutor, prestoConfig);
 
         QueryExecutorService queryExecutorService = new QueryExecutorService(queryExecutor, metastore, materializedViewService, Clock.systemUTC(), '"');
 
-        retentionQueryExecutor = new PrestoRetentionQueryExecutor(new ProjectConfig(), queryExecutorService, metastore, materializedViewService, new UserPluginConfig(), continuousQueryService);
+        retentionQueryExecutor = new PrestoRetentionQueryExecutor(new ProjectConfig(), queryExecutorService, metastore, materializedViewService, new UserPluginConfig());
         testingPrestoEventStore = new TestingPrestoEventStore(queryExecutor, prestoConfig);
 
         // TODO: Presto throws "No node available" error, find a way to avoid this ugly hack.

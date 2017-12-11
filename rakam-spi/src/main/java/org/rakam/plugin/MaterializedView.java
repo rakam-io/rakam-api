@@ -2,7 +2,6 @@ package org.rakam.plugin;
 
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Query;
-import com.facebook.presto.sql.tree.QuerySpecification;
 import com.facebook.presto.sql.tree.Statement;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -13,7 +12,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 
-import static com.google.common.base.Preconditions.*;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 import static java.time.temporal.ChronoUnit.MILLIS;
 
 
@@ -54,8 +54,6 @@ public class MaterializedView {
         }
         checkState(query instanceof Query, "Expression is not query");
         checkState((!((Query) query).getLimit().isPresent()),
-                "The query of materialized view can't contain LIMIT statement");
-        checkState(!(((QuerySpecification) ((Query) query).getQueryBody()).getLimit().isPresent()),
                 "The query of materialized view can't contain LIMIT statement");
     }
 

@@ -108,6 +108,13 @@
 
         <dependency>
             <groupId>org.rakam</groupId>
+            <artifactId>testing-postgresql10-server</artifactId>
+            <version>0.1</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.rakam</groupId>
             <artifactId>rakam-spi</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>

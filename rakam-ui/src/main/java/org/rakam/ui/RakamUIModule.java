@@ -11,6 +11,7 @@ import com.google.inject.multibindings.OptionalBinder;
 import com.google.inject.name.Named;
 import com.google.inject.name.Names;
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.FlywayException;
 import org.rakam.analysis.CustomParameter;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.config.EncryptionConfig;
@@ -25,11 +26,7 @@ import org.rakam.server.http.HttpRequestHandler;
 import org.rakam.server.http.HttpService;
 import org.rakam.ui.UIEvents.ProjectCreatedEvent;
 import org.rakam.ui.UIPermissionParameterProvider.Project;
-import org.rakam.ui.customreport.CustomPageHttpService;
-import org.rakam.ui.customreport.CustomReport;
-import org.rakam.ui.customreport.CustomReportHttpService;
-import org.rakam.ui.customreport.CustomReportMetadata;
-import org.rakam.ui.customreport.JDBCCustomReportMetadata;
+import org.rakam.ui.customreport.*;
 import org.rakam.ui.page.CustomPageDatabase;
 import org.rakam.ui.page.FileBackedCustomPageDatabase;
 import org.rakam.ui.page.JDBCCustomPageDatabase;
@@ -45,7 +42,6 @@ import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.util.IntegerMapper;
 
 import javax.inject.Inject;
-
 import java.util.List;
 import java.util.Map;
 
@@ -221,12 +217,12 @@ public class RakamUIModule
             flyway.setLocations("db/migration/ui");
             flyway.setTable("schema_version_ui");
             flyway.setDataSource(config.getUrl(), config.getUsername(), config.getPassword());
-//            try {
+            try {
                 flyway.migrate();
-//            }
-//            catch (FlywayException e) {
-//                flyway.repair();
-//            }
+            }
+            catch (FlywayException e) {
+                flyway.repair();
+            }
         }
     }
 

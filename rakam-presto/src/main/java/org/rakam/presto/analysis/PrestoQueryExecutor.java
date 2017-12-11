@@ -43,7 +43,6 @@ import static java.lang.String.format;
 import static java.util.Base64.getDecoder;
 import static java.util.Base64.getEncoder;
 import static org.rakam.postgresql.report.PostgresqlQueryExecutor.dbSeparator;
-import static org.rakam.presto.PrestoPseudoContinuousQueryService.CONTINUOUS_QUERY_PREFIX;
 import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
 import static org.rakam.presto.analysis.PrestoRakamRaptorMetastore.toType;
 import static org.rakam.util.JsonHelper.encodeAsBytes;
@@ -198,12 +197,7 @@ public class PrestoQueryExecutor
     {
         String prefix = node.getPrefix().map(e -> e.toString()).orElse(null);
         String suffix = node.getSuffix();
-        if ("continuous".equals(prefix)) {
-            return prestoConfig.getColdStorageConnector() + "." +
-                    checkCollection(project) + "." +
-                    checkCollection(CONTINUOUS_QUERY_PREFIX + suffix);
-        }
-        else if ("materialized".equals(prefix)) {
+        if ("materialized".equals(prefix)) {
             return getTableReference(project, MATERIALIZED_VIEW_PREFIX + suffix, sample);
         }
         else if ("collection".equals(prefix) || (prefix == null && !"users".equals(suffix) && !"_all".equals(suffix))) {

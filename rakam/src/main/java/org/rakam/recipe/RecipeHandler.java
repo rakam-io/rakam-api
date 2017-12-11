@@ -4,20 +4,17 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.rakam.analysis.ConfigManager;
-import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.report.QueryResult;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
-
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -35,7 +32,6 @@ import static org.rakam.report.QueryError.create;
 public class RecipeHandler
 {
     private final Metastore metastore;
-    private final ContinuousQueryService continuousQueryService;
     private final MaterializedViewService materializedViewService;
     private final ConfigManager configManager;
     private final SchemaChecker schemaChecker;
@@ -43,7 +39,6 @@ public class RecipeHandler
     @Inject
     public RecipeHandler(
             Metastore metastore,
-            ContinuousQueryService continuousQueryService,
             ConfigManager configManager,
             SchemaChecker schemaChecker,
             MaterializedViewService materializedViewService)
@@ -52,7 +47,6 @@ public class RecipeHandler
         this.configManager = configManager;
         this.schemaChecker = schemaChecker;
         this.materializedViewService = materializedViewService;
-        this.continuousQueryService = continuousQueryService;
     }
 
     public Recipe export(String project)
@@ -66,12 +60,8 @@ public class RecipeHandler
         final List<MaterializedView> materializedViews = materializedViewService.list(project).stream()
                 .map(m -> new MaterializedView(m.tableName, m.name, m.query, m.updateInterval, m.incremental, m.realTime, m.options))
                 .collect(Collectors.toList());
-        final List<ContinuousQuery> continuousQueryBuilders = continuousQueryService.list(project).stream()
-                .map(m -> new ContinuousQuery(m.tableName, m.name, m.query, m.partitionKeys, m.options))
-                .collect(Collectors.toList());
 
-        return new Recipe(Recipe.Strategy.SPECIFIC, collections, materializedViews,
-                continuousQueryBuilders);
+        return new Recipe(Recipe.Strategy.SPECIFIC, collections, materializedViews);
     }
 
     public void install(Recipe recipe, String project, boolean overrideExisting)
@@ -96,13 +86,13 @@ public class RecipeHandler
                         else {
                             type = e.getType();
                         }
-                        SchemaField schemaField = new SchemaField(e.getName(), type, e.isUnique(), e.getDescriptiveName(), e.getDescription(), e.getCategory());
+                        SchemaField schemaField = new SchemaField(e.getName(), type, e.getDescriptiveName(), e.getDescription(), e.getCategory());
                         return schemaField;
                     })
                     .collect(Collectors.toList());
 
             HashSet<SchemaField> schemaFields = schemaChecker.checkNewFields(collectionName, ImmutableSet.copyOf(build));
-            List<SchemaField> fields = metastore.getOrCreateCollectionFieldList(project, collectionName, schemaFields);
+            List<SchemaField> fields = metastore.getOrCreateCollectionFields(project, collectionName, schemaFields);
 
             List<SchemaField> collisions = build.stream()
                     .filter(f -> fields.stream().anyMatch(field -> field.getName().equals(f.getName()) && !f.getType().equals(field.getType())))
@@ -118,36 +108,6 @@ public class RecipeHandler
                 throw new RakamException(message + " " + errMessage, BAD_REQUEST);
             }
         });
-
-        List<CompletableFuture<QueryResult>> continuousQueries = recipe.getContinuousQueryBuilders().stream()
-                .map(continuousQuery -> continuousQueryService.create(project, continuousQuery, false).getResult().handle((res, ex) -> {
-                    if (ex != null) {
-                        if (ex.getCause() instanceof AlreadyExistsException) {
-                            if (overrideExisting) {
-                                try {
-                                    continuousQueryService.delete(project, continuousQuery.tableName).join();
-                                    return continuousQueryService.create(project, continuousQuery, false).getResult().join();
-                                }
-                                catch (Throwable e) {
-                                    return QueryResult.errorResult(
-                                            create(format("Error while re-creating materialized view %s: %s",
-                                                    continuousQuery.getTableName(), ex.getMessage())));
-                                }
-                            }
-                            else {
-                                return QueryResult.errorResult(create(format("Continuous query %s already exists",
-                                        continuousQuery.getTableName())));
-                            }
-                        }
-
-                        return QueryResult.errorResult(
-                                create(format("Error while creating materialized view %s: %s",
-                                        continuousQuery.getTableName(), ex.getMessage())));
-                    }
-                    else {
-                        return res;
-                    }
-                })).collect(Collectors.toList());
 
         List<CompletableFuture<QueryResult>> materializedViews = recipe.getMaterializedViewBuilders().stream()
                 .map(materializedView -> {
@@ -186,7 +146,7 @@ public class RecipeHandler
                     return result;
                 }).collect(Collectors.toList());
 
-        CompletableFuture<QueryResult>[] futures = ImmutableList.builder().addAll(continuousQueries)
+        CompletableFuture<QueryResult>[] futures = ImmutableList.builder()
                 .addAll(materializedViews).build().stream()
                 .toArray(CompletableFuture[]::new);
 

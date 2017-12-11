@@ -33,53 +33,27 @@ import org.rakam.util.DateTimeUtils;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.ProjectCollection;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import javax.annotation.Nullable;
-
-import java.sql.Array;
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
+import java.sql.*;
 import java.sql.Date;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.sql.Time;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.AbstractMap.SimpleImmutableEntry;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.rakam.analysis.InternalConfig.USER_TYPE;
-import static org.rakam.postgresql.plugin.user.PostgresqlUserStorage.USER_TABLE;
 import static org.rakam.report.QueryResult.TOTAL_RESULT;
 import static org.rakam.util.JDBCUtil.fromSql;
-import static org.rakam.util.ValidationUtil.checkCollection;
-import static org.rakam.util.ValidationUtil.checkProject;
-import static org.rakam.util.ValidationUtil.checkTableColumn;
-import static org.rakam.util.ValidationUtil.stripName;
+import static org.rakam.util.ValidationUtil.*;
 
 public abstract class AbstractPostgresqlUserStorage
         implements UserStorage
@@ -573,7 +547,7 @@ public abstract class AbstractPostgresqlUserStorage
                 catch (IllegalStateException e) {
                     continue;
                 }
-                columns.add(new SchemaField(columnName, fieldType, uniqueColumns.contains(columnName), null, null, null));
+                columns.add(new SchemaField(columnName, fieldType, null, null, null));
             }
             return columns;
         }

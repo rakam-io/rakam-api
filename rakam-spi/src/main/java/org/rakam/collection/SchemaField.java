@@ -8,16 +8,12 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
-import java.util.Locale;
-
 import static org.rakam.util.ValidationUtil.stripName;
 
 public class SchemaField
 {
     private final String name;
     private final FieldType type;
-    @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
-    private final Boolean unique;
     @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
     private final String description;
     @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
@@ -28,14 +24,12 @@ public class SchemaField
     @JsonCreator
     public SchemaField(@ApiParam("name") String name,
             @ApiParam("type") FieldType type,
-            @ApiParam(value = "unique", required = false) Boolean unique,
             @ApiParam(value = "descriptiveName", required = false) String descriptiveName,
             @ApiParam(value = "description", required = false) String description,
             @ApiParam(value = "category", required = false) String category)
     {
         this.name = stripName(ValidationUtil.checkNotNull(name, "name"), "field name");
         this.type = ValidationUtil.checkNotNull(type, "type");
-        this.unique = unique;
         this.descriptiveName = descriptiveName;
         this.description = description;
         this.category = category;
@@ -47,7 +41,7 @@ public class SchemaField
 
     public SchemaField(String name, FieldType type)
     {
-        this(name, type, null, null, null, null);
+        this(name, type, null, null, null);
     }
 
     @JsonProperty
@@ -60,12 +54,6 @@ public class SchemaField
     public FieldType getType()
     {
         return type;
-    }
-
-    @JsonProperty
-    public Boolean isUnique()
-    {
-        return unique;
     }
 
     public String getCategory()
