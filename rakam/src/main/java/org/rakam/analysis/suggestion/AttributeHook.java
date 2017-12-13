@@ -73,6 +73,10 @@ public class AttributeHook {
                     stripName(field.getName(), "attribute"));
         }
 
+        if(query.isEmpty()) {
+            return;
+        }
+
         view = new MaterializedView(view.tableName, view.name, query, view.updateInterval, view.incremental, view.realTime, view.options);
         if(isNew) {
             materializedViewService.create(project, view);
