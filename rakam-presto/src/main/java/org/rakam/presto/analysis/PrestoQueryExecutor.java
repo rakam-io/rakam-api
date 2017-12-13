@@ -250,7 +250,7 @@ public class PrestoQueryExecutor
                             .collect(Collectors.joining(" union all ")) + ") _all";
                 }
                 else {
-                    return "(select null as \"_collection\", null as _user, null as " + checkTableColumn(projectConfig.getTimeColumn()) + " limit 0) _all";
+                    return "(select null as \"_collection\", cast(null as varchar) as _user, null as " + checkTableColumn(projectConfig.getTimeColumn()) + " limit 0) _all";
                 }
             }
             else {

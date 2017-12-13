@@ -7,11 +7,9 @@ import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.SystemEvents;
 
 import javax.inject.Inject;
-
 import java.time.Duration;
 
 import static java.lang.String.format;
-import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class EventExplorerListener
@@ -34,7 +32,7 @@ public class EventExplorerListener
 
     public void createTable(String project)
     {
-        String query = format("select date_trunc('minute', %s) as _time, _collection, count(*) as total from _all group by 1, 2",
+        String query = format("select date_trunc('minute', cast(%s as timestamp)) as _time, _collection, count(*) as total from _all group by 1, 2",
                 checkTableColumn(projectConfig.getTimeColumn()));
 
         MaterializedView report = new MaterializedView(tableName(),
