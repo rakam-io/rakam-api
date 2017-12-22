@@ -4,20 +4,25 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.DefaultExpressionTraversalVisitor;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.Identifier;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.EventExplorerListener;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.config.ProjectConfig;
+import org.rakam.plugin.MaterializedView;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 import org.rakam.report.realtime.AggregationType;
+import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.MaterializedViewNotExists;
 import org.rakam.util.RakamException;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
@@ -36,11 +41,11 @@ import static org.rakam.analysis.EventExplorer.ReferenceType.COLUMN;
 import static org.rakam.analysis.EventExplorer.ReferenceType.REFERENCE;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.fromString;
 import static org.rakam.report.realtime.AggregationType.COUNT;
+import static org.rakam.report.realtime.AggregationType.SUM;
 import static org.rakam.util.ValidationUtil.*;
 
 public abstract class AbstractEventExplorer
-        implements EventExplorer
-{
+        implements EventExplorer {
     private final static Logger LOGGER = Logger.get(AbstractEventExplorer.class);
 
     protected final static String TIME_INTERVAL_ERROR_MESSAGE = "Date interval is too big. Please narrow the date range or use different date dimension.";
@@ -57,16 +62,90 @@ public abstract class AbstractEventExplorer
             ProjectConfig projectConfig,
             QueryExecutorService executor,
             MaterializedViewService materializedViewService,
-            Map<TimestampTransformation, String> timestampMapping)
-    {
+            Map<TimestampTransformation, String> timestampMapping) {
         this.projectConfig = projectConfig;
         this.executor = executor;
         this.timestampMapping = timestampMapping;
         this.materializedViewService = materializedViewService;
     }
 
-    public static void checkReference(String refValue, LocalDate startDate, LocalDate endDate, int size)
-    {
+    public CompletableFuture<PrecalculatedTable> create(String project, OLAPTable table) {
+        String dimensions = table.dimensions.stream().map(d -> {
+            if (d.type == null) {
+                return d.value;
+            }
+
+            TimestampTransformation transformation = TimestampTransformation.fromString(d.type);
+            return timestampMapping.get(transformation);
+        }).collect(Collectors.joining(", "));
+
+        String subQuery;
+        String measures = table.measures.isEmpty() ? "" : (", " + table.measures.stream().collect(Collectors.joining(", ")));
+        String dimension = dimensions.isEmpty() ? "" : ", " + dimensions;
+
+        if (table.collections != null && !table.collections.isEmpty()) {
+            subQuery = table.collections.stream().map(collection ->
+                    format("SELECT cast('%s' as varchar) as _collection, %s %s %s FROM %s",
+                            collection,
+                            checkTableColumn(projectConfig.getTimeColumn()),
+                            dimension,
+                            measures, collection))
+                    .collect(Collectors.joining(" UNION ALL "));
+        } else {
+            subQuery = format("SELECT _collection, %s %s FROM _all",
+                    checkTableColumn(projectConfig.getTimeColumn()), dimension, measures);
+        }
+
+        String name = "Dimensions";
+
+        String metrics = table.measures.stream().map(column -> table.aggregations.stream()
+                .map(agg -> getAggregationColumn(agg, table.aggregations).map(e -> format(e, column) + " as " + column + "_" + agg.name().toLowerCase()))
+                .filter(Optional::isPresent).map(Optional::get).collect(Collectors.joining(", ")))
+                .collect(Collectors.joining(", "));
+        if (metrics.isEmpty()) {
+            metrics = "count(*)";
+        }
+
+        String query = format("SELECT _collection, _time %s %s FROM " +
+                        "(SELECT _collection, CAST(%s AS DATE) as _time %s %s FROM (%s) data) data " +
+                        "GROUP BY CUBE (_collection, _time %s) ORDER BY 1 ASC",
+                dimension,
+                ", " + metrics,
+                checkTableColumn(projectConfig.getTimeColumn()),
+                dimension,
+                measures,
+                subQuery,
+                dimensions.isEmpty() ? "" : "," + dimensions);
+
+        return materializedViewService.create(project, new MaterializedView(table.tableName, "Olap table", query,
+                Duration.ofHours(1), null, null, ImmutableMap.of("olap_table", table)))
+                .thenApply(v -> new PrecalculatedTable(name, table.tableName));
+    }
+
+    private Optional<String> getAggregationColumn(AggregationType agg, Set<AggregationType> aggregations) {
+        switch (agg) {
+            case AVERAGE:
+                aggregations.add(COUNT);
+                aggregations.add(SUM);
+                return Optional.empty();
+            case MAXIMUM:
+                return Optional.of("max(%s)");
+            case MINIMUM:
+                return Optional.of("min(%s)");
+            case COUNT:
+                return Optional.of("count(%s)");
+            case SUM:
+                return Optional.of("sum(%s)");
+            case COUNT_UNIQUE:
+                throw new UnsupportedOperationException("Not supported yet.");
+            case APPROXIMATE_UNIQUE:
+                return Optional.of(getIntermediateForApproximateUniqueFunction());
+            default:
+                throw new IllegalArgumentException("aggregation type is not supported");
+        }
+    }
+
+    public static void checkReference(String refValue, LocalDate startDate, LocalDate endDate, int size) {
         switch (fromString(refValue.replace(" ", "_"))) {
             case HOUR_OF_DAY:
             case DAY_OF_MONTH:
@@ -98,8 +177,7 @@ public abstract class AbstractEventExplorer
         }
     }
 
-    public String getColumnValue(Map<TimestampTransformation, String> timestampMapping, Reference ref, boolean format)
-    {
+    public String getColumnValue(Map<TimestampTransformation, String> timestampMapping, Reference ref, boolean format) {
         switch (ref.type) {
             case COLUMN:
                 return format ? checkTableColumn(ref.value) : ref.value;
@@ -110,8 +188,7 @@ public abstract class AbstractEventExplorer
         }
     }
 
-    public String getColumnReference(Reference ref)
-    {
+    public String getColumnReference(Reference ref) {
         switch (ref.type) {
             case COLUMN:
                 return ref.value;
@@ -122,8 +199,7 @@ public abstract class AbstractEventExplorer
         }
     }
 
-    private Optional<AggregationType> getIntermediateAggregation(AggregationType aggregationType)
-    {
+    private Optional<AggregationType> getIntermediateAggregation(AggregationType aggregationType) {
         switch (aggregationType) {
             case COUNT:
             case SUM:
@@ -137,8 +213,7 @@ public abstract class AbstractEventExplorer
         }
     }
 
-    @Override
-    public QueryExecution analyze(
+    protected QueryExecution analyzeInternal(
             String project,
             List<String> collections,
             Measure measure, Reference grouping,
@@ -146,8 +221,8 @@ public abstract class AbstractEventExplorer
             String filterExpression,
             LocalDate startDate,
             LocalDate endDate,
-            ZoneId timezone)
-    {
+            ZoneId timezone,
+            boolean summarise) {
         Reference segment = segmentValue2 == null ? DEFAULT_SEGMENT : segmentValue2;
 
         if (grouping != null && grouping.type == REFERENCE) {
@@ -163,8 +238,7 @@ public abstract class AbstractEventExplorer
                 synchronized (sqlParser) {
                     filterExp = sqlParser.createExpression(filterExpression);
                 }
-            }
-            else {
+            } else {
                 filterExp = null;
             }
 
@@ -183,7 +257,14 @@ public abstract class AbstractEventExplorer
 
         Optional<Map.Entry<OLAPTable, String>> preComputedTable = materializedViewService.list(project).stream()
                 .filter(view -> view.options != null && view.options.containsKey("olap_table"))
-                .map(view -> JsonHelper.convert(view.options.get("olap_table"), OLAPTable.class))
+                .map(view -> {
+                    try {
+                        return JsonHelper.convert(view.options.get("olap_table"), OLAPTable.class);
+                    } catch (Exception e) {
+                        return null;
+                    }
+                })
+                .filter(e -> e != null)
                 .filter(table -> groupedMetricsPredicate.test(table)).findAny()
                 .map(view -> new AbstractMap.SimpleImmutableEntry<>(view, "materialized." + checkCollection(view.tableName)));
 
@@ -194,11 +275,9 @@ public abstract class AbstractEventExplorer
         boolean bothActive = segment != null && grouping != null;
         if (bothActive) {
             groupBy = "GROUP BY 1, 2";
-        }
-        else if (segment != null || grouping != null) {
+        } else if (segment != null || grouping != null) {
             groupBy = "GROUP BY 1";
-        }
-        else {
+        } else {
             groupBy = "";
         }
 
@@ -222,8 +301,7 @@ public abstract class AbstractEventExplorer
                             timeFilter
                     ).filter(e -> e != null && !e.isEmpty()).collect(Collectors.joining(" AND ")),
                     groupBy);
-        }
-        else {
+        } else {
             String where = timeFilter + (filterExpression == null ? "" : (" AND " + filterExpression));
 
             String measureAgg = convertSqlFunction(measure != null &&
@@ -238,8 +316,7 @@ public abstract class AbstractEventExplorer
                         format(measureAgg, measureColumn),
                         checkCollection(collections.get(0)),
                         where, groupBy);
-            }
-            else {
+            } else {
                 String selectPart = (grouping == null ? "" : checkTableColumn(getColumnReference(grouping) + "_group")) +
                         (grouping == null ? "" : ", ") + checkTableColumn(getColumnReference(segment) + "_segment");
 
@@ -266,7 +343,7 @@ public abstract class AbstractEventExplorer
         String query = null;
         Optional<AggregationType> intermediateAggregation = getIntermediateAggregation(measure.aggregation);
 
-        if (intermediateAggregation.isPresent()) {
+        if (summarise && intermediateAggregation.isPresent()) {
             if (grouping != null && grouping.type == COLUMN && segment.type == COLUMN) {
                 boolean segmentRanked = !segment.equals(DEFAULT_SEGMENT);
                 query = format(" SELECT " +
@@ -283,9 +360,8 @@ public abstract class AbstractEventExplorer
                         segmentRanked ? format("row_number() OVER (PARTITION BY %s ORDER BY value DESC) AS segment_rank,\n", checkCollection(format(getColumnReference(grouping), "value") + "_group")) : "",
                         format(convertSqlFunction(intermediateAggregation.get(), measure.aggregation), "value"),
                         computeQuery);
-            }
-            else {
-                if ((grouping != null && grouping.type == COLUMN) || (segment != null && segment.type == COLUMN)) {
+            } else {
+                if ((grouping != null && grouping.type == COLUMN) || (segment != null && segment.type == COLUMN && !segment.value.equals("_collection"))) {
                     String windowColumn = checkTableColumn(getColumnValue(timestampMapping,
                             (grouping != null && grouping.type == COLUMN) ? grouping : segment, false) +
                             ((grouping != null && grouping.type == COLUMN) ? "_group" : "_segment"));
@@ -299,8 +375,7 @@ public abstract class AbstractEventExplorer
                             format(convertSqlFunction(intermediateAggregation.get(), measure.aggregation), "value"),
                             format(convertSqlFunction(intermediateAggregation.get(), measure.aggregation), "value"),
                             computeQuery, bothActive ? ", 3" : "", bothActive ? ", 2" : "", bothActive ? 3 : 2);
-                }
-                else {
+                } else {
                     query = computeQuery + " ORDER BY 1 DESC";
                 }
             }
@@ -331,8 +406,33 @@ public abstract class AbstractEventExplorer
         });
     }
 
-    protected String generateComputeQuery(Reference grouping, Reference segment, String collection)
-    {
+    @Override
+    public QueryExecution analyze(
+            String project,
+            List<String> collections,
+            Measure measure, Reference grouping,
+            Reference segmentValue2,
+            String filterExpression,
+            LocalDate startDate,
+            LocalDate endDate,
+            ZoneId timezone) {
+        return analyzeInternal(project, collections, measure, grouping, segmentValue2, filterExpression, startDate, endDate, timezone, true);
+    }
+
+    @Override
+    public QueryExecution export(
+            String project,
+            List<String> collections,
+            Measure measure, Reference grouping,
+            Reference segmentValue2,
+            String filterExpression,
+            LocalDate startDate,
+            LocalDate endDate,
+            ZoneId timezone) {
+        return analyzeInternal(project, collections, measure, grouping, segmentValue2, filterExpression, startDate, endDate, timezone, false);
+    }
+
+    protected String generateComputeQuery(Reference grouping, Reference segment, String collection) {
         StringBuilder selectBuilder = new StringBuilder();
         if (grouping != null) {
             selectBuilder.append(getColumnValue(timestampMapping, grouping, true) + " as " + checkTableColumn(getColumnReference(grouping) + "_group"));
@@ -347,15 +447,12 @@ public abstract class AbstractEventExplorer
         return selectBuilder.toString();
     }
 
-    private boolean testFilterExpressionForPerComputedTable(Expression filterExp, OLAPTable options)
-    {
+    private boolean testFilterExpressionForPerComputedTable(Expression filterExp, OLAPTable options) {
         final boolean[] columnExists = {true};
 
-        new DefaultExpressionTraversalVisitor<Void, Void>()
-        {
+        new DefaultExpressionTraversalVisitor<Void, Void>() {
             @Override
-            protected Void visitIdentifier(Identifier node, Void context)
-            {
+            protected Void visitIdentifier(Identifier node, Void context) {
                 if (!options.dimensions.contains(node.getName())) {
                     columnExists[0] = false;
                 }
@@ -367,8 +464,7 @@ public abstract class AbstractEventExplorer
         return columnExists[0];
     }
 
-    private String getFinalForAggregationFunction(Measure aggregation)
-    {
+    private String getFinalForAggregationFunction(Measure aggregation) {
         switch (aggregation.aggregation) {
             case AVERAGE:
                 return "cast(sum(%1$s) as double) / count(%1$s)";
@@ -391,12 +487,11 @@ public abstract class AbstractEventExplorer
 
     @Override
     public CompletableFuture<QueryResult> getEventStatistics(String project,
-            Optional<Set<String>> collections,
-            Optional<String> dimension,
-            LocalDate startDate,
-            LocalDate endDate,
-            ZoneId timezone)
-    {
+                                                             Optional<Set<String>> collections,
+                                                             Optional<String> dimension,
+                                                             LocalDate startDate,
+                                                             LocalDate endDate,
+                                                             ZoneId timezone) {
         if (collections.isPresent() && collections.get().isEmpty()) {
             return CompletableFuture.completedFuture(QueryResult.empty());
         }
@@ -422,8 +517,7 @@ public abstract class AbstractEventExplorer
                     aggregationMethod.get(),
                     sourceTable(collections),
                     timePredicate);
-        }
-        else {
+        } else {
             query = format("select collection, cast(coalesce(sum(total), 0) as bigint) as total \n" +
                     " from (%s) data where %s group by 1", sourceTable(collections), timePredicate);
         }
@@ -431,8 +525,7 @@ public abstract class AbstractEventExplorer
         QueryExecution collection;
         try {
             collection = executor.executeQuery(project, query, Optional.empty(), null, timezone, 20000);
-        }
-        catch (MaterializedViewNotExists e) {
+        } catch (MaterializedViewNotExists e) {
             new EventExplorerListener(projectConfig, materializedViewService).createTable(project);
             collection = executor.executeQuery(project, query, Optional.empty(), null, timezone, 20000);
         }
@@ -447,8 +540,7 @@ public abstract class AbstractEventExplorer
         });
     }
 
-    public String sourceTable(Optional<Set<String>> collections)
-    {
+    public String sourceTable(Optional<Set<String>> collections) {
         String predicate = collections.map(e -> "WHERE _collection IN (" +
                 e.stream().map(n -> "'" + checkLiteral(n) + "'").collect(Collectors.joining(", ")) + ")").orElse("");
         return format("select _time, total, _collection as collection from materialized.%s %s",
@@ -456,8 +548,7 @@ public abstract class AbstractEventExplorer
     }
 
     @Override
-    public Map<String, List<String>> getExtraDimensions(String project)
-    {
+    public Map<String, List<String>> getExtraDimensions(String project) {
         Map<String, List<String>> builder = new HashMap<>();
         for (TimestampTransformation transformation : timestampMapping.keySet()) {
             builder.computeIfAbsent(transformation.getCategory(), k -> new ArrayList<>())
@@ -468,8 +559,18 @@ public abstract class AbstractEventExplorer
 
     public abstract String convertSqlFunction(AggregationType aggType);
 
-    public String convertSqlFunction(AggregationType intermediate, AggregationType main)
-    {
+    public String convertSqlFunction(AggregationType intermediate, AggregationType main) {
         return convertSqlFunction(intermediate);
+    }
+
+    public static class PrecalculatedTable {
+        public final String name;
+        public final String tableName;
+
+        @JsonCreator
+        public PrecalculatedTable(@ApiParam("name") String name, @ApiParam("tableName") String tableName) {
+            this.name = name;
+            this.tableName = tableName;
+        }
     }
 }

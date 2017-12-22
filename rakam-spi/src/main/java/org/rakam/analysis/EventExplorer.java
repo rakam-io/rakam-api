@@ -17,18 +17,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
+import org.rakam.report.eventexplorer.AbstractEventExplorer;
 import org.rakam.report.realtime.AggregationType;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.util.RakamException;
 
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -38,6 +34,8 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 
 public interface EventExplorer
 {
+
+    CompletableFuture<AbstractEventExplorer.PrecalculatedTable> create(String project, OLAPTable table);
 
     QueryExecution analyze(String project, List<String> collections, Measure measureType, Reference grouping, Reference segment, String filterExpression, LocalDate startDate, LocalDate endDate, ZoneId timezone);
 
@@ -54,6 +52,8 @@ public interface EventExplorer
     {
         throw new UnsupportedOperationException();
     }
+
+    QueryExecution export(String project, List<String> collections, Measure measure, Reference grouping, Reference segment, String filterExpression, LocalDate startDate, LocalDate endDate, ZoneId zoneId);
 
     enum TimestampTransformation
     {
@@ -161,14 +161,15 @@ public interface EventExplorer
     class OLAPTable
     {
         public final Set<String> collections;
-        public final Set<String> dimensions;
+        public final Set<Dimension> dimensions;
         public final Set<AggregationType> aggregations;
         public final Set<String> measures;
         public final String tableName;
 
         @JsonCreator
-        public OLAPTable(@ApiParam("collections") Set<String> collections,
-                @ApiParam("dimensions") Set<String> dimensions,
+        public OLAPTable(
+                @ApiParam("collections") Set<String> collections,
+                @ApiParam("dimensions") Set<Dimension> dimensions,
                 @ApiParam("aggregations") Set<AggregationType> aggregations,
                 @ApiParam("measures") Set<String> measures,
                 @ApiParam("tableName") String tableName)
@@ -179,6 +180,17 @@ public interface EventExplorer
             this.aggregations = aggregations;
             this.measures = measures;
             this.tableName = tableName;
+        }
+
+        public static class Dimension {
+            public final String type;
+            public final String value;
+
+            @JsonCreator
+            Dimension(@ApiParam("type") String type, @ApiParam("value") String value) {
+                this.type = type;
+                this.value = value;
+            }
         }
     }
 }

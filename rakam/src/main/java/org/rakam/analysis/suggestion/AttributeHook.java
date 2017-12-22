@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.Subscribe;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
@@ -23,11 +24,13 @@ public class AttributeHook {
     private static List<FieldType> SUPPORTED_TYPES = ImmutableList.of(FieldType.STRING);
     private final MaterializedViewService materializedViewService;
     private final ProjectConfig projectConfig;
+    private final Metastore metastore;
 
     @Inject
-    public AttributeHook(ProjectConfig projectConfig, MaterializedViewService materializedViewService) {
+    public AttributeHook(ProjectConfig projectConfig, Metastore metastore, MaterializedViewService materializedViewService) {
         this.materializedViewService = materializedViewService;
         this.projectConfig = projectConfig;
+        this.metastore = metastore;
     }
 
     @Subscribe
@@ -38,6 +41,10 @@ public class AttributeHook {
     @Subscribe
     public void onCreateAttribute(SystemEvents.CollectionFieldCreatedEvent event) {
         internal(event.project, event.collection, event.fields);
+    }
+
+    public void add(String project, String collection) {
+        internal(project, collection, metastore.getCollection(project, collection));
     }
 
     private void internal(String project, String collection, List<SchemaField> fields) {
@@ -55,11 +62,11 @@ public class AttributeHook {
         }
 
         for (SchemaField field : fields) {
-            if(!SUPPORTED_TYPES.contains(field.getType()) || field.getName().equals(projectConfig.getUserColumn()) ) {
+            if (!SUPPORTED_TYPES.contains(field.getType()) || field.getName().equals(projectConfig.getUserColumn())) {
                 continue;
             }
 
-            if(!isNew) {
+            if (!isNew) {
                 query += " union all ";
             }
 
@@ -73,12 +80,12 @@ public class AttributeHook {
                     stripName(field.getName(), "attribute"));
         }
 
-        if(query.isEmpty()) {
+        if (query.isEmpty()) {
             return;
         }
 
         view = new MaterializedView(view.tableName, view.name, query, view.updateInterval, view.incremental, view.realTime, view.options);
-        if(isNew) {
+        if (isNew) {
             materializedViewService.create(project, view);
         } else {
             materializedViewService.replaceView(project, view);

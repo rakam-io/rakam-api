@@ -5,28 +5,16 @@ import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.config.ProjectConfig;
-import org.rakam.report.DelegateQueryExecution;
-import org.rakam.report.QueryExecution;
-import org.rakam.report.QueryExecutor;
-import org.rakam.report.QueryExecutorService;
-import org.rakam.report.QueryResult;
+import org.rakam.report.*;
+import org.rakam.report.eventexplorer.AbstractEventExplorer;
 import org.rakam.report.realtime.AggregationType;
 import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
-
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -36,28 +24,14 @@ import static java.lang.String.format;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.rakam.analysis.EventExplorer.ReferenceType.COLUMN;
 import static org.rakam.analysis.EventExplorer.ReferenceType.REFERENCE;
-import static org.rakam.analysis.EventExplorer.TimestampTransformation.DAY;
-import static org.rakam.analysis.EventExplorer.TimestampTransformation.DAY_OF_MONTH;
-import static org.rakam.analysis.EventExplorer.TimestampTransformation.DAY_OF_WEEK;
-import static org.rakam.analysis.EventExplorer.TimestampTransformation.HOUR;
-import static org.rakam.analysis.EventExplorer.TimestampTransformation.HOUR_OF_DAY;
-import static org.rakam.analysis.EventExplorer.TimestampTransformation.MONTH;
-import static org.rakam.analysis.EventExplorer.TimestampTransformation.MONTH_OF_YEAR;
-import static org.rakam.analysis.EventExplorer.TimestampTransformation.YEAR;
-import static org.rakam.analysis.EventExplorer.TimestampTransformation.fromPrettyName;
-import static org.rakam.analysis.EventExplorer.TimestampTransformation.fromString;
+import static org.rakam.analysis.EventExplorer.TimestampTransformation.*;
 import static org.rakam.clickhouse.analysis.ClickHouseQueryExecution.DATE_TIME_FORMATTER;
 import static org.rakam.report.eventexplorer.AbstractEventExplorer.checkReference;
 import static org.rakam.report.realtime.AggregationType.COUNT;
-import static org.rakam.util.ValidationUtil.checkCollection;
-import static org.rakam.util.ValidationUtil.checkLiteral;
-import static org.rakam.util.ValidationUtil.checkProject;
-import static org.rakam.util.ValidationUtil.checkTableColumn;
-import static org.rakam.util.ValidationUtil.stripName;
+import static org.rakam.util.ValidationUtil.*;
 
 public class ClickHouseEventExplorer
-        implements EventExplorer
-{
+        implements EventExplorer {
     protected final Reference DEFAULT_SEGMENT = new Reference(COLUMN, "_collection");
 
     private static final Map<TimestampTransformation, String> timestampMapping = ImmutableMap.
@@ -79,17 +53,20 @@ public class ClickHouseEventExplorer
     private final ProjectConfig projectConfig;
 
     @Inject
-    public ClickHouseEventExplorer(QueryExecutor executor, ProjectConfig projectConfig, QueryExecutorService service)
-    {
+    public ClickHouseEventExplorer(QueryExecutor executor, ProjectConfig projectConfig, QueryExecutorService service) {
         this.executor = executor;
         this.service = service;
         this.projectConfig = projectConfig;
     }
 
     @Override
+    public CompletableFuture<AbstractEventExplorer.PrecalculatedTable> create(String project, OLAPTable table) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public QueryExecution analyze(String project, List<String> collections, Measure measure, Reference grouping,
-            Reference segmentValue2, String filterExpression, LocalDate startDate, LocalDate endDate, ZoneId timezone)
-    {
+                                  Reference segmentValue2, String filterExpression, LocalDate startDate, LocalDate endDate, ZoneId timezone) {
         Reference segment = segmentValue2 == null ? DEFAULT_SEGMENT : segmentValue2;
 
         if (grouping != null && grouping.type == REFERENCE) {
@@ -133,8 +110,7 @@ public class ClickHouseEventExplorer
                     format(measureAgg, measureColumn),
                     project, checkCollection(collections.get(0), '`'),
                     where, groupBy);
-        }
-        else {
+        } else {
             String selectPart = (grouping == null ? "" : checkTableColumn(getColumnReference(grouping) + "_group", '`')) +
                     (grouping == null ? "" : ", ") + checkTableColumn(getColumnReference(segment) + "_segment", '`');
 
@@ -176,16 +152,14 @@ public class ClickHouseEventExplorer
         });
     }
 
-    private static String formatExpression(Expression value)
-    {
+    private static String formatExpression(Expression value) {
         return ClickhouseExpressionFormatter.formatExpression(value,
                 name -> name.getParts().stream().map(e -> formatIdentifier(e, '`')).collect(Collectors.joining(".")),
                 ValidationUtil::checkTableColumn, '`');
     }
 
     @Override
-    public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate, ZoneId timezone)
-    {
+    public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate, ZoneId timezone) {
         checkProject(project);
 
         if (collections.isPresent() && collections.get().isEmpty()) {
@@ -219,8 +193,7 @@ public class ClickHouseEventExplorer
                     function,
                     aggregationMethod.get(), collectionQuery, timePredicate,
                     function, function);
-        }
-        else {
+        } else {
             query = String.format("select \"_collection\" as collection, count(*) total \n" +
                     " from %s where %s group by \"_collection\"", collectionQuery, timePredicate);
         }
@@ -228,8 +201,7 @@ public class ClickHouseEventExplorer
         return service.executeQuery(project, query).getResult();
     }
 
-    public String convertSqlFunction(AggregationType aggType)
-    {
+    public String convertSqlFunction(AggregationType aggType) {
         switch (aggType) {
             case AVERAGE:
                 return "avg(%s)";
@@ -250,8 +222,7 @@ public class ClickHouseEventExplorer
         }
     }
 
-    protected String generateComputeQuery(Reference grouping, Reference segment, String collection)
-    {
+    protected String generateComputeQuery(Reference grouping, Reference segment, String collection) {
         StringBuilder selectBuilder = new StringBuilder();
         if (grouping != null) {
             selectBuilder.append(getColumnValue(grouping, true) + " as " + checkTableColumn(getColumnReference(grouping) + "_group", '`'));
@@ -266,8 +237,7 @@ public class ClickHouseEventExplorer
         return selectBuilder.toString();
     }
 
-    protected String getColumnValue(Reference ref, boolean format)
-    {
+    protected String getColumnValue(Reference ref, boolean format) {
         switch (ref.type) {
             case COLUMN:
                 return format ? checkTableColumn(ref.value, '`') : ref.value;
@@ -279,8 +249,7 @@ public class ClickHouseEventExplorer
     }
 
     @Override
-    public Map<String, List<String>> getExtraDimensions(String project)
-    {
+    public Map<String, List<String>> getExtraDimensions(String project) {
         Map<String, List<String>> builder = new HashMap<>();
         for (TimestampTransformation transformation : timestampMapping.keySet()) {
             builder.computeIfAbsent(transformation.getCategory(), k -> new ArrayList<>())
@@ -289,8 +258,12 @@ public class ClickHouseEventExplorer
         return builder;
     }
 
-    public String getColumnReference(Reference ref)
-    {
+    @Override
+    public QueryExecution export(String project, List<String> collections, Measure measure, Reference grouping, Reference segment, String filterExpression, LocalDate startDate, LocalDate endDate, ZoneId zoneId) {
+        throw new UnsupportedOperationException();
+    }
+
+    public String getColumnReference(Reference ref) {
         switch (ref.type) {
             case COLUMN:
                 return ref.value;

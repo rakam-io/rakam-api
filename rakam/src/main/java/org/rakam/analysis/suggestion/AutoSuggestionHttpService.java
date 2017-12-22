@@ -1,9 +1,11 @@
 package org.rakam.analysis.suggestion;
 
 
+import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.*;
+import org.rakam.util.NotExistsException;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -22,10 +24,12 @@ import static org.rakam.util.ValidationUtil.*;
 public class AutoSuggestionHttpService extends HttpService {
 
     private final QueryExecutorService queryExecutorService;
+    private final AttributeHook hook;
 
     @Inject
-    public AutoSuggestionHttpService(QueryExecutorService queryExecutorService) {
+    public AutoSuggestionHttpService(QueryExecutorService queryExecutorService, AttributeHook hook) {
         this.queryExecutorService = queryExecutorService;
+        this.hook = hook;
     }
 
 
@@ -46,15 +50,23 @@ public class AutoSuggestionHttpService extends HttpService {
             query += String.format(" AND date >= date '%s'", startDate.toString());
         }
         if (endDate != null) {
-            query += String.format(" AND date >= date '%s'", endDate.toString());
+            query += String.format(" AND date <= date '%s'", endDate.toString());
         }
-        if (filter != null) {
+        if (filter != null && !filter.isEmpty()) {
             String value = "%" + filter.replaceAll("%", "\\%").replaceAll("_", "\\_") + "%";
             query += format(" AND value like '%s' escape '\\'", checkLiteral(value));
         }
 
-        return queryExecutorService.executeQuery(project, query).getResult()
-                .thenApply(value -> value.getResult().stream().map(e -> (String) e.get(0))
+        query += "GROUP BY 1 ORDER BY count(*) DESC LIMIT 25";
+
+        QueryExecution queryExecution;
+        try {
+            queryExecution = queryExecutorService.executeQuery(project, query);
+        } catch (NotExistsException e) {
+            hook.add(project, collection);
+            queryExecution = queryExecutorService.executeQuery(project, query);
+        }
+        return queryExecution.getResult().thenApply(value -> value.getResult().stream().map(e -> (String) e.get(0))
                         .collect(Collectors.toList()));
     }
 }
