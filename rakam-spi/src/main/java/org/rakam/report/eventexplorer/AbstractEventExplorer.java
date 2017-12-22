@@ -397,6 +397,18 @@ public abstract class AbstractEventExplorer
             if (table != null) {
                 result.setProperty("olapTable", table);
             }
+
+            boolean grouped = false;
+            for (List<Object> objects : result.getResult()) {
+                Object dimensionVal = objects.get(0);
+                Object segmentVal = objects.get(1);
+                if("Others".equals(dimensionVal) || "Others".equals(segmentVal)) {
+                    grouped = true;
+                    break;
+                }
+            }
+
+            result.setProperty("grouped", grouped);
             if (result.isFailed()) {
                 RuntimeException exception = new RuntimeException("Error while running event explorer query", new RuntimeException(result.getError().message,
                         new RuntimeException(ofNullable(result.getProperties().get("query")).map(Object::toString).orElse("Query could not found"))));
