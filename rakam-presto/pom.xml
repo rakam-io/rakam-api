@@ -93,13 +93,12 @@
 
         <dependency>
             <groupId>com.google.code.findbugs</groupId>
-            <artifactId>annotations</artifactId>
+            <artifactId>jsr305</artifactId>
         </dependency>
 
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-main</artifactId>
-            <version>${presto.version}</version>
         </dependency>
 
         <dependency>
@@ -152,7 +151,6 @@
         <dependency>
             <groupId>javax.annotation</groupId>
             <artifactId>javax.annotation-api</artifactId>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.facebook.presto</groupId>
@@ -163,11 +161,17 @@
             <artifactId>presto-testing-server-launcher</artifactId>
             <version>${presto.version}</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.google.code.findbugs</groupId>
+                    <artifactId>jsr305</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-rakam-raptor</artifactId>
-            <version>0.180.0</version>
+            <version>0.190.1</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
@@ -187,7 +191,7 @@
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-rakam-udf</artifactId>
-            <version>0.180.0</version>
+            <version>0.190.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.jdbi</groupId>

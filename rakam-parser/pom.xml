@@ -33,10 +33,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.google.code.findbugs</groupId>
-            <artifactId>annotations</artifactId>
-        </dependency>
-        <dependency>
             <groupId>javax.inject</groupId>
             <artifactId>javax.inject</artifactId>
         </dependency>
@@ -113,7 +109,6 @@
                                 <ignoredUnusedDeclaredDependency>javax.inject:javax.inject</ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>io.airlift:slice</ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>org.antlr:antlr4-runtime</ignoredUnusedDeclaredDependency>
-                                <ignoredUnusedDeclaredDependency>com.google.code.findbugs:annotations:jar</ignoredUnusedDeclaredDependency>
                             </ignoredUnusedDeclaredDependencies>
                         </configuration>
                     </execution>
