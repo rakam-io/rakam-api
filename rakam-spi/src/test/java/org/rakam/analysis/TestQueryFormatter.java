@@ -8,7 +8,7 @@ import org.testng.annotations.Test;
 import java.util.stream.Collectors;
 
 import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
-import static com.facebook.presto.sql.RakamSqlFormatter.Formatter.format;
+import static com.facebook.presto.sql.RakamSqlFormatter.Formatter.formatQuery;
 import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static org.testng.Assert.assertEquals;
 
@@ -35,7 +35,7 @@ public class TestQueryFormatter
 
         assertEquals("SELECT *\n" +
                 "   FROM\n" +
-                "     dummy", format(statement, name -> "dummy", '"').trim());
+                "     dummy", formatQuery(statement, name -> "dummy", '"').trim());
     }
 
     @Test
@@ -50,7 +50,7 @@ public class TestQueryFormatter
                         "   FROM\n" +
                         "     (dummy\n" +
                         "   INNER JOIN dummy ON ((\"anothercollection\".\"test\" = \"testcollection\".\"test\")))",
-                format(statement, name -> "dummy", '"').trim());
+                formatQuery(statement, name -> "dummy", '"').trim());
     }
 
     @Test
@@ -67,7 +67,7 @@ public class TestQueryFormatter
                 "   ) \n" +
                 "   SELECT *\n" +
                 "   FROM\n" +
-                "     test", format(statement, name -> "dummy", '"').trim());
+                "     test", formatQuery(statement, name -> "dummy", '"').trim());
     }
 
     @Test
@@ -84,7 +84,7 @@ public class TestQueryFormatter
                 "   ) \n" +
                 "   SELECT *\n" +
                 "   FROM\n" +
-                "     dummy", format(statement, name -> "dummy", '"').trim());
+                "     dummy", formatQuery(statement, name -> "dummy", '"').trim());
     }
 
     @Test

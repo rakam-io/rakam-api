@@ -464,7 +464,7 @@ public abstract class AbstractEventExplorer
         new DefaultExpressionTraversalVisitor<Void, Void>() {
             @Override
             protected Void visitIdentifier(Identifier node, Void context) {
-                if (!options.dimensions.contains(node.getName())) {
+                if (!options.dimensions.contains(node.getValue())) {
                     columnExists[0] = false;
                 }
 

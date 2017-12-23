@@ -1,70 +1,7 @@
 package com.facebook.presto.sql;
 
 import com.facebook.presto.sql.ExpressionFormatter.Formatter;
-import com.facebook.presto.sql.tree.AllColumns;
-import com.facebook.presto.sql.tree.ArithmeticBinaryExpression;
-import com.facebook.presto.sql.tree.ArithmeticUnaryExpression;
-import com.facebook.presto.sql.tree.ArrayConstructor;
-import com.facebook.presto.sql.tree.AtTimeZone;
-import com.facebook.presto.sql.tree.BetweenPredicate;
-import com.facebook.presto.sql.tree.BinaryLiteral;
-import com.facebook.presto.sql.tree.BindExpression;
-import com.facebook.presto.sql.tree.BooleanLiteral;
-import com.facebook.presto.sql.tree.Cast;
-import com.facebook.presto.sql.tree.CharLiteral;
-import com.facebook.presto.sql.tree.CoalesceExpression;
-import com.facebook.presto.sql.tree.ComparisonExpression;
-import com.facebook.presto.sql.tree.Cube;
-import com.facebook.presto.sql.tree.CurrentTime;
-import com.facebook.presto.sql.tree.DecimalLiteral;
-import com.facebook.presto.sql.tree.DereferenceExpression;
-import com.facebook.presto.sql.tree.DoubleLiteral;
-import com.facebook.presto.sql.tree.ExistsPredicate;
-import com.facebook.presto.sql.tree.Expression;
-import com.facebook.presto.sql.tree.Extract;
-import com.facebook.presto.sql.tree.FieldReference;
-import com.facebook.presto.sql.tree.FrameBound;
-import com.facebook.presto.sql.tree.FunctionCall;
-import com.facebook.presto.sql.tree.GenericLiteral;
-import com.facebook.presto.sql.tree.GroupingElement;
-import com.facebook.presto.sql.tree.GroupingOperation;
-import com.facebook.presto.sql.tree.GroupingSets;
-import com.facebook.presto.sql.tree.Identifier;
-import com.facebook.presto.sql.tree.IfExpression;
-import com.facebook.presto.sql.tree.InListExpression;
-import com.facebook.presto.sql.tree.InPredicate;
-import com.facebook.presto.sql.tree.IntervalLiteral;
-import com.facebook.presto.sql.tree.IsNotNullPredicate;
-import com.facebook.presto.sql.tree.IsNullPredicate;
-import com.facebook.presto.sql.tree.LambdaArgumentDeclaration;
-import com.facebook.presto.sql.tree.LambdaExpression;
-import com.facebook.presto.sql.tree.LikePredicate;
-import com.facebook.presto.sql.tree.LogicalBinaryExpression;
-import com.facebook.presto.sql.tree.LongLiteral;
-import com.facebook.presto.sql.tree.Node;
-import com.facebook.presto.sql.tree.NotExpression;
-import com.facebook.presto.sql.tree.NullIfExpression;
-import com.facebook.presto.sql.tree.NullLiteral;
-import com.facebook.presto.sql.tree.OrderBy;
-import com.facebook.presto.sql.tree.Parameter;
-import com.facebook.presto.sql.tree.QualifiedName;
-import com.facebook.presto.sql.tree.QuantifiedComparisonExpression;
-import com.facebook.presto.sql.tree.Rollup;
-import com.facebook.presto.sql.tree.Row;
-import com.facebook.presto.sql.tree.SearchedCaseExpression;
-import com.facebook.presto.sql.tree.SimpleCaseExpression;
-import com.facebook.presto.sql.tree.SimpleGroupBy;
-import com.facebook.presto.sql.tree.SortItem;
-import com.facebook.presto.sql.tree.StringLiteral;
-import com.facebook.presto.sql.tree.SubqueryExpression;
-import com.facebook.presto.sql.tree.SubscriptExpression;
-import com.facebook.presto.sql.tree.SymbolReference;
-import com.facebook.presto.sql.tree.TimeLiteral;
-import com.facebook.presto.sql.tree.TimestampLiteral;
-import com.facebook.presto.sql.tree.TryExpression;
-import com.facebook.presto.sql.tree.WhenClause;
-import com.facebook.presto.sql.tree.Window;
-import com.facebook.presto.sql.tree.WindowFrame;
+import com.facebook.presto.sql.tree.*;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -72,13 +9,11 @@ import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.PrimitiveIterator;
 import java.util.Set;
 import java.util.function.Function;
 
 import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static com.facebook.presto.sql.RakamSqlFormatter.formatSql;
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
@@ -284,15 +219,15 @@ public class RakamExpressionFormatter
     protected String visitIdentifier(Identifier node, Void context)
     {
         if (columnNameMapper.isPresent()) {
-            return columnNameMapper.get().apply(node.getName());
+            return columnNameMapper.get().apply(node.getValue());
         }
-        return formatIdentifier(node.getName(), escape);
+        return formatIdentifier(node.getValue(), escape);
     }
 
     @Override
     protected String visitLambdaArgumentDeclaration(LambdaArgumentDeclaration node, Void context)
     {
-        return formatIdentifier(node.getName(), escape);
+        return formatIdentifier(node.getName().getValue(), escape);
     }
 
     @Override
@@ -305,7 +240,7 @@ public class RakamExpressionFormatter
     protected String visitDereferenceExpression(DereferenceExpression node, Void context)
     {
         String baseString = process(node.getBase(), context);
-        return baseString + "." + formatIdentifier(node.getFieldName(), escape);
+        return baseString + "." + formatIdentifier(node.getField().getValue(), escape);
     }
 
     private static String formatQualifiedName(QualifiedName name, char escape)

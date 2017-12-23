@@ -69,7 +69,7 @@ class DynamodbFilterQueryFormatter
     protected String visitIdentifier(Identifier node, Boolean context)
     {
         String variableName = "#" + variable[0]++;
-        nameBuilder.put(variableName, node.getName());
+        nameBuilder.put(variableName, node.getValue());
         return variableName;
     }
 
@@ -130,7 +130,7 @@ class DynamodbFilterQueryFormatter
 
         String variableName = "#" + variable[0]++;
 
-        nameBuilder.put(variableName, ((Identifier) node.getValue()).getName());
+        nameBuilder.put(variableName, ((Identifier) node.getValue()).getValue());
 
         return format("attribute_exists(%s)", variableName);
     }
@@ -150,7 +150,7 @@ class DynamodbFilterQueryFormatter
         }
 
         String variableName = "#" + variable[0]++;
-        nameBuilder.put(variableName, ((Identifier) node.getValue()).getName());
+        nameBuilder.put(variableName, ((Identifier) node.getValue()).getValue());
 
         return "(#" + variableName + " BETWEEN " +
                 process(node.getMin(), unmangleNames) + " AND " + process(node.getMax(), unmangleNames) + ")";

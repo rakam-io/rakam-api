@@ -105,13 +105,13 @@ public class PrestoQueryExecutor
                 prestoConfig.getAddress(),
                 user == null ? "rakam" : user,
                 "rakam",
-                null,
+                null, null,
                 catalog == null ? "default" : catalog,
                 "default",
                 TimeZone.getTimeZone(timezone == null ? ZoneOffset.UTC : timezone).getID(),
                 Locale.ENGLISH,
                 sessionProperties,
-                null, false, new Duration(1, TimeUnit.MINUTES));
+                null, null, false, new Duration(1, TimeUnit.MINUTES));
     }
 
     public QueryExecution executeRawQuery(String query, ZoneId timezone, Map<String, String> sessionProperties, String catalog, String apiKey)

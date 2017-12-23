@@ -91,14 +91,14 @@ public class PrestoRakamRaptorMetastore
                 prestoConfig.getAddress(),
                 "rakam",
                 "api-server",
-                null,
+                null, null,
                 prestoConfig.getColdStorageConnector(),
                 "default",
                 TimeZone.getTimeZone(ZoneOffset.UTC).getID(),
                 ENGLISH,
                 ImmutableMap.of(),
                 null,
-                false, Duration.succinctDuration(1, MINUTES));
+                null, false, Duration.succinctDuration(1, MINUTES));
 
         activeNodeCount = Suppliers.memoizeWithExpiration(() -> {
             String getNodeCount = "select count(*) from system.runtime.nodes where state = 'active'";
@@ -653,7 +653,7 @@ public class PrestoRakamRaptorMetastore
                     return new ArrayType(toType(type.getArrayElementType()));
                 }
                 if (type.isMap()) {
-                    return new MapType(true, VarcharType.VARCHAR, toType(type.getMapValueType()), null, null, null);
+                    return new MapType(VarcharType.VARCHAR, toType(type.getMapValueType()), null, null, null);
                 }
                 throw new IllegalStateException();
         }

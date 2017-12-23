@@ -1,11 +1,9 @@
 package org.rakam.analysis;
 
-import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.GroupingElement;
 import com.facebook.presto.sql.tree.Identifier;
-import com.facebook.presto.sql.tree.Literal;
 import com.facebook.presto.sql.tree.LongLiteral;
 import com.facebook.presto.sql.tree.Node;
 import com.facebook.presto.sql.tree.NodeLocation;
@@ -15,7 +13,6 @@ import com.facebook.presto.sql.tree.Relation;
 import com.facebook.presto.sql.tree.SelectItem;
 import com.facebook.presto.sql.tree.SingleColumn;
 import com.facebook.presto.sql.tree.SortItem;
-import com.facebook.presto.sql.tree.Statement;
 import com.facebook.presto.sql.tree.Union;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.collect.ImmutableList;
@@ -25,7 +22,6 @@ import io.airlift.log.Logger;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.analysis.datasource.CustomDataSource;
 import org.rakam.collection.SchemaField;
 import org.rakam.http.ForHttpServer;
 import org.rakam.plugin.EventStore.CopyType;
@@ -49,7 +45,6 @@ import org.rakam.util.JsonHelper;
 import org.rakam.util.LogUtil;
 import org.rakam.util.RakamClient;
 import org.rakam.util.RakamException;
-import org.rakam.util.SqlUtil;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -58,10 +53,8 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 
-import java.net.URL;
 import java.time.Duration;
 import java.time.ZoneId;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -407,7 +400,7 @@ public class QueryHttpService
                 ImmutableMap.Builder<String, NodeLocation> builder = ImmutableMap.builder();
                 with.getQueries().stream()
                         .forEach(withQuery ->
-                                builder.put(withQuery.getName(), withQuery.getQuery().getLocation().orElse(null)));
+                                builder.put(withQuery.getName().getValue(), withQuery.getQuery().getLocation().orElse(null)));
                 return builder.build();
             }).orElse(null);
 

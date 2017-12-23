@@ -133,7 +133,7 @@ public final class ExpressionCompiler
         @Override
         protected String visitIdentifier(Identifier node, Boolean context)
         {
-            return "props.get(\"" + checkTableColumn(node.getName(), "field reference is invalid", '"') + "\")";
+            return "props.get(\"" + checkTableColumn(node.getValue(), "field reference is invalid", '"') + "\")";
         }
 
         @Override

@@ -72,7 +72,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>4.11</junit.version>
         <air.version>0.148</air.version>
-        <presto.version>0.180</presto.version>
+        <presto.version>0.190</presto.version>
         <java.version>1.8</java.version>
         <jackson.version>2.8.1</jackson.version>
         <aws.library>1.10.66</aws.library>

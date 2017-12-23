@@ -2,14 +2,7 @@ package org.rakam.presto.analysis;
 
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
-import com.facebook.presto.sql.tree.AllColumns;
-import com.facebook.presto.sql.tree.DereferenceExpression;
-import com.facebook.presto.sql.tree.Identifier;
-import com.facebook.presto.sql.tree.QualifiedName;
-import com.facebook.presto.sql.tree.Query;
-import com.facebook.presto.sql.tree.QuerySpecification;
-import com.facebook.presto.sql.tree.SelectItem;
-import com.facebook.presto.sql.tree.SingleColumn;
+import com.facebook.presto.sql.tree.*;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.QueryMetadataStore;
@@ -23,14 +16,9 @@ import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
-
 import java.time.Clock;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;

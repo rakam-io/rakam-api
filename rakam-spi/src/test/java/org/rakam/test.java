@@ -84,7 +84,7 @@ public class test {
                     protected Void visitBetweenPredicate(BetweenPredicate node, Integer context) {
                         if ((node.getValue() instanceof Identifier)) {
                             Identifier value = (Identifier) node.getValue();
-                            switch (value.getName()) {
+                            switch (value.getValue()) {
                                 case "_time":
                                     LocalDate start;
                                     LocalDate end;
