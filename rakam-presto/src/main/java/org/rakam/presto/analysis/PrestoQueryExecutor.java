@@ -12,6 +12,7 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Singleton;
 import io.airlift.units.Duration;
 import org.rakam.analysis.datasource.*;
@@ -105,13 +106,13 @@ public class PrestoQueryExecutor
                 prestoConfig.getAddress(),
                 user == null ? "rakam" : user,
                 "rakam",
-                null, null,
+                ImmutableSet.of(), null,
                 catalog == null ? "default" : catalog,
                 "default",
                 TimeZone.getTimeZone(timezone == null ? ZoneOffset.UTC : timezone).getID(),
                 Locale.ENGLISH,
                 sessionProperties,
-                null, null, false, new Duration(1, TimeUnit.MINUTES));
+                ImmutableMap.of(), null, false, new Duration(1, TimeUnit.MINUTES));
     }
 
     public QueryExecution executeRawQuery(String query, ZoneId timezone, Map<String, String> sessionProperties, String catalog, String apiKey)

@@ -91,13 +91,13 @@ public class PrestoRakamRaptorMetastore
                 prestoConfig.getAddress(),
                 "rakam",
                 "api-server",
-                null, null,
+                ImmutableSet.of(), null,
                 prestoConfig.getColdStorageConnector(),
                 "default",
                 TimeZone.getTimeZone(ZoneOffset.UTC).getID(),
                 ENGLISH,
                 ImmutableMap.of(),
-                null,
+                ImmutableMap.of(),
                 null, false, Duration.succinctDuration(1, MINUTES));
 
         activeNodeCount = Suppliers.memoizeWithExpiration(() -> {
