@@ -68,6 +68,16 @@ public class TestQueryFormatter
                 "   FROM\n" +
                 "     test");
     }
+    @Test
+    public void testAlias()
+            throws Exception
+    {
+        Statement statement = new SqlParser().createStatement("select a as b from test");
+
+        assertEquals(formatQuery(statement, name -> "dummy", '"').trim(),"SELECT \"a\" \"b\"\n" +
+                "   FROM\n" +
+                "     dummy");
+    }
 
     @Test
     public void testQueryWithCTEDuplicateName()

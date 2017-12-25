@@ -269,9 +269,7 @@ public final class RakamSqlFormatter {
             builder.append(formatExpression(node.getExpression(), tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier));
             if (node.getAlias().isPresent()) {
                 builder.append(' ')
-                        .append(escapeIdentifier)
-                        .append(formatExpression(node.getAlias().get(), tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier))
-                        .append(escapeIdentifier); // TODO: handle quoting properly
+                        .append(formatExpression(node.getAlias().get(), tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier));
             }
 
             return null;
