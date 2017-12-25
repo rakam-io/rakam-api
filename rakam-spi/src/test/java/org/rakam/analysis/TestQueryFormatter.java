@@ -76,7 +76,7 @@ public class TestQueryFormatter
         Statement statement = new SqlParser().createStatement("with test as (select * from collection) select * from collection.test");
 
         assertEquals(formatQuery(statement, name -> "dummy", '"').trim(),"WITH\n" +
-                "    \"test\" AS (\n" +
+                "     \"test\" AS (\n" +
                 "      SELECT *\n" +
                 "      FROM\n" +
                 "        dummy\n" +
