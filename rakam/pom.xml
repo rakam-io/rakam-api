@@ -39,11 +39,6 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.rakam</groupId>
-            <artifactId>rakam-clickhouse</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>slice</artifactId>
         </dependency>
@@ -485,8 +480,6 @@
                                 <ignoredUnusedDeclaredDependency>org.rakam:rakam-postgresql
                                 </ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>org.rakam:rakam-aws
-                                </ignoredUnusedDeclaredDependency>
-                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-clickhouse
                                 </ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>com.facebook.presto:presto-parser
                                 </ignoredUnusedDeclaredDependency>
