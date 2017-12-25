@@ -20,11 +20,11 @@ public class TestQueryFormatter
     {
         Expression expression = new SqlParser().createExpression("test = 'test'");
 
-        assertEquals("(\"dummy\".\"test\" = 'test')", formatExpression(expression,
+        assertEquals(formatExpression(expression,
                 name -> {
                     throw new UnsupportedOperationException();
                 },
-                name -> "\"dummy\".\"" + name + "\"", '"'));
+                name -> "\"dummy\".\"" + name + "\"", '"'), "(\"dummy\".\"test\" = 'test')");
     }
 
     @Test
@@ -33,9 +33,9 @@ public class TestQueryFormatter
     {
         Statement statement = new SqlParser().createStatement("select * from testcollection");
 
-        assertEquals("SELECT *\n" +
+        assertEquals(formatQuery(statement, name -> "dummy", '"').trim(),"SELECT *\n" +
                 "   FROM\n" +
-                "     dummy", formatQuery(statement, name -> "dummy", '"').trim());
+                "     dummy");
     }
 
     @Test
@@ -46,11 +46,10 @@ public class TestQueryFormatter
                 ("select * from testcollection join anothercollection on (anothercollection.test = testcollection.test)");
 
         // TODO: decide if we should also format expressions in QueryFormatter
-        assertEquals("SELECT *\n" +
+        assertEquals(formatQuery(statement, name -> "dummy", '"').trim(),"SELECT *\n" +
                         "   FROM\n" +
                         "     (dummy\n" +
-                        "   INNER JOIN dummy ON ((\"anothercollection\".\"test\" = \"testcollection\".\"test\")))",
-                formatQuery(statement, name -> "dummy", '"').trim());
+                        "   INNER JOIN dummy ON (\"anothercollection\".\"test\" = \"testcollection\".\"test\"))");
     }
 
     @Test
@@ -59,15 +58,15 @@ public class TestQueryFormatter
     {
         Statement statement = new SqlParser().createStatement("with test as (select * from collection) select * from test");
 
-        assertEquals("WITH\n" +
-                "     test AS (\n" +
+        assertEquals(formatQuery(statement, name -> "dummy", '"').trim(),"WITH\n" +
+                "     \"test\" AS (\n" +
                 "      SELECT *\n" +
                 "      FROM\n" +
                 "        dummy\n" +
                 "   ) \n" +
                 "   SELECT *\n" +
                 "   FROM\n" +
-                "     test", formatQuery(statement, name -> "dummy", '"').trim());
+                "     test");
     }
 
     @Test
@@ -76,15 +75,15 @@ public class TestQueryFormatter
     {
         Statement statement = new SqlParser().createStatement("with test as (select * from collection) select * from collection.test");
 
-        assertEquals("WITH\n" +
-                "     test AS (\n" +
+        assertEquals(formatQuery(statement, name -> "dummy", '"').trim(),"WITH\n" +
+                "    \"test\" AS (\n" +
                 "      SELECT *\n" +
                 "      FROM\n" +
                 "        dummy\n" +
                 "   ) \n" +
                 "   SELECT *\n" +
                 "   FROM\n" +
-                "     dummy", formatQuery(statement, name -> "dummy", '"').trim());
+                "     dummy");
     }
 
     @Test
@@ -93,11 +92,11 @@ public class TestQueryFormatter
     {
         Expression expression = new SqlParser().createExpression("test in (select id from testcollection)");
 
-        assertEquals("(\"test\" IN (SELECT \"id\"\n" +
+        assertEquals(formatExpression(expression,
+                name -> "\"schema\"." + name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
+                name -> '"' + name + '"', '"'),"(\"test\" IN (SELECT \"id\"\n" +
                 "FROM\n" +
                 "  \"schema\".\"testcollection\"\n" +
-                "))", formatExpression(expression,
-                name -> "\"schema\"." + name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
-                name -> '"' + name + '"', '"'));
+                "))");
     }
 }
