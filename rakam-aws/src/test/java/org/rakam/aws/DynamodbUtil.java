@@ -1,11 +1,9 @@
 package org.rakam.aws;
 
 import io.airlift.log.Logger;
-import org.rakam.aws.dynamodb.TestDynamodbMetastore;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.ServerSocket;
 import java.nio.file.Path;
 
@@ -15,7 +13,7 @@ import static java.lang.System.getProperty;
 
 public class DynamodbUtil
 {
-    private final static Logger LOGGER = Logger.get(TestDynamodbMetastore.class);
+    private final static Logger LOGGER = Logger.get(DynamodbUtil.class);
 
     public static int randomPort()
             throws IOException
