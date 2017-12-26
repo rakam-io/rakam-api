@@ -30,7 +30,8 @@ public class TestPrestoEventExplorer
 
     @BeforeSuite
     @Override
-    public void setup()
+    public void
+    setup()
             throws Exception
     {
         testingEnvironment = new TestingEnvironment();

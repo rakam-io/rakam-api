@@ -240,7 +240,7 @@ public class PrestoQueryExecution
         {
             QueryStatusInfo queryStatusInfo = client.isValid() ? client.currentStatusInfo() : client.finalStatusInfo();
 
-            if (queryStatusInfo.getError() != null || queryStatusInfo.getColumns() == null) {
+            if (queryStatusInfo.getError() != null || queryStatusInfo.getColumns() == null || !client.isValid()) {
                 return;
             }
 
@@ -256,11 +256,12 @@ public class PrestoQueryExecution
                         .collect(Collectors.toList());
             }
 
-            if (client.currentData() == null) {
+            QueryData queryData = client.currentData();
+            if (queryData == null || queryData.getData() == null) {
                 return;
             }
 
-            for (List<Object> objects : client.currentData().getData()) {
+            for (List<Object> objects : queryData.getData()) {
                 Object[] row = new Object[columns.size()];
 
                 for (int i = 0; i < objects.size(); i++) {
