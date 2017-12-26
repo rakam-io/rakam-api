@@ -1,7 +1,6 @@
 package org.rakam.aws.dynamodb;
 
 import org.rakam.analysis.ConfigManager;
-import org.rakam.analysis.TestConfigManager;
 import org.rakam.aws.AWSConfig;
 import org.rakam.aws.dynamodb.config.DynamodbConfigManager;
 import org.rakam.aws.dynamodb.config.DynamodbConfigManagerConfig;
@@ -18,7 +17,7 @@ import static java.lang.String.format;
 import static java.lang.System.getProperty;
 
 public class TestDynamodbConfigManager
-        extends TestConfigManager
+//        extends TestConfigManager
 {
     private final DynamodbConfigManager service;
     private Process dynamodbServer;
@@ -72,7 +71,7 @@ public class TestDynamodbConfigManager
         }
     }
 
-    @Override
+//    @Override
     public ConfigManager getConfigManager()
     {
         return service;

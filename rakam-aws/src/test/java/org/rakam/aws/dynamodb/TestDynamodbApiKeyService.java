@@ -1,7 +1,6 @@
 package org.rakam.aws.dynamodb;
 
 import org.rakam.analysis.ApiKeyService;
-import org.rakam.analysis.TestApiKeyService;
 import org.rakam.aws.AWSConfig;
 import org.rakam.aws.dynamodb.apikey.DynamodbApiKeyConfig;
 import org.rakam.aws.dynamodb.apikey.DynamodbApiKeyService;
@@ -18,7 +17,7 @@ import static java.lang.String.format;
 import static java.lang.System.getProperty;
 
 public class TestDynamodbApiKeyService
-        extends TestApiKeyService
+//        extends TestApiKeyService
 {
     private final DynamodbApiKeyService service;
     private Process dynamodbServer;
@@ -49,7 +48,7 @@ public class TestDynamodbApiKeyService
         dynamodbServer.destroy();
     }
 
-    @Override
+//    @Override
     public ApiKeyService getApiKeyService()
     {
         return service;
