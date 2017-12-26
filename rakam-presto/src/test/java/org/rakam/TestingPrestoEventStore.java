@@ -53,6 +53,11 @@ public class TestingPrestoEventStore implements SyncEventStore
                             .collect(Collectors.joining(" union all "))))
                     .getResult().join();
             if(join.isFailed()) {
+                try {
+                    Thread.sleep(300000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
                 throw new IllegalStateException(join.getError().message);
             }
 

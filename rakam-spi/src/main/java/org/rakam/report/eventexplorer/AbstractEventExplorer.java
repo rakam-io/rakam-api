@@ -47,6 +47,7 @@ import static org.rakam.util.ValidationUtil.*;
 public abstract class AbstractEventExplorer
         implements EventExplorer {
     private final static Logger LOGGER = Logger.get(AbstractEventExplorer.class);
+    private final static String OTHERS_TAG = "Others";
 
     protected final static String TIME_INTERVAL_ERROR_MESSAGE = "Date interval is too big. Please narrow the date range or use different date dimension.";
     protected final Reference DEFAULT_SEGMENT = new Reference(COLUMN, "_collection");
@@ -347,15 +348,16 @@ public abstract class AbstractEventExplorer
             if (grouping != null && grouping.type == COLUMN && segment.type == COLUMN) {
                 boolean segmentRanked = !segment.equals(DEFAULT_SEGMENT);
                 query = format(" SELECT " +
-                                " CASE WHEN group_rank > 15 THEN 'Others' ELSE cast(%s as varchar) END,\n" +
+                                " CASE WHEN group_rank > 15 THEN '%s' ELSE cast(%s as varchar) END,\n" +
                                 " %s " +
                                 " %s FROM (\n" +
                                 "   SELECT *,\n" +
                                 "          %s" +
                                 "          row_number() OVER (ORDER BY %s DESC) AS group_rank\n" +
                                 "   FROM (%s) as data GROUP BY 1, 2, 3) as data GROUP BY 1, 2 ORDER BY 3 DESC",
+                        OTHERS_TAG,
                         checkTableColumn(getColumnReference(grouping) + "_group"),
-                        format(segmentRanked ? " CASE WHEN segment_rank > 20 THEN 'Others' ELSE cast(%s as varchar) END,\n" : "cast(%s as varchar),", checkTableColumn(getColumnReference(segment) + "_segment")),
+                        format(segmentRanked ? (" CASE WHEN segment_rank > 20 THEN '" + OTHERS_TAG + "' ELSE cast(%s as varchar) END,\n") : "cast(%s as varchar),", checkTableColumn(getColumnReference(segment) + "_segment")),
                         format(convertSqlFunction(intermediateAggregation.get(), measure.aggregation), "value"),
                         segmentRanked ? format("row_number() OVER (PARTITION BY %s ORDER BY value DESC) AS segment_rank,\n", checkCollection(format(getColumnReference(grouping), "value") + "_group")) : "",
                         format(convertSqlFunction(intermediateAggregation.get(), measure.aggregation), "value"),
@@ -367,10 +369,11 @@ public abstract class AbstractEventExplorer
                             ((grouping != null && grouping.type == COLUMN) ? "_group" : "_segment"));
 
                     query = format(" SELECT " +
-                                    " %s CASE WHEN group_rank > 50 THEN 'Others' ELSE CAST(%s as varchar) END, %s FROM (\n" +
+                                    " %s CASE WHEN group_rank > 50 THEN '%s' ELSE CAST(%s as varchar) END, %s FROM (\n" +
                                     "   SELECT *, row_number() OVER (ORDER BY %s DESC) AS group_rank\n" +
                                     "   FROM (%s) as data GROUP BY 1, 2 %s) as data GROUP BY 1 %s ORDER BY %d DESC",
                             bothActive ? checkTableColumn(getColumnReference(grouping.type == COLUMN ? segment : grouping) + (grouping.type == COLUMN ? "_segment" : "_group")) + ", " : "",
+                            OTHERS_TAG,
                             windowColumn,
                             format(convertSqlFunction(intermediateAggregation.get(), measure.aggregation), "value"),
                             format(convertSqlFunction(intermediateAggregation.get(), measure.aggregation), "value"),
@@ -406,7 +409,7 @@ public abstract class AbstractEventExplorer
                 for (List<Object> objects : result.getResult()) {
                     Object dimensionVal = objects.get(0);
                     Object segmentVal = objects.get(1);
-                    if("Others".equals(dimensionVal) || "Others".equals(segmentVal)) {
+                    if (OTHERS_TAG.equals(dimensionVal) || OTHERS_TAG.equals(segmentVal)) {
                         grouped = true;
                         break;
                     }
@@ -464,7 +467,7 @@ public abstract class AbstractEventExplorer
         new DefaultExpressionTraversalVisitor<Void, Void>() {
             @Override
             protected Void visitIdentifier(Identifier node, Void context) {
-                if (!options.dimensions.contains(node.getName())) {
+                if (!options.dimensions.contains(node.getValue())) {
                     columnExists[0] = false;
                 }
 

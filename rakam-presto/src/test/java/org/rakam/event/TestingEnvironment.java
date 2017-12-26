@@ -10,6 +10,7 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
+import io.airlift.log.Logger;
 import io.airlift.testing.postgresql.TestingPostgreSqlServer;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.config.JDBCConfig;
@@ -23,8 +24,8 @@ import java.net.URI;
 import static com.google.common.base.Throwables.propagate;
 import static java.lang.String.format;
 
-public class TestingEnvironment
-{
+public class TestingEnvironment {
+    private final static Logger LOGGER = Logger.get(TestingEnvironment.class);
 
     private static PrestoConfig prestoConfig;
     private static TestingPrestoServer testingPrestoServer;
@@ -32,13 +33,11 @@ public class TestingEnvironment
     private static JDBCConfig postgresqlConfig;
     private static JDBCPoolDataSource metastore;
 
-    public TestingEnvironment()
-    {
+    public TestingEnvironment() {
         this(true);
     }
 
-    public TestingEnvironment(boolean installMetadata)
-    {
+    public TestingEnvironment(boolean installMetadata) {
         try {
             if (testingPrestoServer == null) {
                 synchronized (TestingEnvironment.class) {
@@ -47,17 +46,14 @@ public class TestingEnvironment
                     String metadataDatabase = Files.createTempDir().getAbsolutePath();
                     RaptorPlugin plugin = new RakamRaptorPlugin();
 
-                    Module metastoreModule = new Module()
-                    {
+                    Module metastoreModule = new Module() {
                         @Override
-                        public void configure(Binder binder)
-                        {
+                        public void configure(Binder binder) {
                         }
 
                         @Provides
                         @Singleton
-                        public IDBI getDataSource()
-                        {
+                        public IDBI getDataSource() {
                             return new DBI(format("jdbc:h2:mem:test%s;DB_CLOSE_DELAY=-1;mode=MySQL", System.nanoTime()));
                         }
                     };
@@ -73,10 +69,12 @@ public class TestingEnvironment
                             .put("metadata.db.mvcc.enabled", "true")
                             .put("metadata.db.filename", metadataDatabase).build());
 
+                    String prestoUrl = "http://" + testingPrestoServer.getAddress().toString();
                     prestoConfig = new PrestoConfig()
-                            .setAddress(URI.create("http://" + testingPrestoServer.getAddress().toString()))
+                            .setAddress(URI.create(prestoUrl))
                             .setStreamingConnector("streaming")
                             .setColdStorageConnector("rakam_raptor");
+                    LOGGER.info("Presto started on " + prestoUrl);
 
                     metastore = JDBCPoolDataSource.getOrCreateDataSource(new JDBCConfig().setUrl("jdbc:h2:" + metadataDatabase)
                             .setUsername("sa").setPassword(""));
@@ -95,8 +93,7 @@ public class TestingEnvironment
                                         () -> {
                                             try {
                                                 testingPostgresqlServer.close();
-                                            }
-                                            catch (IOException e) {
+                                            } catch (IOException e) {
                                                 e.printStackTrace();
                                             }
                                         }
@@ -110,33 +107,28 @@ public class TestingEnvironment
                         .setUsername(testingPostgresqlServer.getUser());
                 System.out.println("postgresql config: " + postgresqlConfig);
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             throw propagate(e);
         }
     }
 
-    public JDBCPoolDataSource getPrestoMetastore()
-    {
+    public JDBCPoolDataSource getPrestoMetastore() {
         return metastore;
     }
 
-    public JDBCConfig getPostgresqlConfig()
-    {
+    public JDBCConfig getPostgresqlConfig() {
         if (postgresqlConfig == null) {
             throw new UnsupportedOperationException();
         }
         return postgresqlConfig;
     }
 
-    public PrestoConfig getPrestoConfig()
-    {
+    public PrestoConfig getPrestoConfig() {
         return prestoConfig;
     }
 
     public void close()
-            throws Exception
-    {
+            throws Exception {
         testingPrestoServer.close();
         if (testingPostgresqlServer != null) {
             testingPostgresqlServer.close();

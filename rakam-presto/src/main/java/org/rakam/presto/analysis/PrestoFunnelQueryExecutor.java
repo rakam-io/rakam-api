@@ -24,27 +24,23 @@ import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.postgresql.analysis.FastGenericFunnelQueryExecutor;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
-import org.rakam.report.QueryExecutorService;
 import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
-
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.Map;
 
 import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
-import static org.rakam.presto.analysis.PrestoUserService.ANONYMOUS_ID_MAPPING;
-import static org.rakam.util.ValidationUtil.checkCollection;
-import static org.rakam.util.ValidationUtil.checkProject;
-import static org.rakam.util.ValidationUtil.checkTableColumn;
 import static org.rakam.analysis.FunnelQueryExecutor.FunnelTimestampSegments.*;
+import static org.rakam.presto.analysis.PrestoUserService.ANONYMOUS_ID_MAPPING;
+import static org.rakam.util.ValidationUtil.*;
 
 public class PrestoFunnelQueryExecutor
         extends AbstractFunnelQueryExecutor

@@ -48,6 +48,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.rakam.analysis.InternalConfig.USER_TYPE;
@@ -822,7 +823,9 @@ public abstract class AbstractPostgresqlUserStorage
                 "  created_at timestamp NOT NULL,\n" +
                 "  PRIMARY KEY (%s)" +
                 ")", table, PRIMARY_KEY, PRIMARY_KEY)).getResult().join();
-        System.out.println(join);
+        if(join.isFailed()) {
+            throw new RakamException(join.getError().toString(), INTERNAL_SERVER_ERROR);
+        }
     }
 
     @Override

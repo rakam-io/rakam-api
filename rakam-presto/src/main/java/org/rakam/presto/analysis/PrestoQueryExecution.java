@@ -1,10 +1,6 @@
 package org.rakam.presto.analysis;
 
-import com.facebook.presto.client.ClientSession;
-import com.facebook.presto.client.ClientTypeSignatureParameter;
-import com.facebook.presto.client.QueryResults;
-import com.facebook.presto.client.StatementClient;
-import com.facebook.presto.client.StatementStats;
+import com.facebook.presto.client.*;
 import com.facebook.presto.spi.type.StandardTypes;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -22,37 +18,15 @@ import org.rakam.report.QueryStats;
 import org.rakam.util.LogUtil;
 import org.rakam.util.RakamException;
 
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static org.rakam.collection.FieldType.BINARY;
-import static org.rakam.collection.FieldType.BOOLEAN;
-import static org.rakam.collection.FieldType.DATE;
-import static org.rakam.collection.FieldType.DECIMAL;
-import static org.rakam.collection.FieldType.DOUBLE;
-import static org.rakam.collection.FieldType.INTEGER;
-import static org.rakam.collection.FieldType.LONG;
-import static org.rakam.collection.FieldType.STRING;
-import static org.rakam.collection.FieldType.TIME;
-import static org.rakam.collection.FieldType.TIMESTAMP;
+import static org.rakam.collection.FieldType.*;
 import static org.rakam.report.QueryStats.State.FINISHED;
 
 public class PrestoQueryExecution
@@ -140,8 +114,7 @@ public class PrestoQueryExecution
             return new QueryStats(QueryStats.State.FAILED);
         }
 
-        StatementStats stats = (!client.isValid() ? client.finalResults() : client.current())
-                .getStats();
+        StatementStats stats = client.getStats();
 
         int totalSplits = stats.getTotalSplits();
         QueryStats.State state = QueryStats.State.valueOf(stats.getState().toUpperCase(Locale.ENGLISH));
@@ -203,7 +176,7 @@ public class PrestoQueryExecution
                     client.close();
                     throw new RakamException("Query executor thread was interrupted", INTERNAL_SERVER_ERROR);
                 }
-                transformAndAdd(client.current());
+                transformAndAdd();
 
                 client.advance();
             }
@@ -234,7 +207,7 @@ public class PrestoQueryExecution
                     result.complete(QueryResult.errorResult(queryError, query));
                 }
                 else if (client.isFailed()) {
-                    com.facebook.presto.client.QueryError error = client.finalResults().getError();
+                    com.facebook.presto.client.QueryError error = client.finalStatusInfo().getError();
                     com.facebook.presto.client.ErrorLocation errorLocation = error.getErrorLocation();
                     QueryError queryError = new QueryError(
                             Optional.ofNullable(error.getFailureInfo().getMessage())
@@ -247,7 +220,7 @@ public class PrestoQueryExecution
                     result.complete(QueryResult.errorResult(queryError, query));
                 }
                 else {
-                    transformAndAdd(client.finalResults());
+                    transformAndAdd();
 
                     ImmutableMap<String, Object> stats = ImmutableMap.of(
                             QueryResult.EXECUTION_TIME, startTime.until(Instant.now(), ChronoUnit.MILLIS),
@@ -263,14 +236,16 @@ public class PrestoQueryExecution
             }
         }
 
-        private void transformAndAdd(QueryResults result)
+        private void transformAndAdd()
         {
-            if (result.getError() != null || result.getColumns() == null) {
+            QueryStatusInfo queryStatusInfo = client.isValid() ? client.currentStatusInfo() : client.finalStatusInfo();
+
+            if (queryStatusInfo.getError() != null || queryStatusInfo.getColumns() == null || !client.isValid()) {
                 return;
             }
 
             if (columns == null) {
-                columns = result.getColumns().stream()
+                columns = queryStatusInfo.getColumns().stream()
                         .map(c -> {
                             List<ClientTypeSignatureParameter> arguments = c.getTypeSignature().getArguments();
                             return new SchemaField(c.getName(), fromPrestoType(c.getTypeSignature().getRawType(),
@@ -281,15 +256,16 @@ public class PrestoQueryExecution
                         .collect(Collectors.toList());
             }
 
-            if (result.getData() == null) {
+            QueryData queryData = client.currentData();
+            if (queryData == null || queryData.getData() == null) {
                 return;
             }
 
-            for (List<Object> objects : result.getData()) {
+            for (List<Object> objects : queryData.getData()) {
                 Object[] row = new Object[columns.size()];
 
                 for (int i = 0; i < objects.size(); i++) {
-                    String type = result.getColumns().get(i).getTypeSignature().getRawType();
+                    String type = queryStatusInfo.getColumns().get(i).getTypeSignature().getRawType();
                     Object value = objects.get(i);
                     if (value != null) {
                         if (type.equals(StandardTypes.TIMESTAMP)) {

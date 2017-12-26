@@ -3,7 +3,7 @@
     <parent>
         <artifactId>rakam-root</artifactId>
         <groupId>org.rakam</groupId>
-        <version>0.11-SNAPSHOT</version>
+        <version>0.12-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -31,10 +31,6 @@
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.google.code.findbugs</groupId>
-            <artifactId>annotations</artifactId>
         </dependency>
         <dependency>
             <groupId>javax.inject</groupId>
@@ -113,7 +109,6 @@
                                 <ignoredUnusedDeclaredDependency>javax.inject:javax.inject</ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>io.airlift:slice</ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>org.antlr:antlr4-runtime</ignoredUnusedDeclaredDependency>
-                                <ignoredUnusedDeclaredDependency>com.google.code.findbugs:annotations:jar</ignoredUnusedDeclaredDependency>
                             </ignoredUnusedDeclaredDependencies>
                         </configuration>
                     </execution>

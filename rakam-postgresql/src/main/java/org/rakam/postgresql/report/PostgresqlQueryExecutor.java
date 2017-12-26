@@ -1,6 +1,7 @@
 package org.rakam.postgresql.report;
 
 import com.facebook.presto.sql.RakamSqlFormatter;
+import com.facebook.presto.sql.parser.ParsingOptions;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Statement;
@@ -224,7 +225,7 @@ public class PostgresqlQueryExecutor
         char seperator = dbSeparator(type.get(0).type);
 
         StringBuilder builder = new StringBuilder();
-        Statement statement = sqlParser.createStatement(query);
+        Statement statement = sqlParser.createStatement(query, new ParsingOptions());
 
         try {
             new RakamSqlFormatter.Formatter(builder, qualifiedName -> {

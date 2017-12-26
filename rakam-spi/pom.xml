@@ -5,7 +5,7 @@
     <parent>
         <artifactId>rakam-root</artifactId>
         <groupId>org.rakam</groupId>
-        <version>0.11-SNAPSHOT</version>
+        <version>0.12-SNAPSHOT</version>
     </parent>
 
     <artifactId>rakam-spi</artifactId>
@@ -151,6 +151,10 @@
                     <artifactId>netty-buffer</artifactId>
                 </exclusion>
                 <exclusion>
+                    <groupId>org.javassist</groupId>
+                    <artifactId>javassist</artifactId>
+                </exclusion>
+                <exclusion>
                     <groupId>io.netty</groupId>
                     <artifactId>netty-codec-http</artifactId>
                 </exclusion>
@@ -228,7 +232,7 @@
 
         <dependency>
             <groupId>com.google.code.findbugs</groupId>
-            <artifactId>annotations</artifactId>
+            <artifactId>jsr305</artifactId>
         </dependency>
 
         <dependency>
@@ -244,7 +248,7 @@
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
-            <version>5.1.41</version>
+            <version>5.1.44</version>
         </dependency>
 
         <dependency>

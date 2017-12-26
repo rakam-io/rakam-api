@@ -10,6 +10,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
@@ -21,35 +22,19 @@ import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.collection.Event.EventContext;
 import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.config.ProjectConfig;
-import org.rakam.util.AvroUtil;
-import org.rakam.util.DateTimeUtils;
-import org.rakam.util.JsonHelper;
-import org.rakam.util.NotExistsException;
-import org.rakam.util.ProjectCollection;
-import org.rakam.util.RakamException;
+import org.rakam.util.*;
 
 import javax.inject.Inject;
-
 import java.io.IOException;
 import java.time.LocalTime;
 import java.time.temporal.ChronoField;
 import java.util.AbstractMap.SimpleImmutableEntry;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-import static com.fasterxml.jackson.core.JsonToken.END_ARRAY;
-import static com.fasterxml.jackson.core.JsonToken.END_OBJECT;
-import static com.fasterxml.jackson.core.JsonToken.START_OBJECT;
-import static com.fasterxml.jackson.core.JsonToken.VALUE_NULL;
-import static com.fasterxml.jackson.core.JsonToken.VALUE_NUMBER_INT;
-import static com.fasterxml.jackson.core.JsonToken.VALUE_STRING;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static com.fasterxml.jackson.core.JsonToken.*;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static java.lang.Boolean.TRUE;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
@@ -77,6 +62,7 @@ public class JsonEventDeserializer
     private final ConfigManager configManager;
     private final SchemaChecker schemaChecker;
     private final ProjectConfig projectConfig;
+    private final ImmutableMap<String, FieldType> conditionalFieldMapping;
 
     @Inject
     public JsonEventDeserializer(Metastore metastore,
@@ -93,6 +79,8 @@ public class JsonEventDeserializer
         this.projectConfig = projectConfig;
         this.configManager = configManager;
         this.constantFields = fieldDependency.constantFields;
+        conditionalFieldMapping = conditionalMagicFields.values().stream()
+                .flatMap(e -> e.stream()).collect(toImmutableMap(e -> e.getName(), e -> e.getType()));
     }
 
     @Override
@@ -262,7 +250,10 @@ public class JsonEventDeserializer
 
                 if (field == null) {
 
-                    FieldType type = getTypeForUnknown(jp);
+                    FieldType type = conditionalFieldMapping.get(fieldName);
+                    if(type == null) {
+                        type = getTypeForUnknown(jp);
+                    }
                     if (type != null) {
                         if (newFields == null) {
                             newFields = new ArrayList<>();

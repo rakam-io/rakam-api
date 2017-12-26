@@ -1,33 +1,10 @@
 package org.rakam.report;
 
-import com.facebook.presto.sql.tree.AstVisitor;
-import com.facebook.presto.sql.tree.BetweenPredicate;
-import com.facebook.presto.sql.tree.BooleanLiteral;
-import com.facebook.presto.sql.tree.ComparisonExpression;
-import com.facebook.presto.sql.tree.DoubleLiteral;
-import com.facebook.presto.sql.tree.Expression;
-import com.facebook.presto.sql.tree.GenericLiteral;
-import com.facebook.presto.sql.tree.Identifier;
-import com.facebook.presto.sql.tree.InPredicate;
-import com.facebook.presto.sql.tree.IntervalLiteral;
-import com.facebook.presto.sql.tree.IsNotNullPredicate;
-import com.facebook.presto.sql.tree.IsNullPredicate;
-import com.facebook.presto.sql.tree.LikePredicate;
-import com.facebook.presto.sql.tree.LogicalBinaryExpression;
-import com.facebook.presto.sql.tree.LongLiteral;
-import com.facebook.presto.sql.tree.Node;
-import com.facebook.presto.sql.tree.NotExpression;
-import com.facebook.presto.sql.tree.NullLiteral;
-import com.facebook.presto.sql.tree.StringLiteral;
-import com.facebook.presto.sql.tree.TimeLiteral;
-import com.facebook.presto.sql.tree.TimestampLiteral;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.util.RakamException;
+import com.facebook.presto.sql.tree.*;
 import org.rakam.util.ValidationUtil;
 
 import java.util.Optional;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static com.facebook.presto.sql.tree.LogicalBinaryExpression.Type.AND;
 import static com.facebook.presto.sql.tree.LogicalBinaryExpression.Type.OR;
@@ -183,7 +160,7 @@ public class PreComputedTableSubQueryVisitor extends AstVisitor<String, Boolean>
     protected String visitIdentifier(Identifier node, Boolean context)
     {
         String tableColumn = ValidationUtil
-                .checkTableColumn(node.getName(), "reference in filter", '"');
+                .checkTableColumn(node.getValue(), "reference in filter", '"');
 
         Optional<String> preComputedTable = columnNameMapper.apply(tableColumn);
         if (preComputedTable.isPresent()) {

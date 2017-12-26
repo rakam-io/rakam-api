@@ -1,7 +1,6 @@
 package org.rakam.postgresql.analysis;
 
 import com.facebook.presto.sql.RakamSqlFormatter;
-import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Query;
 import com.google.common.collect.ImmutableList;
@@ -9,22 +8,15 @@ import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.datasource.CustomDataSource;
 import org.rakam.analysis.metadata.QueryMetadataStore;
-import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
-import org.rakam.util.AlreadyExistsException;
-import org.rakam.util.JsonHelper;
-import org.rakam.util.NotExistsException;
-import org.rakam.util.RakamException;
-import org.rakam.util.SqlUtil;
+import org.rakam.util.*;
 
 import javax.inject.Inject;
-
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;

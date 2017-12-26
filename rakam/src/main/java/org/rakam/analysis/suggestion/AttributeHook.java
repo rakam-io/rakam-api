@@ -61,12 +61,13 @@ public class AttributeHook {
             isNew = true;
         }
 
+        boolean firstIteration = isNew;
         for (SchemaField field : fields) {
             if (!SUPPORTED_TYPES.contains(field.getType()) || field.getName().equals(projectConfig.getUserColumn())) {
                 continue;
             }
 
-            if (!isNew) {
+            if (!firstIteration) {
                 query += " union all ";
             }
 
@@ -78,6 +79,7 @@ public class AttributeHook {
                     checkTableColumn(field.getName()),
                     checkCollection(collection), checkCollectionValid(collection),
                     stripName(field.getName(), "attribute"));
+            firstIteration = false;
         }
 
         if (query.isEmpty()) {
