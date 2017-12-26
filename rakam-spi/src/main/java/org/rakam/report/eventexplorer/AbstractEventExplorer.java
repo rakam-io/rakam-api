@@ -357,7 +357,7 @@ public abstract class AbstractEventExplorer
                                 "   FROM (%s) as data GROUP BY 1, 2, 3) as data GROUP BY 1, 2 ORDER BY 3 DESC",
                         OTHERS_TAG,
                         checkTableColumn(getColumnReference(grouping) + "_group"),
-                        format(segmentRanked ? " CASE WHEN segment_rank > 20 THEN '%s' ELSE cast(%s as varchar) END,\n" : "cast(%s as varchar),", OTHERS_TAG, checkTableColumn(getColumnReference(segment) + "_segment")),
+                        format(segmentRanked ? (" CASE WHEN segment_rank > 20 THEN '" + OTHERS_TAG + "' ELSE cast(%s as varchar) END,\n") : "cast(%s as varchar),", checkTableColumn(getColumnReference(segment) + "_segment")),
                         format(convertSqlFunction(intermediateAggregation.get(), measure.aggregation), "value"),
                         segmentRanked ? format("row_number() OVER (PARTITION BY %s ORDER BY value DESC) AS segment_rank,\n", checkCollection(format(getColumnReference(grouping), "value") + "_group")) : "",
                         format(convertSqlFunction(intermediateAggregation.get(), measure.aggregation), "value"),
@@ -409,7 +409,7 @@ public abstract class AbstractEventExplorer
                 for (List<Object> objects : result.getResult()) {
                     Object dimensionVal = objects.get(0);
                     Object segmentVal = objects.get(1);
-                    if(OTHERS_TAG.equals(dimensionVal) || OTHERS_TAG.equals(segmentVal)) {
+                    if (OTHERS_TAG.equals(dimensionVal) || OTHERS_TAG.equals(segmentVal)) {
                         grouped = true;
                         break;
                     }
