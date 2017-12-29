@@ -2,10 +2,13 @@ package org.rakam.config;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.log.Logger;
 
 import java.net.URISyntaxException;
 
 public class ProjectConfig {
+    private final static Logger LOGGER = Logger.get(ProjectConfig.class);
+
     private String lockKey;
     private String passphrase;
     private String timeColumn = "_time";
@@ -22,6 +25,16 @@ public class ProjectConfig {
 
     public String getLockKey() {
         return lockKey;
+    }
+
+    @Config("tasks.enable")
+    public ProjectConfig setTasksEnabled(boolean tasksEnabled) throws URISyntaxException {
+        LOGGER.warn("`tasks.enable` config is deprecated, task feature is not maintained anymore.");
+        return this;
+    }
+
+    public boolean getTasksEnabled() {
+        return false;
     }
 
     @Config("passphrase")
