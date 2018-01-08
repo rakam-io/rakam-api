@@ -8,7 +8,6 @@ import io.airlift.configuration.ConfigurationFactory;
 import org.rakam.util.ConditionalModule;
 
 import javax.validation.constraints.NotNull;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -18,7 +17,6 @@ import java.util.Optional;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.configuration.ConfigBinder.configBinder;
-import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
 public abstract class RakamModule
         implements ConfigurationAwareModule

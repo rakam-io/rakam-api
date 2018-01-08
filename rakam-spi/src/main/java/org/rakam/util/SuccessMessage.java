@@ -2,7 +2,6 @@ package org.rakam.util;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.annotations.ApiParam;
 

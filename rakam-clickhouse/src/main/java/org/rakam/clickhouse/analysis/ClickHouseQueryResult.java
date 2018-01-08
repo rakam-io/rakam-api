@@ -2,18 +2,8 @@ package org.rakam.clickhouse.analysis;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.rakam.collection.FieldType;
 
 import java.util.List;
-
-import static org.rakam.collection.FieldType.ARRAY_BINARY;
-import static org.rakam.collection.FieldType.DATE;
-import static org.rakam.collection.FieldType.DOUBLE;
-import static org.rakam.collection.FieldType.INTEGER;
-import static org.rakam.collection.FieldType.LONG;
-import static org.rakam.collection.FieldType.MAP_BINARY;
-import static org.rakam.collection.FieldType.STRING;
-import static org.rakam.collection.FieldType.TIMESTAMP;
 
 class ClickHouseQueryResult
 {

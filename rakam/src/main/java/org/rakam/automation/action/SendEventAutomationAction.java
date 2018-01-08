@@ -4,13 +4,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.automation.AutomationAction;
 import org.rakam.collection.Event;
-import org.rakam.plugin.EventMapper;
-import org.rakam.plugin.EventStore;
 import org.rakam.plugin.user.User;
 
-import javax.inject.Inject;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Supplier;
 
 public class SendEventAutomationAction implements AutomationAction<SendEventAutomationAction.SendEventAction> {

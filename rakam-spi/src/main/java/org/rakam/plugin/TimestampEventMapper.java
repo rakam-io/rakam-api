@@ -16,7 +16,7 @@ package org.rakam.plugin;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.generic.GenericRecord;
-import org.rakam.*;
+import org.rakam.Mapper;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
@@ -24,7 +24,6 @@ import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
 
 import javax.inject.Inject;
-
 import java.net.InetAddress;
 import java.time.Instant;
 import java.util.List;

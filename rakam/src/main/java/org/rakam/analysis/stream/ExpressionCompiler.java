@@ -5,7 +5,6 @@ import com.facebook.presto.bytecode.Access;
 import com.facebook.presto.bytecode.ClassDefinition;
 import com.facebook.presto.bytecode.CompilerUtils;
 import com.facebook.presto.bytecode.ParameterizedType;
-import com.facebook.presto.metadata.FunctionKind;
 import com.facebook.presto.metadata.FunctionRegistry;
 import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.metadata.SessionPropertyManager;
@@ -24,13 +23,10 @@ import com.facebook.presto.sql.gen.CallSiteBinder;
 import com.facebook.presto.sql.gen.CursorProcessorCompiler;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.planner.Symbol;
-import com.facebook.presto.sql.planner.SymbolToInputRewriter;
 import com.facebook.presto.sql.relational.RowExpression;
-import com.facebook.presto.sql.relational.SqlToRowExpressionTranslator;
 import com.facebook.presto.sql.relational.optimizer.ExpressionOptimizer;
 import com.facebook.presto.sql.tree.DefaultTraversalVisitor;
 import com.facebook.presto.sql.tree.Expression;
-import com.facebook.presto.sql.tree.ExpressionTreeRewriter;
 import com.facebook.presto.sql.tree.SymbolReference;
 import com.facebook.presto.transaction.TransactionManager;
 import com.google.common.base.Throwables;
@@ -38,27 +34,14 @@ import com.google.common.collect.ImmutableList;
 import org.apache.avro.generic.GenericRecord;
 
 import javax.inject.Inject;
-
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Predicate;
 
-import static com.facebook.presto.bytecode.Access.FINAL;
-import static com.facebook.presto.bytecode.Access.PUBLIC;
-import static com.facebook.presto.bytecode.Access.a;
+import static com.facebook.presto.bytecode.Access.*;
 import static com.facebook.presto.bytecode.CompilerUtils.defineClass;
-import static com.facebook.presto.sql.analyzer.ExpressionAnalyzer.getExpressionTypesFromInput;
 import static com.google.common.collect.ImmutableList.copyOf;
-import static com.google.common.collect.Iterables.concat;
-import static java.util.Collections.singleton;
 
 public class ExpressionCompiler
 {

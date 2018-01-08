@@ -9,8 +9,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.RequestContext;
 import org.rakam.collection.SchemaField;
-import org.rakam.report.realtime.AggregationType;
 import org.rakam.report.QueryResult;
+import org.rakam.report.realtime.AggregationType;
 import org.rakam.util.RakamException;
 
 import java.time.Duration;

@@ -10,7 +10,6 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.util.AttributeKey;
-import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage.MessageListener;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage.Operation;
 import org.rakam.server.http.WebSocketService;
@@ -21,7 +20,6 @@ import org.rakam.util.JsonHelper;
 
 import javax.inject.Inject;
 import javax.ws.rs.Path;
-
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Collection;

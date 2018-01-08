@@ -3,7 +3,6 @@ package org.rakam.config;
 import io.airlift.configuration.Config;
 
 import javax.validation.constraints.NotNull;
-
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Optional;

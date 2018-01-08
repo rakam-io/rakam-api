@@ -1,7 +1,6 @@
 package org.rakam.util;
 
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.collection.SchemaField;
 
 import javax.annotation.Nullable;
 

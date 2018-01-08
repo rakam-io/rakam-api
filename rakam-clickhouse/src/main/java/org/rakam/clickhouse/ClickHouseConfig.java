@@ -1,7 +1,8 @@
 package org.rakam.clickhouse;
 
-import java.net.URI;
 import io.airlift.configuration.Config;
+
+import java.net.URI;
 
 public class ClickHouseConfig
 {

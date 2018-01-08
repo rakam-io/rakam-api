@@ -18,7 +18,6 @@ import java.time.Duration;
 import java.util.List;
 
 import static org.rakam.util.ValidationUtil.*;
-import static org.rakam.util.ValidationUtil.stripName;
 
 public class AttributeHook {
     public static final String TABLE_NAME = "_attribute_unique_values";

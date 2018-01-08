@@ -1,57 +1,29 @@
 package org.rakam.ui;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.google.common.base.Throwables;
-import com.google.common.io.ByteStreams;
 import com.google.inject.name.Named;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.config.EncryptionConfig;
 import org.rakam.server.http.HttpService;
-import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.BodyParam;
-import org.rakam.server.http.annotations.CookieParam;
-import org.rakam.server.http.annotations.IgnoreApi;
-import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.*;
 import org.rakam.ui.UIPermissionParameterProvider.Project;
 import org.rakam.ui.user.WebUser;
 import org.rakam.ui.user.WebUserService;
-import org.rakam.util.AlreadyExistsException;
-import org.rakam.util.JsonHelper;
-import org.rakam.util.SuccessMessage;
 import org.rakam.util.RakamException;
+import org.rakam.util.SuccessMessage;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.inject.Inject;
-import javax.net.ssl.SSLHandshakeException;
 import javax.ws.rs.GET;
-import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.ConnectException;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.ProtocolException;
-import java.net.SocketException;
 import java.net.URL;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
-import static org.rakam.ui.user.WebUserHttpService.extractUserFromCookie;
 
 @Path("/ui/cluster")
 @IgnoreApi

@@ -1,7 +1,6 @@
 package org.rakam.util;
 
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.util.RakamException;
 
 public class AlreadyExistsException extends RakamException {
     public AlreadyExistsException(String itemName, HttpResponseStatus status) {

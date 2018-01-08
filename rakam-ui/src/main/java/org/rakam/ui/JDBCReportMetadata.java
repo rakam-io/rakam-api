@@ -2,10 +2,8 @@ package org.rakam.ui;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.name.Named;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.ui.report.Report;
-import org.rakam.ui.user.WebUserService;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.NotExistsException;

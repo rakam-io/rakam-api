@@ -15,17 +15,12 @@ import org.rakam.plugin.stream.CollectionStreamQuery;
 import org.rakam.plugin.stream.EventStream;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.IgnoreApi;
+import org.rakam.server.http.annotations.*;
 import org.rakam.util.JsonHelper;
 
 import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;

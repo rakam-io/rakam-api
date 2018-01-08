@@ -1,11 +1,7 @@
 package org.rakam.clickhouse.collection;
 
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
-import com.amazonaws.services.kinesis.model.PutRecordsRequest;
-import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
-import com.amazonaws.services.kinesis.model.PutRecordsResult;
-import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
-import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
+import com.amazonaws.services.kinesis.model.*;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.google.common.base.Throwables;
 import com.google.common.io.LittleEndianDataOutputStream;
@@ -20,7 +16,6 @@ import org.rakam.plugin.EventStore;
 import org.rakam.plugin.SyncEventStore;
 
 import javax.inject.Inject;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;

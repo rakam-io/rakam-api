@@ -15,7 +15,6 @@ import org.rakam.plugin.stream.StreamResponse;
 
 import javax.inject.Inject;
 import javax.ws.rs.core.UriBuilder;
-
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;

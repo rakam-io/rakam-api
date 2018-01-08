@@ -5,13 +5,9 @@ import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import io.airlift.configuration.Config;
 import org.rakam.plugin.RakamModule;
-import org.rakam.util.LogUtil;
 import org.rakam.util.RakamClient;
 
-import java.io.IOException;
-import java.net.URL;
 import java.util.Arrays;
-import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;

@@ -5,11 +5,11 @@ import com.google.common.base.Optional;
 import org.rakam.analysis.datasource.CustomDataSourceConfig;
 import org.rakam.config.ProjectConfig;
 import org.rakam.config.TaskConfig;
-import org.rakam.report.eventexplorer.EventExplorerConfig;
 import org.rakam.plugin.stream.EventStreamConfig;
-import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
+import org.rakam.report.eventexplorer.EventExplorerConfig;
+import org.rakam.report.realtime.RealTimeConfig;
 
 import javax.inject.Inject;
 

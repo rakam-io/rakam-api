@@ -22,12 +22,9 @@ import org.rakam.aws.s3.S3BulkEventStore;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.plugin.EventStore;
-import org.rakam.report.QueryExecution;
-import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
-
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -37,7 +34,6 @@ import java.util.concurrent.CompletableFuture;
 import static io.netty.buffer.PooledByteBufAllocator.DEFAULT;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static io.netty.handler.codec.http.HttpResponseStatus.valueOf;
 
 public class AWSKinesisEventStore
         implements EventStore

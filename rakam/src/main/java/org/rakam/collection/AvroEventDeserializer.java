@@ -1,7 +1,5 @@
 package org.rakam.collection;
 
-import io.airlift.slice.BasicSliceInput;
-import io.airlift.slice.Slice;
 import io.airlift.slice.SliceInput;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;

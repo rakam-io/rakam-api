@@ -11,7 +11,6 @@ import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import javax.xml.bind.DatatypeConverter;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.MessageDigest;
@@ -22,9 +21,7 @@ import java.util.Locale;
 
 import static com.fasterxml.jackson.core.JsonToken.FIELD_NAME;
 import static com.fasterxml.jackson.core.JsonToken.START_OBJECT;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;

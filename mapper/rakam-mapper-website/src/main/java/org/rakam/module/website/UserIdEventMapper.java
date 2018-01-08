@@ -13,17 +13,12 @@ import org.rakam.Mapper;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.InternalConfig;
 import org.rakam.collection.Event;
-import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
-import org.rakam.collection.SchemaField;
-import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.SyncEventMapper;
 import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.plugin.user.UserPropertyMapper;
-import org.rakam.util.AvroUtil;
 
 import javax.inject.Inject;
-
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;

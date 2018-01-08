@@ -3,10 +3,10 @@ package org.rakam.kafka.collection;
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.name.Names;
-import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.EventStore;
-import org.rakam.plugin.stream.EventStream;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.stream.EventStream;
+import org.rakam.util.ConditionalModule;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 

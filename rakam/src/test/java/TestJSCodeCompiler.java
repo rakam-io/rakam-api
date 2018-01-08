@@ -1,7 +1,7 @@
 import okhttp3.OkHttpClient;
 import org.rakam.TestingConfigManager;
-import org.rakam.util.javascript.JSCodeCompiler;
 import org.rakam.util.RAsyncHttpClient;
+import org.rakam.util.javascript.JSCodeCompiler;
 import org.testng.annotations.Test;
 
 import javax.script.ScriptException;

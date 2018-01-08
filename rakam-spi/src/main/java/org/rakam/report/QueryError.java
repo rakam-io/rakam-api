@@ -2,7 +2,6 @@ package org.rakam.report;
 
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.server.http.annotations.ApiParam;
 
 public class QueryError {

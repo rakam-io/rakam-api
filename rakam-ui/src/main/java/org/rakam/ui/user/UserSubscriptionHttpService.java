@@ -23,7 +23,6 @@ import org.rakam.ui.UIPermissionParameterProvider;
 import org.rakam.util.RakamException;
 
 import javax.ws.rs.Path;
-
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -31,10 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
-import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
-import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 
 // TODO: CSRF!
 @Path("/ui/subscription")

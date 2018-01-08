@@ -16,7 +16,6 @@ import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryResult;
 
 import javax.xml.bind.DatatypeConverter;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;

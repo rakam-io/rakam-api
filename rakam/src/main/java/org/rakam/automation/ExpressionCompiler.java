@@ -1,18 +1,7 @@
 package org.rakam.automation;
 
 import com.facebook.presto.sql.parser.SqlParser;
-import com.facebook.presto.sql.tree.AstVisitor;
-import com.facebook.presto.sql.tree.ComparisonExpression;
-import com.facebook.presto.sql.tree.ComparisonExpressionType;
-import com.facebook.presto.sql.tree.Expression;
-import com.facebook.presto.sql.tree.Identifier;
-import com.facebook.presto.sql.tree.IsNotNullPredicate;
-import com.facebook.presto.sql.tree.IsNullPredicate;
-import com.facebook.presto.sql.tree.LikePredicate;
-import com.facebook.presto.sql.tree.Literal;
-import com.facebook.presto.sql.tree.LogicalBinaryExpression;
-import com.facebook.presto.sql.tree.Node;
-import com.facebook.presto.sql.tree.StringLiteral;
+import com.facebook.presto.sql.tree.*;
 import com.google.common.base.Throwables;
 import net.openhft.compiler.CompilerUtils;
 import org.rakam.collection.Event;

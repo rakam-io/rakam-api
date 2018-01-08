@@ -2,21 +2,11 @@ package org.rakam.module.website;
 
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
-import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.cookie.Cookie;
-import org.rakam.collection.Event;
-import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.user.UserPropertyMapper;
-import org.rakam.util.RakamException;
-
-import java.net.InetAddress;
-import java.util.List;
-
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import org.rakam.util.ConditionalModule;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "module.website.mapper", value = "true")

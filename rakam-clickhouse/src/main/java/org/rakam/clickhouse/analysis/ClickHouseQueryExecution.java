@@ -5,11 +5,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.io.CharStreams;
 import com.google.common.net.HostAndPort;
 import com.google.common.util.concurrent.ListenableFuture;
-import io.airlift.http.client.HttpClientConfig;
-import io.airlift.http.client.Request;
-import io.airlift.http.client.Response;
-import io.airlift.http.client.ResponseHandler;
-import io.airlift.http.client.StringResponseHandler;
+import io.airlift.http.client.*;
 import io.airlift.http.client.jetty.JettyHttpClient;
 import io.airlift.http.client.jetty.JettyIoPool;
 import io.airlift.http.client.jetty.JettyIoPoolConfig;
@@ -25,7 +21,6 @@ import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
 import javax.ws.rs.core.UriBuilder;
-
 import java.io.DataInput;
 import java.io.IOException;
 import java.io.InputStreamReader;

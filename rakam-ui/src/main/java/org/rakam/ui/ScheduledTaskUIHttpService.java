@@ -10,17 +10,12 @@ import io.netty.handler.codec.http.HttpHeaders;
 import org.rakam.plugin.Parameter;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.IgnoreApi;
-import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.*;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -39,10 +34,7 @@ import java.util.stream.Stream;
 
 import static com.google.common.net.HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static com.google.common.net.HttpHeaders.CACHE_CONTROL;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
 

@@ -11,7 +11,6 @@ import org.rakam.util.lock.MysqlLockService;
 import org.rakam.util.lock.PostgresqlLockService;
 
 import javax.inject.Inject;
-
 import java.sql.Connection;
 import java.sql.SQLException;
 

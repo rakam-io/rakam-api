@@ -16,12 +16,7 @@ package org.rakam.aws.kinesis;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
-import com.amazonaws.services.kinesis.model.CreateStreamRequest;
-import com.amazonaws.services.kinesis.model.DeleteStreamRequest;
-import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
-import com.amazonaws.services.kinesis.model.ListStreamsRequest;
-import com.amazonaws.services.kinesis.model.ListStreamsResult;
-import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
+import com.amazonaws.services.kinesis.model.*;
 import io.airlift.log.Logger;
 
 import java.util.List;

@@ -11,13 +11,7 @@ import org.rakam.plugin.user.UserActionService;
 import org.rakam.plugin.user.UserStorage;
 import org.rakam.plugin.user.UserStorage.EventFilter;
 import org.rakam.report.QueryResult;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.ApiResponse;
-import org.rakam.server.http.annotations.ApiResponses;
-import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.*;
 import org.rakam.util.RakamException;
 import org.rakam.util.StringTemplate;
 
@@ -25,7 +19,6 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;

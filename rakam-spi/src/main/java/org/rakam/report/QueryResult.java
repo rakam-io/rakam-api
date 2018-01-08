@@ -1,14 +1,12 @@
 package org.rakam.report;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.swagger.annotations.ApiModelProperty;
 import org.rakam.collection.SchemaField;
-import org.rakam.server.http.annotations.ApiModel;
 import org.rakam.server.http.annotations.ApiParam;
 
 import java.util.List;

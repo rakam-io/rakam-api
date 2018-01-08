@@ -15,7 +15,6 @@ import org.rakam.plugin.stream.StreamResponse;
 import org.rakam.util.JsonHelper;
 
 import javax.inject.Inject;
-
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
 import java.util.List;

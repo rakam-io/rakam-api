@@ -1,13 +1,11 @@
 package bloom;
 
-import java.math.RoundingMode;
-import java.util.Arrays;
-import java.nio.ByteBuffer;
-
 import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.common.math.IntMath;
+
+import java.math.RoundingMode;
 
 /**
  * OoaBFilter is used to filter out duplicate elements from a given dataset or stream. It is

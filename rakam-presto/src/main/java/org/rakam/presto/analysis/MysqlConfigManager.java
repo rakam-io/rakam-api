@@ -10,7 +10,6 @@ import org.skife.jdbi.v2.Handle;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-
 import java.util.Locale;
 
 public class MysqlConfigManager

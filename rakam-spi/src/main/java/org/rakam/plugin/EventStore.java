@@ -3,13 +3,8 @@ package org.rakam.plugin;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.collection.Event;
-import org.rakam.report.QueryExecution;
-import org.rakam.report.QueryResult;
-import org.rakam.report.realtime.AggregationType;
 
-import java.net.URL;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public interface EventStore

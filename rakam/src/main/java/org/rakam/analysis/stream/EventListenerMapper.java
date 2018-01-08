@@ -9,7 +9,6 @@ import org.rakam.collection.Event;
 import org.rakam.plugin.SyncEventMapper;
 
 import javax.inject.Inject;
-
 import java.net.InetAddress;
 import java.util.List;
 import java.util.Map;

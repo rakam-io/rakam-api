@@ -13,12 +13,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.rakam.collection.FieldType.LONG;
-import static org.rakam.collection.FieldType.STRING;
-import static org.rakam.collection.FieldType.TIMESTAMP;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
+import static org.rakam.collection.FieldType.*;
+import static org.testng.Assert.*;
 
 public abstract class TestMetastore
 {

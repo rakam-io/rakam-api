@@ -16,7 +16,6 @@ import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.util.BooleanMapper;
 
 import javax.inject.Inject;
-
 import java.lang.reflect.Method;
 import java.util.Optional;
 

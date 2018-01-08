@@ -5,7 +5,6 @@ import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.report.realtime.RealTimeReport;
 
 import javax.inject.Inject;
-
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;

@@ -1,6 +1,5 @@
 package org.rakam.util;
 
-import com.google.common.base.Throwables;
 import com.google.common.io.ByteStreams;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpHeaders;

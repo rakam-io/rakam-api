@@ -9,11 +9,7 @@ import org.rakam.collection.SchemaField;
 import org.rakam.util.AvroUtil;
 import org.rakam.util.RakamException;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;

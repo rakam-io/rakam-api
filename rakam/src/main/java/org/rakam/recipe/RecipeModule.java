@@ -26,7 +26,6 @@ import org.rakam.server.http.HttpService;
 import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
 
 import javax.inject.Inject;
-
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;

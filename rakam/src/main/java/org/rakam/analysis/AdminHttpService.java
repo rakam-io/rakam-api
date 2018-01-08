@@ -10,24 +10,14 @@ import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.EventMapper;
 import org.rakam.server.http.HttpService;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.IgnoreApi;
-import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.*;
 import org.rakam.ui.ActiveModuleListBuilder;
 import org.rakam.ui.ActiveModuleListBuilder.ActiveModuleList;
 
 import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Path("/admin")

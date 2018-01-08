@@ -5,10 +5,10 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Ints;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.analysis.metadata.Metastore;
 import org.rakam.util.AvroUtil;
 
 import java.time.Instant;

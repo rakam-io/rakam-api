@@ -15,7 +15,6 @@ import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
-
 import java.util.List;
 import java.util.stream.Collectors;
 

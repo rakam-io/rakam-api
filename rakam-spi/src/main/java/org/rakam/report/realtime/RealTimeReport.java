@@ -1,7 +1,6 @@
 package org.rakam.report.realtime;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;

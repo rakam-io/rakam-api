@@ -2,7 +2,6 @@ package org.rakam.report;
 
 import com.google.common.base.Throwables;
 import io.airlift.configuration.Config;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.util.MailSender;
 import org.rakam.util.RakamException;
 

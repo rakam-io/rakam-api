@@ -9,9 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.DAY;
-import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.MONTH;
-import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.WEEK;
+import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.*;
 
 public abstract class AbstractRetentionQueryExecutor
         implements RetentionQueryExecutor

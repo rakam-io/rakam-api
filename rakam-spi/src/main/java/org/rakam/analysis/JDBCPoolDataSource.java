@@ -5,7 +5,6 @@ import com.zaxxer.hikari.HikariDataSource;
 import org.rakam.config.JDBCConfig;
 
 import javax.sql.DataSource;
-
 import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;

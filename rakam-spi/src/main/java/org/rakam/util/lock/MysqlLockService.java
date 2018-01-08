@@ -10,8 +10,6 @@ import java.sql.SQLException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
 
-import static java.lang.String.format;
-
 public class MysqlLockService
         implements LockService
 {

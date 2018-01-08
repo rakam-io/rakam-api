@@ -11,7 +11,6 @@ import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.SyncEventMapper;
 import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.plugin.user.UserPropertyMapper;

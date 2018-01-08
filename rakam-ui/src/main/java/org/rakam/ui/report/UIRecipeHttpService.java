@@ -16,11 +16,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.HeaderParam;
-import org.rakam.server.http.annotations.IgnoreApi;
+import org.rakam.server.http.annotations.*;
 import org.rakam.ui.ProtectEndpoint;
 import org.rakam.ui.UIPermissionParameterProvider.Project;
 import org.rakam.util.JsonHelper;
@@ -30,13 +26,10 @@ import javax.inject.Named;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-
 import java.io.IOException;
 import java.util.Arrays;
 
-import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN;
-import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
-import static io.netty.handler.codec.http.HttpHeaders.Names.ORIGIN;
+import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static java.lang.Boolean.TRUE;
 import static org.rakam.server.http.HttpServer.returnError;
 

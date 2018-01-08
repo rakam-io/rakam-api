@@ -4,11 +4,10 @@ import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import io.airlift.configuration.Config;
-import io.airlift.log.Logger;
 import org.rakam.aws.AWSConfig;
-import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.RakamModule;
+import org.rakam.util.ConditionalModule;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 

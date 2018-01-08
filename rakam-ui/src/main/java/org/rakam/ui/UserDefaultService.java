@@ -7,7 +7,6 @@ import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
 import javax.inject.Inject;
 import javax.inject.Named;
-
 import java.util.AbstractMap;
 import java.util.Locale;
 import java.util.Map;
