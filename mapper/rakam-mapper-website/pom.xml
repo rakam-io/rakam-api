@@ -58,6 +58,12 @@
             <groupId>com.snowplowanalytics</groupId>
             <artifactId>referer-parser_2.11</artifactId>
             <version>0.2.1</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.httpcomponents</groupId>
+                    <artifactId>httpclient</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>io.airlift</groupId>
