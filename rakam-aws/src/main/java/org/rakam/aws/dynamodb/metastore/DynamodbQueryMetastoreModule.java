@@ -12,11 +12,9 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "query-metadata-store.adapter", value = "dynamodb")
 public class DynamodbQueryMetastoreModule
-        extends RakamModule
-{
+        extends RakamModule {
     @Override
-    protected void setup(Binder binder)
-    {
+    protected void setup(Binder binder) {
         configBinder(binder).bindConfig(DynamodbQueryMetastoreConfig.class);
         configBinder(binder).bindConfig(AWSConfig.class);
 
@@ -24,14 +22,12 @@ public class DynamodbQueryMetastoreModule
     }
 
     @Override
-    public String name()
-    {
+    public String name() {
         return null;
     }
 
     @Override
-    public String description()
-    {
+    public String description() {
         return null;
     }
 }

@@ -1,7 +1,6 @@
 package org.rakam.util.javascript;
 
-public interface ILogger
-{
+public interface ILogger {
     void debug(String value);
 
     void warn(String value);

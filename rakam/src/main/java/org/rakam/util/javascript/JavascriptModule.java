@@ -8,24 +8,20 @@ import org.rakam.plugin.RakamModule;
 
 @AutoService(RakamModule.class)
 public class JavascriptModule
-        extends RakamModule
-{
+        extends RakamModule {
     @Override
-    protected void setup(Binder binder)
-    {
+    protected void setup(Binder binder) {
         ConfigBinder.configBinder(binder).bindConfig(JavascriptConfig.class);
         binder.bind(JSCodeCompiler.class).in(Scopes.SINGLETON);
     }
 
     @Override
-    public String name()
-    {
+    public String name() {
         return "Javascript executor module";
     }
 
     @Override
-    public String description()
-    {
+    public String description() {
         return null;
     }
 }

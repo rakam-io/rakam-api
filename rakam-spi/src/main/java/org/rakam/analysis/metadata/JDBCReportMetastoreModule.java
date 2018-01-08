@@ -10,7 +10,7 @@ import org.rakam.util.ConditionalModule;
 
 
 @AutoService(RakamModule.class)
-@ConditionalModule(config="report.metadata.store", value="jdbc")
+@ConditionalModule(config = "report.metadata.store", value = "jdbc")
 public class JDBCReportMetastoreModule extends RakamModule {
 
     @Override

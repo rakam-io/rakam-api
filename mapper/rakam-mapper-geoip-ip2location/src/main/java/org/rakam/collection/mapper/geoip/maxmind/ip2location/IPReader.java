@@ -10,26 +10,22 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 
-public class IPReader
-{
+public class IPReader {
     private final NavigableMap<Long, CSV> ipLookup;
 
-    private IPReader(NavigableMap<Long, CSV> ipLookup)
-    {
+    private IPReader(NavigableMap<Long, CSV> ipLookup) {
         this.ipLookup = ipLookup;
     }
 
     public static IPReader build(String dbPath)
-            throws IOException
-    {
+            throws IOException {
         File ipdb = new File(dbPath);
         InputStream inputStream = new FileInputStream(ipdb);
         return build(inputStream);
     }
 
     public static IPReader build(InputStream inputStream)
-            throws IOException
-    {
+            throws IOException {
         NavigableMap<Long, CSV> lookup = new ConcurrentSkipListMap<>();
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
@@ -43,19 +39,16 @@ public class IPReader
     }
 
     public GeoLocation lookup(String ipAddress)
-            throws UnknownHostException
-    {
+            throws UnknownHostException {
         InetAddress inetAddress = InetAddress.getByName(ipAddress);
         return lookup(inetAddress);
     }
 
-    public GeoLocation lookup(InetAddress inetAddress)
-    {
+    public GeoLocation lookup(InetAddress inetAddress) {
         return lookup(IP4Converter.toLong(inetAddress.getAddress()));
     }
 
-    private GeoLocation lookup(Long address)
-    {
+    private GeoLocation lookup(Long address) {
         Map.Entry<Long, CSV> entry = ipLookup.lowerEntry(address);
         if (entry == null) {
             return null;
@@ -69,8 +62,7 @@ public class IPReader
         return GeoLocation.of(csv.country, csv.stateProv, csv.city, Coordination.of(csv.latitude, csv.longitude));
     }
 
-    private Long toLong(byte[] address)
-    {
+    private Long toLong(byte[] address) {
         return new BigInteger(address).longValue();
     }
 }

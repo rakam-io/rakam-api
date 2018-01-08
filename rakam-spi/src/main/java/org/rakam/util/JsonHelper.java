@@ -114,7 +114,7 @@ public class JsonHelper {
         return (T) mapper.readTree(json);
     }
 
-    public static <T extends JsonNode> T read(String json){
+    public static <T extends JsonNode> T read(String json) {
         try {
             return (T) mapper.readTree(json);
         } catch (IOException e) {
@@ -122,7 +122,7 @@ public class JsonHelper {
         }
     }
 
-    public static <T> T read(byte[] json, TypeReference<T> typeReference){
+    public static <T> T read(byte[] json, TypeReference<T> typeReference) {
         try {
             return (T) mapper.readValue(json, typeReference);
         } catch (IOException e) {
@@ -130,7 +130,7 @@ public class JsonHelper {
         }
     }
 
-    public static <T> T read(String json, TypeReference<T> typeReference){
+    public static <T> T read(String json, TypeReference<T> typeReference) {
         try {
             return (T) mapper.readValue(json, typeReference);
         } catch (IOException e) {
@@ -138,7 +138,7 @@ public class JsonHelper {
         }
     }
 
-    public static <T extends JsonNode> T read(byte[] json){
+    public static <T extends JsonNode> T read(byte[] json) {
         try {
             return (T) mapper.readTree(json);
         } catch (IOException e) {

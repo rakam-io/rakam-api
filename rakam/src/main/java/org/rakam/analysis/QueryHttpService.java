@@ -52,17 +52,16 @@ import static org.rakam.util.JsonHelper.jsonObject;
 @Api(value = "/query", nickname = "query", description = "Execute query", tags = "query")
 @Produces({"application/json"})
 public class QueryHttpService
-        extends HttpService
-{
+        extends HttpService {
     private static final Logger LOGGER = Logger.get(QueryHttpService.class);
+    private static Duration RETRY_DURATION = Duration.ofSeconds(600);
     private final QueryExecutorService executorService;
     private final ApiKeyService apiKeyService;
-    private EventLoopGroup eventLoopGroup;
     private final SqlParser sqlParser = new SqlParser();
+    private EventLoopGroup eventLoopGroup;
 
     @Inject
-    public QueryHttpService(ApiKeyService apiKeyService, QueryExecutorService executorService)
-    {
+    public QueryHttpService(ApiKeyService apiKeyService, QueryExecutorService executorService) {
         this.executorService = executorService;
         this.apiKeyService = apiKeyService;
     }
@@ -75,8 +74,7 @@ public class QueryHttpService
     public CompletableFuture<Response<QueryResult>> execute(
             RakamHttpRequest request,
             @Named("project") RequestContext context,
-            @BodyParam QueryRequest query)
-    {
+            @BodyParam QueryRequest query) {
         QueryExecution queryExecution = executorService.executeQuery(
                 context,
                 query.query,
@@ -110,8 +108,7 @@ public class QueryHttpService
     )
     @IgnoreApi
     @JsonRequest
-    public void export(RakamHttpRequest request, @Named("project") RequestContext context, @BodyParam QueryRequest query)
-    {
+    public void export(RakamHttpRequest request, @Named("project") RequestContext context, @BodyParam QueryRequest query) {
         executorService.executeQuery(context, query.query,
                 query.sample, query.defaultSchema,
                 query.timezone,
@@ -127,8 +124,7 @@ public class QueryHttpService
                 case CSV:
                     try {
                         bytes = ExportUtil.exportAsCSV(result);
-                    }
-                    catch (Exception e) {
+                    } catch (Exception e) {
                         LOGGER.error(e);
                         returnError(request, "Error while generating CSV.", INTERNAL_SERVER_ERROR);
                         return;
@@ -137,8 +133,7 @@ public class QueryHttpService
                 case AVRO:
                     try {
                         bytes = ExportUtil.exportAsAvro(result);
-                    }
-                    catch (Exception e) {
+                    } catch (Exception e) {
                         LOGGER.error(e);
                         returnError(request, "Error while generating CSV.", INTERNAL_SERVER_ERROR);
                         return;
@@ -161,8 +156,7 @@ public class QueryHttpService
             authorizations = @Authorization(value = "read_key")
     )
     @Path("/execute")
-    public void execute(RakamHttpRequest request)
-    {
+    public void execute(RakamHttpRequest request) {
         handleServerSentQueryExecution(request, QueryRequest.class, (project, query) ->
                 executorService.executeQuery(new RequestContext(project, null), query.query,
                         query.sample,
@@ -171,20 +165,15 @@ public class QueryHttpService
                         query.limit == null ? DEFAULT_QUERY_RESULT_COUNT : query.limit));
     }
 
-    public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction, BiConsumer<T, QueryResult> exceptionCallback)
-    {
+    public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction, BiConsumer<T, QueryResult> exceptionCallback) {
         handleServerSentQueryExecution(request, clazz, executorFunction, READ_KEY, true, Optional.of(exceptionCallback));
     }
 
-    public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction)
-    {
+    public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction) {
         handleServerSentQueryExecution(request, clazz, executorFunction, READ_KEY, true, Optional.empty());
     }
 
-    private static Duration RETRY_DURATION = Duration.ofSeconds(600);
-
-    public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction, ApiKeyService.AccessKeyType keyType, boolean killOnConnectionClose, Optional<BiConsumer<T, QueryResult>> exceptionCallback)
-    {
+    public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction, ApiKeyService.AccessKeyType keyType, boolean killOnConnectionClose, Optional<BiConsumer<T, QueryResult>> exceptionCallback) {
         if (!Objects.equals(request.headers().get(ACCEPT), "text/event-stream")) {
             request.response("The endpoint only supports text/event-stream as Accept header", HttpResponseStatus.NOT_ACCEPTABLE).end();
             return;
@@ -194,8 +183,7 @@ public class QueryHttpService
         List<String> data;
         try {
             data = request.params().get("data");
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             response.send("result", encode(errorMessage("enable to parse data parameter: " + e.getMessage(), BAD_REQUEST))).end();
             return;
         }
@@ -208,8 +196,7 @@ public class QueryHttpService
         T query;
         try {
             query = JsonHelper.readSafe(data.get(0), clazz);
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             response.send("result", encode(errorMessage("JSON couldn't parsed: " + e.getMessage(), BAD_REQUEST))).end();
             return;
         }
@@ -225,12 +212,10 @@ public class QueryHttpService
         String project;
         try {
             project = apiKeyService.getProjectOfApiKey(apiKey.get(0), keyType);
-        }
-        catch (RakamException e) {
+        } catch (RakamException e) {
             if (e.getStatusCode() == FORBIDDEN) {
                 response.send("result", encode(errorMessage(e.getMessage(), FORBIDDEN))).end();
-            }
-            else {
+            } else {
                 response.send("result", encode(errorMessage(e.getMessage(), e.getStatusCode()))).end();
             }
             return;
@@ -239,13 +224,11 @@ public class QueryHttpService
         QueryExecution execute;
         try {
             execute = executorFunction.apply(project, query);
-        }
-        catch (RakamException e) {
+        } catch (RakamException e) {
             LogUtil.logException(request, e);
             response.send("result", encode(errorMessage("Couldn't execute query: " + e.getMessage(), BAD_REQUEST))).end();
             return;
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             LOGGER.error(e, "Error while executing query");
             response.send("result", encode(errorMessage("Couldn't execute query: Internal error", BAD_REQUEST))).end();
             return;
@@ -255,8 +238,7 @@ public class QueryHttpService
                 queryResult -> exceptionCallback.ifPresent(e -> e.accept(query, queryResult)));
     }
 
-    private void handleServerSentQueryExecutionInternal(RakamHttpRequest.StreamResponse response, QueryExecution query, boolean killOnConnectionClose, Consumer<QueryResult> exceptionMapper)
-    {
+    private void handleServerSentQueryExecutionInternal(RakamHttpRequest.StreamResponse response, QueryExecution query, boolean killOnConnectionClose, Consumer<QueryResult> exceptionMapper) {
         if (query == null) {
             LOGGER.error("Query execution is null");
             response.send("result", encode(jsonObject()
@@ -272,8 +254,7 @@ public class QueryHttpService
                         .put("error", ex.getCause() instanceof RakamException ?
                                 ex.getCause().getMessage() :
                                 "Internal error"))).end();
-            }
-            else if (result.isFailed()) {
+            } else if (result.isFailed()) {
                 if (!response.isClosed()) {
                     exceptionMapper.accept(result);
                 }
@@ -282,8 +263,7 @@ public class QueryHttpService
                         .putPOJO("error", result.getError())
                         .putPOJO("properties", result.getProperties())
                 )).end();
-            }
-            else {
+            } else {
                 List<? extends SchemaField> metadata = result.getMetadata();
 
                 String encode = encode(jsonObject()
@@ -295,16 +275,13 @@ public class QueryHttpService
             }
         });
 
-        eventLoopGroup.schedule(new Runnable()
-        {
+        eventLoopGroup.schedule(new Runnable() {
             @Override
-            public void run()
-            {
+            public void run() {
                 boolean finished = query.isFinished();
                 if (response.isClosed() && !finished && killOnConnectionClose) {
                     query.kill();
-                }
-                else if (!finished) {
+                } else if (!finished) {
                     if (!response.isClosed()) {
                         QueryStats stats = query.currentStats();
                         response.send("stats", encode(stats));
@@ -320,46 +297,14 @@ public class QueryHttpService
     }
 
     @Inject
-    public void setWorkerGroup(@ForHttpServer EventLoopGroup eventLoopGroup)
-    {
+    public void setWorkerGroup(@ForHttpServer EventLoopGroup eventLoopGroup) {
         this.eventLoopGroup = eventLoopGroup;
-    }
-
-    public static class QueryRequest
-    {
-        public final String query;
-        public final Integer limit;
-        public final String defaultSchema;
-        public final Optional<QuerySampling> sample;
-        public final CopyType exportType;
-        public final ZoneId timezone;
-
-        @JsonCreator
-        public QueryRequest(
-                @ApiParam(value = "query", description = "SQL query that will be executed on data-set (SELECT count(*) from pageview)") String query,
-                @ApiParam(value = "export_type", required = false, description = "Export data using different formats") CopyType exportType,
-                @ApiParam(value = "sampling", required = false, description = "Optional parameter for specifying the sampling on source data") QuerySampling sample,
-                @ApiParam(value = "default_schema", required = false, defaultValue = "collection", description = "The default schema of the query. If the schema is not defined, this schema will be used.") String defaultSchema,
-                @ApiParam(value = "limit", required = false, description = "The maximum rows that can be returned from a query is 500K") Integer limit,
-                @ApiParam(value = "timezone", required = false, description = "") ZoneId timezone)
-        {
-            this.query = requireNonNull(query, "query is empty").trim().replaceAll(";+$", "");
-            if (limit != null && limit > MAX_QUERY_RESULT_LIMIT) {
-                throw new IllegalArgumentException("Maximum value of limit is " + MAX_QUERY_RESULT_LIMIT);
-            }
-            this.exportType = exportType;
-            this.defaultSchema = defaultSchema;
-            this.sample = Optional.ofNullable(sample);
-            this.limit = limit;
-            this.timezone = timezone;
-        }
     }
 
     @JsonRequest
     @ApiOperation(value = "Explain query", authorizations = @Authorization(value = "read_key"))
     @Path("/explain")
-    public ResponseQuery explain(@ApiParam(value = "query", description = "Query") String query)
-    {
+    public ResponseQuery explain(@ApiParam(value = "query", description = "Query") String query) {
         try {
             Query statement = (Query) sqlParser.createStatement(query);
 
@@ -374,8 +319,7 @@ public class QueryHttpService
             if (statement.getQueryBody() instanceof QuerySpecification) {
                 return parseQuerySpecification((QuerySpecification) statement.getQueryBody(),
                         statement.getLimit(), statement.getOrderBy().map(v -> v.getSortItems()).orElse(null), map);
-            }
-            else if (statement.getQueryBody() instanceof Union) {
+            } else if (statement.getQueryBody() instanceof Union) {
                 Relation relation = ((Union) statement.getQueryBody()).getRelations().get(0);
                 while (relation instanceof Union) {
                     relation = ((Union) relation).getRelations().get(0);
@@ -391,8 +335,7 @@ public class QueryHttpService
                     statement.getQueryBody().getLocation().orElse(null),
                     ImmutableList.of(), ImmutableList.of(),
                     statement.getLimit().map(l -> Long.parseLong(l)).orElse(null));
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
             return ResponseQuery.UNKNOWN;
         }
     }
@@ -401,21 +344,17 @@ public class QueryHttpService
     @ApiOperation(value = "Test query", authorizations = @Authorization(value = "read_key"))
 
     @Path("/metadata")
-    public CompletableFuture<List<SchemaField>> metadata(@Named("project") RequestContext context, @ApiParam("query") String query)
-    {
+    public CompletableFuture<List<SchemaField>> metadata(@Named("project") RequestContext context, @ApiParam("query") String query) {
         return executorService.metadata(context, query);
     }
 
-    private ResponseQuery parseQuerySpecification(QuerySpecification queryBody, Optional<String> limitOutside, List<SortItem> orderByOutside, Map<String, NodeLocation> with)
-    {
+    private ResponseQuery parseQuerySpecification(QuerySpecification queryBody, Optional<String> limitOutside, List<SortItem> orderByOutside, Map<String, NodeLocation> with) {
         Function<Node, Integer> mapper = item -> {
             if (item instanceof GroupingElement) {
                 return findSelectIndex(((GroupingElement) item).enumerateGroupingSets(), queryBody.getSelect().getSelectItems()).orElse(null);
-            }
-            else if (item instanceof LongLiteral) {
+            } else if (item instanceof LongLiteral) {
                 return Ints.checkedCast(((LongLiteral) item).getValue());
-            }
-            else {
+            } else {
                 return null;
             }
         };
@@ -429,8 +368,7 @@ public class QueryHttpService
             orderBy = orderByOutside.stream()
                     .map(e -> new Ordering(e.getOrdering(), mapper.apply(e.getSortKey()), e.getSortKey().toString()))
                     .collect(Collectors.toList());
-        }
-        else {
+        } else {
             orderBy = queryBody.getOrderBy().map(v -> v.getSortItems().stream().map(item ->
                     new Ordering(item.getOrdering(), mapper.apply(item.getSortKey()), item.getSortKey().toString()))
                     .collect(Collectors.toList())).orElse(ImmutableList.of());
@@ -441,24 +379,21 @@ public class QueryHttpService
         if (limitStr != null) {
             try {
                 limit = Long.parseLong(limitStr);
-            }
-            catch (NumberFormatException e) {
+            } catch (NumberFormatException e) {
             }
         }
 
         return new ResponseQuery(with, queryBody.getLocation().orElse(null), groupBy, orderBy, limit);
     }
 
-    private Optional<Integer> findSelectIndex(List<Set<Expression>> items, List<SelectItem> selectItems)
-    {
+    private Optional<Integer> findSelectIndex(List<Set<Expression>> items, List<SelectItem> selectItems) {
         if (items.size() == 1) {
             Set<Expression> item = items.get(0);
             if (item.size() == 1) {
                 Expression next = item.iterator().next();
                 if (next instanceof LongLiteral) {
                     return Optional.of(((int) ((LongLiteral) next).getValue()));
-                }
-                else if (next instanceof Identifier) {
+                } else if (next instanceof Identifier) {
                     for (int i = 0; i < selectItems.size(); i++) {
                         if (selectItems.get(i) instanceof SingleColumn) {
                             if (((SingleColumn) selectItems.get(i)).getExpression().equals(next)) {
@@ -474,8 +409,35 @@ public class QueryHttpService
         return Optional.empty();
     }
 
-    public static class ResponseQuery
-    {
+    public static class QueryRequest {
+        public final String query;
+        public final Integer limit;
+        public final String defaultSchema;
+        public final Optional<QuerySampling> sample;
+        public final CopyType exportType;
+        public final ZoneId timezone;
+
+        @JsonCreator
+        public QueryRequest(
+                @ApiParam(value = "query", description = "SQL query that will be executed on data-set (SELECT count(*) from pageview)") String query,
+                @ApiParam(value = "export_type", required = false, description = "Export data using different formats") CopyType exportType,
+                @ApiParam(value = "sampling", required = false, description = "Optional parameter for specifying the sampling on source data") QuerySampling sample,
+                @ApiParam(value = "default_schema", required = false, defaultValue = "collection", description = "The default schema of the query. If the schema is not defined, this schema will be used.") String defaultSchema,
+                @ApiParam(value = "limit", required = false, description = "The maximum rows that can be returned from a query is 500K") Integer limit,
+                @ApiParam(value = "timezone", required = false, description = "") ZoneId timezone) {
+            this.query = requireNonNull(query, "query is empty").trim().replaceAll(";+$", "");
+            if (limit != null && limit > MAX_QUERY_RESULT_LIMIT) {
+                throw new IllegalArgumentException("Maximum value of limit is " + MAX_QUERY_RESULT_LIMIT);
+            }
+            this.exportType = exportType;
+            this.defaultSchema = defaultSchema;
+            this.sample = Optional.ofNullable(sample);
+            this.limit = limit;
+            this.timezone = timezone;
+        }
+    }
+
+    public static class ResponseQuery {
         public static final ResponseQuery UNKNOWN = new ResponseQuery(null, null, ImmutableList.of(), ImmutableList.of(), null);
 
         public final Map<String, NodeLocation> with;
@@ -487,10 +449,9 @@ public class QueryHttpService
         @JsonCreator
         public ResponseQuery
                 (Map<String, NodeLocation> with,
-                        NodeLocation queryLocation,
-                        List<GroupBy> groupBy,
-                        List<Ordering> orderBy, Long limit)
-        {
+                 NodeLocation queryLocation,
+                 List<GroupBy> groupBy,
+                 List<Ordering> orderBy, Long limit) {
             this.with = with;
             this.queryLocation = queryLocation;
             this.groupBy = groupBy;
@@ -499,29 +460,25 @@ public class QueryHttpService
         }
     }
 
-    public static class Ordering
-    {
+    public static class Ordering {
         public final SortItem.Ordering ordering;
         public final Integer index;
         public final String expression;
 
         @JsonCreator
-        public Ordering(SortItem.Ordering ordering, Integer index, String expression)
-        {
+        public Ordering(SortItem.Ordering ordering, Integer index, String expression) {
             this.ordering = ordering;
             this.index = index;
             this.expression = expression;
         }
     }
 
-    public static class GroupBy
-    {
+    public static class GroupBy {
         public final Integer index;
         public final String expression;
 
         @JsonCreator
-        public GroupBy(Integer index, String expression)
-        {
+        public GroupBy(Integer index, String expression) {
             this.index = index;
             this.expression = expression;
         }

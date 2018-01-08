@@ -69,6 +69,6 @@ public class AutoSuggestionHttpService extends HttpService {
             queryExecution = queryExecutorService.executeQuery(context.project, query, ZoneOffset.UTC);
         }
         return queryExecution.getResult().thenApply(value -> value.getResult().stream().map(e -> (String) e.get(0))
-                        .collect(Collectors.toList()));
+                .collect(Collectors.toList()));
     }
 }

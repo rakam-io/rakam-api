@@ -48,7 +48,7 @@ public class MailBoxWebSocketService extends WebSocketService {
 
     @Override
     public void onOpen(WebSocketRequest request) {
-        if(storage == null) {
+        if (storage == null) {
             // TODO: inform user.
             request.context().close();
         }
@@ -57,7 +57,7 @@ public class MailBoxWebSocketService extends WebSocketService {
 
         String project;
         String user;
-        if(userParam != null && !userParam.isEmpty() && projectParam !=null && !projectParam.isEmpty()) {
+        if (userParam != null && !userParam.isEmpty() && projectParam != null && !projectParam.isEmpty()) {
             user = userParam.get(0);
             project = projectParam.get(0);
             ChannelHandlerContext context = request.context();
@@ -75,7 +75,7 @@ public class MailBoxWebSocketService extends WebSocketService {
             Map<Object, List<Channel>> users = connectedClients.get(project);
             if (users != null) {
                 List<Channel> channels = users.get(user);
-                if(channels != null) {
+                if (channels != null) {
                     channels.forEach(channel -> channel.writeAndFlush(new TextWebSocketFrame(data.op + "\n" + data.payload)));
                 }
             }
@@ -119,6 +119,15 @@ public class MailBoxWebSocketService extends WebSocketService {
         ctx.attr(LISTENER).get().shutdown();
     }
 
+    public Collection<Object> getConnectedUsers(String project) {
+        Map<Object, List<Channel>> objectListMap = connectedClients.get(project);
+        if (objectListMap == null)
+            return ImmutableList.of();
+        return objectListMap.entrySet().stream()
+                .filter(e -> !e.getValue().isEmpty())
+                .map(e -> e.getKey()).collect(Collectors.toList());
+    }
+
     public static class UserMessage {
         public final Integer parent;
         public final String content;
@@ -132,15 +141,6 @@ public class MailBoxWebSocketService extends WebSocketService {
             this.content = content;
             this.toUser = toUser;
         }
-    }
-
-    public Collection<Object> getConnectedUsers(String project) {
-        Map<Object, List<Channel>> objectListMap = connectedClients.get(project);
-        if(objectListMap == null)
-            return ImmutableList.of();
-        return objectListMap.entrySet().stream()
-                .filter(e -> !e.getValue().isEmpty())
-                .map(e -> e.getKey()).collect(Collectors.toList());
     }
 
     public static class WSMessage {

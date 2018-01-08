@@ -40,12 +40,12 @@ import static org.rakam.util.ValidationUtil.*;
 
 public class PostgresqlMetastore
         extends AbstractMetastore {
+    private final static double SAMPLING_THRESHOLD = 1_000_000;
     private final PostgresqlVersion.Version version;
-    private LoadingCache<ProjectCollection, List<SchemaField>> schemaCache;
-    private LoadingCache<String, Set<String>> collectionCache;
     private final JDBCPoolDataSource connectionPool;
     private final ProjectConfig projectConfig;
-    private final static double SAMPLING_THRESHOLD = 1_000_000;
+    private LoadingCache<ProjectCollection, List<SchemaField>> schemaCache;
+    private LoadingCache<String, Set<String>> collectionCache;
 
     @Inject
     public PostgresqlMetastore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, PostgresqlVersion version, EventBus eventBus, ProjectConfig projectConfig) {
@@ -93,6 +93,38 @@ public class PostgresqlMetastore
                 }
             }
         });
+    }
+
+    public static String toSql(FieldType type) {
+        switch (type) {
+            case INTEGER:
+                return "INT";
+            case DECIMAL:
+                return "DECIMAL";
+            case LONG:
+                return "BIGINT";
+            case STRING:
+                return "TEXT";
+            case BOOLEAN:
+            case DATE:
+            case TIME:
+                return type.name();
+            case TIMESTAMP:
+                return "timestamp with time zone";
+            case DOUBLE:
+                return "DOUBLE PRECISION";
+            default:
+                if (type.isArray()) {
+                    return toSql(type.getArrayElementType()) + "[]";
+                }
+                if (type.isMap()) {
+//                    if(type == FieldType.MAP_STRING_STRING) {
+//                        return "hstore";
+//                    }
+                    return "jsonb";
+                }
+                throw new IllegalStateException("sql type couldn't converted to fieldtype");
+        }
     }
 
     @Override
@@ -437,37 +469,5 @@ public class PostgresqlMetastore
         }
 
         super.onDeleteProject(project);
-    }
-
-    public static String toSql(FieldType type) {
-        switch (type) {
-            case INTEGER:
-                return "INT";
-            case DECIMAL:
-                return "DECIMAL";
-            case LONG:
-                return "BIGINT";
-            case STRING:
-                return "TEXT";
-            case BOOLEAN:
-            case DATE:
-            case TIME:
-                return type.name();
-            case TIMESTAMP:
-                return "timestamp with time zone";
-            case DOUBLE:
-                return "DOUBLE PRECISION";
-            default:
-                if (type.isArray()) {
-                    return toSql(type.getArrayElementType()) + "[]";
-                }
-                if (type.isMap()) {
-//                    if(type == FieldType.MAP_STRING_STRING) {
-//                        return "hstore";
-//                    }
-                    return "jsonb";
-                }
-                throw new IllegalStateException("sql type couldn't converted to fieldtype");
-        }
     }
 }

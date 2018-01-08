@@ -12,7 +12,7 @@ import org.rakam.util.ConditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 
 @AutoService(RakamModule.class)
-@ConditionalModule(config="event.store", value="kinesis")
+@ConditionalModule(config = "event.store", value = "kinesis")
 public class AWSKinesisModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
@@ -34,13 +34,13 @@ public class AWSKinesisModule extends RakamModule {
     public static class PrestoStreamConfig {
         private int port;
 
+        public int getPort() {
+            return port;
+        }
+
         @Config("presto.streaming.port")
         public void setPort(int port) {
             this.port = port;
-        }
-
-        public int getPort() {
-            return port;
         }
     }
 

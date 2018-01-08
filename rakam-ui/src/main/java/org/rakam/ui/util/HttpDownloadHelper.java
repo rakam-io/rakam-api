@@ -29,7 +29,7 @@ public class HttpDownloadHelper {
         long timestamp = 0;
 
         boolean hasTimestamp = false;
-        if (useTimestamp && Files.exists(dest) ) {
+        if (useTimestamp && Files.exists(dest)) {
             timestamp = Files.getLastModifiedTime(dest).toMillis();
             hasTimestamp = true;
         }
@@ -44,8 +44,7 @@ public class HttpDownloadHelper {
             if (getThread.isAlive()) {
                 throw new RuntimeException("The GET operation took longer than " + 50000 + ", stopping it.");
             }
-        }
-        catch (InterruptedException ie) {
+        } catch (InterruptedException ie) {
             return false;
         } finally {
             getThread.closeStreams();

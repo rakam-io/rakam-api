@@ -32,7 +32,7 @@ public class UserAutomationService {
         rules = CacheBuilder.newBuilder().refreshAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<String, List<AutomationRule>>() {
             @Override
             public List<AutomationRule> load(String project) throws Exception {
-                try(Handle handle = dbi.open()) {
+                try (Handle handle = dbi.open()) {
                     return handle.createQuery("SELECT id, is_active, event_filters, actions, custom_data FROM automation_rules WHERE project = :project")
                             .bind("project", project)
                             .map((i, resultSet, statementContext) -> {
@@ -74,7 +74,7 @@ public class UserAutomationService {
     }
 
     public void remove(String project, int id) {
-        try(Handle handle = dbi.open()) {
+        try (Handle handle = dbi.open()) {
             handle.createStatement("DELETE FROM automation_rules WHERE project = :project AND id = :id")
                     .bind("project", project)
                     .bind("id", id).execute();
@@ -83,13 +83,13 @@ public class UserAutomationService {
     }
 
     public void deactivate(String project, int id) {
-        try(Handle handle = dbi.open()) {
+        try (Handle handle = dbi.open()) {
             handle.createStatement("UPDATE automation_rules SET is_active = false WHERE project = :project AND id = :id")
                     .bind("project", project)
                     .bind("id", id).execute();
         }
         Optional<AutomationRule> any = rules.getUnchecked(project).stream().filter(r -> r.id == id).findAny();
-        if(any.isPresent()) {
+        if (any.isPresent()) {
             any.get().setActive(false);
         } else {
             rules.refresh(project);
@@ -97,13 +97,13 @@ public class UserAutomationService {
     }
 
     public void activate(String project, int id) {
-        try(Handle handle = dbi.open()) {
+        try (Handle handle = dbi.open()) {
             handle.createStatement("UPDATE automation_rules SET is_active = true WHERE project = :project AND id = :id")
                     .bind("project", project)
                     .bind("id", id).execute();
         }
         Optional<AutomationRule> any = rules.getUnchecked(project).stream().filter(r -> r.id == id).findAny();
-        if(any.isPresent()) {
+        if (any.isPresent()) {
             any.get().setActive(true);
         } else {
             rules.refresh(project);
@@ -118,18 +118,18 @@ public class UserAutomationService {
             Type[] genericInterfaces = automationAction.getClass().getGenericInterfaces();
             Class optionsClass = null;
             for (Type genericInterface : genericInterfaces) {
-                if(genericInterface instanceof ParameterizedType &&
+                if (genericInterface instanceof ParameterizedType &&
                         ((ParameterizedType) genericInterface).getRawType().equals(AutomationAction.class)) {
                     optionsClass = (Class) ((ParameterizedType) genericInterface).getActualTypeArguments()[0];
                 }
             }
-            if(optionsClass == null) {
+            if (optionsClass == null) {
                 throw new IllegalStateException();
             }
 
             JsonHelper.convert(action.value, optionsClass);
         }
-        try(Handle handle = dbi.open()) {
+        try (Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO automation_rules (project, is_active, event_filters, actions, custom_data) VALUES (:project, true, :event_filters, :actions, :custom_data)")
                     .bind("project", project)
                     .bind("event_filters", JsonHelper.encode(rule.scenarios))

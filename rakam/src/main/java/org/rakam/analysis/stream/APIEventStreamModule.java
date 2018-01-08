@@ -24,14 +24,13 @@ import java.util.function.Predicate;
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "event-stream", value = "server")
 public class APIEventStreamModule
-        extends RakamModule
-{
+        extends RakamModule {
     private static final int MAXIMUM_QUEUE_CAPACITY = 1000;
 
     @Override
-    protected void setup(Binder binder)
-    {
-        binder.bind(new TypeLiteral<Map<String, List<CollectionStreamHolder>>>() {})
+    protected void setup(Binder binder) {
+        binder.bind(new TypeLiteral<Map<String, List<CollectionStreamHolder>>>() {
+        })
                 .toInstance(new ConcurrentHashMap<>());
         binder.bind(EventStream.class).to(APIEventStream.class);
         Multibinder<EventMapper> mapperMultibinder = Multibinder.newSetBinder(binder, EventMapper.class);
@@ -42,35 +41,29 @@ public class APIEventStreamModule
     }
 
     @Override
-    public String name()
-    {
+    public String name() {
         return null;
     }
 
     @Override
-    public String description()
-    {
+    public String description() {
         return null;
     }
 
-    public static class CollectionStreamHolder
-    {
+    public static class CollectionStreamHolder {
         public final List<CollectionFilter> collections;
         public final Queue<Event> messageQueue;
 
-        public CollectionStreamHolder(List<CollectionFilter> collections)
-        {
+        public CollectionStreamHolder(List<CollectionFilter> collections) {
             this.collections = collections;
             this.messageQueue = new ArrayBlockingQueue<>(MAXIMUM_QUEUE_CAPACITY);
         }
 
-        public static class CollectionFilter
-        {
+        public static class CollectionFilter {
             public final String collection;
             public final Predicate<GenericRecord> filter;
 
-            public CollectionFilter(String collection, Predicate<GenericRecord> filter)
-            {
+            public CollectionFilter(String collection, Predicate<GenericRecord> filter) {
                 this.collection = collection;
                 this.filter = filter;
             }

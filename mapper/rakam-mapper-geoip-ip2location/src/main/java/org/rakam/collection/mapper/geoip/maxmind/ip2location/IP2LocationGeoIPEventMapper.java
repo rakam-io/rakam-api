@@ -13,7 +13,6 @@ import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.SyncEventMapper;
 import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.plugin.user.UserPropertyMapper;
@@ -32,8 +31,7 @@ import static org.rakam.collection.mapper.geoip.maxmind.ip2location.IP2LocationG
 
 @Mapper(name = "IP2Location Event mapper", description = "Looks up geolocation data from _ip field using IP2Location and attaches geo-related attributed")
 public class IP2LocationGeoIPEventMapper
-        implements SyncEventMapper, UserPropertyMapper
-{
+        implements SyncEventMapper, UserPropertyMapper {
     private static final Logger LOGGER = Logger.get(IP2LocationGeoIPEventMapper.class);
     private final static List<String> CITY_DATABASE_ATTRIBUTES = ImmutableList
             .of("city", "region", "country_code", "latitude", "longitude");
@@ -41,27 +39,38 @@ public class IP2LocationGeoIPEventMapper
     private final IPReader lookup;
 
     public IP2LocationGeoIPEventMapper(GeoIPModuleConfig config)
-            throws IOException
-    {
+            throws IOException {
         Preconditions.checkNotNull(config, "config is null");
 
         lookup = getReader(config.getDatabaseUrl());
     }
 
-    private IPReader getReader(String url)
-    {
+    private static FieldType getType(String attr) {
+        switch (attr) {
+            case "country_code":
+            case "region":
+            case "city":
+            case "timezone":
+                return STRING;
+            case "latitude":
+            case "longitude":
+                return FieldType.DOUBLE;
+            default:
+                throw new IllegalStateException();
+        }
+    }
+
+    private IPReader getReader(String url) {
         try {
             FileInputStream cityDatabase = new FileInputStream(downloadOrGetFile(url));
             return IPReader.build(cityDatabase);
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             throw Throwables.propagate(e);
         }
     }
 
     @Override
-    public List<Cookie> map(Event event, RequestParams extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders)
-    {
+    public List<Cookie> map(Event event, RequestParams extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders) {
         Object ip = event.properties().get("_ip");
 
         InetAddress addr;
@@ -69,15 +78,12 @@ public class IP2LocationGeoIPEventMapper
             try {
                 // it may be slow because java performs reverse hostname lookup.
                 addr = Inet4Address.getByName((String) ip);
-            }
-            catch (UnknownHostException e) {
+            } catch (UnknownHostException e) {
                 return null;
             }
-        }
-        else if (Boolean.TRUE == ip) {
+        } else if (Boolean.TRUE == ip) {
             addr = sourceAddress;
-        }
-        else {
+        } else {
             if (lookup != null) {
                 // Cloudflare country code header (Only works when the request passed through CF servers)
                 String countryCode = extraProperties.headers().get("HTTP_CF_IPCOUNTRY");
@@ -94,8 +100,7 @@ public class IP2LocationGeoIPEventMapper
     }
 
     @Override
-    public List<Cookie> map(String project, List<? extends ISingleUserBatchOperation> user, RequestParams requestParams, InetAddress sourceAddress)
-    {
+    public List<Cookie> map(String project, List<? extends ISingleUserBatchOperation> user, RequestParams requestParams, InetAddress sourceAddress) {
         for (ISingleUserBatchOperation data : user) {
             if (data.getSetProperties() != null) {
                 mapInternal(project, data.getSetProperties(), sourceAddress);
@@ -108,8 +113,7 @@ public class IP2LocationGeoIPEventMapper
         return null;
     }
 
-    public void mapInternal(String project, ObjectNode data, InetAddress sourceAddress)
-    {
+    public void mapInternal(String project, ObjectNode data, InetAddress sourceAddress) {
         Object ip = data.get("_ip");
 
         if (ip == null) {
@@ -120,8 +124,7 @@ public class IP2LocationGeoIPEventMapper
             try {
                 // it may be slow because java performs reverse hostname lookup.
                 sourceAddress = Inet4Address.getByName((String) ip);
-            }
-            catch (UnknownHostException e) {
+            } catch (UnknownHostException e) {
                 return;
             }
         }
@@ -131,8 +134,7 @@ public class IP2LocationGeoIPEventMapper
     }
 
     @Override
-    public void addFieldDependency(FieldDependencyBuilder builder)
-    {
+    public void addFieldDependency(FieldDependencyBuilder builder) {
         List<SchemaField> fields = CITY_DATABASE_ATTRIBUTES.stream()
                 .map(attr -> new SchemaField("_" + attr, getType(attr)))
                 .collect(Collectors.toList());
@@ -140,24 +142,7 @@ public class IP2LocationGeoIPEventMapper
         builder.addFields("_ip", fields);
     }
 
-    private static FieldType getType(String attr)
-    {
-        switch (attr) {
-            case "country_code":
-            case "region":
-            case "city":
-            case "timezone":
-                return STRING;
-            case "latitude":
-            case "longitude":
-                return FieldType.DOUBLE;
-            default:
-                throw new IllegalStateException();
-        }
-    }
-
-    private void setGeoFields(InetAddress address, GenericRecord properties)
-    {
+    private void setGeoFields(InetAddress address, GenericRecord properties) {
         GeoLocation city = lookup.lookup(address);
         properties.put("_country_code", city.country);
         properties.put("_region", city.stateProv);

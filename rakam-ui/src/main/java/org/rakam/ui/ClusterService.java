@@ -28,15 +28,13 @@ import static java.lang.String.format;
 @Path("/ui/cluster")
 @IgnoreApi
 public class ClusterService
-        extends HttpService
-{
+        extends HttpService {
     private final DBI dbi;
     private final WebUserService webUserService;
 
     @Inject
     public ClusterService(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource,
-            WebUserService webUserService)
-    {
+                          WebUserService webUserService) {
         dbi = new DBI(dataSource);
         this.webUserService = webUserService;
     }
@@ -46,14 +44,13 @@ public class ClusterService
     @ApiOperation(value = "Register cluster", authorizations = @Authorization(value = "read_key"))
     @Path("/register")
     public SuccessMessage register(@javax.inject.Named("user_id") Project project,
-            @BodyParam Cluster cluster)
-    {
+                                   @BodyParam Cluster cluster) {
         Optional<WebUser> webUser = webUserService.getUser(project.userId);
         if (webUser.get().readOnly) {
             throw new RakamException("User is not allowed to register clusters", UNAUTHORIZED);
         }
 
-        if(!cluster.apiUrl.getPath().isEmpty() && !cluster.apiUrl.getPath().equals("/")) {
+        if (!cluster.apiUrl.getPath().isEmpty() && !cluster.apiUrl.getPath().equals("/")) {
             throw new RakamException(format("The API URL must not include path '%s'", cluster.apiUrl.getPath()),
                     BAD_REQUEST);
         }
@@ -64,8 +61,7 @@ public class ClusterService
                         .bind("userId", project.userId)
                         .bind("apiUrl", cluster.apiUrl.toString())
                         .bind("lockKey", cluster.lockKey).execute();
-            }
-            catch (Throwable e) {
+            } catch (Throwable e) {
                 int execute = handle.createStatement("UPDATE rakam_cluster SET lock_key = :lock_key WHERE user_id = :userId AND api_url = :apiUrl")
                         .bind("userId", project.userId)
                         .bind("apiUrl", cluster.apiUrl.toString())
@@ -87,8 +83,7 @@ public class ClusterService
     @ApiOperation(value = "Delete cluster", authorizations = @Authorization(value = "read_key"))
     @Path("/get")
     public SuccessMessage delete(@javax.inject.Named("user_id") Project project,
-            @ApiParam("api_url") String apiUrl)
-    {
+                                 @ApiParam("api_url") String apiUrl) {
         try (Handle handle = dbi.open()) {
             handle.createStatement("DELETE FROM rakam_cluster WHERE (user_id, api_url) VALUES (:userId, :apiUrl)")
                     .bind("userId", project.userId)
@@ -102,23 +97,20 @@ public class ClusterService
     @ApiOperation(value = "List cluster", authorizations = @Authorization(value = "read_key"))
     @Path("/list")
     @GET
-    public List<String> list(@javax.inject.Named("user_id") Project project)
-    {
+    public List<String> list(@javax.inject.Named("user_id") Project project) {
         try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT api_url FROM rakam_cluster WHERE user_id = :userId")
                     .bind("userId", project.userId).map(StringMapper.FIRST).list();
         }
     }
 
-    public static class Cluster
-    {
+    public static class Cluster {
         public final URL apiUrl;
         public final String lockKey;
 
         @JsonCreator
         public Cluster(@ApiParam("api_url") URL apiUrl,
-                @ApiParam(value = "lock_key", required = false) String lockKey)
-        {
+                       @ApiParam(value = "lock_key", required = false) String lockKey) {
             this.apiUrl = apiUrl;
             this.lockKey = lockKey;
         }

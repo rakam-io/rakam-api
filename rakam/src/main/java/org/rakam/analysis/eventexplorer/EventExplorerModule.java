@@ -16,11 +16,9 @@ import org.rakam.util.ConditionalModule;
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "event-explorer.enabled", value = "true")
 public class EventExplorerModule
-        extends RakamModule
-{
+        extends RakamModule {
     @Override
-    protected void setup(Binder binder)
-    {
+    protected void setup(Binder binder) {
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(EventExplorerHttpService.class);
 
@@ -34,14 +32,12 @@ public class EventExplorerModule
     }
 
     @Override
-    public String name()
-    {
+    public String name() {
         return "Event Explorer Module";
     }
 
     @Override
-    public String description()
-    {
+    public String description() {
         return "It allows analyzing and visualizing events via a simple interface.";
     }
 }

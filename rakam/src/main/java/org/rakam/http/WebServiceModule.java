@@ -43,8 +43,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 
 @Singleton
 public class WebServiceModule
-        extends AbstractModule
-{
+        extends AbstractModule {
     private final Set<WebSocketService> webSocketServices;
     private final Set<HttpService> httpServices;
     private final HttpServerConfig config;
@@ -55,13 +54,12 @@ public class WebServiceModule
 
     @Inject
     public WebServiceModule(Set<HttpService> httpServices,
-            Set<Tag> tags,
-            Set<CustomParameter> customParameters,
-            Set<RequestPreProcessorItem> requestPreProcessorItems,
-            Set<WebSocketService> webSocketServices,
-            @NotFoundHandler Optional<HttpRequestHandler> requestHandler,
-            HttpServerConfig config)
-    {
+                            Set<Tag> tags,
+                            Set<CustomParameter> customParameters,
+                            Set<RequestPreProcessorItem> requestPreProcessorItems,
+                            Set<WebSocketService> webSocketServices,
+                            @NotFoundHandler Optional<HttpRequestHandler> requestHandler,
+                            HttpServerConfig config) {
         this.httpServices = httpServices;
         this.webSocketServices = webSocketServices;
         this.requestPreProcessorItems = requestPreProcessorItems;
@@ -72,8 +70,7 @@ public class WebServiceModule
     }
 
     @Override
-    protected void configure()
-    {
+    protected void configure() {
         Info info = new Info()
                 .title("Rakam API Documentation")
                 .version(ServiceStarter.RAKAM_VERSION)
@@ -93,8 +90,7 @@ public class WebServiceModule
         EventLoopGroup eventExecutors;
         if (Epoll.isAvailable()) {
             eventExecutors = new EpollEventLoopGroup();
-        }
-        else {
+        } else {
             eventExecutors = new NioEventLoopGroup();
         }
 
@@ -147,8 +143,7 @@ public class WebServiceModule
         HostAndPort address = config.getAddress();
         try {
             build.bind(address.getHostText(), address.getPort());
-        }
-        catch (InterruptedException e) {
+        } catch (InterruptedException e) {
             addError(e);
             return;
         }
@@ -157,14 +152,12 @@ public class WebServiceModule
     }
 
     public static class ProjectPermissionIRequestParameter
-            implements IRequestParameter
-    {
+            implements IRequestParameter {
 
         private final ApiKeyService.AccessKeyType type;
         private final ApiKeyService apiKeyService;
 
-        public ProjectPermissionIRequestParameter(ApiKeyService apiKeyService, Method method)
-        {
+        public ProjectPermissionIRequestParameter(ApiKeyService apiKeyService, Method method) {
             final ApiOperation annotation = method.getAnnotation(ApiOperation.class);
             Authorization[] authorizations = annotation == null ?
                     new Authorization[0] :
@@ -194,15 +187,13 @@ public class WebServiceModule
         }
 
         @Override
-        public Object extract(ObjectNode node, RakamHttpRequest request)
-        {
+        public Object extract(ObjectNode node, RakamHttpRequest request) {
             String apiKey = request.headers().get(type.getKey());
             if (apiKey == null) {
                 List<String> apiKeyList = request.params().get(type.getKey());
                 if (apiKeyList != null && !apiKeyList.isEmpty()) {
                     apiKey = apiKeyList.get(0);
-                }
-                else {
+                } else {
                     throw new RakamException(type.getKey() + " header or " +
                             "query parameter is missing.", FORBIDDEN);
                 }

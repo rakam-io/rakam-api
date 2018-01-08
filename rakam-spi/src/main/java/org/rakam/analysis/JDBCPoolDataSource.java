@@ -18,15 +18,13 @@ import java.util.logging.Logger;
 import static com.google.common.base.Preconditions.checkArgument;
 
 public class JDBCPoolDataSource
-        implements DataSource
-{
+        implements DataSource {
     private static final Map<JDBCConfig, JDBCPoolDataSource> pools = new ConcurrentHashMap<>();
     private final HikariDataSource dataSource;
     private final JDBCConfig config;
     private final boolean disablePool;
 
-    private JDBCPoolDataSource(JDBCConfig config, Optional<String> initialQuery)
-    {
+    private JDBCPoolDataSource(JDBCConfig config, Optional<String> initialQuery) {
         this.config = config;
         this.disablePool = config.getConnectionDisablePool();
         checkArgument(config.getUrl() != null, "JDBC url is required");
@@ -42,8 +40,7 @@ public class JDBCPoolDataSource
 
         if (config.getMaxConnection() != null) {
             hikariConfig.setMaximumPoolSize(config.getMaxConnection());
-        }
-        else {
+        } else {
             hikariConfig.setMaximumPoolSize(30);
         }
 
@@ -55,28 +52,24 @@ public class JDBCPoolDataSource
         dataSource = new HikariDataSource(hikariConfig);
     }
 
-    public static JDBCPoolDataSource getOrCreateDataSource(JDBCConfig config, String initialQuery)
-    {
+    public static JDBCPoolDataSource getOrCreateDataSource(JDBCConfig config, String initialQuery) {
         return pools.computeIfAbsent(config,
                 key -> new JDBCPoolDataSource(config, Optional.of(initialQuery)));
     }
 
-    public static JDBCPoolDataSource getOrCreateDataSource(JDBCConfig config)
-    {
+    public static JDBCPoolDataSource getOrCreateDataSource(JDBCConfig config) {
         return pools.computeIfAbsent(config,
                 key -> new JDBCPoolDataSource(config, Optional.empty()));
     }
 
     @Override
     public Connection getConnection()
-            throws SQLException
-    {
+            throws SQLException {
         return getConnection(disablePool);
     }
 
     public Connection getConnection(boolean disablePool)
-            throws SQLException
-    {
+            throws SQLException {
         if (disablePool) {
             return DriverManager.getConnection(config.getUrl(), config.getUsername(), config.getPassword());
         }
@@ -86,62 +79,53 @@ public class JDBCPoolDataSource
 
     @Override
     public Connection getConnection(String username, String password)
-            throws SQLException
-    {
+            throws SQLException {
         return dataSource.getConnection(username, password);
     }
 
     @Override
     public PrintWriter getLogWriter()
-            throws SQLException
-    {
+            throws SQLException {
         return dataSource.getLogWriter();
     }
 
     @Override
     public void setLogWriter(PrintWriter out)
-            throws SQLException
-    {
+            throws SQLException {
         dataSource.setLogWriter(out);
     }
 
     @Override
-    public void setLoginTimeout(int seconds)
-            throws SQLException
-    {
-        dataSource.setLoginTimeout(seconds);
-    }
-
-    @Override
     public int getLoginTimeout()
-            throws SQLException
-    {
+            throws SQLException {
         return dataSource.getLoginTimeout();
     }
 
     @Override
+    public void setLoginTimeout(int seconds)
+            throws SQLException {
+        dataSource.setLoginTimeout(seconds);
+    }
+
+    @Override
     public Logger getParentLogger()
-            throws SQLFeatureNotSupportedException
-    {
+            throws SQLFeatureNotSupportedException {
         return dataSource.getParentLogger();
     }
 
     @Override
     public <T> T unwrap(Class<T> iface)
-            throws SQLException
-    {
+            throws SQLException {
         return dataSource.unwrap(iface);
     }
 
     @Override
     public boolean isWrapperFor(Class<?> iface)
-            throws SQLException
-    {
+            throws SQLException {
         return dataSource.isWrapperFor(iface);
     }
 
-    public JDBCConfig getConfig()
-    {
+    public JDBCConfig getConfig() {
         return config;
     }
 }

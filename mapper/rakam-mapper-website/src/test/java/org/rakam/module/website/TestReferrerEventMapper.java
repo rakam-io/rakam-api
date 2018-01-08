@@ -185,8 +185,7 @@ public class TestReferrerEventMapper {
 
     @Test
     public void testSameHostReferrer()
-            throws Exception
-    {
+            throws Exception {
 
 
     }

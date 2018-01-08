@@ -1,24 +1,20 @@
 package org.rakam.collection.mapper.geoip.maxmind.ip2location;
 
-public class Coordination
-{
+public class Coordination {
     public final double latitude;
     public final double longitude;
 
-    private Coordination(double lat, double lon)
-    {
+    private Coordination(double lat, double lon) {
         this.latitude = lat;
         this.longitude = lon;
     }
 
-    public static Coordination of(double lat, double lon)
-    {
+    public static Coordination of(double lat, double lon) {
         return new Coordination(lat, lon);
     }
 
     @Override
-    public String toString()
-    {
+    public String toString() {
         return "Coordination{" +
                 "latitude=" + latitude +
                 ", longitude=" + longitude +
@@ -26,8 +22,7 @@ public class Coordination
     }
 
     @Override
-    public boolean equals(Object o)
-    {
+    public boolean equals(Object o) {
         if (this == o) {
             return true;
         }
@@ -44,8 +39,7 @@ public class Coordination
     }
 
     @Override
-    public int hashCode()
-    {
+    public int hashCode() {
         int result;
         long temp;
         temp = Double.doubleToLongBits(latitude);

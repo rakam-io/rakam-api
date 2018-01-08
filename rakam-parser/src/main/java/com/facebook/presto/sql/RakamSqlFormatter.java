@@ -44,6 +44,22 @@ public final class RakamSqlFormatter {
         return builder.toString();
     }
 
+    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, char escapeIdentifier) {
+        return new RakamExpressionFormatter(tableNameMapper, Optional.empty(), escapeIdentifier).process(expression, null);
+    }
+
+    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, Function<String, String> columnNameMapper, char escapeIdentifier) {
+        return new RakamExpressionFormatter(tableNameMapper, Optional.of(columnNameMapper), escapeIdentifier).process(expression, null);
+    }
+
+    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, Optional<Function<String, String>> columnNameMapper, char escapeIdentifier) {
+        return new RakamExpressionFormatter(tableNameMapper, columnNameMapper, escapeIdentifier).process(expression, null);
+    }
+
+    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, Optional<Function<String, String>> columnNameMapper, List<String> queryWithTables, char escapeIdentifier) {
+        return new RakamExpressionFormatter(tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier).process(expression, null);
+    }
+
     public static class Formatter
             extends AstVisitor<Void, Integer> {
         private final StringBuilder builder;
@@ -72,6 +88,19 @@ public final class RakamSqlFormatter {
             StringBuilder builder = new StringBuilder();
             new RakamSqlFormatter.Formatter(builder, tableNameMapper, escapeIdentifier).process(query, 1);
             return builder.toString();
+        }
+
+        private static String formatName(String name, char escapeIdentifier) {
+            if (NAME_PATTERN.matcher(name).matches()) {
+                return name;
+            }
+            return escapeIdentifier + name.replace(new StringBuilder().append(escapeIdentifier), new StringBuilder()
+                    .append(escapeIdentifier)
+                    .append(escapeIdentifier)) + escapeIdentifier;
+        }
+
+        private static String indentString(int indent) {
+            return Strings.repeat(INDENT, indent);
         }
 
         @Override
@@ -757,15 +786,6 @@ public final class RakamSqlFormatter {
             return "\nWITH (\n" + propertyList + "\n)";
         }
 
-        private static String formatName(String name, char escapeIdentifier) {
-            if (NAME_PATTERN.matcher(name).matches()) {
-                return name;
-            }
-            return escapeIdentifier + name.replace(new StringBuilder().append(escapeIdentifier), new StringBuilder()
-                    .append(escapeIdentifier)
-                    .append(escapeIdentifier)) + escapeIdentifier;
-        }
-
         private String formatName(QualifiedName name) {
             return name.getOriginalParts().stream()
                     .map(e -> formatName(e, escapeIdentifier))
@@ -1028,25 +1048,5 @@ public final class RakamSqlFormatter {
             return builder.append(indentString(indent))
                     .append(value);
         }
-
-        private static String indentString(int indent) {
-            return Strings.repeat(INDENT, indent);
-        }
-    }
-
-    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, char escapeIdentifier) {
-        return new RakamExpressionFormatter(tableNameMapper, Optional.empty(), escapeIdentifier).process(expression, null);
-    }
-
-    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, Function<String, String> columnNameMapper, char escapeIdentifier) {
-        return new RakamExpressionFormatter(tableNameMapper, Optional.of(columnNameMapper), escapeIdentifier).process(expression, null);
-    }
-
-    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, Optional<Function<String, String>> columnNameMapper, char escapeIdentifier) {
-        return new RakamExpressionFormatter(tableNameMapper, columnNameMapper, escapeIdentifier).process(expression, null);
-    }
-
-    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, Optional<Function<String, String>> columnNameMapper, List<String> queryWithTables, char escapeIdentifier) {
-        return new RakamExpressionFormatter(tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier).process(expression, null);
     }
 }

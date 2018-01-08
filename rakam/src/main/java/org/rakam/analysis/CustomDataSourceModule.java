@@ -12,15 +12,13 @@ import org.rakam.plugin.RakamModule;
 import org.rakam.server.http.HttpService;
 
 @AutoService(RakamModule.class)
-public class CustomDataSourceModule extends RakamModule
-{
+public class CustomDataSourceModule extends RakamModule {
     @Override
-    protected void setup(Binder binder)
-    {
+    protected void setup(Binder binder) {
         CustomDataSourceConfig config = buildConfigObject(CustomDataSourceConfig.class);
         OptionalBinder.newOptionalBinder(binder, CustomDataSourceService.class);
 
-        if(config.getEnabled()) {
+        if (config.getEnabled()) {
             Multibinder<HttpService> httpServiceMultibinder = Multibinder.newSetBinder(binder, HttpService.class);
             httpServiceMultibinder.addBinding().to(CustomDataSourceHttpService.class).in(Scopes.SINGLETON);
             binder.bind(CustomDataSourceService.class);
@@ -28,14 +26,12 @@ public class CustomDataSourceModule extends RakamModule
     }
 
     @Override
-    public String name()
-    {
+    public String name() {
         return "Custom data source module";
     }
 
     @Override
-    public String description()
-    {
+    public String description() {
         return null;
     }
 }

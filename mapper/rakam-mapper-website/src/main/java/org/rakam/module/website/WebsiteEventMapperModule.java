@@ -11,11 +11,9 @@ import org.rakam.util.ConditionalModule;
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "module.website.mapper", value = "true")
 public class WebsiteEventMapperModule
-        extends RakamModule
-{
+        extends RakamModule {
     @Override
-    protected void setup(Binder binder)
-    {
+    protected void setup(Binder binder) {
         Multibinder<UserPropertyMapper> userPropertyMappers = Multibinder.newSetBinder(binder, UserPropertyMapper.class);
         Multibinder<EventMapper> eventMappers = Multibinder.newSetBinder(binder, EventMapper.class);
 
@@ -36,14 +34,12 @@ public class WebsiteEventMapperModule
     }
 
     @Override
-    public String name()
-    {
+    public String name() {
         return "Event website related attribute mapping module";
     }
 
     @Override
-    public String description()
-    {
+    public String description() {
         return "Resolves _referrer, _user_agent attributes and related fields such as user_agent_version, referrer_medium to the event.";
     }
 }

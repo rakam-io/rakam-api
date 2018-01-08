@@ -18,12 +18,7 @@
  */
 package org.rakam.collection.mapper.geoip.maxmind.ip2location;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
@@ -37,8 +32,7 @@ import java.util.Collection;
 /*
     Mostly taken from org.elasticsearch.common.http.client.HttpDownloadHelper
  */
-public class HttpDownloadHelper
-{
+public class HttpDownloadHelper {
     private static final Duration maxDuration = Duration.ofMinutes(2);
 
     private boolean useTimestamp;
@@ -58,7 +52,7 @@ public class HttpDownloadHelper
         long timestamp = 0;
 
         boolean hasTimestamp = false;
-        if (useTimestamp && Files.exists(dest) ) {
+        if (useTimestamp && Files.exists(dest)) {
             timestamp = Files.getLastModifiedTime(dest).toMillis();
             hasTimestamp = true;
         }
@@ -73,8 +67,7 @@ public class HttpDownloadHelper
             if (getThread.isAlive()) {
                 throw new RuntimeException("The GET operation took longer than " + maxDuration.getSeconds() + "s, stopping it.");
             }
-        }
-        catch (InterruptedException ie) {
+        } catch (InterruptedException ie) {
             return false;
         } finally {
             getThread.closeStreams();
@@ -86,7 +79,9 @@ public class HttpDownloadHelper
 
     public interface DownloadProgress {
         void beginDownload();
+
         void onTick();
+
         void endDownload();
     }
 
@@ -107,8 +102,8 @@ public class HttpDownloadHelper
     }
 
     public static class VerboseProgress implements DownloadProgress {
-        private int dots;
         PrintWriter writer;
+        private int dots;
 
         public VerboseProgress(PrintStream out) {
             this.writer = new PrintWriter(out);

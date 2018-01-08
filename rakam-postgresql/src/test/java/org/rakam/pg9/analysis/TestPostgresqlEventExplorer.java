@@ -23,8 +23,7 @@ import org.testng.annotations.BeforeSuite;
 import java.time.Clock;
 
 public class TestPostgresqlEventExplorer
-        extends TestEventExplorer
-{
+        extends TestEventExplorer {
 
     private TestingEnvironmentPg9 testingPostgresqlServer;
     private PostgresqlMetastore metastore;
@@ -34,8 +33,7 @@ public class TestPostgresqlEventExplorer
     @Override
     @BeforeSuite
     public void setup()
-            throws Exception
-    {
+            throws Exception {
         testingPostgresqlServer = new TestingEnvironmentPg9();
 
         InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();
@@ -59,20 +57,17 @@ public class TestPostgresqlEventExplorer
     }
 
     @Override
-    public EventStore getEventStore()
-    {
+    public EventStore getEventStore() {
         return eventStore;
     }
 
     @Override
-    public Metastore getMetastore()
-    {
+    public Metastore getMetastore() {
         return metastore;
     }
 
     @Override
-    public EventExplorer getEventExplorer()
-    {
+    public EventExplorer getEventExplorer() {
         return eventExplorer;
     }
 }

@@ -68,21 +68,6 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
         return true;
     }
 
-    public static class MailAction {
-        public final String fromUser;
-        public final String message;
-        public final Map<String, String> variables;
-
-        @JsonCreator
-        public MailAction(@ApiParam("from_user") String fromUser,
-                          @ApiParam("message") String message,
-                          @ApiParam("variables") Map<String, String> variables) {
-            this.fromUser = fromUser;
-            this.message = message;
-            this.variables = variables;
-        }
-    }
-
     @Override
     public CompletableFuture<Long> batch(String project, CompletableFuture<QueryResult> queryResult, MailAction action) {
         StringTemplate template = new StringTemplate(action.message);
@@ -95,7 +80,7 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
                 final String userId = objects.get(key).toString();
                 String format = template.format(name -> {
                     Integer index = map.get(name);
-                    if(index != null) {
+                    if (index != null) {
                         Object o = objects.get(index);
                         if (o != null && o instanceof String) {
                             return o.toString();
@@ -121,15 +106,15 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
     )
     @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     public Message sendMail(@Named("project") RequestContext context,
-                        @ApiParam("from_user") String fromUser,
-                        @ApiParam("to_user") String toUser,
-                        @ApiParam(value = "parent", description = "Parent message id", required = false) Integer parent,
-                        @ApiParam(value = "message", description = "The content of the message", required = false) String message,
-                        @ApiParam(value = "timestamp", description = "The timestamp of the message") long datetime) {
+                            @ApiParam("from_user") String fromUser,
+                            @ApiParam("to_user") String toUser,
+                            @ApiParam(value = "parent", description = "Parent message id", required = false) Integer parent,
+                            @ApiParam(value = "message", description = "The content of the message", required = false) String message,
+                            @ApiParam(value = "timestamp", description = "The timestamp of the message") long datetime) {
         try {
             return mailboxStorage.send(context.project, fromUser, toUser, parent, message, Instant.ofEpochMilli(datetime));
         } catch (Exception e) {
-            throw new RakamException("Error while sending message: "+e.getMessage(), HttpResponseStatus.BAD_REQUEST);
+            throw new RakamException("Error while sending message: " + e.getMessage(), HttpResponseStatus.BAD_REQUEST);
         }
     }
 
@@ -138,7 +123,7 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
 
         for (String var : variables) {
             for (int i = 0; i < metadata.size(); i++) {
-                if(metadata.get(i).getName().equals(var)) {
+                if (metadata.get(i).getName().equals(var)) {
                     colMap.put(variables.get(i), i);
                     break;
                 }
@@ -146,6 +131,21 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
         }
 
         return colMap;
+    }
+
+    public static class MailAction {
+        public final String fromUser;
+        public final String message;
+        public final Map<String, String> variables;
+
+        @JsonCreator
+        public MailAction(@ApiParam("from_user") String fromUser,
+                          @ApiParam("message") String message,
+                          @ApiParam("variables") Map<String, String> variables) {
+            this.fromUser = fromUser;
+            this.message = message;
+            this.variables = variables;
+        }
     }
 
 }

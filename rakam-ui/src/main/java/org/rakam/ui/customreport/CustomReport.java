@@ -41,27 +41,23 @@ public class CustomReport {
     }
 
     @JsonProperty("report_type")
-    public String getReportType()
-    {
+    public String getReportType() {
         return reportType;
     }
 
     @JsonProperty("name")
-    public String getName()
-    {
+    public String getName() {
         return name;
     }
 
     @JsonProperty("data")
-    public Object getData()
-    {
+    public Object getData() {
         return data;
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonProperty("user")
-    public Integer getUser()
-    {
+    public Integer getUser() {
         return user;
     }
 }

@@ -26,15 +26,15 @@ public class ActiveModuleListBuilder {
 
     @Inject
     public ActiveModuleListBuilder(UserPluginConfig userPluginConfig, CustomDataSourceConfig customDataSourceConfig, TaskConfig taskConfig, Optional<UserMailboxStorage> mailboxStorage, RealTimeConfig realtimeConfig, EventStreamConfig eventStreamConfig, EventExplorerConfig eventExplorerConfig, UserPluginConfig userStorage, ProjectConfig projectConfig) {
-       this.userPluginConfig = userPluginConfig;
-       this.realtimeConfig = realtimeConfig;
-       this.eventStreamConfig = eventStreamConfig;
-       this.eventExplorerConfig = eventExplorerConfig;
-       this.userStorage = userStorage;
-       this.projectConfig = projectConfig;
-       this.customDataSourceEnabled = customDataSourceConfig.getEnabled();
-       this.userStorageMailbox = mailboxStorage.isPresent();
-       this.taskConfig = taskConfig;
+        this.userPluginConfig = userPluginConfig;
+        this.realtimeConfig = realtimeConfig;
+        this.eventStreamConfig = eventStreamConfig;
+        this.eventExplorerConfig = eventExplorerConfig;
+        this.userStorage = userStorage;
+        this.projectConfig = projectConfig;
+        this.customDataSourceEnabled = customDataSourceConfig.getEnabled();
+        this.userStorageMailbox = mailboxStorage.isPresent();
+        this.taskConfig = taskConfig;
     }
 
     public ActiveModuleList build() {
@@ -77,10 +77,10 @@ public class ActiveModuleListBuilder {
         @JsonProperty
         public final String userColumn;
 
-        private ActiveModuleList(UserPluginConfig userPluginConfig,  boolean userStorageMailbox,
-                RealTimeConfig realtimeConfig, EventStreamConfig eventStreamConfig,
-                EventExplorerConfig eventExplorerConfig, UserPluginConfig userStorage,
-                ProjectConfig projectConfig, boolean scheduledTasksEnabled, boolean webhookEnabled, boolean customDatabaseEnabled) {
+        private ActiveModuleList(UserPluginConfig userPluginConfig, boolean userStorageMailbox,
+                                 RealTimeConfig realtimeConfig, EventStreamConfig eventStreamConfig,
+                                 EventExplorerConfig eventExplorerConfig, UserPluginConfig userStorage,
+                                 ProjectConfig projectConfig, boolean scheduledTasksEnabled, boolean webhookEnabled, boolean customDatabaseEnabled) {
             this.userStorage = userPluginConfig.isEnabled();
             this.userMailbox = userStorageMailbox;
             this.funnelAnalysisEnabled = userPluginConfig.isFunnelAnalysisEnabled();

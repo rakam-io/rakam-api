@@ -12,40 +12,33 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public abstract class AbstractMetastore
-        implements Metastore
-{
+        implements Metastore {
     private final EventBus eventBus;
 
-    public AbstractMetastore(EventBus eventBus)
-    {
+    public AbstractMetastore(EventBus eventBus) {
         this.eventBus = eventBus;
     }
 
-    protected void onCreateProject(String project)
-    {
+    protected void onCreateProject(String project) {
         eventBus.post(new ProjectCreatedEvent(project));
     }
 
-    protected void onDeleteProject(String project)
-    {
+    protected void onDeleteProject(String project) {
         eventBus.post(new SystemEvents.ProjectDeletedEvent(project));
     }
 
-    protected void onCreateCollection(String project, String collection, List<SchemaField> fields)
-    {
+    protected void onCreateCollection(String project, String collection, List<SchemaField> fields) {
         eventBus.post(new SystemEvents.CollectionCreatedEvent(project, collection, fields));
     }
 
-    protected void onCreateCollectionField(String project, String collection, List<SchemaField> fields)
-    {
+    protected void onCreateCollectionField(String project, String collection, List<SchemaField> fields) {
         eventBus.post(new SystemEvents.CollectionFieldCreatedEvent(project, collection, fields));
     }
 
     public abstract List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields);
 
     @Override
-    public Map<String, Stats> getStats(Collection<String> projects)
-    {
+    public Map<String, Stats> getStats(Collection<String> projects) {
         return projects.stream().collect(Collectors.toMap(e -> e, e -> new Stats()));
     }
 }

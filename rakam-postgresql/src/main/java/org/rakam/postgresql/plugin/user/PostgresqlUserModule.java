@@ -18,14 +18,14 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.name.Names;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.plugin.user.UserStorage;
-import org.rakam.util.ConditionalModule;
 import org.rakam.config.JDBCConfig;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.user.UserStorage;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
+import org.rakam.util.ConditionalModule;
 
 @AutoService(RakamModule.class)
-@ConditionalModule(config="plugin.user.storage", value="postgresql")
+@ConditionalModule(config = "plugin.user.storage", value = "postgresql")
 public class PostgresqlUserModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {

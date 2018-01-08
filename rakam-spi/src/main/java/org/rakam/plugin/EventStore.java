@@ -7,19 +7,16 @@ import org.rakam.collection.Event;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-public interface EventStore
-{
+public interface EventStore {
     int[] SUCCESSFUL_BATCH = new int[0];
     CompletableFuture<Void> COMPLETED_FUTURE = CompletableFuture.completedFuture(null);
-    CompletableFuture<int[]> COMPLETED_FUTURE_BATCH = CompletableFuture.completedFuture(new int[] {});
+    CompletableFuture<int[]> COMPLETED_FUTURE_BATCH = CompletableFuture.completedFuture(new int[]{});
 
-    default void store(Event event)
-    {
+    default void store(Event event) {
         storeAsync(event).join();
     }
 
-    default int[] storeBatch(List<Event> events)
-    {
+    default int[] storeBatch(List<Event> events) {
         return storeBatchAsync(events).join();
     }
 
@@ -27,44 +24,37 @@ public interface EventStore
 
     CompletableFuture<Void> storeAsync(Event event);
 
-    default void storeBulk(List<Event> events)
-    {
+    default void storeBulk(List<Event> events) {
         if (events.isEmpty()) {
             return;
         }
         storeBatch(events);
     }
 
-    enum CopyType
-    {
+    enum CopyType {
         AVRO, CSV, JSON;
 
         @JsonCreator
-        public static CopyType get(String name)
-        {
+        public static CopyType get(String name) {
             return valueOf(name.toUpperCase());
         }
 
         @JsonProperty
-        public String value()
-        {
+        public String value() {
             return name();
         }
     }
 
-    enum CompressionType
-    {
+    enum CompressionType {
         GZIP;
 
         @JsonCreator
-        public static CompressionType get(String name)
-        {
+        public static CompressionType get(String name) {
             return valueOf(name.toUpperCase());
         }
 
         @JsonProperty
-        public String value()
-        {
+        public String value() {
             return name();
         }
     }

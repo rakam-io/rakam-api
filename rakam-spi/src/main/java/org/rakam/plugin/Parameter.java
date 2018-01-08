@@ -7,10 +7,8 @@ import org.rakam.server.http.annotations.ApiParam;
 
 import java.util.List;
 
-public class Parameter
-{
+public class Parameter {
     public final FieldType type;
-    public Object value;
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public final String placeholder;
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -19,6 +17,7 @@ public class Parameter
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public final List<Choice> choices;
     public final boolean hidden;
+    public Object value;
 
     @JsonCreator
     public Parameter(
@@ -28,8 +27,7 @@ public class Parameter
             @ApiParam(value = "placeholder", required = false) String placeholder,
             @ApiParam(value = "choices", required = false) List<Choice> choices,
             @ApiParam(value = "description", required = false) String description,
-            @ApiParam(value = "hidden", required = false) Boolean hidden)
-    {
+            @ApiParam(value = "hidden", required = false) Boolean hidden) {
         this.type = type;
         this.required = Boolean.TRUE.equals(required);
         this.value = value;
@@ -39,14 +37,12 @@ public class Parameter
         this.hidden = Boolean.TRUE.equals(hidden);
     }
 
-    public static class Choice
-    {
+    public static class Choice {
         public final String key;
         public final String value;
 
         @JsonCreator
-        public Choice(@ApiParam("key") String key, @ApiParam("value") String value)
-        {
+        public Choice(@ApiParam("key") String key, @ApiParam("value") String value) {
             this.key = key;
             this.value = value;
         }

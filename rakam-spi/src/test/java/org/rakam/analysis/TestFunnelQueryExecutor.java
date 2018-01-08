@@ -32,12 +32,20 @@ public abstract class TestFunnelQueryExecutor {
     private static final int SCALE_FACTOR = 10;
     private static final String PROJECT_NAME = TestFunnelQueryExecutor.class.getName().replace(".", "_").toLowerCase();
 
+    @DataProvider(name = "types")
+    public static Object[][] hashEnabledValuesProvider() {
+        return new Object[][]{
+                {ORDERED},
+                {NORMAL}
+        };
+    }
+
     @BeforeSuite
     public void setup() throws Exception {
         EventBuilder builder = new EventBuilder(PROJECT_NAME, getMetastore());
 
         getMetastore().createProject(PROJECT_NAME);
-        for (int cIdx = 0; cIdx < 4; cIdx ++) {
+        for (int cIdx = 0; cIdx < 4; cIdx++) {
             final int finalCIdx = cIdx;
             List<Event> events = IntStream.range(0, SCALE_FACTOR).mapToObj(i -> builder.createEvent("test" + finalCIdx,
                     ImmutableMap.<String, Object>builder()
@@ -49,19 +57,9 @@ public abstract class TestFunnelQueryExecutor {
         }
     }
 
-    @DataProvider(name = "types")
-    public static Object[][] hashEnabledValuesProvider()
-    {
-        return new Object[][] {
-                {ORDERED},
-                {NORMAL}
-        };
-    }
-
     @AfterSuite
     public void destroy()
-            throws InterruptedException
-    {
+            throws InterruptedException {
         getMetastore().deleteProject(PROJECT_NAME);
     }
 
@@ -135,9 +133,9 @@ public abstract class TestFunnelQueryExecutor {
 
         assertFalse(query.isFailed());
         assertEquals(ImmutableSet.copyOf(query.getResult()), ImmutableSet.of(
-                        of("Step 1", "test0", 3L), of("Step 1", "test1", 3L),
-                        of("Step 2", "test0", 3L), of("Step 2", "test1", 3L),
-                        of("Step 3", "test0", 3L), of("Step 3", "test1", 3L)));
+                of("Step 1", "test0", 3L), of("Step 1", "test1", 3L),
+                of("Step 2", "test0", 3L), of("Step 2", "test1", 3L),
+                of("Step 3", "test0", 3L), of("Step 3", "test1", 3L)));
     }
 
     @Test
@@ -248,7 +246,7 @@ public abstract class TestFunnelQueryExecutor {
                 LocalDate.ofEpochDay(SCALE_FACTOR), Optional.empty(), UTC,
                 Optional.empty(), APPROXIMATE).getResult().join();
         assertFalse(query.isFailed());
-        assertEquals( query.getResult(), of(of("Step 1", "1th day", 3L), of("Step 2", "1th day", 3L )));
+        assertEquals(query.getResult(), of(of("Step 1", "1th day", 3L), of("Step 2", "1th day", 3L)));
     }
 
     @Test

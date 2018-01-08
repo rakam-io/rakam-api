@@ -45,7 +45,6 @@ import static org.rakam.server.http.HttpServer.returnError;
 @Api(value = "/recipe", nickname = "recipe", description = "Recipe operations", tags = "recipe")
 public class RecipeHttpService extends HttpService {
     private static ObjectMapper yamlMapper;
-    private final ApiKeyService apiKeyService;
 
     static {
         yamlMapper = new ObjectMapper(new YAMLFactory());
@@ -62,6 +61,7 @@ public class RecipeHttpService extends HttpService {
                 });
     }
 
+    private final ApiKeyService apiKeyService;
     private final RecipeHandler installer;
 
     @Inject
@@ -130,7 +130,7 @@ public class RecipeHttpService extends HttpService {
 
             DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, buffer);
             response.headers().add(CONTENT_TYPE, exportType.contentType);
-            if(request.headers().contains(ORIGIN)) {
+            if (request.headers().contains(ORIGIN)) {
                 response.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
             }
 

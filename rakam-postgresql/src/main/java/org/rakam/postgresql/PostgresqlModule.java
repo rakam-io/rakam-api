@@ -56,6 +56,35 @@ import static org.rakam.util.ValidationUtil.checkTableColumn;
 @ConditionalModule(config = "store.adapter", value = "postgresql")
 public class PostgresqlModule
         extends RakamModule {
+    public synchronized static Module getAsyncClientModule(JDBCConfig config) {
+        JDBCConfig asyncClientConfig;
+        try {
+            final String url = config.getUrl();
+
+            asyncClientConfig = new JDBCConfig()
+                    .setPassword(config.getPassword())
+                    .setTable(config.getTable())
+                    .setMaxConnection(4)
+                    .setConnectionMaxLifeTime(0L)
+                    .setConnectionIdleTimeout(0L)
+                    .setConnectionDisablePool(config.getConnectionDisablePool())
+                    .setUrl("jdbc:pgsql" + url.substring("jdbc:postgresql".length()))
+                    .setUsername(config.getUsername());
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
+
+        return new AbstractConfigurationAwareModule() {
+            @Override
+            protected void setup(Binder binder) {
+                binder.bind(JDBCPoolDataSource.class)
+                        .annotatedWith(Names.named("async-postgresql"))
+                        .toProvider(new JDBCPoolDataSourceProvider(asyncClientConfig))
+                        .in(Scopes.SINGLETON);
+            }
+        };
+    }
+
     @Override
     protected void setup(Binder binder) {
         JDBCConfig config = buildConfigObject(JDBCConfig.class, "store.adapter.postgresql");
@@ -137,35 +166,6 @@ public class PostgresqlModule
         return "Postgresql deployment type module";
     }
 
-    public synchronized static Module getAsyncClientModule(JDBCConfig config) {
-        JDBCConfig asyncClientConfig;
-        try {
-            final String url = config.getUrl();
-
-            asyncClientConfig = new JDBCConfig()
-                    .setPassword(config.getPassword())
-                    .setTable(config.getTable())
-                    .setMaxConnection(4)
-                    .setConnectionMaxLifeTime(0L)
-                    .setConnectionIdleTimeout(0L)
-                    .setConnectionDisablePool(config.getConnectionDisablePool())
-                    .setUrl("jdbc:pgsql" + url.substring("jdbc:postgresql".length()))
-                    .setUsername(config.getUsername());
-        } catch (URISyntaxException e) {
-            throw new RuntimeException(e);
-        }
-
-        return new AbstractConfigurationAwareModule() {
-            @Override
-            protected void setup(Binder binder) {
-                binder.bind(JDBCPoolDataSource.class)
-                        .annotatedWith(Names.named("async-postgresql"))
-                        .toProvider(new JDBCPoolDataSourceProvider(asyncClientConfig))
-                        .in(Scopes.SINGLETON);
-            }
-        };
-    }
-
     private static class JDBCPoolDataSourceProvider
             implements Provider<JDBCPoolDataSource> {
         private final JDBCConfig asyncClientConfig;
@@ -181,10 +181,6 @@ public class PostgresqlModule
     }
 
     public static class PostgresqlVersion {
-        public enum Version {
-            OLD, PG_MIN_9_5, PG10
-        }
-
         private Version version;
 
         @Inject
@@ -211,12 +207,19 @@ public class PostgresqlModule
         public Version getVersion() {
             return version;
         }
+
+        public enum Version {
+            OLD, PG_MIN_9_5, PG10
+        }
     }
 
     private static class CollectionFieldIndexerListener {
         private final PostgresqlQueryExecutor executor;
         private final ProjectConfig projectConfig;
         boolean postgresql9_5;
+        private Set<FieldType> brinSupportedTypes = ImmutableSet.of(FieldType.DATE, FieldType.DECIMAL,
+                FieldType.DOUBLE, FieldType.INTEGER, FieldType.LONG,
+                FieldType.STRING, FieldType.TIMESTAMP, FieldType.TIME);
 
         @Inject
         public CollectionFieldIndexerListener(ProjectConfig projectConfig, PostgresqlQueryExecutor executor, PostgresqlVersion version) {
@@ -254,10 +257,6 @@ public class PostgresqlModule
                 }
             }
         }
-
-        private Set<FieldType> brinSupportedTypes = ImmutableSet.of(FieldType.DATE, FieldType.DECIMAL,
-                FieldType.DOUBLE, FieldType.INTEGER, FieldType.LONG,
-                FieldType.STRING, FieldType.TIMESTAMP, FieldType.TIME);
     }
 
     public static class UserMergeTableHook {

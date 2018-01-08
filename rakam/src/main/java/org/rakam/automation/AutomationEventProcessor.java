@@ -26,18 +26,9 @@ import java.util.function.Supplier;
 
 @Singleton
 @Mapper(name = "Automation Event Processor", description = "Processes automation rules and take action if the user is completed the steps")
-public class AutomationEventProcessor implements SyncEventMapper
-{
+public class AutomationEventProcessor implements SyncEventMapper {
     private static final String PROPERTY_KEY = "_auto";
     private static final String PROPERTY_ACTION_KEY = "_auto_action";
-
-    private final Provider<UserStorage> userStorageProvider;
-    private final Provider<UserAutomationService> serviceProvider;
-
-    private UserAutomationService service;
-    private UserStorage userStorage;
-    private final EncryptionConfig encryptionConfig;
-
     private static final List<Cookie> clearData;
 
     static {
@@ -45,6 +36,12 @@ public class AutomationEventProcessor implements SyncEventMapper
         defaultCookie.setMaxAge(0);
         clearData = ImmutableList.of(defaultCookie);
     }
+
+    private final Provider<UserStorage> userStorageProvider;
+    private final Provider<UserAutomationService> serviceProvider;
+    private final EncryptionConfig encryptionConfig;
+    private UserAutomationService service;
+    private UserStorage userStorage;
 
     @Inject
     public AutomationEventProcessor(
@@ -57,8 +54,7 @@ public class AutomationEventProcessor implements SyncEventMapper
     }
 
     @Override
-    public void init()
-    {
+    public void init() {
         this.userStorage = userStorageProvider.get();
         this.service = serviceProvider.get();
     }

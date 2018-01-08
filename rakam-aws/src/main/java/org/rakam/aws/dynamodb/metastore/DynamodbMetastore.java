@@ -1,25 +1,7 @@
 package org.rakam.aws.dynamodb.metastore;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
-import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.amazonaws.services.dynamodbv2.model.Condition;
-import com.amazonaws.services.dynamodbv2.model.ConditionalCheckFailedException;
-import com.amazonaws.services.dynamodbv2.model.CreateTableRequest;
-import com.amazonaws.services.dynamodbv2.model.DeleteItemRequest;
-import com.amazonaws.services.dynamodbv2.model.DescribeTableResult;
-import com.amazonaws.services.dynamodbv2.model.ExpectedAttributeValue;
-import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
-import com.amazonaws.services.dynamodbv2.model.KeyType;
-import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
-import com.amazonaws.services.dynamodbv2.model.PutItemRequest;
-import com.amazonaws.services.dynamodbv2.model.QueryRequest;
-import com.amazonaws.services.dynamodbv2.model.QueryResult;
-import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
-import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
-import com.amazonaws.services.dynamodbv2.model.ScanRequest;
-import com.amazonaws.services.dynamodbv2.model.StreamSpecification;
-import com.amazonaws.services.dynamodbv2.model.StreamViewType;
+import com.amazonaws.services.dynamodbv2.model.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -37,23 +19,15 @@ import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
 import javax.annotation.PostConstruct;
-
 import java.time.LocalDate;
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.services.dynamodbv2.model.ComparisonOperator.EQ;
 
 public class DynamodbMetastore
-        extends AbstractMetastore
-{
+        extends AbstractMetastore {
     private static final List<KeySchemaElement> PROJECT_KEYSCHEMA = ImmutableList.of(
             new KeySchemaElement().withKeyType(KeyType.HASH).withAttributeName("project"),
             new KeySchemaElement().withKeyType(KeyType.RANGE).withAttributeName("id")
@@ -66,8 +40,7 @@ public class DynamodbMetastore
     private final DynamodbMetastoreConfig tableConfig;
 
     @Inject
-    public DynamodbMetastore(AWSConfig config, DynamodbMetastoreConfig tableConfig, FieldDependencyBuilder.FieldDependency fieldDependency, EventBus eventBus)
-    {
+    public DynamodbMetastore(AWSConfig config, DynamodbMetastoreConfig tableConfig, FieldDependencyBuilder.FieldDependency fieldDependency, EventBus eventBus) {
         super(eventBus);
         dynamoDBClient = new AmazonDynamoDBClient(config.getCredentials());
         dynamoDBClient.setRegion(config.getAWSRegion());
@@ -79,8 +52,7 @@ public class DynamodbMetastore
     }
 
     @PostConstruct
-    public void setup()
-    {
+    public void setup() {
         try {
             DescribeTableResult table = dynamoDBClient.describeTable(tableConfig.getTableName());
 
@@ -91,14 +63,12 @@ public class DynamodbMetastore
             if (!ImmutableSet.copyOf(table.getTable().getAttributeDefinitions()).equals(ATTRIBUTES)) {
                 throw new IllegalStateException("Dynamodb table for query metadata store has invalid attribute schema");
             }
-        }
-        catch (ResourceNotFoundException e) {
+        } catch (ResourceNotFoundException e) {
             createTable();
         }
     }
 
-    private void createTable()
-    {
+    private void createTable() {
         dynamoDBClient.createTable(new CreateTableRequest()
                 .withTableName(tableConfig.getTableName()).withKeySchema(PROJECT_KEYSCHEMA)
                 .withAttributeDefinitions(ATTRIBUTES)
@@ -109,8 +79,7 @@ public class DynamodbMetastore
     }
 
     @Override
-    public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> newFields)
-    {
+    public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> newFields) {
         ValidationUtil.checkCollectionValid(collection);
 
         List<SchemaField> fields = getCollection(project, collection);
@@ -137,8 +106,7 @@ public class DynamodbMetastore
                                 .put("type", new AttributeValue(newField.getType().name())).build())
                 );
                 fields.add(newField);
-            }
-            catch (ConditionalCheckFailedException e) {
+            } catch (ConditionalCheckFailedException e) {
                 boolean isDone = false;
                 for (int i1 = 0; i1 < 5000; i1++) {
                     rangeKey = collection + "|" + String.format("%06d", (fields.size() + i++));
@@ -153,8 +121,7 @@ public class DynamodbMetastore
                                         .put("collection", new AttributeValue(collection)).put("name", new AttributeValue(newField.getName()))
                                         .put("type", new AttributeValue(newField.getType().name())).build())
                         );
-                    }
-                    catch (ConditionalCheckFailedException e1) {
+                    } catch (ConditionalCheckFailedException e1) {
                         continue;
                     }
 
@@ -173,8 +140,7 @@ public class DynamodbMetastore
     }
 
     @Override
-    public Map<String, List<SchemaField>> getCollections(String project)
-    {
+    public Map<String, List<SchemaField>> getCollections(String project) {
         QueryResult query = dynamoDBClient.query(new QueryRequest()
                 .withTableName(tableConfig.getTableName())
                 .withKeyConditions(ImmutableMap.of("project", new Condition()
@@ -196,14 +162,12 @@ public class DynamodbMetastore
     }
 
     @Override
-    public Set<String> getCollectionNames(String project)
-    {
+    public Set<String> getCollectionNames(String project) {
         return getCollections(project).keySet();
     }
 
     @Override
-    public void createProject(String project)
-    {
+    public void createProject(String project) {
         try {
             dynamoDBClient.putItem(new PutItemRequest()
                     .withTableName(tableConfig.getTableName())
@@ -212,15 +176,13 @@ public class DynamodbMetastore
                             .put("project", new AttributeValue(project))
                             .put("id", new AttributeValue("|")).build()
                     ));
-        }
-        catch (ConditionalCheckFailedException e) {
+        } catch (ConditionalCheckFailedException e) {
             throw new AlreadyExistsException("Project", HttpResponseStatus.BAD_REQUEST);
         }
     }
 
     @Override
-    public Set<String> getProjects()
-    {
+    public Set<String> getProjects() {
         return dynamoDBClient.scan(new ScanRequest().withTableName(tableConfig.getTableName())
                 .withAttributesToGet("project")).getItems().stream()
                 .map(e -> e.get("project").getS())
@@ -228,8 +190,7 @@ public class DynamodbMetastore
     }
 
     @Override
-    public List<SchemaField> getCollection(String project, String collection)
-    {
+    public List<SchemaField> getCollection(String project, String collection) {
         QueryResult query = dynamoDBClient.query(new QueryRequest()
                 .withTableName(tableConfig.getTableName())
                 .withKeyConditions(ImmutableMap.of("project", new Condition().withComparisonOperator(EQ).withAttributeValueList(new AttributeValue(project))))
@@ -246,8 +207,7 @@ public class DynamodbMetastore
     }
 
     @Override
-    public void deleteProject(String project)
-    {
+    public void deleteProject(String project) {
         dynamoDBClient.deleteItem(new DeleteItemRequest()
                 .withTableName(tableConfig.getTableName())
                 .withKey(
@@ -282,8 +242,7 @@ public class DynamodbMetastore
     }
 
     @VisibleForTesting
-    public void deleteTable()
-    {
+    public void deleteTable() {
         dynamoDBClient.deleteTable(tableConfig.getTableName());
     }
 }

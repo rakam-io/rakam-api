@@ -69,30 +69,28 @@ import static java.util.Locale.US;
 @Path("/ui/scheduled-email")
 @IgnoreApi
 public class ScheduledEmailService
-        extends HttpService
-{
+        extends HttpService {
     private final static Logger LOGGER = Logger.get(ScheduledEmailService.class);
-
-    private final DBI dbi;
-    private final ScheduledExecutorService scheduler;
-    private final LockService lockService;
-    private final MailSender mailSender;
     private static final Mustache template;
-    private final ListeningExecutorService executorService;
-    private final WebUserHttpService webUserHttpService;
-    private final URL screenCaptureService;
-    private final String siteHost;
 
     static {
         MustacheFactory mf = new DefaultMustacheFactory();
         try {
             template = mf.compile(new StringReader(Resources.toString(
                     WebUserService.class.getResource("/mail/splash_screen_capture.lua"), Charsets.UTF_8)), "screen_capture.lua");
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             throw Throwables.propagate(e);
         }
     }
+
+    private final DBI dbi;
+    private final ScheduledExecutorService scheduler;
+    private final LockService lockService;
+    private final MailSender mailSender;
+    private final ListeningExecutorService executorService;
+    private final WebUserHttpService webUserHttpService;
+    private final URL screenCaptureService;
+    private final String siteHost;
 
     @Inject
     public ScheduledEmailService(
@@ -100,8 +98,7 @@ public class ScheduledEmailService
             LockService lockService,
             WebUserHttpService webUserHttpService,
             RakamUIConfig rakamUIConfig,
-            EmailClientConfig emailConfig)
-    {
+            EmailClientConfig emailConfig) {
         dbi = new DBI(dataSource);
         this.lockService = lockService;
         this.webUserHttpService = webUserHttpService;
@@ -123,8 +120,7 @@ public class ScheduledEmailService
     }
 
     @PostConstruct
-    public void schedule()
-    {
+    public void schedule() {
         long initialDelay = millisToNextHour();
 
         LOGGER.info("Scheduled to run email summary tasks, the first task will run in %d minutes.", initialDelay);
@@ -132,21 +128,18 @@ public class ScheduledEmailService
         scheduler.scheduleAtFixedRate(() -> {
             try {
                 perform();
-            }
-            catch (Throwable e) {
+            } catch (Throwable e) {
                 LOGGER.error(e);
             }
         }, initialDelay, 60, TimeUnit.MINUTES);
     }
 
-    private long millisToNextHour()
-    {
+    private long millisToNextHour() {
         LocalDateTime nextHour = LocalDateTime.now().plusHours(1).truncatedTo(ChronoUnit.HOURS);
         return LocalDateTime.now().until(nextHour, ChronoUnit.MINUTES);
     }
 
-    private void perform()
-    {
+    private void perform() {
         List<ScheduledEmailTask> tasks;
         try (Handle handle = dbi.open()) {
             tasks = list(handle, "enabled and (last_executed_at is null or (last_executed_at < now() AT TIME ZONE 'UTC' and ((CASE WHEN date_interval LIKE 'day.%' THEN\n" +
@@ -184,30 +177,25 @@ public class ScheduledEmailService
 
                 long now = Instant.now().toEpochMilli();
 
-                send(task, new FutureCallback<Void>()
-                {
+                send(task, new FutureCallback<Void>() {
                     @Override
-                    public void onSuccess(@Nullable Void result)
-                    {
+                    public void onSuccess(@Nullable Void result) {
                         updateTask(task.id, lock, now, null);
                     }
 
                     @Override
-                    public void onFailure(Throwable t)
-                    {
+                    public void onFailure(Throwable t) {
                         updateTask(task.id, lock, now, t);
                     }
                 });
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 LOGGER.error(e);
             }
         }
     }
 
     private void send(ScheduledEmailTask task, FutureCallback<Void> callback)
-            throws MessagingException, UnsupportedEncodingException
-    {
+            throws MessagingException, UnsupportedEncodingException {
         MimeBodyPart screenPart = new MimeBodyPart();
         String imageId = UUID.randomUUID().toString() + "@" +
                 UUID.randomUUID().toString() + ".mail";
@@ -240,8 +228,7 @@ public class ScheduledEmailService
                 byte[] bytes;
                 if (conn.getResponseCode() == 200) {
                     bytes = ByteStreams.toByteArray(conn.getInputStream());
-                }
-                else {
+                } else {
                     bytes = ByteStreams.toByteArray(conn.getErrorStream());
                     throw new RuntimeException("Error while sending scheduled e-mail",
                             new RuntimeException("Id: " + task.id + " -> " + new String(bytes)));
@@ -265,8 +252,7 @@ public class ScheduledEmailService
                                 " <div style=\"color: white;\">Inline dashboard</div> <!-- This div allows the screenshot to be resized in android gmail, and shows as preview text. -->"),
                         Stream.of(screenPart));
                 return null;
-            }
-            catch (IOException | MessagingException e) {
+            } catch (IOException | MessagingException e) {
                 throw Throwables.propagate(e);
             }
         });
@@ -274,18 +260,15 @@ public class ScheduledEmailService
         Futures.addCallback(run, callback);
     }
 
-    private void updateTask(int id, LockService.Lock lock, long now, Throwable ex)
-    {
+    private void updateTask(int id, LockService.Lock lock, long now, Throwable ex) {
         if (ex == null) {
             try (Handle handle = dbi.open()) {
                 handle.createStatement("UPDATE scheduled_email SET last_executed_at = now() at time zone 'utc' WHERE id = :id")
                         .bind("id", id).execute();
-            }
-            finally {
+            } finally {
                 lock.release();
             }
-        }
-        else {
+        } else {
             lock.release();
         }
 
@@ -295,8 +278,7 @@ public class ScheduledEmailService
         }
     }
 
-    private String getDayOfMonthSuffix(final int n)
-    {
+    private String getDayOfMonthSuffix(final int n) {
         if (n >= 11 && n <= 13) {
             return "th";
         }
@@ -323,8 +305,7 @@ public class ScheduledEmailService
             @ApiParam("hour_of_day") int hour_of_day,
             @ApiParam("type") TaskType type,
             @ApiParam("type_id") int type_id,
-            @ApiParam("emails") List<String> emails)
-    {
+            @ApiParam("emails") List<String> emails) {
         try (Handle handle = dbi.open()) {
             int id = handle.createQuery("INSERT INTO scheduled_email (project_id, user_id, date_interval, hour_of_day, name, type, type_id, emails, enabled) " +
                     "VALUES (:project, :user_id, :date_interval, :hour_of_day, :name, :type, :type_id, :emails, true) RETURNING id")
@@ -342,8 +323,7 @@ public class ScheduledEmailService
                     id, name, date_interval,
                     hour_of_day, type, type_id, emails,
                     true, null, project.userId, project.project);
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
     }
@@ -353,8 +333,7 @@ public class ScheduledEmailService
     @Path("/test")
     public CompletableFuture<SuccessMessage> test(
             @Named("user_id") UIPermissionParameterProvider.Project project,
-            @ApiParam("id") int id)
-    {
+            @ApiParam("id") int id) {
         ScheduledEmailTask task;
         String email;
         try (Handle handle = dbi.open()) {
@@ -370,22 +349,18 @@ public class ScheduledEmailService
 
         try {
             task.emails = ImmutableList.of(email);
-            send(task, new FutureCallback<Void>()
-            {
+            send(task, new FutureCallback<Void>() {
                 @Override
-                public void onSuccess(@Nullable Void result)
-                {
+                public void onSuccess(@Nullable Void result) {
                     success.complete(SuccessMessage.success());
                 }
 
                 @Override
-                public void onFailure(Throwable t)
-                {
+                public void onFailure(Throwable t) {
                     success.completeExceptionally(t);
                 }
             });
-        }
-        catch (MessagingException | UnsupportedEncodingException e) {
+        } catch (MessagingException | UnsupportedEncodingException e) {
             throw Throwables.propagate(e);
         }
 
@@ -405,8 +380,7 @@ public class ScheduledEmailService
             @ApiParam(value = "type", required = false) TaskType type,
             @ApiParam(value = "type_id", required = false) Integer type_id,
             @ApiParam(value = "enabled", required = false) Boolean enabled,
-            @ApiParam(value = "emails", required = false) List<String> emails)
-    {
+            @ApiParam(value = "emails", required = false) List<String> emails) {
         try (Handle handle = dbi.open()) {
             ArrayList<String> objects = new ArrayList<>();
 
@@ -464,8 +438,7 @@ public class ScheduledEmailService
             bind.execute();
 
             return SuccessMessage.success();
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
     }
@@ -473,8 +446,7 @@ public class ScheduledEmailService
     @JsonRequest
     @ApiOperation(value = "Create dashboard")
     @Path("/delete")
-    public SuccessMessage delete(@Named("user_id") UIPermissionParameterProvider.Project project, @ApiParam("id") int id)
-    {
+    public SuccessMessage delete(@Named("user_id") UIPermissionParameterProvider.Project project, @ApiParam("id") int id) {
         try (Handle handle = dbi.open()) {
             int count = handle.createStatement("DELETE FROM scheduled_email " +
                     "WHERE id = :id AND project_id = :project and user_id = :user")
@@ -493,16 +465,14 @@ public class ScheduledEmailService
     @JsonRequest
     @ApiOperation(value = "Create dashboard")
     @Path("/list")
-    public List<ScheduledEmailTask> list(@Named("user_id") UIPermissionParameterProvider.Project project)
-    {
+    public List<ScheduledEmailTask> list(@Named("user_id") UIPermissionParameterProvider.Project project) {
         try (Handle handle = dbi.open()) {
             return list(handle, "project_id = :project and user_id = :user",
                     query -> query.bind("project", project.project).bind("user", project.userId));
         }
     }
 
-    private List<ScheduledEmailTask> list(Handle handle, String predicate, Consumer<Query> queryConsumer)
-    {
+    private List<ScheduledEmailTask> list(Handle handle, String predicate, Consumer<Query> queryConsumer) {
         Query<Map<String, Object>> query = handle.createQuery("SELECT id, name, date_interval, hour_of_day, type, type_id, emails, enabled, last_executed_at, user_id, project_id " +
                 "FROM scheduled_email WHERE " + predicate);
         queryConsumer.accept(query);
@@ -519,19 +489,18 @@ public class ScheduledEmailService
                 }).list();
     }
 
-    public static class ScheduledEmailTask
-    {
+    public static class ScheduledEmailTask {
         public final int id;
         public final String name;
         public final String date_interval;
         public final int hour_of_day;
         public final TaskType type;
         public final int type_id;
-        public List<String> emails;
         public final boolean enabled;
         public final Instant last_executed_at;
         public final int user_id;
         public final int project_id;
+        public List<String> emails;
 
         @JsonCreator
         public ScheduledEmailTask(
@@ -545,8 +514,7 @@ public class ScheduledEmailService
                 @ApiParam("enabled") boolean enabled,
                 @ApiParam("last_executed_at") Instant last_executed_at,
                 @ApiParam("user_id") int user_id,
-                @ApiParam("project_id") int project_id)
-        {
+                @ApiParam("project_id") int project_id) {
             this.id = id;
             this.name = name;
             this.date_interval = dateInterval;
@@ -560,19 +528,16 @@ public class ScheduledEmailService
             this.project_id = project_id;
         }
 
-        public enum TaskType
-        {
+        public enum TaskType {
             DASHBOARD;
 
             @JsonCreator
-            public static TaskType get(String name)
-            {
+            public static TaskType get(String name) {
                 return valueOf(name.toUpperCase());
             }
 
             @JsonProperty
-            public String value()
-            {
+            public String value() {
                 return name();
             }
         }

@@ -1,9 +1,29 @@
 //@ sourceURL=rakam-ui/src/main/resources/scheduled-task/adwords/script.js
-var parseCSV=function(r){for(var n,e,f,i=function(r,n,e){return e},o=r.split(""),t=0,l=o.length,s=[];l>t;){for(s.push(f=[]);l>t&&"\r"!==o[t]&&"\n"!==o[t];){if(n=e=t,'"'===o[t]){for(n=e=++t;l>t;){if('"'===o[t]){if('"'!==o[t+1])break;o[++t]=""}e=++t}for('"'===o[t]&&++t;l>t&&"\r"!==o[t]&&"\n"!==o[t]&&","!==o[t];)++t}else for(;l>t&&"\r"!==o[t]&&"\n"!==o[t]&&","!==o[t];)e=++t;f.push(i(s.length-1,f.length,o.slice(n,e).join(""))),","===o[t]&&++t}"\r"===o[t]&&++t,"\n"===o[t]&&++t}return s};
+var parseCSV = function (r) {
+    for (var n, e, f, i = function (r, n, e) {
+        return e
+    }, o = r.split(""), t = 0, l = o.length, s = []; l > t;) {
+        for (s.push(f = []); l > t && "\r" !== o[t] && "\n" !== o[t];) {
+            if (n = e = t, '"' === o[t]) {
+                for (n = e = ++t; l > t;) {
+                    if ('"' === o[t]) {
+                        if ('"' !== o[t + 1]) break;
+                        o[++t] = ""
+                    }
+                    e = ++t
+                }
+                for ('"' === o[t] && ++t; l > t && "\r" !== o[t] && "\n" !== o[t] && "," !== o[t];) ++t
+            } else for (; l > t && "\r" !== o[t] && "\n" !== o[t] && "," !== o[t];) e = ++t;
+            f.push(i(s.length - 1, f.length, o.slice(n, e).join(""))), "," === o[t] && ++t
+        }
+        "\r" === o[t] && ++t, "\n" === o[t] && ++t
+    }
+    return s
+};
 
 var doubleValues = ["impressions", "clicks", "engagements", "conversions", "all conv.", "interactions", "views", "average position", "avg. position", "all conv."];
 var percentageValues = ['% new sessions', 'search lost is (rank)', 'content lost is (rank)', 'search impr. share', 'content impr. share',
-                        'video played to 25%', 'video played to 50%', 'video played to 75%', 'video played to 100%'];
+    'video played to 25%', 'video played to 50%', 'video played to 75%', 'video played to 100%'];
 var moneyValues = ["cost", "avg. cost", "avg. cpm"];
 
 var valueMapper = {};
@@ -11,7 +31,7 @@ doubleValues.forEach(function (key) {
     valueMapper[key] = parseFloat;
 });
 moneyValues.forEach(function (key) {
-    valueMapper[key] = function(value) {
+    valueMapper[key] = function (value) {
         return parseFloat(value) / 1000000;
     };
 });
@@ -75,7 +95,7 @@ var fetch = function (parameters, events, index, startDate, endDate) {
     }
 
     var data = parseCSV(response.getResponseBody());
-    var columns = data[1].map(function(col) {
+    var columns = data[1].map(function (col) {
         return col.toLowerCase();
     });
 
@@ -86,7 +106,7 @@ var fetch = function (parameters, events, index, startDate, endDate) {
         var properties = {};
         for (var c = 0; c < columns.length; c++) {
             var value = row[c];
-            if(value === null) {
+            if (value === null) {
                 continue;
             }
             // http://googleadsdeveloper.blogspot.com.tr/2016/03/announcing-v201603-of-adwords-api.html

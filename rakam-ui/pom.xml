@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
     <parent>
         <artifactId>rakam-root</artifactId>
@@ -330,7 +331,9 @@
                             <execution>
                                 <id>clean-jar-artifacts</id>
                                 <phase>install</phase>
-                                <goals><goal>clean</goal></goals>
+                                <goals>
+                                    <goal>clean</goal>
+                                </goals>
                                 <configuration>
                                     <filesets>
                                         <fileset>
@@ -371,11 +374,13 @@
                                 <failOnWarning>true</failOnWarning>
 
                                 <ignoredUnusedDeclaredDependencies>
-                                    <ignoredUnusedDeclaredDependency>org.glassfish.jersey.core:jersey-common</ignoredUnusedDeclaredDependency>
+                                    <ignoredUnusedDeclaredDependency>org.glassfish.jersey.core:jersey-common
+                                    </ignoredUnusedDeclaredDependency>
                                 </ignoredUnusedDeclaredDependencies>
 
                                 <ignoredUsedUndeclaredDependencies>
-                                    <ignoredUsedUndeclaredDependency>io.netty:netty-handler</ignoredUsedUndeclaredDependency>
+                                    <ignoredUsedUndeclaredDependency>io.netty:netty-handler
+                                    </ignoredUsedUndeclaredDependency>
                                 </ignoredUsedUndeclaredDependencies>
                             </configuration>
                         </execution>

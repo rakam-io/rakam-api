@@ -35,20 +35,18 @@ import static org.rakam.util.ValidationUtil.checkNotNull;
 
 @Singleton
 public class RealtimeEventProcessor
-        implements EventMapper
-{
+        implements EventMapper {
     private final Map<RealtimeTable, Map<Integer, Map<List<Object>, List<AbstractMetric>>>> tables;
     private final RealTimeConfig config;
-    private ScheduledExecutorService scheduledExecutor;
-    private ExecutorService executorService;
     private final LoadingCache<String, List<RealTimeReport>> reports;
     private final RealtimeMetadataService metadata;
     private final long sliceIntervalInMillis;
     private final int sliceIntervalInSeconds;
+    private ScheduledExecutorService scheduledExecutor;
+    private ExecutorService executorService;
 
     @Inject
-    public RealtimeEventProcessor(RealTimeConfig config, RealtimeMetadataService metadata)
-    {
+    public RealtimeEventProcessor(RealTimeConfig config, RealtimeMetadataService metadata) {
         this.tables = new ConcurrentHashMap<>();
         this.config = config;
         this.metadata = metadata;
@@ -56,20 +54,17 @@ public class RealtimeEventProcessor
         sliceIntervalInSeconds = (int) config.getSlideInterval().getValue(SECONDS);
         reports = CacheBuilder.newBuilder()
                 .expireAfterAccess(15, MINUTES)
-                .build(new CacheLoader<String, List<RealTimeReport>>()
-                {
+                .build(new CacheLoader<String, List<RealTimeReport>>() {
                     @Override
                     public List<RealTimeReport> load(String project)
-                            throws Exception
-                    {
+                            throws Exception {
                         return metadata.list(project);
                     }
                 });
     }
 
     @PostConstruct
-    public void start()
-    {
+    public void start() {
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
         executorService = Executors.newSingleThreadExecutor();
         scheduledExecutor.scheduleWithFixedDelay(this::expire,
@@ -77,8 +72,7 @@ public class RealtimeEventProcessor
                 config.getSlideInterval().toMillis(), MILLISECONDS);
     }
 
-    private void expire()
-    {
+    private void expire() {
         long expiredEpoch = (Instant.now().toEpochMilli() - config.getWindowInterval().toMillis()) / config.getSlideInterval().toMillis();
         for (Map.Entry<RealtimeTable, Map<Integer, Map<List<Object>, List<AbstractMetric>>>> entry : tables.entrySet()) {
             Iterator<Map.Entry<Integer, Map<List<Object>, List<AbstractMetric>>>> iterator = entry.getValue().entrySet().iterator();
@@ -92,14 +86,13 @@ public class RealtimeEventProcessor
     }
 
     public CompletableFuture<RealTimeQueryResult> query(String project,
-            String tableName,
-            String filter,
-            RealTimeReport.Measure measure,
-            List<String> dimensions,
-            Boolean aggregate,
-            Instant dateStart,
-            Instant dateEnd)
-    {
+                                                        String tableName,
+                                                        String filter,
+                                                        RealTimeReport.Measure measure,
+                                                        List<String> dimensions,
+                                                        Boolean aggregate,
+                                                        Instant dateStart,
+                                                        Instant dateEnd) {
         if (filter != null) {
             throw new RakamException("Filter in real-table query is not supported.", NOT_IMPLEMENTED);
         }
@@ -108,8 +101,7 @@ public class RealtimeEventProcessor
         Object result;
         if (map == null || map.isEmpty()) {
             result = aggregate && dimensions.isEmpty() ? null : ImmutableList.of();
-        }
-        else {
+        } else {
             RealTimeReport realTimeReport = metadata.get(project, tableName);
             List<String> dimensionList = realTimeReport.dimensions;
             int measureIndex = realTimeReport.measures.indexOf(measure);
@@ -155,8 +147,7 @@ public class RealtimeEventProcessor
                     if (o == null) {
                         o = metric;
                         dimensionMap.put(objects, o);
-                    }
-                    else {
+                    } else {
                         o.merge(metric);
                     }
                 }
@@ -178,8 +169,7 @@ public class RealtimeEventProcessor
     }
 
     @Override
-    public CompletableFuture<List<Cookie>> mapAsync(Event event, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders)
-    {
+    public CompletableFuture<List<Cookie>> mapAsync(Event event, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 List<RealTimeReport> realTimeReports = reports.getUnchecked(event.project());
@@ -230,16 +220,14 @@ public class RealtimeEventProcessor
                         metric.apply(event.properties());
                     }
                 }
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
             return null;
         }, executorService);
     }
 
-    private AbstractMetric createMetric(RealTimeReport.Measure e)
-    {
+    private AbstractMetric createMetric(RealTimeReport.Measure e) {
         if (e.aggregation == AggregationType.SUM) {
             return new SumMetric(e.column);
         }
@@ -267,12 +255,10 @@ public class RealtimeEventProcessor
         throw new IllegalStateException("Aggregation method is not supported");
     }
 
-    public static abstract class AbstractMetric<T>
-    {
+    public static abstract class AbstractMetric<T> {
         protected final String fieldName;
 
-        public AbstractMetric(String fieldName)
-        {
+        public AbstractMetric(String fieldName) {
             this.fieldName = fieldName;
         }
 
@@ -286,33 +272,28 @@ public class RealtimeEventProcessor
     }
 
     public static class SumMetric
-            extends AbstractMetric<SumMetric>
-    {
+            extends AbstractMetric<SumMetric> {
 
         private double value;
 
-        public SumMetric(String fieldName)
-        {
+        public SumMetric(String fieldName) {
             super(fieldName);
         }
 
         @Override
-        public Number value()
-        {
+        public Number value() {
             return value;
         }
 
         @Override
-        public SumMetric copy()
-        {
+        public SumMetric copy() {
             SumMetric sumMetric = new SumMetric(fieldName);
             sumMetric.value = value;
             return sumMetric;
         }
 
         @Override
-        public void apply(GenericRecord record)
-        {
+        public void apply(GenericRecord record) {
             Object o = record.get(fieldName);
             if (o instanceof Number) {
                 synchronized (this) {
@@ -322,40 +303,34 @@ public class RealtimeEventProcessor
         }
 
         @Override
-        public void merge(SumMetric metric)
-        {
+        public void merge(SumMetric metric) {
             value += metric.value;
         }
     }
 
     public static class CountMetric
-            extends AbstractMetric<CountMetric>
-    {
+            extends AbstractMetric<CountMetric> {
 
         private double value;
 
-        public CountMetric(String fieldName)
-        {
+        public CountMetric(String fieldName) {
             super(fieldName);
         }
 
         @Override
-        public Number value()
-        {
+        public Number value() {
             return value;
         }
 
         @Override
-        public CountMetric copy()
-        {
+        public CountMetric copy() {
             CountMetric countMetric = new CountMetric(fieldName);
             countMetric.value += value;
             return countMetric;
         }
 
         @Override
-        public void apply(GenericRecord record)
-        {
+        public void apply(GenericRecord record) {
             Object o = record.get(fieldName);
             if (o != null) {
                 synchronized (this) {
@@ -365,32 +340,27 @@ public class RealtimeEventProcessor
         }
 
         @Override
-        public void merge(CountMetric metric)
-        {
+        public void merge(CountMetric metric) {
             value += metric.value;
         }
     }
 
     public static class AverageMetric
-            extends AbstractMetric<AverageMetric>
-    {
+            extends AbstractMetric<AverageMetric> {
         private long sum;
         private long count;
 
-        public AverageMetric(String fieldName)
-        {
+        public AverageMetric(String fieldName) {
             super(fieldName);
         }
 
         @Override
-        public Number value()
-        {
+        public Number value() {
             return sum / (double) count;
         }
 
         @Override
-        public AverageMetric copy()
-        {
+        public AverageMetric copy() {
             AverageMetric averageMetric = new AverageMetric(fieldName);
             averageMetric.count = count;
             averageMetric.sum = sum;
@@ -398,8 +368,7 @@ public class RealtimeEventProcessor
         }
 
         @Override
-        public void apply(GenericRecord record)
-        {
+        public void apply(GenericRecord record) {
             Object o = record.get(fieldName);
             if (o instanceof Number) {
                 synchronized (this) {
@@ -410,41 +379,35 @@ public class RealtimeEventProcessor
         }
 
         @Override
-        public void merge(AverageMetric metric)
-        {
+        public void merge(AverageMetric metric) {
             sum += metric.sum;
             count += metric.count;
         }
     }
 
     public static class UniqueCountMetric
-            extends AbstractMetric<UniqueCountMetric>
-    {
+            extends AbstractMetric<UniqueCountMetric> {
         private Set<Object> set;
 
-        public UniqueCountMetric(String fieldName)
-        {
+        public UniqueCountMetric(String fieldName) {
             super(fieldName);
             set = new HashSet<>();
         }
 
         @Override
-        public Number value()
-        {
+        public Number value() {
             return set.size();
         }
 
         @Override
-        public UniqueCountMetric copy()
-        {
+        public UniqueCountMetric copy() {
             UniqueCountMetric uniqueCountMetric = new UniqueCountMetric(fieldName);
             uniqueCountMetric.set = set;
             return uniqueCountMetric;
         }
 
         @Override
-        public void apply(GenericRecord record)
-        {
+        public void apply(GenericRecord record) {
             Object o = record.get(fieldName);
             if (o != null) {
                 synchronized (this) {
@@ -454,42 +417,36 @@ public class RealtimeEventProcessor
         }
 
         @Override
-        public void merge(UniqueCountMetric metric)
-        {
+        public void merge(UniqueCountMetric metric) {
             metric.set.addAll(metric.set);
         }
     }
 
     public static class MaximumMinimumMetric
-            extends AbstractMetric<MaximumMinimumMetric>
-    {
+            extends AbstractMetric<MaximumMinimumMetric> {
 
         private final boolean maximum;
         private Number value;
 
-        public MaximumMinimumMetric(String fieldName, boolean maximum)
-        {
+        public MaximumMinimumMetric(String fieldName, boolean maximum) {
             super(fieldName);
             this.maximum = maximum;
         }
 
         @Override
-        public Number value()
-        {
+        public Number value() {
             return value;
         }
 
         @Override
-        public MaximumMinimumMetric copy()
-        {
+        public MaximumMinimumMetric copy() {
             MaximumMinimumMetric maximumMinimumMetric = new MaximumMinimumMetric(fieldName, maximum);
             maximumMinimumMetric.value = value;
             return maximumMinimumMetric;
         }
 
         @Override
-        public void apply(GenericRecord record)
-        {
+        public void apply(GenericRecord record) {
             Object o = record.get(fieldName);
             if (o instanceof Number && pass(((Number) o).doubleValue())) {
                 synchronized (this) {
@@ -499,15 +456,13 @@ public class RealtimeEventProcessor
         }
 
         @Override
-        public void merge(MaximumMinimumMetric metric)
-        {
+        public void merge(MaximumMinimumMetric metric) {
             if (pass(metric.value.doubleValue())) {
                 value = metric.value;
             }
         }
 
-        private boolean pass(double value)
-        {
+        private boolean pass(double value) {
             if (this.value == null) {
                 return true;
             }
@@ -515,20 +470,44 @@ public class RealtimeEventProcessor
         }
     }
 
-    public class RealtimeTable
-    {
+    public static class DummyMetric
+            extends AbstractMetric {
+        public DummyMetric() {
+            super(null);
+        }
+
+        @Override
+        public Number value() {
+            return 0;
+        }
+
+        @Override
+        public Object copy() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void apply(GenericRecord record) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void merge(Object metric) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    public class RealtimeTable {
         public final String project;
         public final String tableName;
 
-        public RealtimeTable(String project, String tableName)
-        {
+        public RealtimeTable(String project, String tableName) {
             this.project = checkNotNull(project, "project is null");
             this.tableName = checkNotNull(tableName, "tableName is null");
         }
 
         @Override
-        public boolean equals(Object o)
-        {
+        public boolean equals(Object o) {
             if (this == o) {
                 return true;
             }
@@ -545,44 +524,10 @@ public class RealtimeEventProcessor
         }
 
         @Override
-        public int hashCode()
-        {
+        public int hashCode() {
             int result = project.hashCode();
             result = 31 * result + tableName.hashCode();
             return result;
-        }
-    }
-
-    public static class DummyMetric
-            extends AbstractMetric
-    {
-        public DummyMetric()
-        {
-            super(null);
-        }
-
-        @Override
-        public Number value()
-        {
-            return 0;
-        }
-
-        @Override
-        public Object copy()
-        {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void apply(GenericRecord record)
-        {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void merge(Object metric)
-        {
-            throw new UnsupportedOperationException();
         }
     }
 }

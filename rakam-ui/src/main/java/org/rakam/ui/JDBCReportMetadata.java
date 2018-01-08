@@ -27,7 +27,7 @@ public class JDBCReportMetadata implements ReportMetadata {
                 JsonHelper.read(r.getString(6), Map.class),
                 r.getString(7) == null ? ImmutableMap.of() : JsonHelper.read(r.getString(7), Map.class),
                 r.getBoolean(8));
-        if(r.getMetaData().getColumnCount() >= 9) {
+        if (r.getMetaData().getColumnCount() >= 9) {
             report.setUserId(r.getInt(9));
             report.setUserEmail(r.getString(10));
         }
@@ -58,7 +58,7 @@ public class JDBCReportMetadata implements ReportMetadata {
                     .bind("project", project)
                     .bind("slug", slug)
                     .bind("user", userId).execute();
-            if(execute == 0) {
+            if (execute == 0) {
                 throw new NotExistsException("Report");
             }
         }
@@ -98,7 +98,7 @@ public class JDBCReportMetadata implements ReportMetadata {
                     .bind("project", project)
                     .bind("requestedUser", requestedUserId)
                     .bind("slug", slug).map(mapper).first();
-            if(report == null) {
+            if (report == null) {
                 throw new NotExistsException("Report");
             }
             return report;

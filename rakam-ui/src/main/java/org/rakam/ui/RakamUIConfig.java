@@ -37,12 +37,6 @@ public class RakamUIConfig {
     private Duration cookieDuration = Duration.succinctDuration(30, TimeUnit.DAYS);
     private String intercomSecretKey;
 
-    @Config("ui.directory")
-    public RakamUIConfig setUIDirectory(File uiDirectory) {
-        this.uiDirectory = uiDirectory;
-        return this;
-    }
-
     public boolean getHashPassword() {
         return hashPassword;
     }
@@ -60,9 +54,9 @@ public class RakamUIConfig {
         return enableUi;
     }
 
-    @Config("ui.authentication")
-    public RakamUIConfig setAuthentication(String authentication) {
-        this.authentication = authentication;
+    @Config("ui.enable")
+    public RakamUIConfig setEnableUI(boolean enableUi) {
+        this.enableUi = enableUi;
         return this;
     }
 
@@ -70,10 +64,14 @@ public class RakamUIConfig {
         return authentication;
     }
 
-    @Config("ui.enable")
-    public RakamUIConfig setEnableUI(boolean enableUi) {
-        this.enableUi = enableUi;
+    @Config("ui.authentication")
+    public RakamUIConfig setAuthentication(String authentication) {
+        this.authentication = authentication;
         return this;
+    }
+
+    public String getStripeKey() {
+        return stripeKey;
     }
 
     @Config("stripe.key")
@@ -82,9 +80,8 @@ public class RakamUIConfig {
         return this;
     }
 
-    public String getStripeKey()
-    {
-        return stripeKey;
+    public URL getScreenCaptureService() {
+        return screenCaptureService;
     }
 
     @Config("ui.screen-capture-service-url")
@@ -93,13 +90,18 @@ public class RakamUIConfig {
         return this;
     }
 
-    public URL getScreenCaptureService()
-    {
-        return screenCaptureService;
-    }
-
     public File getUIDirectory() {
         return uiDirectory;
+    }
+
+    @Config("ui.directory")
+    public RakamUIConfig setUIDirectory(File uiDirectory) {
+        this.uiDirectory = uiDirectory;
+        return this;
+    }
+
+    public CustomPageBackend getCustomPageBackend() {
+        return customPageBackend;
     }
 
     @Config("ui.custom-page.backend")
@@ -108,8 +110,8 @@ public class RakamUIConfig {
         return this;
     }
 
-    public CustomPageBackend getCustomPageBackend() {
-        return customPageBackend;
+    public File getCustomPageBackendDirectory() {
+        return customPageBackendDirectory;
     }
 
     @Config("ui.custom-page.backend.directory")
@@ -118,8 +120,8 @@ public class RakamUIConfig {
         return this;
     }
 
-    public File getCustomPageBackendDirectory() {
-        return customPageBackendDirectory;
+    public String getGoogleClientId() {
+        return googleClientId;
     }
 
     @Config("ui.google-login-client-id")
@@ -128,14 +130,8 @@ public class RakamUIConfig {
         return this;
     }
 
-    public String getGoogleClientId() {
-        return googleClientId;
-    }
-
-    @Config("ui.disable-tracking")
-    public RakamUIConfig setDisableTracking(boolean disableTracking) {
-        this.disableTracking = disableTracking;
-        return this;
+    public String getIntercomSecretKey() {
+        return intercomSecretKey;
     }
 
     @Config("ui.tracking.intercom.secret-key")
@@ -144,23 +140,22 @@ public class RakamUIConfig {
         return this;
     }
 
-    public String getIntercomSecretKey()
-    {
-        return intercomSecretKey;
-    }
-
     public boolean getDisableTracking() {
         return disableTracking;
     }
 
-    public Duration getCookieDuration()
-    {
+    @Config("ui.disable-tracking")
+    public RakamUIConfig setDisableTracking(boolean disableTracking) {
+        this.disableTracking = disableTracking;
+        return this;
+    }
+
+    public Duration getCookieDuration() {
         return cookieDuration;
     }
 
     @Config("ui.cookie-duration")
-    public RakamUIConfig setCookieDuration(Duration cookieDuration)
-    {
+    public RakamUIConfig setCookieDuration(Duration cookieDuration) {
         this.cookieDuration = cookieDuration;
         return this;
     }

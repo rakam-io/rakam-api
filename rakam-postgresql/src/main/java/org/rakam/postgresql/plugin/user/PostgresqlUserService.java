@@ -25,7 +25,6 @@ import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
-
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -40,14 +39,34 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.ImmutableList.of;
 import static java.lang.String.format;
 import static org.rakam.analysis.InternalConfig.USER_TYPE;
-import static org.rakam.util.ValidationUtil.checkCollection;
-import static org.rakam.util.ValidationUtil.checkLiteral;
-import static org.rakam.util.ValidationUtil.checkProject;
-import static org.rakam.util.ValidationUtil.checkTableColumn;
+import static org.rakam.util.ValidationUtil.*;
 
 public class PostgresqlUserService
-        extends AbstractUserService
-{
+        extends AbstractUserService {
+    public static final String ANONYMOUS_ID_MAPPING = "$anonymous_id_mapping";
+    protected static final Map<FieldType, List<SchemaField>> ANONYMOUS_USER_MAPPING = ImmutableMap.of(
+            FieldType.STRING, of(
+                    new SchemaField("id", FieldType.STRING),
+                    new SchemaField("_user", FieldType.STRING),
+                    new SchemaField("created_at", FieldType.TIMESTAMP),
+                    new SchemaField("merged_at", FieldType.TIMESTAMP)),
+
+            FieldType.LONG, of(
+                    new SchemaField("id", FieldType.STRING),
+                    new SchemaField("_user", FieldType.STRING),
+                    new SchemaField("created_at", FieldType.TIMESTAMP),
+                    new SchemaField("merged_at", FieldType.TIMESTAMP)),
+
+            FieldType.INTEGER, of(
+                    new SchemaField("id", FieldType.STRING),
+                    new SchemaField("_user", FieldType.STRING),
+                    new SchemaField("created_at", FieldType.TIMESTAMP),
+                    new SchemaField("merged_at", FieldType.TIMESTAMP))
+    );
+    protected static final Map<FieldType, Schema> ANONYMOUS_USER_MAPPING_SCHEMA = ImmutableMap.of(
+            FieldType.STRING, AvroUtil.convertAvroSchema(ANONYMOUS_USER_MAPPING.get(FieldType.STRING)),
+            FieldType.LONG, AvroUtil.convertAvroSchema(ANONYMOUS_USER_MAPPING.get(FieldType.LONG)),
+            FieldType.INTEGER, AvroUtil.convertAvroSchema(ANONYMOUS_USER_MAPPING.get(FieldType.INTEGER)));
     private final Metastore metastore;
     private final PostgresqlQueryExecutor executor;
     private final AbstractPostgresqlUserStorage storage;
@@ -56,8 +75,7 @@ public class PostgresqlUserService
     private final ConfigManager configManager;
 
     @Inject
-    public PostgresqlUserService(ProjectConfig projectConfig, ConfigManager configManager, EventStore eventStore, AbstractPostgresqlUserStorage storage, Metastore metastore, PostgresqlQueryExecutor executor)
-    {
+    public PostgresqlUserService(ProjectConfig projectConfig, ConfigManager configManager, EventStore eventStore, AbstractPostgresqlUserStorage storage, Metastore metastore, PostgresqlQueryExecutor executor) {
         super(storage);
         this.storage = storage;
         this.projectConfig = projectConfig;
@@ -68,8 +86,7 @@ public class PostgresqlUserService
     }
 
     @Override
-    public CompletableFuture<List<CollectionEvent>> getEvents(RequestContext context, String user, Optional<List<String>> properties, int limit, Instant beforeThisTime)
-    {
+    public CompletableFuture<List<CollectionEvent>> getEvents(RequestContext context, String user, Optional<List<String>> properties, int limit, Instant beforeThisTime) {
         checkProject(context.project);
         checkNotNull(user);
         checkArgument(limit <= 1000, "Maximum 1000 events can be fetched at once.");
@@ -105,52 +122,22 @@ public class PostgresqlUserService
         });
     }
 
-    protected static final Map<FieldType, List<SchemaField>> ANONYMOUS_USER_MAPPING = ImmutableMap.of(
-            FieldType.STRING, of(
-                    new SchemaField("id", FieldType.STRING),
-                    new SchemaField("_user", FieldType.STRING),
-                    new SchemaField("created_at", FieldType.TIMESTAMP),
-                    new SchemaField("merged_at", FieldType.TIMESTAMP)),
-
-            FieldType.LONG, of(
-                    new SchemaField("id", FieldType.STRING),
-                    new SchemaField("_user", FieldType.STRING),
-                    new SchemaField("created_at", FieldType.TIMESTAMP),
-                    new SchemaField("merged_at", FieldType.TIMESTAMP)),
-
-            FieldType.INTEGER, of(
-                    new SchemaField("id", FieldType.STRING),
-                    new SchemaField("_user", FieldType.STRING),
-                    new SchemaField("created_at", FieldType.TIMESTAMP),
-                    new SchemaField("merged_at", FieldType.TIMESTAMP))
-    );
-
-    public static final String ANONYMOUS_ID_MAPPING = "$anonymous_id_mapping";
-    protected static final Map<FieldType, Schema> ANONYMOUS_USER_MAPPING_SCHEMA = ImmutableMap.of(
-            FieldType.STRING, AvroUtil.convertAvroSchema(ANONYMOUS_USER_MAPPING.get(FieldType.STRING)),
-            FieldType.LONG, AvroUtil.convertAvroSchema(ANONYMOUS_USER_MAPPING.get(FieldType.LONG)),
-            FieldType.INTEGER, AvroUtil.convertAvroSchema(ANONYMOUS_USER_MAPPING.get(FieldType.INTEGER)));
-
-    public void mergeInternal(String project, Object user, Object anonymousId, Instant createdAt, Instant mergedAt)
-    {
+    public void mergeInternal(String project, Object user, Object anonymousId, Instant createdAt, Instant mergedAt) {
         FieldType config = configManager.getConfig(project, USER_TYPE.name(), FieldType.class);
         GenericData.Record properties = new GenericData.Record(ANONYMOUS_USER_MAPPING_SCHEMA.get(config));
         properties.put(0, anonymousId.toString());
 
         try {
-            if(config == FieldType.STRING) {
+            if (config == FieldType.STRING) {
                 properties.put(1, user.toString());
-            } else
-            if(config == FieldType.LONG) {
+            } else if (config == FieldType.LONG) {
                 properties.put(1, Long.parseLong(user.toString()));
-            } else
-            if(config == FieldType.INTEGER) {
+            } else if (config == FieldType.INTEGER) {
                 properties.put(1, Integer.parseInt(user.toString()));
             } else {
                 throw new IllegalStateException();
             }
-        }
-        catch (NumberFormatException e) {
+        } catch (NumberFormatException e) {
             throw new RakamException("User type doesn't match", HttpResponseStatus.BAD_REQUEST);
         }
 
@@ -160,13 +147,11 @@ public class PostgresqlUserService
     }
 
     @Override
-    public void merge(String project, Object user, Object anonymousId, Instant createdAt, Instant mergedAt)
-    {
+    public void merge(String project, Object user, Object anonymousId, Instant createdAt, Instant mergedAt) {
         try {
             mergeInternal(project, user, anonymousId, createdAt, mergedAt);
-        }
-        catch (RuntimeException e) {
-            if(e.getCause() instanceof PSQLException && ((PSQLException) e.getCause()).getSQLState().equals("42P01")) {
+        } catch (RuntimeException e) {
+            if (e.getCause() instanceof PSQLException && ((PSQLException) e.getCause()).getSQLState().equals("42P01")) {
                 new PostgresqlModule.UserMergeTableHook(projectConfig, executor)
                         .createTable(project).join();
                 mergeInternal(project, user, anonymousId, createdAt, mergedAt);
@@ -197,15 +182,13 @@ public class PostgresqlUserService
     }
 
     @Override
-    public QueryExecution preCalculate(String project, PreCalculateQuery query)
-    {
+    public QueryExecution preCalculate(String project, PreCalculateQuery query) {
         // no-op
         return QueryExecution.completedQueryExecution(null, QueryResult.empty());
     }
 
     @Override
-    public CompletableFuture<Void> batch(String project, List<? extends ISingleUserBatchOperation> batchUserOperations)
-    {
+    public CompletableFuture<Void> batch(String project, List<? extends ISingleUserBatchOperation> batchUserOperations) {
         return storage.batch(project, batchUserOperations);
     }
 }

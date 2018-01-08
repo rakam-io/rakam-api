@@ -44,12 +44,12 @@ public class UserAgentEventMapper implements SyncEventMapper, UserPropertyMapper
     @Override
     public List<Cookie> map(String project, List<? extends ISingleUserBatchOperation> user, RequestParams requestParams, InetAddress sourceAddress) {
         for (ISingleUserBatchOperation data : user) {
-            if(data.getSetProperties() != null) {
+            if (data.getSetProperties() != null) {
                 mapInternal(requestParams, new MapProxyGenericRecord(data.getSetProperties()),
                         data.getSetProperties().get("_user_agent"));
             }
 
-            if(data.getSetPropertiesOnce() != null) {
+            if (data.getSetPropertiesOnce() != null) {
                 mapInternal(requestParams, new MapProxyGenericRecord(data.getSetPropertiesOnce()),
                         data.getSetPropertiesOnce().get("_user_agent"));
             }

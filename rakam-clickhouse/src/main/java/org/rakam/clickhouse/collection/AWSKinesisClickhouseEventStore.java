@@ -1,7 +1,6 @@
 package org.rakam.clickhouse.collection;
 
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
-import com.amazonaws.services.kinesis.model.*;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.google.common.base.Throwables;
 import com.google.common.io.LittleEndianDataOutputStream;
@@ -29,20 +28,17 @@ import static org.rakam.clickhouse.collection.ClickHouseEventStore.writeVarInt;
 import static org.rakam.collection.FieldType.DATE;
 
 public class AWSKinesisClickhouseEventStore
-        implements SyncEventStore
-{
+        implements SyncEventStore {
     private final static Logger LOGGER = Logger.get(AWSKinesisClickhouseEventStore.class);
-
+    private static final int BATCH_SIZE = 500;
     private final AmazonKinesisClient kinesis;
     private final AWSConfig config;
-    private static final int BATCH_SIZE = 500;
     private final ClickHouseEventStore bulkClient;
     private final ProjectConfig projectConfig;
 //    private final KinesisProducer producer;
 
     @Inject
-    public AWSKinesisClickhouseEventStore(AWSConfig config, ProjectConfig projectConfig, ClickHouseConfig clickHouseConfig)
-    {
+    public AWSKinesisClickhouseEventStore(AWSConfig config, ProjectConfig projectConfig, ClickHouseConfig clickHouseConfig) {
         kinesis = new AmazonKinesisClient(config.getCredentials());
         kinesis.setRegion(config.getAWSRegion());
         if (config.getKinesisEndpoint() != null) {
@@ -58,8 +54,7 @@ public class AWSKinesisClickhouseEventStore
 //        producer = new KinesisProducer(producerConfiguration);
     }
 
-    public int[] storeBatchInline(List<Event> events, int offset, int limit)
-    {
+    public int[] storeBatchInline(List<Event> events, int offset, int limit) {
         PutRecordsRequestEntry[] records = new PutRecordsRequestEntry[limit];
 
         for (int i = 0; i < limit; i++) {
@@ -90,25 +85,21 @@ public class AWSKinesisClickhouseEventStore
 
                 LOGGER.warn("Error in Kinesis putRecords: %d records.", putRecordsResult.getFailedRecordCount(), errors.toString());
                 return failedRecordIndexes;
-            }
-            else {
+            } else {
                 return EventStore.SUCCESSFUL_BATCH;
             }
-        }
-        catch (ResourceNotFoundException e) {
+        } catch (ResourceNotFoundException e) {
             try {
                 KinesisUtils.createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
                 return storeBatchInline(events, offset, limit);
-            }
-            catch (Exception e1) {
+            } catch (Exception e1) {
                 throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
             }
         }
     }
 
     @Override
-    public void storeBulk(List<Event> events)
-    {
+    public void storeBulk(List<Event> events) {
         if (events.isEmpty()) {
             return;
         }
@@ -116,25 +107,21 @@ public class AWSKinesisClickhouseEventStore
     }
 
     @Override
-    public void store(Event event)
-    {
+    public void store(Event event) {
         try {
             kinesis.putRecord(config.getEventStoreStreamName(),
                     getBuffer(event), event.project() + "|" + event.collection());
-        }
-        catch (ResourceNotFoundException e) {
+        } catch (ResourceNotFoundException e) {
             try {
                 KinesisUtils.createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
-            }
-            catch (Exception e1) {
+            } catch (Exception e1) {
                 throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
             }
         }
     }
 
     @Override
-    public int[] storeBatch(List<Event> events)
-    {
+    public int[] storeBatch(List<Event> events) {
         if (events.size() > BATCH_SIZE) {
             ArrayList<Integer> errors = null;
             int cursor = 0;
@@ -156,14 +143,12 @@ public class AWSKinesisClickhouseEventStore
             }
 
             return errors == null ? EventStore.SUCCESSFUL_BATCH : errors.stream().mapToInt(Integer::intValue).toArray();
-        }
-        else {
+        } else {
             return storeBatchInline(events, 0, events.size());
         }
     }
 
-    private ByteBuffer getBuffer(Event event)
-    {
+    private ByteBuffer getBuffer(Event event) {
         SharedByteArrayOutputStream buffer = new SharedByteArrayOutputStream(event.properties().getSchema().getFields().size() * 8);
         LittleEndianDataOutputStream out = new LittleEndianDataOutputStream(buffer);
 
@@ -177,8 +162,7 @@ public class AWSKinesisClickhouseEventStore
             for (int i = 0; i < size; i++) {
                 writeValue(record.get(i), event.schema().get(i).getType(), out);
             }
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             throw Throwables.propagate(e);
         }
 
@@ -186,13 +170,11 @@ public class AWSKinesisClickhouseEventStore
     }
 
     public static class SharedByteArrayOutputStream extends ByteArrayOutputStream {
-        public SharedByteArrayOutputStream(int estimatedSize)
-        {
+        public SharedByteArrayOutputStream(int estimatedSize) {
             super(estimatedSize);
         }
 
-        public ByteBuffer toByteBuffer()
-        {
+        public ByteBuffer toByteBuffer() {
             return ByteBuffer.wrap(buf, 0, count);
         }
     }

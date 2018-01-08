@@ -43,7 +43,7 @@ public class RecipeModule extends RakamModule {
 
 
         Multibinder.newSetBinder(binder, Tag.class).addBinding()
-                .toInstance( new Tag().name("recipe").description("Recipe")
+                .toInstance(new Tag().name("recipe").description("Recipe")
                         .externalDocs(MetadataConfig.centralDocs));
 
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
@@ -164,16 +164,16 @@ public class RecipeModule extends RakamModule {
 
         private List<String> recipes;
 
+        public List<String> getRecipes() {
+            return recipes;
+        }
+
         @Config("recipes")
         public RecipeConfig setRecipes(String recipes) {
             this.recipes = ImmutableList.copyOf(Splitter.on(',')
                     .omitEmptyStrings().trimResults()
                     .split(recipes));
             return this;
-        }
-
-        public List<String> getRecipes() {
-            return recipes;
         }
     }
 

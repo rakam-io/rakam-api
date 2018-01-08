@@ -11,14 +11,12 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
 
 public class MysqlLockService
-        implements LockService
-{
+        implements LockService {
     private final DBI dbi;
     private Handle currentHandle;
     private Set<String> locks;
 
-    public MysqlLockService(JDBCPoolDataSource poolDataSource)
-    {
+    public MysqlLockService(JDBCPoolDataSource poolDataSource) {
         this.dbi = new DBI(() -> {
             return poolDataSource.getConnection(true);
         });
@@ -27,22 +25,19 @@ public class MysqlLockService
     }
 
     @Override
-    public Lock tryLock(String name)
-    {
+    public Lock tryLock(String name) {
         if (!locks.add(name)) {
             return null;
         }
         try {
             return tryLock(name, 4);
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             locks.remove(name);
             throw Throwables.propagate(e);
         }
     }
 
-    public Lock tryLock(String name, int tryCount)
-    {
+    public Lock tryLock(String name, int tryCount) {
         try {
             if (currentHandle.getConnection().isClosed()) {
                 synchronized (this) {
@@ -67,16 +62,14 @@ public class MysqlLockService
                         .map(BooleanMapper.FIRST)
                         .first();
             };
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             try {
                 if (currentHandle.getConnection().isClosed()) {
                     synchronized (this) {
                         currentHandle = dbi.open();
                     }
                 }
-            }
-            catch (SQLException e1) {
+            } catch (SQLException e1) {
                 synchronized (this) {
                     currentHandle = dbi.open();
                 }

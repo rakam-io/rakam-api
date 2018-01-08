@@ -22,10 +22,8 @@ public class UserPluginConfig {
     private boolean abTestingEnabled;
     private boolean enabled;
 
-    @Config("plugin.user.storage.identifier-column")
-    public UserPluginConfig setIdentifierColumn(String colName) {
-        this.identifierColumn = colName;
-        return this;
+    public boolean isEnabled() {
+        return enabled;
     }
 
     @Config("plugin.user.enabled")
@@ -34,8 +32,8 @@ public class UserPluginConfig {
         return this;
     }
 
-    public boolean isEnabled() {
-        return enabled;
+    public boolean getEnableUserMapping() {
+        return enableUserMapping;
     }
 
     @Config("plugin.user.enable-user-mapping")
@@ -43,12 +41,18 @@ public class UserPluginConfig {
         this.enableUserMapping = enableUserMapping;
     }
 
-    public boolean getEnableUserMapping() {
-        return enableUserMapping;
-    }
-
     public String getIdentifierColumn() {
         return identifierColumn;
+    }
+
+    @Config("plugin.user.storage.identifier-column")
+    public UserPluginConfig setIdentifierColumn(String colName) {
+        this.identifierColumn = colName;
+        return this;
+    }
+
+    public Iterable<String> getActionList() {
+        return actions;
     }
 
     @Config("plugin.user.actions")
@@ -57,8 +61,8 @@ public class UserPluginConfig {
         return this;
     }
 
-    public Iterable<String> getActionList() {
-        return actions;
+    public String getSessionColumn() {
+        return sessionColumn;
     }
 
     @Config("user.storage.session-column")
@@ -66,8 +70,8 @@ public class UserPluginConfig {
         this.sessionColumn = sessionColumn;
     }
 
-    public String getSessionColumn() {
-        return sessionColumn;
+    public boolean isMailboxEnabled() {
+        return mailboxEnabled;
     }
 
     @Config("plugin.user.mailbox.enable")
@@ -75,8 +79,8 @@ public class UserPluginConfig {
         this.mailboxEnabled = mailboxEnabled;
     }
 
-    public boolean isMailboxEnabled() {
-        return mailboxEnabled;
+    public boolean isFunnelAnalysisEnabled() {
+        return funnelAnalysisEnabled;
     }
 
     @Config("user.funnel-analysis.enabled")
@@ -84,8 +88,8 @@ public class UserPluginConfig {
         this.funnelAnalysisEnabled = funnelAnalysisEnabled;
     }
 
-    public boolean isFunnelAnalysisEnabled() {
-        return funnelAnalysisEnabled;
+    public boolean getAutomationEnabled() {
+        return automationEnabled;
     }
 
     @Config("automation.enabled")
@@ -93,16 +97,17 @@ public class UserPluginConfig {
         this.automationEnabled = automationEnabled;
     }
 
-    public boolean getAutomationEnabled() {
-        return automationEnabled;
+    public boolean getAbTestingEnabled() {
+        return abTestingEnabled;
     }
 
     @Config("event.ab-testing.enabled")
     public void setAbTestingEnabled(boolean abTestingEnabled) {
         this.abTestingEnabled = abTestingEnabled;
     }
-    public boolean getAbTestingEnabled() {
-        return abTestingEnabled;
+
+    public boolean isRetentionAnalysisEnabled() {
+        return retentionAnalysisEnabled;
     }
 
     @Config("user.retention-analysis.enabled")
@@ -110,13 +115,8 @@ public class UserPluginConfig {
         this.retentionAnalysisEnabled = retentionAnalysisEnabled;
     }
 
-    public boolean isRetentionAnalysisEnabled() {
-        return retentionAnalysisEnabled;
-    }
-
-    @Config("plugin.user.storage.hide-columns")
-    public void setHiddenColumns(String hiddenColumns) {
-        this.hiddenColumns = ImmutableList.copyOf(Splitter.on(',').omitEmptyStrings().trimResults().split(hiddenColumns));
+    public String getMailBoxStorageModule() {
+        return mailBoxStorageModule;
     }
 
     @Config("plugin.user.mailbox.persistence")
@@ -124,22 +124,22 @@ public class UserPluginConfig {
         this.mailBoxStorageModule = module;
     }
 
-    public String getMailBoxStorageModule() {
-        return mailBoxStorageModule;
-    }
-
     public List<String> getHiddenColumns() {
         return hiddenColumns;
     }
 
-    @Config("plugin.user.storage")
-    public UserPluginConfig setStorageModule(String moduleName)
-    {
-        this.storageModule = moduleName;
-        return this;
+    @Config("plugin.user.storage.hide-columns")
+    public void setHiddenColumns(String hiddenColumns) {
+        this.hiddenColumns = ImmutableList.copyOf(Splitter.on(',').omitEmptyStrings().trimResults().split(hiddenColumns));
     }
 
     public String getStorageModule() {
         return storageModule;
+    }
+
+    @Config("plugin.user.storage")
+    public UserPluginConfig setStorageModule(String moduleName) {
+        this.storageModule = moduleName;
+        return this;
     }
 }

@@ -23,8 +23,7 @@ import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
-public class RemoteTable
-{
+public class RemoteTable {
     public final URL url;
     public final boolean indexUrl;
     public final List<SchemaField> columns;
@@ -39,8 +38,7 @@ public class RemoteTable
             @JsonProperty("typeOptions") Map<String, String> typeOptions,
             @JsonProperty("columns") List<SchemaField> columns,
             @JsonProperty("compressionType") CompressionType compressionType,
-            @JsonProperty("format") ExternalSourceType format)
-    {
+            @JsonProperty("format") ExternalSourceType format) {
         this.url = url;
         this.indexUrl = indexUrl == Boolean.TRUE;
         this.typeOptions = typeOptions;
@@ -49,14 +47,12 @@ public class RemoteTable
         this.format = requireNonNull(format, "format is null");
     }
 
-    public enum CompressionType
-    {
+    public enum CompressionType {
         GZIP
     }
 
 
-    public enum ExternalSourceType
-    {
+    public enum ExternalSourceType {
         CSV, AVRO
     }
 }

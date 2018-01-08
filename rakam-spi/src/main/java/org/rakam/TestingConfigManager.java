@@ -13,13 +13,13 @@ public class TestingConfigManager
     }
 
     @Override
-    public synchronized  <T> T getConfig(String project, String configName, Class<T> clazz) {
+    public synchronized <T> T getConfig(String project, String configName, Class<T> clazz) {
         return (T) table.get(project, configName);
     }
 
     @Override
-    public synchronized  <T> void setConfig(String project, String configName, T clazz) {
-        if(clazz == null) {
+    public synchronized <T> void setConfig(String project, String configName, T clazz) {
+        if (clazz == null) {
             table.remove(project, configName);
         } else {
             table.put(project, configName, clazz);
@@ -33,13 +33,11 @@ public class TestingConfigManager
     }
 
     @Override
-    public void clear()
-    {
+    public void clear() {
         table.clear();
     }
 
-    public Table<String, String, Object> getTable()
-    {
+    public Table<String, String, Object> getTable() {
         return table;
     }
 }

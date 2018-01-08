@@ -18,8 +18,7 @@ import org.testng.annotations.BeforeSuite;
 import java.time.Clock;
 
 public class TestPrestoEventExplorer
-        extends TestEventExplorer
-{
+        extends TestEventExplorer {
     private EventExplorer eventExplorer;
     private TestingEnvironment testingEnvironment;
     private PrestoRakamRaptorMetastore metastore;
@@ -32,8 +31,7 @@ public class TestPrestoEventExplorer
     @Override
     public void
     setup()
-            throws Exception
-    {
+            throws Exception {
         testingEnvironment = new TestingEnvironment();
         PrestoConfig prestoConfig = testingEnvironment.getPrestoConfig();
         JDBCConfig postgresqlConfig = testingEnvironment.getPostgresqlConfig();
@@ -58,35 +56,29 @@ public class TestPrestoEventExplorer
     }
 
     @Override
-    public EventStore getEventStore()
-    {
+    public EventStore getEventStore() {
         return eventStore;
     }
 
-    public PrestoQueryExecutor getPrestoQueryExecutor()
-    {
+    public PrestoQueryExecutor getPrestoQueryExecutor() {
         return prestoQueryExecutor;
     }
 
-    public JDBCPoolDataSource getMetastoreDataSource()
-    {
+    public JDBCPoolDataSource getMetastoreDataSource() {
         return metastoreDataSource;
     }
 
     @Override
-    public Metastore getMetastore()
-    {
+    public Metastore getMetastore() {
         return metastore;
     }
 
     @Override
-    public EventExplorer getEventExplorer()
-    {
+    public EventExplorer getEventExplorer() {
         return eventExplorer;
     }
 
-    public TestingEnvironment getEnvironment()
-    {
+    public TestingEnvironment getEnvironment() {
         return testingEnvironment;
     }
 }

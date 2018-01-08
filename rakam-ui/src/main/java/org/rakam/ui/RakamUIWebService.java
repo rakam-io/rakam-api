@@ -33,37 +33,51 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 @Path("/")
 public class RakamUIWebService
-        extends HttpService
-{
+        extends HttpService {
     public static final String HTTP_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz";
     public static final String HTTP_DATE_GMT_TIMEZONE = "GMT";
     public static final int HTTP_CACHE_SECONDS = 60 * 60 * 24;
-    private final File directory;
     private static final Pattern INSECURE_URI = Pattern.compile(".*[<>&\"].*");
+    private final File directory;
     private final MimetypesFileTypeMap mimeTypesMap = new MimetypesFileTypeMap();
     private final RakamUIConfig config;
 
     @Inject
-    public RakamUIWebService(RakamUIConfig config)
-    {
+    public RakamUIWebService(RakamUIConfig config) {
         directory = config.getUIDirectory();
-        if(directory == null) {
+        if (directory == null) {
             throw new IllegalStateException("ui.directory config is not set");
         }
         this.config = config;
     }
 
+    private static void sendError(RakamHttpRequest request, HttpResponseStatus status) {
+        HttpServer.returnError(request, status.reasonPhrase(), status);
+    }
+
+    private static void setDateAndCacheHeaders(HttpResponse response, File fileToCache) {
+        SimpleDateFormat dateFormatter = new SimpleDateFormat(HTTP_DATE_FORMAT, Locale.US);
+        dateFormatter.setTimeZone(TimeZone.getTimeZone(HTTP_DATE_GMT_TIMEZONE));
+
+        Calendar time = new GregorianCalendar();
+        response.headers().set(DATE, dateFormatter.format(time.getTime()));
+
+        time.add(Calendar.SECOND, HTTP_CACHE_SECONDS);
+        response.headers().set(EXPIRES, dateFormatter.format(time.getTime()));
+        response.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+        response.headers().set(CACHE_CONTROL, "private, max-age=" + HTTP_CACHE_SECONDS);
+        response.headers().set(LAST_MODIFIED, dateFormatter.format(new Date(fileToCache.lastModified())));
+    }
+
     @Path("/favicon.ico")
     @GET
-    public void favicon(RakamHttpRequest request)
-    {
+    public void favicon(RakamHttpRequest request) {
         sendFile(request, new File(directory.getPath(), "favicon.ico"));
     }
 
     @Path("/check-configuration")
     @GET
-    public void checkConfiguration(RakamHttpRequest request)
-    {
+    public void checkConfiguration(RakamHttpRequest request) {
         request.response(JsonHelper.encode(ImmutableMap.of(
                 "sentry", checkSentry(),
                 "scheduledEmailEnabled", config.getScreenCaptureService() != null,
@@ -72,13 +86,11 @@ public class RakamUIWebService
 
     @Path("/check-sentry")
     @GET
-    public void checkSentry(RakamHttpRequest request)
-    {
+    public void checkSentry(RakamHttpRequest request) {
         request.response(JsonHelper.encode(checkSentry()), OK).end();
     }
 
-    public Map<String, Object> checkSentry()
-    {
+    public Map<String, Object> checkSentry() {
         LogManager manager = LogManager.getLogManager();
         String canonicalName = SentryHandler.class.getCanonicalName();
         String dsnInternal = manager.getProperty(canonicalName + ".dsn");
@@ -90,8 +102,7 @@ public class RakamUIWebService
                 // Use public DNS
                 return url.getProtocol() + "://" + (userPass.length > 0 ? userPass[0] : "" + url) +
                         "@" + url.getHost() + url.getPath();
-            }
-            catch (MalformedURLException e) {
+            } catch (MalformedURLException e) {
                 return null;
             }
         }).orElse(null);
@@ -106,8 +117,7 @@ public class RakamUIWebService
         return dsnPublic != null ? ImmutableMap.of("tags", tags, "dsn", dsnPublic) : ImmutableMap.of();
     }
 
-    private void sendFile(RakamHttpRequest request, File file)
-    {
+    private void sendFile(RakamHttpRequest request, File file) {
         if (file.isHidden() || !file.exists()) {
             sendError(request, NOT_FOUND);
             return;
@@ -125,8 +135,7 @@ public class RakamUIWebService
             Date ifModifiedSinceDate;
             try {
                 ifModifiedSinceDate = dateFormatter.parse(ifModifiedSince);
-            }
-            catch (ParseException e) {
+            } catch (ParseException e) {
                 sendError(request, HttpResponseStatus.BAD_REQUEST);
                 return;
             }
@@ -144,8 +153,7 @@ public class RakamUIWebService
         RandomAccessFile raf;
         try {
             raf = new RandomAccessFile(file, "r");
-        }
-        catch (FileNotFoundException ignore) {
+        } catch (FileNotFoundException ignore) {
             sendError(request, NOT_FOUND);
             return;
         }
@@ -153,8 +161,7 @@ public class RakamUIWebService
         long fileLength;
         try {
             fileLength = raf.length();
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             sendError(request, HttpResponseStatus.BAD_GATEWAY);
             return;
         }
@@ -178,8 +185,7 @@ public class RakamUIWebService
         }
     }
 
-    public void main(RakamHttpRequest request)
-    {
+    public void main(RakamHttpRequest request) {
         if (!request.getDecoderResult().isSuccess()) {
             sendError(request, BAD_REQUEST);
             return;
@@ -201,20 +207,17 @@ public class RakamUIWebService
                 return;
             }
             file = new File(path);
-        }
-        else {
+        } else {
             file = new File(directory.getPath(), "index.html");
         }
 
         sendFile(request, file);
     }
 
-    private String sanitizeUri(String uri)
-    {
+    private String sanitizeUri(String uri) {
         try {
             uri = URLDecoder.decode(uri, "UTF-8");
-        }
-        catch (UnsupportedEncodingException e) {
+        } catch (UnsupportedEncodingException e) {
             throw new Error(e);
         }
 
@@ -236,13 +239,7 @@ public class RakamUIWebService
         return directory.getPath() + File.separator + uri;
     }
 
-    private static void sendError(RakamHttpRequest request, HttpResponseStatus status)
-    {
-        HttpServer.returnError(request, status.reasonPhrase(), status);
-    }
-
-    private void sendNotModified(RakamHttpRequest request, File file)
-    {
+    private void sendNotModified(RakamHttpRequest request, File file) {
         FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, NOT_MODIFIED);
 
         setContentTypeHeader(response, file);
@@ -255,23 +252,7 @@ public class RakamUIWebService
         request.response(response).end();
     }
 
-    private static void setDateAndCacheHeaders(HttpResponse response, File fileToCache)
-    {
-        SimpleDateFormat dateFormatter = new SimpleDateFormat(HTTP_DATE_FORMAT, Locale.US);
-        dateFormatter.setTimeZone(TimeZone.getTimeZone(HTTP_DATE_GMT_TIMEZONE));
-
-        Calendar time = new GregorianCalendar();
-        response.headers().set(DATE, dateFormatter.format(time.getTime()));
-
-        time.add(Calendar.SECOND, HTTP_CACHE_SECONDS);
-        response.headers().set(EXPIRES, dateFormatter.format(time.getTime()));
-        response.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, "*");
-        response.headers().set(CACHE_CONTROL, "private, max-age=" + HTTP_CACHE_SECONDS);
-        response.headers().set(LAST_MODIFIED, dateFormatter.format(new Date(fileToCache.lastModified())));
-    }
-
-    private void setContentTypeHeader(HttpResponse response, File file)
-    {
+    private void setContentTypeHeader(HttpResponse response, File file) {
         response.headers().set(CONTENT_TYPE, mimeTypesMap.getContentType(file.getPath()));
     }
 }

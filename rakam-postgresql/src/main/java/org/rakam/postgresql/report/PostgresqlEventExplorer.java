@@ -27,8 +27,7 @@ import static java.lang.String.format;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.*;
 
 public class PostgresqlEventExplorer
-        extends AbstractEventExplorer
-{
+        extends AbstractEventExplorer {
     private static final Map<TimestampTransformation, String> timestampMapping = ImmutableMap.
             <TimestampTransformation, String>builder()
             .put(HOUR_OF_DAY, "lpad(cast(extract(hour FROM %s) as text), 2, '0')||':00'")
@@ -44,14 +43,12 @@ public class PostgresqlEventExplorer
             .build();
 
     @Inject
-    public PostgresqlEventExplorer(ProjectConfig projectConfig, QueryExecutorService service, MaterializedViewService materializedViewService)
-    {
+    public PostgresqlEventExplorer(ProjectConfig projectConfig, QueryExecutorService service, MaterializedViewService materializedViewService) {
         super(projectConfig, service, materializedViewService, timestampMapping);
     }
 
     @Override
-    public String convertSqlFunction(AggregationType aggType)
-    {
+    public String convertSqlFunction(AggregationType aggType) {
         switch (aggType) {
             case AVERAGE:
                 return "avg(%s)";
@@ -73,8 +70,7 @@ public class PostgresqlEventExplorer
     }
 
     @Override
-    public String convertSqlFunction(AggregationType intermediate, AggregationType main)
-    {
+    public String convertSqlFunction(AggregationType intermediate, AggregationType main) {
         String column = convertSqlFunction(intermediate);
         if (intermediate == AggregationType.SUM && main == AggregationType.COUNT) {
             return format("cast(%s as bigint)", column);

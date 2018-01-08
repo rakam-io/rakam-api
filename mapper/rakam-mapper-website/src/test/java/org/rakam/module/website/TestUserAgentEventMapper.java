@@ -29,10 +29,10 @@ public class TestUserAgentEventMapper {
 
     @DataProvider(name = "chrome-user-agent")
     public static Object[][] hashEnabledValuesProvider() throws UnknownHostException {
-        return new Object[][] {
-                { ImmutableMap.of("_user_agent", USER_AGENT), EventMapper.RequestParams.EMPTY_PARAMS},
-                { ImmutableMap.of("_user_agent", true), (EventMapper.RequestParams) () -> new DefaultHttpHeaders().set("User-Agent", USER_AGENT) },
-                { ImmutableMap.of("_user_agent", USER_AGENT), (EventMapper.RequestParams) () -> new DefaultHttpHeaders().set("User-Agent", USER_AGENT)  }
+        return new Object[][]{
+                {ImmutableMap.of("_user_agent", USER_AGENT), EventMapper.RequestParams.EMPTY_PARAMS},
+                {ImmutableMap.of("_user_agent", true), (EventMapper.RequestParams) () -> new DefaultHttpHeaders().set("User-Agent", USER_AGENT)},
+                {ImmutableMap.of("_user_agent", USER_AGENT), (EventMapper.RequestParams) () -> new DefaultHttpHeaders().set("User-Agent", USER_AGENT)}
         };
     }
 

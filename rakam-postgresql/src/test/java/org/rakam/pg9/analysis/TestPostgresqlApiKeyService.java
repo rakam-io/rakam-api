@@ -8,8 +8,7 @@ import org.rakam.postgresql.PostgresqlApiKeyService;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeSuite;
 
-public class TestPostgresqlApiKeyService extends TestApiKeyService
-{
+public class TestPostgresqlApiKeyService extends TestApiKeyService {
     private PostgresqlApiKeyService apiKeyService;
 
     @BeforeSuite
@@ -24,8 +23,7 @@ public class TestPostgresqlApiKeyService extends TestApiKeyService
     }
 
     @Override
-    public ApiKeyService getApiKeyService()
-    {
+    public ApiKeyService getApiKeyService() {
         return apiKeyService;
     }
 

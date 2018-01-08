@@ -27,10 +27,8 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class ExportUtil
-{
-    public static byte[] exportAsCSV(QueryResult result)
-    {
+public class ExportUtil {
+    public static byte[] exportAsCSV(QueryResult result) {
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
         final CSVPrinter csvPrinter;
         try {
@@ -48,16 +46,14 @@ public class ExportUtil
                 return input1;
             })));
             csvPrinter.flush();
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             throw Throwables.propagate(e);
         }
 
         return out.toByteArray();
     }
 
-    public static byte[] exportAsAvro(QueryResult result)
-    {
+    public static byte[] exportAsAvro(QueryResult result) {
         Schema avroSchema = AvroUtil.convertAvroSchema(result.getMetadata());
         ByteArrayOutputStream out = new ByteArrayOutputStream();
 
@@ -75,8 +71,7 @@ public class ExportUtil
 
             try {
                 writer.write(record, encoder);
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 throw new RuntimeException("Couldn't serialize event", e);
             }
         }
@@ -84,8 +79,7 @@ public class ExportUtil
         return out.toByteArray();
     }
 
-    private static Object getAvroValue(Object value, FieldType type)
-    {
+    private static Object getAvroValue(Object value, FieldType type) {
         if (value == null) {
             return null;
         }
@@ -115,11 +109,9 @@ public class ExportUtil
                 }
                 if (type.isMap()) {
                     return ((Map) value).entrySet().stream()
-                            .collect(Collectors.toMap(new Function<Map.Entry, String>()
-                            {
+                            .collect(Collectors.toMap(new Function<Map.Entry, String>() {
                                 @Override
-                                public String apply(Map.Entry entry)
-                                {
+                                public String apply(Map.Entry entry) {
                                     return (String) entry.getKey();
                                 }
                             }, e -> getAvroValue(e, type.getMapValueType())));

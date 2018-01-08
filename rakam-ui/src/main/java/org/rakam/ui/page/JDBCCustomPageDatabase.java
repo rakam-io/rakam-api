@@ -69,7 +69,7 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
 
     public Map<String, String> get(int project, String slug) {
         try (Handle handle = dbi.open()) {
-           return handle.createQuery("SELECT data FROM custom_page WHERE project_id = :project AND slug = :slug")
+            return handle.createQuery("SELECT data FROM custom_page WHERE project_id = :project AND slug = :slug")
                     .bind("project", project)
                     .bind("slug", slug)
                     .map((i, resultSet, statementContext) -> {

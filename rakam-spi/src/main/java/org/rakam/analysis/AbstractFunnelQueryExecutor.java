@@ -39,15 +39,13 @@ import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public abstract class AbstractFunnelQueryExecutor
-        implements FunnelQueryExecutor
-{
+        implements FunnelQueryExecutor {
+    protected final ProjectConfig projectConfig;
     private final QueryExecutor executor;
     private final Metastore metastore;
-    protected final ProjectConfig projectConfig;
     protected Map<FunnelTimestampSegments, String> timeStampMapping;
 
-    public AbstractFunnelQueryExecutor(ProjectConfig projectConfig, Metastore metastore, QueryExecutor executor)
-    {
+    public AbstractFunnelQueryExecutor(ProjectConfig projectConfig, Metastore metastore, QueryExecutor executor) {
         this.projectConfig = projectConfig;
         this.metastore = metastore;
         this.executor = executor;
@@ -59,30 +57,29 @@ public abstract class AbstractFunnelQueryExecutor
 
     @Override
     public QueryExecution query(RequestContext context,
-            List<FunnelStep> steps,
-            Optional<String> dimension,
-            Optional<String> segment,
-            LocalDate startDate,
-            LocalDate endDate, Optional<FunnelWindow> window, ZoneId timezone,
-            Optional<List<String>> connectors,
-            FunnelType type)
-    {
+                                List<FunnelStep> steps,
+                                Optional<String> dimension,
+                                Optional<String> segment,
+                                LocalDate startDate,
+                                LocalDate endDate, Optional<FunnelWindow> window, ZoneId timezone,
+                                Optional<List<String>> connectors,
+                                FunnelType type) {
         Map<String, List<SchemaField>> collections = metastore.getCollections(context.project);
 
-        if(dimension.isPresent()) {
-            if(dimension.get().equals(projectConfig.getTimeColumn())) {
-                if(!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
+        if (dimension.isPresent()) {
+            if (dimension.get().equals(projectConfig.getTimeColumn())) {
+                if (!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
                     throw new RakamException("When dimension is time, segmenting should be done on timestamp field.", BAD_REQUEST);
                 }
             }
-            if(metastore.getCollections(context.project).entrySet().stream()
+            if (metastore.getCollections(context.project).entrySet().stream()
                     .filter(c -> !c.getValue().contains(dimension.get())).findAny().get().getValue().stream()
                     .filter(d -> d.getName().equals(dimension.get())).findAny().get().getType().getPrettyName().equals("TIMESTAMP")) {
-                if(!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
+                if (!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
                     throw new RakamException("When dimension is of type TIMESTAMP, segmenting should be done on timestamp field.", BAD_REQUEST);
                 }
             }
-        } else if(segment.isPresent()) {
+        } else if (segment.isPresent()) {
             throw new RakamException("Dimension can't be null when segment is not.", BAD_REQUEST);
         }
 
@@ -93,9 +90,9 @@ public abstract class AbstractFunnelQueryExecutor
                                 .stream().collect(Collectors.joining(", ")), i,
                         steps.get(i), dimension, segment, startDate, endDate))
                 .collect(Collectors.joining(" UNION ALL "));
-        
+
         String segment2 = segment.map(v -> "_segment").orElse("");
-        String dimensionCol = dimension.map(v -> checkTableColumn(v+segment2) + ", ").orElse("");
+        String dimensionCol = dimension.map(v -> checkTableColumn(v + segment2) + ", ").orElse("");
         String query = format(getTemplate(steps, dimension, window), dimensionCol, dimensionCol, ctes,
                 TIMESTAMP_FORMATTER.format(startDate.atStartOfDay()),
                 TIMESTAMP_FORMATTER.format(endDate.plusDays(1).atStartOfDay()),
@@ -106,7 +103,7 @@ public abstract class AbstractFunnelQueryExecutor
         if (dimension.isPresent()) {
             query = String.format("SELECT (CASE WHEN rank > 15 THEN 'Others' ELSE cast(%s as varchar) END) as dimension, step, sum(total) from " +
                             "(select *, row_number() OVER(ORDER BY total DESC) rank from (%s) t) t GROUP BY 1, 2",
-                    dimension.map(v -> checkTableColumn(v+segment2)).get(), query);
+                    dimension.map(v -> checkTableColumn(v + segment2)).get(), query);
         }
         QueryExecution queryExecution = executor.executeRawQuery(context, query, timezone);
 
@@ -141,8 +138,7 @@ public abstract class AbstractFunnelQueryExecutor
                                 new SchemaField("step", STRING),
                                 new SchemaField("dimension", STRING),
                                 new SchemaField("count", LONG));
-                    }
-                    else {
+                    } else {
                         newResult = IntStream.range(0, steps.size())
                                 .mapToObj(i -> Arrays.<Object>asList("Step " + (i + 1), 0L))
                                 .collect(Collectors.toList());
@@ -162,8 +158,7 @@ public abstract class AbstractFunnelQueryExecutor
                 });
     }
 
-    protected boolean testDeviceIdExists(FunnelStep firstAction, Map<String, List<SchemaField>> collections)
-    {
+    protected boolean testDeviceIdExists(FunnelStep firstAction, Map<String, List<SchemaField>> collections) {
         List<SchemaField> schemaFields = collections.get(firstAction.getCollection());
         if (schemaFields == null) {
             throw new RakamException("The collection in first action does not exist.", HttpResponseStatus.BAD_REQUEST);

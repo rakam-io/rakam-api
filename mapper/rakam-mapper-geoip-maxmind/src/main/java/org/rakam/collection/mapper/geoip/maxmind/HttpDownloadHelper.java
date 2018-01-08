@@ -18,12 +18,7 @@
  */
 package org.rakam.collection.mapper.geoip.maxmind;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
@@ -37,16 +32,14 @@ import java.util.Collection;
 /*
     Mostly taken from org.elasticsearch.common.http.client.HttpDownloadHelper
  */
-public class HttpDownloadHelper
-{
+public class HttpDownloadHelper {
     private static final Duration maxDuration = Duration.ofMinutes(2);
 
     private boolean useTimestamp;
     private boolean skipExisting;
 
     public boolean download(URL source, Path dest, DownloadProgress progress)
-            throws Exception
-    {
+            throws Exception {
         if (Files.exists(dest) && skipExisting) {
             return true;
         }
@@ -75,19 +68,16 @@ public class HttpDownloadHelper
             if (getThread.isAlive()) {
                 throw new RuntimeException("The GET operation took longer than " + maxDuration.getSeconds() + "s, stopping it.");
             }
-        }
-        catch (InterruptedException ie) {
+        } catch (InterruptedException ie) {
             return false;
-        }
-        finally {
+        } finally {
             getThread.closeStreams();
         }
 
         return getThread.wasSuccessful();
     }
 
-    public interface DownloadProgress
-    {
+    public interface DownloadProgress {
         void beginDownload();
 
         void onTick();
@@ -96,52 +86,43 @@ public class HttpDownloadHelper
     }
 
     public static class NullProgress
-            implements DownloadProgress
-    {
+            implements DownloadProgress {
         @Override
-        public void beginDownload()
-        {
+        public void beginDownload() {
 
         }
 
         @Override
-        public void onTick()
-        {
+        public void onTick() {
         }
 
         @Override
-        public void endDownload()
-        {
+        public void endDownload() {
 
         }
     }
 
     public static class VerboseProgress
-            implements DownloadProgress
-    {
-        private int dots;
+            implements DownloadProgress {
         PrintWriter writer;
+        private int dots;
 
-        public VerboseProgress(PrintStream out)
-        {
+        public VerboseProgress(PrintStream out) {
             this.writer = new PrintWriter(out);
         }
 
-        public VerboseProgress(PrintWriter writer)
-        {
+        public VerboseProgress(PrintWriter writer) {
             this.writer = writer;
         }
 
         @Override
-        public void beginDownload()
-        {
+        public void beginDownload() {
             writer.print("Downloading ");
             dots = 0;
         }
 
         @Override
-        public void onTick()
-        {
+        public void onTick() {
             writer.print(".");
             if (dots++ > 50) {
                 writer.flush();
@@ -150,16 +131,14 @@ public class HttpDownloadHelper
         }
 
         @Override
-        public void endDownload()
-        {
+        public void endDownload() {
             writer.println("DONE");
             writer.flush();
         }
     }
 
     private class GetThread
-            extends Thread
-    {
+            extends Thread {
 
         private final URL source;
         private final Path dest;
@@ -174,8 +153,7 @@ public class HttpDownloadHelper
         private URLConnection connection;
         private int redirections;
 
-        GetThread(URL source, Path dest, boolean h, long t, DownloadProgress p)
-        {
+        GetThread(URL source, Path dest, boolean h, long t, DownloadProgress p) {
             this.source = source;
             this.dest = dest;
             hasTimestamp = h;
@@ -184,19 +162,16 @@ public class HttpDownloadHelper
         }
 
         @Override
-        public void run()
-        {
+        public void run() {
             try {
                 success = get();
-            }
-            catch (IOException ioex) {
+            } catch (IOException ioex) {
                 ioexception = ioex;
             }
         }
 
         private boolean get()
-                throws IOException
-        {
+                throws IOException {
 
             connection = openConnection(source);
 
@@ -217,8 +192,7 @@ public class HttpDownloadHelper
         }
 
         private boolean redirectionAllowed()
-                throws IOException
-        {
+                throws IOException {
             redirections++;
             if (redirections > 5) {
                 String message = "More than " + 5 + " times redirected, giving up";
@@ -229,8 +203,7 @@ public class HttpDownloadHelper
         }
 
         private URLConnection openConnection(URL aSource)
-                throws IOException
-        {
+                throws IOException {
 
             // set up the URL connection
             URLConnection connection = aSource.openConnection();
@@ -285,8 +258,7 @@ public class HttpDownloadHelper
         }
 
         private boolean downloadFile()
-                throws IOException
-        {
+                throws IOException {
             IOException lastEx = null;
             for (int i = 0; i < 3; i++) {
                 // this three attempt trick is to get round quirks in different
@@ -295,8 +267,7 @@ public class HttpDownloadHelper
                 try {
                     is = connection.getInputStream();
                     break;
-                }
-                catch (IOException ex) {
+                } catch (IOException ex) {
                     lastEx = ex;
                 }
             }
@@ -315,16 +286,14 @@ public class HttpDownloadHelper
                     progress.onTick();
                 }
                 finished = !isInterrupted();
-            }
-            finally {
+            } finally {
                 if (!finished) {
                     // we have started to (over)write dest, but failed.
                     // Try to delete the garbage we'd otherwise leave
                     // behind.
                     closeWhileHandlingException(Arrays.asList(os, is));
                     deleteFilesIgnoringExceptions(Arrays.asList(dest));
-                }
-                else {
+                } else {
                     os.close();
                     is.close();
                 }
@@ -333,36 +302,31 @@ public class HttpDownloadHelper
             return true;
         }
 
-        public void deleteFilesIgnoringExceptions(Collection<? extends Path> files)
-        {
+        public void deleteFilesIgnoringExceptions(Collection<? extends Path> files) {
             for (Path name : files) {
                 if (name != null) {
                     try {
                         Files.delete(name);
-                    }
-                    catch (Throwable ignored) {
+                    } catch (Throwable ignored) {
                         // ignore
                     }
                 }
             }
         }
 
-        public void closeWhileHandlingException(Iterable<? extends Closeable> objects)
-        {
+        public void closeWhileHandlingException(Iterable<? extends Closeable> objects) {
             for (Closeable object : objects) {
                 try {
                     if (object != null) {
                         object.close();
                     }
-                }
-                catch (Throwable t) {
+                } catch (Throwable t) {
                 }
             }
         }
 
         private void updateTimeStamp()
-                throws IOException
-        {
+                throws IOException {
             long remoteTimestamp = connection.getLastModified();
             if (remoteTimestamp != 0) {
                 Files.setLastModifiedTime(dest, FileTime.fromMillis(remoteTimestamp));
@@ -370,8 +334,7 @@ public class HttpDownloadHelper
         }
 
         boolean wasSuccessful()
-                throws IOException
-        {
+                throws IOException {
             if (ioexception != null) {
                 throw ioexception;
             }
@@ -379,14 +342,12 @@ public class HttpDownloadHelper
         }
 
         void closeStreams()
-                throws IOException
-        {
+                throws IOException {
             interrupt();
             if (success) {
                 is.close();
                 os.close();
-            }
-            else {
+            } else {
                 closeWhileHandlingException(Arrays.asList(is, os));
                 if (dest != null && Files.exists(dest)) {
                     deleteFilesIgnoringExceptions(Arrays.asList(dest));

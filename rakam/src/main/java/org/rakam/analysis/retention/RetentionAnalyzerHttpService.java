@@ -43,9 +43,9 @@ import java.util.concurrent.CompletableFuture;
 @Api(value = "/retention", nickname = "retentionAnalyzer", tags = "retention")
 public class RetentionAnalyzerHttpService
         extends HttpService {
+    private final static Logger LOGGER = Logger.get(RetentionAnalyzerHttpService.class);
     private final RetentionQueryExecutor retentionQueryExecutor;
     private final QueryHttpService queryService;
-    private final static Logger LOGGER = Logger.get(RetentionAnalyzerHttpService.class);
 
     @Inject
     public RetentionAnalyzerHttpService(RetentionQueryExecutor retentionQueryExecutor, QueryHttpService queryService) {
@@ -103,6 +103,7 @@ public class RetentionAnalyzerHttpService
     }
 
     private static class RetentionQuery {
+        public final boolean approximate;
         private final RetentionAction firstAction;
         private final RetentionAction returningAction;
         private final DateUnit dateUnit;
@@ -111,7 +112,6 @@ public class RetentionAnalyzerHttpService
         private final LocalDate startDate;
         private final LocalDate endDate;
         private final ZoneId timezone;
-        public final boolean approximate;
 
         @JsonCreator
         public RetentionQuery(@ApiParam("first_action") RetentionAction firstAction,

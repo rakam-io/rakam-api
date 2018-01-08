@@ -5,23 +5,12 @@ import org.joda.time.format.*;
 import java.time.ZoneOffset;
 import java.util.concurrent.TimeUnit;
 
-public class DateTimeUtils
-{
-    private DateTimeUtils()
-    {
-    }
-
+public class DateTimeUtils {
     public static final java.time.format.DateTimeFormatter TIMESTAMP_FORMATTER = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneOffset.UTC);
     public static final java.time.format.DateTimeFormatter LOCAL_DATE_FORMATTER = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneOffset.UTC);
-
     private static final DateTimeFormatter DATE_FORMATTER = ISODateTimeFormat.date().withZoneUTC();
     private static final DateTimeFormatter TIMESTAMP_WITHOUT_TIME_ZONE_FORMATTER;
     private static final DateTimeFormatter TIMESTAMP_WITH_TIME_ZONE_FORMATTER;
-
-    public static int parseDate(String value)
-    {
-        return (int) TimeUnit.MILLISECONDS.toDays(DATE_FORMATTER.parseMillis(value));
-    }
 
     static {
         DateTimeParser[] timestampWithoutTimeZoneParser = {
@@ -59,17 +48,21 @@ public class DateTimeUtils
                 .withOffsetParsed();
     }
 
-    public static long parseTimestamp(Number timestampWithTimeZone)
-    {
+    private DateTimeUtils() {
+    }
+
+    public static int parseDate(String value) {
+        return (int) TimeUnit.MILLISECONDS.toDays(DATE_FORMATTER.parseMillis(value));
+    }
+
+    public static long parseTimestamp(Number timestampWithTimeZone) {
         return timestampWithTimeZone.longValue();
     }
 
-    public static long parseTimestamp(Object timestampWithTimeZone)
-    {
+    public static long parseTimestamp(Object timestampWithTimeZone) {
         if (timestampWithTimeZone instanceof Number) {
             return parseTimestamp((Number) timestampWithTimeZone);
-        }
-        else if (timestampWithTimeZone instanceof String) {
+        } else if (timestampWithTimeZone instanceof String) {
             String encoded = timestampWithTimeZone.toString();
             // Joda parses [0-9]{10} as TIMESTAMP with huge value so we limit the characters.
             if (encoded.length() > 12) {
@@ -80,20 +73,17 @@ public class DateTimeUtils
         throw new RuntimeException("Invalid TIMESTAMP");
     }
 
-    public static long parseTimestamp(String timestampWithTimeZone)
-    {
+    public static long parseTimestamp(String timestampWithTimeZone) {
         if (timestampWithTimeZone.length() <= 12) {
             throw new IllegalArgumentException();
         }
 
         try {
             return ISODateTimeFormat.dateTimeParser().parseMillis(timestampWithTimeZone);
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             try {
                 return TIMESTAMP_WITHOUT_TIME_ZONE_FORMATTER.parseMillis(timestampWithTimeZone);
-            }
-            catch (Exception ex) {
+            } catch (Exception ex) {
                 return TIMESTAMP_WITH_TIME_ZONE_FORMATTER.parseMillis(timestampWithTimeZone);
             }
         }

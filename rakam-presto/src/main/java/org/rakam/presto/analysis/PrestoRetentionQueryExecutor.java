@@ -44,8 +44,7 @@ import static org.rakam.util.DateTimeUtils.LOCAL_DATE_FORMATTER;
 import static org.rakam.util.ValidationUtil.*;
 
 public class PrestoRetentionQueryExecutor
-        extends AbstractRetentionQueryExecutor
-{
+        extends AbstractRetentionQueryExecutor {
     private final Metastore metastore;
     private final MaterializedViewService materializedViewService;
     private final QueryExecutorService executor;
@@ -58,8 +57,7 @@ public class PrestoRetentionQueryExecutor
             QueryExecutorService executor,
             Metastore metastore,
             MaterializedViewService materializedViewService,
-            UserPluginConfig userPluginConfig)
-    {
+            UserPluginConfig userPluginConfig) {
         this.projectConfig = projectConfig;
         this.executor = executor;
         this.metastore = metastore;
@@ -77,8 +75,7 @@ public class PrestoRetentionQueryExecutor
             Optional<Integer> period,
             LocalDate startDate, LocalDate endDate,
             ZoneId timezone,
-            boolean approximateVal)
-    {
+            boolean approximateVal) {
         boolean approximate = true;
         period.ifPresent(e -> checkArgument(e >= 0, "Period must be 0 or a positive value"));
 
@@ -89,17 +86,14 @@ public class PrestoRetentionQueryExecutor
         if (dateUnit == MONTH) {
             start = startDate.withDayOfMonth(1);
             end = endDate.withDayOfMonth(1).plus(1, ChronoUnit.MONTHS);
-        }
-        else if (dateUnit == WEEK) {
+        } else if (dateUnit == WEEK) {
             TemporalField fieldUS = WeekFields.of(Locale.US).dayOfWeek();
             start = startDate.with(fieldUS, 1);
             end = endDate.with(fieldUS, 1).plus(1, ChronoUnit.MONTHS);
-        }
-        else if (dateUnit == DAY) {
+        } else if (dateUnit == DAY) {
             start = startDate;
             end = endDate;
-        }
-        else {
+        } else {
             throw new IllegalStateException();
         }
         Optional<Integer> range = period.map(v -> Math.min(v, Ints.checkedCast(DAYS.between(start, end))));
@@ -158,16 +152,15 @@ public class PrestoRetentionQueryExecutor
     }
 
     protected String generateQuery(String project,
-            Optional<RetentionAction> retentionAction,
-            String connectorField,
-            String timeColumn,
-            Optional<String> dimension,
-            LocalDate startDate,
-            LocalDate endDate,
-            Set<CalculatedUserSet> missingPreComputedTables,
-            ZoneId timezone,
-            boolean approximate)
-    {
+                                   Optional<RetentionAction> retentionAction,
+                                   String connectorField,
+                                   String timeColumn,
+                                   Optional<String> dimension,
+                                   LocalDate startDate,
+                                   LocalDate endDate,
+                                   Set<CalculatedUserSet> missingPreComputedTables,
+                                   ZoneId timezone,
+                                   boolean approximate) {
 
         String timePredicate = String.format("between date '%s' and date '%s' + interval '1' day",
                 LOCAL_DATE_FORMATTER.format(startDate),
@@ -199,8 +192,7 @@ public class PrestoRetentionQueryExecutor
                                     Optional.of(isText),
                                     timeColumn, dimension, startDate, endDate, Optional.empty()))
                             .collect(Collectors.joining(" union all ")), dimension.isPresent() ? ", 2" : "");
-        }
-        else {
+        } else {
             String collection = retentionAction.get().collection();
 
             Optional<String> preComputedTable = getPreComputedTable(project, timePredicate, timeColumn, Optional.of(collection), dimension,
@@ -225,8 +217,7 @@ public class PrestoRetentionQueryExecutor
             String project, String timePredicate,
             String timeColumn, Optional<String> collection, Optional<String> dimension,
             Optional<Expression> filter, Set<CalculatedUserSet> missingPreComputedTables,
-            boolean dimensionRequired, ZoneId zoneId)
-    {
+            boolean dimensionRequired, ZoneId zoneId) {
         String tableName = "_users_daily" + collection.map(value -> "_" + value).orElse("") + dimension.map(value -> "_by_" + value).orElse("");
 
         if (filter.isPresent()) {
@@ -245,8 +236,7 @@ public class PrestoRetentionQueryExecutor
                     missingPreComputedTables.add(new CalculatedUserSet(collection, Optional.of(columnName)));
                     return Optional.empty();
                 }).process(filter.get(), false));
-            }
-            catch (UnsupportedOperationException e) {
+            } catch (UnsupportedOperationException e) {
                 return Optional.empty();
             }
         }
@@ -265,16 +255,14 @@ public class PrestoRetentionQueryExecutor
     private String generatePreCalculatedTableSql(
             Optional<String> tableNameSuffix,
             String schema, String timePredicate, String timeColumn,
-            boolean dimensionRequired)
-    {
+            boolean dimensionRequired) {
         return String.format("select %s as date, %s _user_set from %s where date %s",
                 String.format(timeColumn, "date"),
                 dimensionRequired ? "dimension, " : "",
                 "\"" + checkProject(schema, '"') + "\"" + tableNameSuffix.map(e -> ".\"" + e + "\"").orElse(""), timePredicate);
     }
 
-    private String diffTimestamps(DateUnit dateUnit, String start, String end)
-    {
+    private String diffTimestamps(DateUnit dateUnit, String start, String end) {
         return String.format("date_diff('%s', %s, %s)",
                 dateUnit.name().toLowerCase(), start, end);
     }
@@ -288,8 +276,7 @@ public class PrestoRetentionQueryExecutor
             Optional<String> dimension,
             LocalDate startDate,
             LocalDate endDate,
-            Optional<Expression> filter)
-    {
+            Optional<Expression> filter) {
         String userField = isText.map(text -> String.format("%s", checkTableColumn(connectorField))).orElse(connectorField);
         String timePredicate = String.format("between date '%s' and date '%s' + interval '1' day",
                 startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE));

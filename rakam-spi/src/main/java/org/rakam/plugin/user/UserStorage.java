@@ -61,8 +61,7 @@ public interface UserStorage {
 
     void setUserPropertiesOnce(String project, Object user, ObjectNode properties);
 
-    default void createProjectIfNotExists(String project, boolean isNumeric)
-    {
+    default void createProjectIfNotExists(String project, boolean isNumeric) {
 
     }
 
@@ -72,8 +71,7 @@ public interface UserStorage {
 
     void unsetProperties(String project, Object user, List<String> properties);
 
-    default void applyOperations(String project, List<? extends ISingleUserBatchOperation> req)
-    {
+    default void applyOperations(String project, List<? extends ISingleUserBatchOperation> req) {
         for (ISingleUserBatchOperation data : req) {
             if (data.getSetProperties() != null) {
                 setUserProperties(project, data.getUser(), data.getSetPropertiesOnce());
@@ -92,6 +90,10 @@ public interface UserStorage {
         }
     }
 
+    enum Ordering {
+        asc, desc
+    }
+
     class Sorting {
         public final String column;
         public final Ordering order;
@@ -102,10 +104,6 @@ public interface UserStorage {
             this.column = column;
             this.order = order;
         }
-    }
-
-    enum Ordering {
-        asc, desc
     }
 
     class EventFilterAggregation {
@@ -159,7 +157,7 @@ public interface UserStorage {
         @JsonIgnore
         public synchronized Expression getExpression() {
             try {
-                return filterExpression  != null ? SQL_PARSER.createExpression(filterExpression) : null;
+                return filterExpression != null ? SQL_PARSER.createExpression(filterExpression) : null;
             } catch (Exception e) {
                 throw new RakamException(format("filter expression '%s' couldn't parsed", filterExpression), HttpResponseStatus.BAD_REQUEST);
             }

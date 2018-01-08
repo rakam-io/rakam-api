@@ -7,19 +7,24 @@ import java.util.function.Consumer;
 
 public interface UserMailboxStorage {
     Message send(String project, Object fromUser, Object toUser, Integer parentId, String message, Instant date);
+
     void createProjectIfNotExists(String projectId, boolean userKeyIsNumeric);
+
     MessageListener listen(String projectId, String user, Consumer<Data> messageConsumer);
+
     MessageListener listenAllUsers(String projectId, Consumer<Data> messageConsumer);
+
     List<Message> getConversation(String project, String userId, Integer parentId, int limit, long offset);
+
     void markMessagesAsRead(String project, String userId, int[] messageIds);
-
-    interface MessageListener {
-        void shutdown();
-    }
-
 
     enum Operation {
         msg, typing
+    }
+
+
+    interface MessageListener {
+        void shutdown();
     }
 
     class Data {
@@ -32,7 +37,7 @@ public interface UserMailboxStorage {
         }
 
         public String serialize() {
-            return op.name()+"\n"+payload;
+            return op.name() + "\n" + payload;
         }
     }
 }

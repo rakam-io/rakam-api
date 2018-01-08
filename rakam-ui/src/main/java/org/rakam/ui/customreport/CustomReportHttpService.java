@@ -33,15 +33,13 @@ import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 @Path("/ui/custom-report")
 @IgnoreApi
 public class CustomReportHttpService
-        extends HttpService
-{
+        extends HttpService {
 
     private final CustomReportMetadata metadata;
     private final WebUserService userService;
 
     @Inject
-    public CustomReportHttpService(WebUserService userService, CustomReportMetadata metadata)
-    {
+    public CustomReportHttpService(WebUserService userService, CustomReportMetadata metadata) {
         this.metadata = metadata;
         this.userService = userService;
     }
@@ -50,8 +48,7 @@ public class CustomReportHttpService
     @Path("/list")
     @ApiOperation(value = "List reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
     public List<CustomReport> list(@ApiParam("report_type") String reportType,
-            @Named("user_id") Project project)
-    {
+                                   @Named("user_id") Project project) {
         return metadata.list(reportType, project.project);
     }
 
@@ -59,8 +56,7 @@ public class CustomReportHttpService
     @Path("/types")
     @JsonRequest
     @ApiOperation(value = "List report types", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
-    public List<String> types(@Named("user_id") Project project)
-    {
+    public List<String> types(@Named("user_id") Project project) {
         return metadata.types(project.project);
     }
 
@@ -69,8 +65,7 @@ public class CustomReportHttpService
     @JsonRequest
     @ProtectEndpoint(writeOperation = true)
     @Path("/create")
-    public SuccessMessage create(@Named("user_id") Project project, @BodyParam CustomReport report)
-    {
+    public SuccessMessage create(@Named("user_id") Project project, @BodyParam CustomReport report) {
         metadata.save(project.userId, project.project, report);
         return SuccessMessage.success();
     }
@@ -79,12 +74,11 @@ public class CustomReportHttpService
     @Path("/update")
     @ProtectEndpoint(writeOperation = true)
     @ApiOperation(value = "Update reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
-    public SuccessMessage update(@Named("user_id") Project project, @BodyParam CustomReport report)
-    {
+    public SuccessMessage update(@Named("user_id") Project project, @BodyParam CustomReport report) {
         CustomReport customReport = metadata.get(report.reportType, project.project, report.name);
-        if(customReport.getUser() != null && customReport.getUser() != project.userId) {
+        if (customReport.getUser() != null && customReport.getUser() != project.userId) {
             int id = userService.getProjectOwner(project.project).id;
-            if(id != project.userId) {
+            if (id != project.userId) {
                 throw new RakamException("The owner of the custom report can update the report", UNAUTHORIZED);
             }
         }
@@ -97,16 +91,15 @@ public class CustomReportHttpService
     @ApiOperation(value = "Delete reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
     @ProtectEndpoint(writeOperation = true)
     public SuccessMessage delete(@Named("user_id") Project project,
-            @ApiParam("report_type") String reportType,
-            @ApiParam("name") String name)
-    {
+                                 @ApiParam("report_type") String reportType,
+                                 @ApiParam("name") String name) {
         CustomReport customReport = metadata.get(reportType, project.project, name);
-        if(customReport == null) {
+        if (customReport == null) {
             throw new RakamException(NOT_FOUND);
         }
-        if(customReport.getUser() != null && customReport.getUser() != project.userId) {
+        if (customReport.getUser() != null && customReport.getUser() != project.userId) {
             int id = userService.getProjectOwner(project.project).id;
-            if(id != project.userId) {
+            if (id != project.userId) {
                 throw new RakamException("The owner of the custom report can delete the report", UNAUTHORIZED);
             }
         }
@@ -119,9 +112,8 @@ public class CustomReportHttpService
     @Path("/get")
     @ApiOperation(value = "Get reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
     public CustomReport get(@ApiParam("report_type") String reportType,
-            @Named("user_id") Project project,
-            @ApiParam(value = "name") String name)
-    {
+                            @Named("user_id") Project project,
+                            @ApiParam(value = "name") String name) {
         return metadata.get(reportType, project.project, name);
     }
 }

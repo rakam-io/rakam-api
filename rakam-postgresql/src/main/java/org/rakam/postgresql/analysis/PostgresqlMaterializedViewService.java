@@ -56,10 +56,9 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
             new RakamSqlFormatter.Formatter(builder, name -> queryExecutor
                     .formatTableReference(context.project, name, Optional.empty(), new HashMap<String, String>() {
                         @Override
-                        public String put(String key, String value)
-                        {
+                        public String put(String key, String value) {
                             CustomDataSource read = JsonHelper.read(value, CustomDataSource.class);
-                            if(!ImmutableList.of("postgresql", "mysql").contains(read.type)) {
+                            if (!ImmutableList.of("postgresql", "mysql").contains(read.type)) {
                                 throw new RakamException("Cross database materialized views are not supported in Postgresql deployment type.", BAD_REQUEST);
                             }
 
@@ -67,15 +66,14 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
                         }
                     }), '"').process(statement, 1);
 
-            if(!materializedView.incremental) {
+            if (!materializedView.incremental) {
                 format = format("CREATE MATERIALIZED VIEW %s.%s AS %s WITH NO DATA",
                         checkProject(context.project, '"'), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName), builder.toString());
             } else {
                 format = format("CREATE TABLE %s.%s AS %s WITH NO DATA",
                         checkProject(context.project, '"'), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName), builder.toString());
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             CompletableFuture<Void> f = new CompletableFuture<>();
             f.completeExceptionally(e);
             return f;
@@ -86,11 +84,10 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
                 try {
                     get(context.project, materializedView.tableName);
                     throw new AlreadyExistsException("Materialized view", BAD_REQUEST);
-                }
-                catch (NotExistsException e) {
+                } catch (NotExistsException e) {
                 }
 
-                if(!"42P07".equals(result.getError().sqlState)) {
+                if (!"42P07".equals(result.getError().sqlState)) {
                     throw new RakamException("Couldn't created table: " +
                             result.getError().toString(), BAD_REQUEST);
                 }
@@ -109,7 +106,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
                 type,
                 checkProject(context.project, '"'), checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName)));
         return queryExecution.getResult().thenApply(result -> {
-            if(!result.isFailed())
+            if (!result.isFailed())
                 database.deleteMaterializedView(context.project, name);
             else
                 return result;
@@ -132,7 +129,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
                 return new MaterializedViewExecution(null, tableName);
             }
 
-            String collection = checkCollection( MATERIALIZED_VIEW_PREFIX + materializedView.tableName);
+            String collection = checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName);
             QueryExecution execution = queryExecutor.executeRawStatement(context, format("REFRESH MATERIALIZED VIEW %s.%s ",
                     context.project, collection));
             DelegateQueryExecution delegateQueryExecution = new DelegateQueryExecution(execution, result -> {
@@ -140,8 +137,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
                 return result;
             });
             return new MaterializedViewExecution(delegateQueryExecution, tableName);
-        }
-        else {
+        } else {
             String materializedTableReference = tableName;
 
             boolean willBeUpdated = materializedView.needsUpdate(clock) && database.updateMaterializedView(context.project, materializedView, f);
@@ -151,7 +147,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
             if (willBeUpdated) {
                 String query = formatSql(statement,
                         name -> {
-                            String predicate =  materializedView.lastUpdate != null ? format("between timezone('UTC', to_timestamp(%d)) and  timezone('UTC', to_timestamp(%d))",
+                            String predicate = materializedView.lastUpdate != null ? format("between timezone('UTC', to_timestamp(%d)) and  timezone('UTC', to_timestamp(%d))",
                                     materializedView.lastUpdate.getEpochSecond(), now.getEpochSecond()) :
                                     format(" < timezone('UTC', to_timestamp(%d))", now.getEpochSecond());
 
@@ -163,8 +159,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
                 queryExecution = queryExecutor.executeRawStatement(context, format("INSERT INTO %s %s", materializedTableReference, query), sessionProperties);
                 queryExecution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? now : null));
 
-            }
-            else {
+            } else {
                 queryExecution = QueryExecution.completedQueryExecution("", QueryResult.empty());
                 f.complete(materializedView.lastUpdate);
             }
@@ -172,14 +167,13 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
             String reference;
             if (!willBeUpdated && !materializedView.realTime) {
                 reference = materializedTableReference;
-            }
-            else {
+            } else {
                 String query = formatSql(statement,
                         name -> {
                             String collection = format("(SELECT * FROM %s %s) data",
                                     queryExecutor.formatTableReference(context.project, name, Optional.empty(), ImmutableMap.of()),
                                     format("WHERE \"$server_time\" > to_timestamp(%d)",
-                                            ( materializedView.lastUpdate != null ?  materializedView.lastUpdate : now).getEpochSecond()));
+                                            (materializedView.lastUpdate != null ? materializedView.lastUpdate : now).getEpochSecond()));
                             return collection;
                         }, '"');
 

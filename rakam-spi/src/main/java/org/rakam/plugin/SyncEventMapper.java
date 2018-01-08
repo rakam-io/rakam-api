@@ -11,10 +11,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public interface SyncEventMapper
-        extends EventMapper
-{
-    default List<Cookie> map(EventList events, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders)
-    {
+        extends EventMapper {
+    default List<Cookie> map(EventList events, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders) {
         List<Cookie> cookies = null;
         for (Event event : events.events) {
             List<Cookie> map = map(event, requestParams, sourceAddress, responseHeaders);
@@ -30,8 +28,7 @@ public interface SyncEventMapper
 
     List<Cookie> map(Event event, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders);
 
-    default CompletableFuture<List<Cookie>> mapAsync(Event event, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders)
-    {
+    default CompletableFuture<List<Cookie>> mapAsync(Event event, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders) {
         List<Cookie> map = map(event, requestParams, sourceAddress, responseHeaders);
         if (map == null) {
             return COMPLETED_EMPTY_FUTURE;

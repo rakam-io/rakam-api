@@ -42,9 +42,9 @@ public class TestCSVParser {
                 "1/2/09 4:53,Product2,1500\n";
 
         EventList actual = mapper.reader(EventList.class).with(ContextAttributes.getEmpty()
-                        .withSharedAttribute("project", "project")
-                        .withSharedAttribute("collection", "collection")
-                        .withSharedAttribute("apiKey", "apiKey")
+                .withSharedAttribute("project", "project")
+                .withSharedAttribute("collection", "collection")
+                .withSharedAttribute("apiKey", "apiKey")
         ).readValue(csv);
 
         List<SchemaField> collection = metastore.getCollection("project", "collection");

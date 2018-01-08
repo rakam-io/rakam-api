@@ -70,7 +70,7 @@ public class KafkaEventStore implements SyncEventStore, LeaderSelectorListener {
         client.start();
 
         try {
-            if(client.checkExists().forPath(ZK_OFFSET_PATH) == null)
+            if (client.checkExists().forPath(ZK_OFFSET_PATH) == null)
                 client.create().forPath(ZK_OFFSET_PATH);
         } catch (Exception e) {
             LOGGER.error(e, format("Couldn't create event offset path %s", ZK_OFFSET_PATH));
@@ -94,7 +94,7 @@ public class KafkaEventStore implements SyncEventStore, LeaderSelectorListener {
         }
 
         try {
-            producer.send(new KeyedMessage<>(event.project()+"_"+event.collection(), buffer.array()));
+            producer.send(new KeyedMessage<>(event.project() + "_" + event.collection(), buffer.array()));
         } catch (FailedToSendMessageException e) {
             throw new RuntimeException("Couldn't send event to Kafka", e);
         }
@@ -109,7 +109,7 @@ public class KafkaEventStore implements SyncEventStore, LeaderSelectorListener {
 
     @Override
     public void takeLeadership(CuratorFramework curatorFramework) throws Exception {
-        if(executorService == null) {
+        if (executorService == null) {
             ThreadFactory build = new ThreadFactoryBuilder()
                     .setNameFormat("kafka-offset-worker").build();
             executorService = Executors.newSingleThreadScheduledExecutor(build);

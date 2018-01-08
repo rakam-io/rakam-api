@@ -3,9 +3,7 @@ package org.rakam.collection.mapper.geoip.maxmind;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
-import com.maxmind.db.Reader;
 import com.maxmind.geoip2.DatabaseReader;
 import com.maxmind.geoip2.exception.AddressNotFoundException;
 import com.maxmind.geoip2.model.CityResponse;
@@ -42,14 +40,16 @@ import static org.rakam.collection.FieldType.STRING;
 
 @Mapper(name = "Maxmind Event mapper", description = "Looks up geolocation data from _ip field using Maxmind and attaches geo-related attributed")
 public class MaxmindGeoIPEventMapper
-        implements SyncEventMapper, UserPropertyMapper
-{
+        implements SyncEventMapper, UserPropertyMapper {
     private static final Logger LOGGER = Logger.get(MaxmindGeoIPEventMapper.class);
     private static final String ERROR_MESSAGE = "You need to set %s config in order to have '%s' field.";
 
     private final static List<String> CITY_DATABASE_ATTRIBUTES = ImmutableList
             .of("city", "region", "country_code", "latitude", "longitude", "timezone");
-
+    private static final String IP_ADDRESS_REGEX = "([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})";
+    private static final String PRIVATE_IP_ADDRESS_REGEX = "(^127\\.0\\.0\\.1)|(^10\\.)|(^172\\.1[6-9]\\.)|(^172\\.2[0-9]\\.)|(^172\\.3[0-1]\\.)|(^192\\.168\\.)";
+    private static Pattern IP_ADDRESS_PATTERN = null;
+    private static Pattern PRIVATE_IP_ADDRESS_PATTERN = null;
     private final String[] attributes;
     private final DatabaseReader connectionTypeLookup;
     private final DatabaseReader ispLookup;
@@ -57,8 +57,7 @@ public class MaxmindGeoIPEventMapper
     private final boolean attachIp;
 
     public MaxmindGeoIPEventMapper(MaxmindGeoIPModuleConfig config)
-            throws IOException
-    {
+            throws IOException {
         Preconditions.checkNotNull(config, "config is null");
 
         DatabaseReader connectionTypeLookup = null, ispLookup = null, cityLookup = null;
@@ -73,8 +72,7 @@ public class MaxmindGeoIPEventMapper
                         cityLookup = getReader(config.getDatabaseUrl());
                     }
                     continue;
-                }
-                else if ("isp".equals(attr)) {
+                } else if ("isp".equals(attr)) {
                     if (config.getIspDatabaseUrl() == null) {
                         throw new IllegalStateException(String.format(ERROR_MESSAGE, "plugin.geoip.isp-database.url", attr));
                     }
@@ -82,8 +80,7 @@ public class MaxmindGeoIPEventMapper
                         ispLookup = getReader(config.getIspDatabaseUrl());
                     }
                     continue;
-                }
-                else if ("connection_type".equals(attr)) {
+                } else if ("connection_type".equals(attr)) {
                     if (config.getConnectionTypeDatabaseUrl() == null) {
                         throw new IllegalStateException(String.format(ERROR_MESSAGE, "plugin.geoip.connection-type-database.url", attr));
                     }
@@ -91,8 +88,7 @@ public class MaxmindGeoIPEventMapper
                         connectionTypeLookup = getReader(config.getConnectionTypeDatabaseUrl());
                     }
                     continue;
-                }
-                else if ("_ip".equals(attr)) {
+                } else if ("_ip".equals(attr)) {
                     attachIp = true;
                     continue;
                 }
@@ -100,13 +96,11 @@ public class MaxmindGeoIPEventMapper
                         Joiner.on(", ").join(CITY_DATABASE_ATTRIBUTES));
             }
             attributes = config.getAttributes().stream().toArray(String[]::new);
-        }
-        else {
+        } else {
             if (config.getDatabaseUrl() != null) {
                 cityLookup = getReader(config.getDatabaseUrl());
                 attributes = CITY_DATABASE_ATTRIBUTES.stream().toArray(String[]::new);
-            }
-            else {
+            } else {
                 attributes = null;
             }
             attachIp = true;
@@ -125,20 +119,49 @@ public class MaxmindGeoIPEventMapper
         this.connectionTypeLookup = connectionTypeLookup;
     }
 
-    private DatabaseReader getReader(URL url)
-    {
+    private static FieldType getType(String attr) {
+        switch (attr) {
+            case "country_code":
+            case "region":
+            case "city":
+            case "timezone":
+            case "_ip":
+                return STRING;
+            case "latitude":
+            case "longitude":
+                return FieldType.DOUBLE;
+            default:
+                throw new IllegalStateException();
+        }
+    }
+
+    private static String findNonPrivateIpAddress(String s) {
+        if (IP_ADDRESS_PATTERN == null) {
+            IP_ADDRESS_PATTERN = Pattern.compile(IP_ADDRESS_REGEX);
+            PRIVATE_IP_ADDRESS_PATTERN = Pattern.compile(PRIVATE_IP_ADDRESS_REGEX);
+        }
+        Matcher matcher = IP_ADDRESS_PATTERN.matcher(s);
+        while (matcher.find()) {
+            String group = matcher.group(0);
+            if (group != null && !PRIVATE_IP_ADDRESS_PATTERN.matcher(group).find()) {
+                return group;
+            }
+            matcher.region(matcher.end(), s.length());
+        }
+        return null;
+    }
+
+    private DatabaseReader getReader(URL url) {
         try {
             FileInputStream cityDatabase = new FileInputStream(MaxmindGeoIPModule.downloadOrGetFile(url));
             return new DatabaseReader.Builder(cityDatabase).fileMode(MEMORY).build();
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
     @Override
-    public List<Cookie> map(Event event, RequestParams extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders)
-    {
+    public List<Cookie> map(Event event, RequestParams extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders) {
         Object ip = event.properties().get("_ip");
 
         InetAddress addr;
@@ -146,26 +169,22 @@ public class MaxmindGeoIPEventMapper
             try {
                 // it may be slow because java performs reverse hostname lookup.
                 addr = Inet4Address.getByName((String) ip);
-            }
-            catch (UnknownHostException e) {
+            } catch (UnknownHostException e) {
                 return null;
             }
-        }
-        else if (Boolean.TRUE == ip) {
+        } else if (Boolean.TRUE == ip) {
             String forwardedFor = extraProperties.headers().get("X-Forwarded-For");
             if (forwardedFor != null && (forwardedFor = findNonPrivateIpAddress(forwardedFor)) != null) {
                 try {
                     // it may be slow because java performs reverse hostname lookup.
                     addr = Inet4Address.getByName(forwardedFor);
-                }
-                catch (UnknownHostException e) {
+                } catch (UnknownHostException e) {
                     return null;
                 }
             } else {
                 addr = sourceAddress;
             }
-        }
-        else {
+        } else {
             if (cityLookup != null) {
                 // Cloudflare country code header (Only works when the request passed through CF servers)
                 String countryCode = extraProperties.headers().get("HTTP_CF_IPCOUNTRY");
@@ -201,8 +220,7 @@ public class MaxmindGeoIPEventMapper
     }
 
     @Override
-    public List<Cookie> map(String project, List<? extends ISingleUserBatchOperation> user, RequestParams requestParams, InetAddress sourceAddress)
-    {
+    public List<Cookie> map(String project, List<? extends ISingleUserBatchOperation> user, RequestParams requestParams, InetAddress sourceAddress) {
         for (ISingleUserBatchOperation data : user) {
             if (data.getSetProperties() != null) {
                 mapInternal(data.getSetProperties(), sourceAddress);
@@ -215,8 +233,7 @@ public class MaxmindGeoIPEventMapper
         return null;
     }
 
-    public void mapInternal(ObjectNode data, InetAddress sourceAddress)
-    {
+    public void mapInternal(ObjectNode data, InetAddress sourceAddress) {
         Object ip = data.get("_ip");
 
         if (ip == null) {
@@ -227,8 +244,7 @@ public class MaxmindGeoIPEventMapper
             try {
                 // it may be slow because java performs reverse hostname lookup.
                 sourceAddress = Inet4Address.getByName((String) ip);
-            }
-            catch (UnknownHostException e) {
+            } catch (UnknownHostException e) {
                 return;
             }
         }
@@ -253,8 +269,7 @@ public class MaxmindGeoIPEventMapper
     }
 
     @Override
-    public void addFieldDependency(FieldDependencyBuilder builder)
-    {
+    public void addFieldDependency(FieldDependencyBuilder builder) {
         List<SchemaField> fields = Arrays.stream(attributes)
                 .map(attr -> new SchemaField("_" + attr, getType(attr)))
                 .collect(Collectors.toList());
@@ -272,33 +287,13 @@ public class MaxmindGeoIPEventMapper
         builder.addFields("_ip", fields);
     }
 
-    private static FieldType getType(String attr)
-    {
-        switch (attr) {
-            case "country_code":
-            case "region":
-            case "city":
-            case "timezone":
-            case "_ip":
-                return STRING;
-            case "latitude":
-            case "longitude":
-                return FieldType.DOUBLE;
-            default:
-                throw new IllegalStateException();
-        }
-    }
-
-    private void setConnectionType(InetAddress address, GenericRecord properties)
-    {
+    private void setConnectionType(InetAddress address, GenericRecord properties) {
         ConnectionTypeResponse connectionType;
         try {
             connectionType = connectionTypeLookup.connectionType(address);
-        }
-        catch (AddressNotFoundException e) {
+        } catch (AddressNotFoundException e) {
             return;
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             LOGGER.error(e, "Error while searching for location information.");
             return;
         }
@@ -309,16 +304,13 @@ public class MaxmindGeoIPEventMapper
         }
     }
 
-    private void setIsp(InetAddress address, GenericRecord properties)
-    {
+    private void setIsp(InetAddress address, GenericRecord properties) {
         IspResponse isp;
         try {
             isp = ispLookup.isp(address);
-        }
-        catch (AddressNotFoundException e) {
+        } catch (AddressNotFoundException e) {
             return;
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             LOGGER.error(e, "Error while searching for location information.");
             return;
         }
@@ -326,17 +318,14 @@ public class MaxmindGeoIPEventMapper
         properties.put("_isp", isp.getIsp());
     }
 
-    private void setGeoFields(InetAddress address, GenericRecord properties)
-    {
+    private void setGeoFields(InetAddress address, GenericRecord properties) {
         CityResponse city;
 
         try {
             city = cityLookup.city(address);
-        }
-        catch (AddressNotFoundException e) {
+        } catch (AddressNotFoundException e) {
             return;
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             LOGGER.error(e, "Error while searching for location information.");
             return;
         }
@@ -363,26 +352,5 @@ public class MaxmindGeoIPEventMapper
                     break;
             }
         }
-    }
-
-    private static final String IP_ADDRESS_REGEX = "([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})";
-    private static final String PRIVATE_IP_ADDRESS_REGEX = "(^127\\.0\\.0\\.1)|(^10\\.)|(^172\\.1[6-9]\\.)|(^172\\.2[0-9]\\.)|(^172\\.3[0-1]\\.)|(^192\\.168\\.)";
-    private static Pattern IP_ADDRESS_PATTERN = null;
-    private static Pattern PRIVATE_IP_ADDRESS_PATTERN = null;
-
-    private static String findNonPrivateIpAddress(String s) {
-        if (IP_ADDRESS_PATTERN == null) {
-            IP_ADDRESS_PATTERN = Pattern.compile(IP_ADDRESS_REGEX);
-            PRIVATE_IP_ADDRESS_PATTERN = Pattern.compile(PRIVATE_IP_ADDRESS_REGEX);
-        }
-        Matcher matcher = IP_ADDRESS_PATTERN.matcher(s);
-        while (matcher.find()) {
-            String group = matcher.group(0);
-            if (group != null && !PRIVATE_IP_ADDRESS_PATTERN.matcher(group).find()) {
-                return group;
-            }
-            matcher.region(matcher.end(), s.length());
-        }
-        return null;
     }
 }

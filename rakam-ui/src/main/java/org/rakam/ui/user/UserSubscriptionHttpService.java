@@ -36,14 +36,12 @@ import static io.netty.handler.codec.http.HttpResponseStatus.*;
 @Path("/ui/subscription")
 @IgnoreApi
 public class UserSubscriptionHttpService
-        extends HttpService
-{
+        extends HttpService {
     private final WebUserService service;
     private final RequestOptions requestOptions;
 
     @Inject
-    public UserSubscriptionHttpService(WebUserService service, RakamUIConfig config)
-    {
+    public UserSubscriptionHttpService(WebUserService service, RakamUIConfig config) {
         this.service = service;
         requestOptions = new RequestOptions.RequestOptionsBuilder()
                 .setApiKey(config.getStripeKey()).build();
@@ -52,8 +50,7 @@ public class UserSubscriptionHttpService
     @JsonRequest
     @ProtectEndpoint(writeOperation = true, requiresProject = false)
     @Path("/plans")
-    public List<RakamPlan> listPlans(@javax.inject.Named("user_id") UIPermissionParameterProvider.Project project)
-    {
+    public List<RakamPlan> listPlans(@javax.inject.Named("user_id") UIPermissionParameterProvider.Project project) {
         Optional<WebUser> webUser = service.getUser(project.userId);
         if (!webUser.isPresent()) {
             throw new RakamException(FORBIDDEN);
@@ -63,8 +60,7 @@ public class UserSubscriptionHttpService
             return Plan.list(ImmutableMap.of("limit", 50), requestOptions).getData().stream()
                     .map(e -> new RakamPlan(e.getId(), e.getName(), e.getAmount(), e.getStatementDescriptor()))
                     .collect(Collectors.toList());
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             throw Throwables.propagate(e);
         }
     }
@@ -77,8 +73,7 @@ public class UserSubscriptionHttpService
             @ApiParam(value = "coupon", required = false) String coupon,
             @ApiParam("plan") String plan,
             @javax.inject.Named("user_id") UIPermissionParameterProvider.Project project,
-            @HeaderParam("X-Requested-With") String csrfHeader)
-    {
+            @HeaderParam("X-Requested-With") String csrfHeader) {
         if (!"XMLHttpRequest".equals(csrfHeader)) {
             throw new RakamException(FORBIDDEN);
         }
@@ -101,12 +96,10 @@ public class UserSubscriptionHttpService
                 if (customer.getDeleted() == Boolean.TRUE) {
                     customer = Customer.create(customerParams, requestOptions);
                     service.setStripeId(webUser.get().id, customer.getId());
-                }
-                else {
+                } else {
                     customer.update(customerParams, requestOptions);
                 }
-            }
-            else {
+            } else {
                 customer = Customer.create(customerParams, requestOptions);
                 service.setStripeId(webUser.get().id, customer.getId());
             }
@@ -119,12 +112,10 @@ public class UserSubscriptionHttpService
                 }
                 customer.createSubscription(subsParams, requestOptions);
             }
-        }
-        catch (InvalidRequestException e) {
+        } catch (InvalidRequestException e) {
             throw new RakamException(e.getMessage(),
                     HttpResponseStatus.valueOf(e.getStatusCode()));
-        }
-        catch (StripeException e) {
+        } catch (StripeException e) {
             throw new RakamException(e.getMessage(), BAD_REQUEST);
         }
 
@@ -146,8 +137,7 @@ public class UserSubscriptionHttpService
     @Path("/me")
     public List<UserSubscription> me(
             @HeaderParam("X-Requested-With") String csrfHeader,
-            @javax.inject.Named("user_id") UIPermissionParameterProvider.Project project)
-    {
+            @javax.inject.Named("user_id") UIPermissionParameterProvider.Project project) {
         if (!"XMLHttpRequest".equals(csrfHeader)) {
             throw new RakamException(FORBIDDEN);
         }
@@ -178,8 +168,7 @@ public class UserSubscriptionHttpService
                                     .map(e -> new RakamCoupon(e.getPercentOff(), e.getAmountOff())).orElse(null)))
                     .collect(Collectors.toList());
             // TODO: hasmore
-        }
-        catch (StripeException e) {
+        } catch (StripeException e) {
             throw Throwables.propagate(e);
         }
     }
@@ -190,8 +179,7 @@ public class UserSubscriptionHttpService
     public RakamCoupon checkCoupon(
             @ApiParam("coupon") String coupon,
             @HeaderParam("X-Requested-With") String csrfHeader,
-            @javax.inject.Named("user_id") UIPermissionParameterProvider.Project project)
-    {
+            @javax.inject.Named("user_id") UIPermissionParameterProvider.Project project) {
         if (!"XMLHttpRequest".equals(csrfHeader)) {
             throw new RakamException(FORBIDDEN);
         }
@@ -204,35 +192,30 @@ public class UserSubscriptionHttpService
         try {
             Coupon retrieve = Coupon.retrieve(coupon, requestOptions);
             return new RakamCoupon(retrieve.getPercentOff(), retrieve.getAmountOff());
-        }
-        catch (InvalidRequestException e) {
+        } catch (InvalidRequestException e) {
             if (e.getStatusCode() == 404) {
                 throw new RakamException(NOT_FOUND);
             }
 
             throw Throwables.propagate(e);
-        }
-        catch (StripeException e) {
+        } catch (StripeException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    public static class RakamCoupon
-    {
+    public static class RakamCoupon {
         public final Integer percentOff;
         public final Integer amountOff;
 
         @JsonCreator
         public RakamCoupon(@ApiParam("percentOff") Integer percentOff,
-                @ApiParam("amountOff") Integer amountOff)
-        {
+                           @ApiParam("amountOff") Integer amountOff) {
             this.percentOff = percentOff;
             this.amountOff = amountOff;
         }
     }
 
-    public static class RakamPlan
-    {
+    public static class RakamPlan {
         public final String id;
         public final String name;
         public final Integer amount;
@@ -240,10 +223,9 @@ public class UserSubscriptionHttpService
 
         @JsonCreator
         public RakamPlan(@ApiParam("id") String id,
-                @ApiParam("name") String name,
-                @ApiParam("amount") Integer amount,
-                @ApiParam("description") String description)
-        {
+                         @ApiParam("name") String name,
+                         @ApiParam("amount") Integer amount,
+                         @ApiParam("description") String description) {
             this.id = id;
             this.name = name;
             this.amount = amount / 100;
@@ -251,8 +233,7 @@ public class UserSubscriptionHttpService
         }
     }
 
-    public static class UserSubscription
-    {
+    public static class UserSubscription {
         public final double amount;
         public final Instant currentPeriodStart;
         public final Instant currentPeriodEnd;
@@ -265,8 +246,7 @@ public class UserSubscriptionHttpService
                 @ApiParam("amount") double amount,
                 @ApiParam("currentPeriodStart") Instant currentPeriodStart,
                 @ApiParam("currentPeriodEnd") Instant currentPeriodEnd,
-                @ApiParam("coupon") RakamCoupon coupon)
-        {
+                @ApiParam("coupon") RakamCoupon coupon) {
             this.plan = plan;
             this.amount = amount / 100.0;
             this.currentPeriodStart = currentPeriodStart;

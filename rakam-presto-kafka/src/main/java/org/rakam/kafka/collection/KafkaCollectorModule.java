@@ -11,8 +11,8 @@ import org.rakam.util.ConditionalModule;
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
 @AutoService(RakamModule.class)
-@ConditionalModule(config="event.store", value="kafka")
-public class KafkaCollectorModule extends RakamModule  {
+@ConditionalModule(config = "event.store", value = "kafka")
+public class KafkaCollectorModule extends RakamModule {
 
     @Override
     protected void setup(Binder binder) {

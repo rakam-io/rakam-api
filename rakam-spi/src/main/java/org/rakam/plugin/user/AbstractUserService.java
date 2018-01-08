@@ -55,9 +55,8 @@ public abstract class AbstractUserService {
     }
 
     public void createSegment(RequestContext context, String name, String tableName, Expression filterExpression, List<UserStorage.EventFilter> eventFilter, Duration interval)
-            throws RakamException
-    {
-        if(filterExpression == null && (eventFilter == null || eventFilter.isEmpty())) {
+            throws RakamException {
+        if (filterExpression == null && (eventFilter == null || eventFilter.isEmpty())) {
             throw new RakamException("At least one filter is required.", BAD_REQUEST);
         }
         storage.createSegment(context, name, tableName, filterExpression, eventFilter, interval);
@@ -126,8 +125,7 @@ public abstract class AbstractUserService {
         }
     }
 
-    public static class SingleUserBatchOperationRequest
-    {
+    public static class SingleUserBatchOperationRequest {
         public final Object id;
         public final User.UserContext api;
         public final List<SingleUserBatchOperations> data;
@@ -136,8 +134,7 @@ public abstract class AbstractUserService {
         public SingleUserBatchOperationRequest(
                 @ApiParam("id") Object id,
                 @ApiParam("api") User.UserContext api,
-                @ApiParam("data") List<SingleUserBatchOperations> data)
-        {
+                @ApiParam("data") List<SingleUserBatchOperations> data) {
             this.id = id;
             this.api = api;
             this.data = data;
@@ -147,14 +144,18 @@ public abstract class AbstractUserService {
         }
 
         public static class SingleUserBatchOperations
-                implements ISingleUserBatchOperation
-        {
+                implements ISingleUserBatchOperation {
+            @JsonProperty("set_properties")
+            public final ObjectNode setProperties;
+            @JsonProperty("set_properties_once")
+            public final ObjectNode setPropertiesOnce;
+            @JsonProperty("increment_properties")
+            public final Map<String, Double> incrementProperties;
+            @JsonProperty("unset_properties")
+            public final List<String> unsetProperties;
+            @JsonProperty("time")
+            public final Long time;
             public Object user;
-            @JsonProperty("set_properties") public final ObjectNode setProperties;
-            @JsonProperty("set_properties_once") public final ObjectNode setPropertiesOnce;
-            @JsonProperty("increment_properties") public final Map<String, Double> incrementProperties;
-            @JsonProperty("unset_properties") public final List<String> unsetProperties;
-            @JsonProperty("time") public final Long time;
 
             @JsonCreator
             public SingleUserBatchOperations(
@@ -162,8 +163,7 @@ public abstract class AbstractUserService {
                     @ApiParam(value = "set_properties_once", required = false) ObjectNode setPropertiesOnce,
                     @ApiParam(value = "increment_properties", required = false) Map<String, Double> incrementProperties,
                     @ApiParam(value = "unset_properties", required = false) List<String> unsetProperties,
-                    @ApiParam("time") Long time)
-            {
+                    @ApiParam("time") Long time) {
                 this.setProperties = setProperties;
                 this.setPropertiesOnce = setPropertiesOnce;
                 this.incrementProperties = incrementProperties;
@@ -172,32 +172,27 @@ public abstract class AbstractUserService {
             }
 
             @Override
-            public ObjectNode getSetProperties()
-            {
+            public ObjectNode getSetProperties() {
                 return setProperties;
             }
 
             @Override
-            public ObjectNode getSetPropertiesOnce()
-            {
+            public ObjectNode getSetPropertiesOnce() {
                 return setPropertiesOnce;
             }
 
             @Override
-            public Map<String, Double> getIncrementProperties()
-            {
+            public Map<String, Double> getIncrementProperties() {
                 return incrementProperties;
             }
 
             @Override
-            public List<String> getUnsetProperties()
-            {
+            public List<String> getUnsetProperties() {
                 return unsetProperties;
             }
 
             @Override
-            public Long getTime()
-            {
+            public Long getTime() {
                 return time;
             }
 
@@ -212,28 +207,31 @@ public abstract class AbstractUserService {
         }
     }
 
-    public static class BatchUserOperationRequest
-    {
+    public static class BatchUserOperationRequest {
         public final User.UserContext api;
         public final List<BatchUserOperations> data;
 
         @JsonCreator
         public BatchUserOperationRequest(
                 @ApiParam("api") User.UserContext api,
-                @ApiParam("data") List<BatchUserOperations> data)
-        {
+                @ApiParam("data") List<BatchUserOperations> data) {
             this.api = api;
             this.data = data;
         }
 
-        public static class BatchUserOperations implements ISingleUserBatchOperation
-        {
-            @JsonProperty("id") public Object id;
-            @JsonProperty(value = "set_properties") private final ObjectNode setProperties;
-            @JsonProperty(value = "set_properties_once") private final ObjectNode setPropertiesOnce;
-            @JsonProperty(value = "increment_properties") private final Map<String, Double> incrementProperties;
-            @JsonProperty(value = "unset_properties") private final List<String> unsetProperties;
-            @JsonProperty(value = "time") private Long time;
+        public static class BatchUserOperations implements ISingleUserBatchOperation {
+            @JsonProperty(value = "set_properties")
+            private final ObjectNode setProperties;
+            @JsonProperty(value = "set_properties_once")
+            private final ObjectNode setPropertiesOnce;
+            @JsonProperty(value = "increment_properties")
+            private final Map<String, Double> incrementProperties;
+            @JsonProperty(value = "unset_properties")
+            private final List<String> unsetProperties;
+            @JsonProperty("id")
+            public Object id;
+            @JsonProperty(value = "time")
+            private Long time;
 
             @JsonCreator
             public BatchUserOperations(
@@ -242,8 +240,7 @@ public abstract class AbstractUserService {
                     @ApiParam(value = "set_properties_once", required = false) ObjectNode setPropertiesOnce,
                     @ApiParam(value = "increment_properties", required = false) Map<String, Double> incrementProperties,
                     @ApiParam(value = "unset_properties", required = false) List<String> unsetProperties,
-                    @ApiParam(value = "time", required = false) Long time)
-            {
+                    @ApiParam(value = "time", required = false) Long time) {
                 this.id = id;
                 this.setProperties = setProperties;
                 this.setPropertiesOnce = setPropertiesOnce;
@@ -253,38 +250,32 @@ public abstract class AbstractUserService {
             }
 
             @JsonIgnore
-            public Object getUser()
-            {
+            public Object getUser() {
                 return id;
             }
 
             @Override
-            public ObjectNode getSetProperties()
-            {
+            public ObjectNode getSetProperties() {
                 return setProperties;
             }
 
             @Override
-            public ObjectNode getSetPropertiesOnce()
-            {
+            public ObjectNode getSetPropertiesOnce() {
                 return setPropertiesOnce;
             }
 
             @Override
-            public Map<String, Double> getIncrementProperties()
-            {
+            public Map<String, Double> getIncrementProperties() {
                 return incrementProperties;
             }
 
             @Override
-            public List<String> getUnsetProperties()
-            {
+            public List<String> getUnsetProperties() {
                 return unsetProperties;
             }
 
             @Override
-            public Long getTime()
-            {
+            public Long getTime() {
                 return time;
             }
         }

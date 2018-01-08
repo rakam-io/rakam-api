@@ -4,7 +4,6 @@ import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
-import org.rakam.analysis.*;
 import org.rakam.clickhouse.analysis.ClickHouseEventExplorer;
 import org.rakam.clickhouse.analysis.ClickHouseFunnelQueryExecutor;
 import org.rakam.clickhouse.analysis.ClickHouseRetentionQueryExecutor;
@@ -25,11 +24,9 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "store.adapter", value = "clickhouse")
 public class ClickHouseModule
-        extends RakamModule
-{
+        extends RakamModule {
     @Override
-    protected void setup(Binder binder)
-    {
+    protected void setup(Binder binder) {
         configBinder(binder).bindConfig(MetadataConfig.class);
         configBinder(binder).bindConfig(ClickHouseConfig.class);
 
@@ -76,14 +73,12 @@ public class ClickHouseModule
     }
 
     @Override
-    public String name()
-    {
+    public String name() {
         return "ClickHouse backend for Rakam";
     }
 
     @Override
-    public String description()
-    {
+    public String description() {
         return "Rakam backend for big-data.";
     }
 }

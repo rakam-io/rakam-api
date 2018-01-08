@@ -50,20 +50,17 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 @IgnoreApi
 @Api(value = "/ui/custom-page", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
 public class CustomPageHttpService
-        extends HttpService
-{
+        extends HttpService {
     private final Optional<CustomPageDatabase> database;
 
     @Inject
-    public CustomPageHttpService(Optional<CustomPageDatabase> database)
-    {
+    public CustomPageHttpService(Optional<CustomPageDatabase> database) {
         this.database = database;
     }
 
     @Path("/frame")
     @GET
-    public void frame(RakamHttpRequest request)
-    {
+    public void frame(RakamHttpRequest request) {
         HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
         String data = "<!DOCTYPE html> \n" +
                 "<html>\n" +
@@ -112,8 +109,7 @@ public class CustomPageHttpService
     @ApiOperation(value = "Save Report", authorizations = @Authorization(value = "read_key"),
             response = SuccessMessage.class, request = CustomPageDatabase.Page.class)
     public SuccessMessage save(
-            @Named("user_id") UIPermissionParameterProvider.Project project, @BodyParam CustomPageDatabase.Page report)
-    {
+            @Named("user_id") UIPermissionParameterProvider.Project project, @BodyParam CustomPageDatabase.Page report) {
         database.get().save(project.userId, project.project, report);
         return SuccessMessage.success();
     }
@@ -123,8 +119,7 @@ public class CustomPageHttpService
     @JsonRequest
     @ProtectEndpoint(writeOperation = true)
     public SuccessMessage delete(@com.google.inject.name.Named("user_id") UIPermissionParameterProvider.Project project,
-            @ApiParam("name") String name)
-    {
+                                 @ApiParam("name") String name) {
         if (!database.isPresent()) {
             throw new RakamException("Custom page feature is not implemented", NOT_IMPLEMENTED);
         }
@@ -136,8 +131,7 @@ public class CustomPageHttpService
     @Path("/check")
     @ApiOperation(value = "Check feature exists", authorizations = @Authorization(value = "read_key"))
     @GET
-    public boolean check()
-    {
+    public boolean check() {
         return !database.isPresent();
     }
 
@@ -145,8 +139,7 @@ public class CustomPageHttpService
     @ApiOperation(value = "Get Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
     public Map<String, String> get(@com.google.inject.name.Named("user_id") UIPermissionParameterProvider.Project project,
-            @ApiParam("slug") String slug)
-    {
+                                   @ApiParam("slug") String slug) {
         if (!database.isPresent()) {
             throw new RakamException("Custom page feature is not implemented", NOT_IMPLEMENTED);
         }
@@ -155,8 +148,7 @@ public class CustomPageHttpService
 
     @Path("/display/*")
     @GET
-    public void display(RakamHttpRequest request)
-    {
+    public void display(RakamHttpRequest request) {
         if (!database.isPresent()) {
             throw new RakamException("Custom page feature is not implemented", NOT_IMPLEMENTED);
         }
@@ -169,8 +161,7 @@ public class CustomPageHttpService
                 request.response(NOT_FOUND.reasonPhrase(), NOT_FOUND).end();
             }
             bytes = ByteStreams.toByteArray(file);
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             throw Throwables.propagate(e);
         }
         HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
@@ -189,8 +180,7 @@ public class CustomPageHttpService
     @Path("/list")
     @ApiOperation(value = "Get Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
-    public List<CustomPageDatabase.Page> list(@Named("user_id") UIPermissionParameterProvider.Project project)
-    {
+    public List<CustomPageDatabase.Page> list(@Named("user_id") UIPermissionParameterProvider.Project project) {
         if (!database.isPresent()) {
             return null;
         }

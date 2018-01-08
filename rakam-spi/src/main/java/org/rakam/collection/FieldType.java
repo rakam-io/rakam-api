@@ -24,11 +24,11 @@ public enum FieldType {
     }
 
     public boolean isNumeric() {
-       return this == INTEGER || this == DECIMAL || this == DOUBLE || this == LONG;
+        return this == INTEGER || this == DECIMAL || this == DOUBLE || this == LONG;
     }
 
     public FieldType getArrayElementType() {
-        if(!isArray()) {
+        if (!isArray()) {
             throw new IllegalStateException("type is not array");
         }
 
@@ -36,7 +36,7 @@ public enum FieldType {
     }
 
     public FieldType getMapValueType() {
-        if(!isMap()) {
+        if (!isMap()) {
             throw new IllegalStateException("type is not map");
         }
 
@@ -44,10 +44,10 @@ public enum FieldType {
     }
 
     public FieldType convertToMapValueType() {
-        if(isMap()) {
+        if (isMap()) {
             throw new IllegalStateException("type is already a map");
         }
-        if(isArray()) {
+        if (isArray()) {
             throw new IllegalStateException("type is already a array");
         }
 
@@ -55,7 +55,7 @@ public enum FieldType {
     }
 
     public FieldType convertToArrayType() {
-        if(ordinal() > 9) {
+        if (ordinal() > 9) {
             throw new IllegalStateException("type is already array");
         }
 
@@ -64,10 +64,10 @@ public enum FieldType {
 
     public String getPrettyName() {
         if (isArray()) {
-            return "ARRAY<"+getArrayElementType().toString()+">";
+            return "ARRAY<" + getArrayElementType().toString() + ">";
         }
-        if(isMap()) {
-            return "MAP<STRING, "+getMapValueType().toString()+">";
+        if (isMap()) {
+            return "MAP<STRING, " + getMapValueType().toString() + ">";
         }
         return toString();
     }

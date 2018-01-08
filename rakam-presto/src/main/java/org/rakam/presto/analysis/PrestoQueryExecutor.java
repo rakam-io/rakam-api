@@ -79,7 +79,7 @@ public class PrestoQueryExecutor
             @Nullable @UserConfig com.google.common.base.Optional<JDBCConfig> userJdbcConfig,
             Metastore metastore,
             com.google.common.base.Optional<CustomDataSourceService> customDataSource,
-            com.google.common.base.Optional<WebUserService>  webUserService) {
+            com.google.common.base.Optional<WebUserService> webUserService) {
         this.projectConfig = projectConfig;
         this.prestoConfig = prestoConfig;
         this.metastore = metastore;

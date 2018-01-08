@@ -43,8 +43,7 @@ import static com.facebook.presto.bytecode.Access.*;
 import static com.facebook.presto.bytecode.CompilerUtils.defineClass;
 import static com.google.common.collect.ImmutableList.copyOf;
 
-public class ExpressionCompiler
-{
+public class ExpressionCompiler {
     private final BlockEncodingSerde serde;
     private final Metadata metadata;
     private final SqlParser sqlParser = new SqlParser();
@@ -54,8 +53,7 @@ public class ExpressionCompiler
     private final ExpressionOptimizer expressionOptimizer;
 
     @Inject
-    public ExpressionCompiler(Metadata metadata, TransactionManager transactionManager, FeaturesConfig featuresConfig)
-    {
+    public ExpressionCompiler(Metadata metadata, TransactionManager transactionManager, FeaturesConfig featuresConfig) {
         this.serde = metadata.getBlockEncodingSerde();
         this.metadata = metadata;
         this.featuresConfig = featuresConfig;
@@ -71,8 +69,7 @@ public class ExpressionCompiler
 
     }
 
-    public Predicate<GenericRecord> generate(Expression expression, List<Map.Entry<String, Type>> columns)
-    {
+    public Predicate<GenericRecord> generate(Expression expression, List<Map.Entry<String, Type>> columns) {
         FilterContext filterContext = analyze(expression, columns);
 
         ImmutableList<Type> types = copyOf(filterContext.sourceTypes.values());
@@ -87,33 +84,16 @@ public class ExpressionCompiler
         };
     }
 
-    private static class FilterContext
-    {
-        public final Map<Integer, Type> sourceTypes;
-        public final int[] projections;
-        public final Filter filter;
-
-        private FilterContext(Map<Integer, Type> sourceTypes, int[] projections, Filter filter)
-        {
-            this.sourceTypes = sourceTypes;
-            this.projections = projections;
-            this.filter = filter;
-        }
-    }
-
-    private FilterContext analyze(Expression filterExpression, List<Map.Entry<String, Type>> columns)
-    {
+    private FilterContext analyze(Expression filterExpression, List<Map.Entry<String, Type>> columns) {
 //        filterExpression = rewriteQualifiedNamesToSymbolReferences(filterExpression);
         // TODO
         List<Expression> projectionExpressions = new ArrayList<>();
         Map<Symbol, Integer> sourceLayout = new HashMap<>();
         Map<Integer, Type> sourceTypes = new HashMap<>();
         int[] projectionProxies = new int[columns.size()];
-        new DefaultTraversalVisitor<Void, Void>()
-        {
+        new DefaultTraversalVisitor<Void, Void>() {
             @Override
-            protected Void visitSymbolReference(SymbolReference node, Void context)
-            {
+            protected Void visitSymbolReference(SymbolReference node, Void context) {
                 projectionExpressions.add(node);
                 int idx = sourceLayout.size();
                 sourceLayout.put(new Symbol(node.getName().toString()), idx);
@@ -158,14 +138,11 @@ public class ExpressionCompiler
         return null;
     }
 
-
-
-    private Filter compileRowExpression(RowExpression filter)
-    {
+    private Filter compileRowExpression(RowExpression filter) {
         ParameterizedType className = CompilerUtils.makeClassName(Filter.class.getSimpleName());
         ParameterizedType[] interfaces = {ParameterizedType.type(Filter.class)};
         ParameterizedType type = ParameterizedType.type(Object.class);
-        EnumSet<Access> accessList = a(new Access[] {PUBLIC, FINAL});
+        EnumSet<Access> accessList = a(new Access[]{PUBLIC, FINAL});
         ClassDefinition classDefinition = new ClassDefinition(accessList, className, type, interfaces);
         classDefinition.declareDefaultConstructor(a(PUBLIC));
 
@@ -176,16 +153,14 @@ public class ExpressionCompiler
         try {
             method = cursorProcessorCompiler.getClass().getDeclaredMethod("generateFilterMethod", ClassDefinition.class, CallSiteBinder.class, CachedInstanceBinder.class, RowExpression.class);
             method.setAccessible(true);
-        }
-        catch (NoSuchMethodException e) {
+        } catch (NoSuchMethodException e) {
             throw Throwables.propagate(e);
         }
 
         try {
             method.invoke(cursorProcessorCompiler, classDefinition, callSiteBinder,
                     new CachedInstanceBinder(classDefinition, callSiteBinder), filter);
-        }
-        catch (IllegalAccessException | InvocationTargetException e) {
+        } catch (IllegalAccessException | InvocationTargetException e) {
             throw Throwables.propagate(e);
         }
 
@@ -193,14 +168,25 @@ public class ExpressionCompiler
 
         try {
             return aClass.newInstance();
-        }
-        catch (InstantiationException | IllegalAccessException e) {
+        } catch (InstantiationException | IllegalAccessException e) {
             throw new RuntimeException("Couldn't compile expression", e);
         }
     }
 
-    public interface Filter
-    {
+
+    public interface Filter {
         boolean filter(ConnectorSession session, RecordCursor cursor);
+    }
+
+    private static class FilterContext {
+        public final Map<Integer, Type> sourceTypes;
+        public final int[] projections;
+        public final Filter filter;
+
+        private FilterContext(Map<Integer, Type> sourceTypes, int[] projections, Filter filter) {
+            this.sourceTypes = sourceTypes;
+            this.projections = projections;
+            this.filter = filter;
+        }
     }
 }

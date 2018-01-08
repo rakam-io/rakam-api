@@ -47,13 +47,11 @@ import static org.rakam.util.ValidationUtil.*;
 
 public abstract class AbstractEventExplorer
         implements EventExplorer {
+    protected final static String TIME_INTERVAL_ERROR_MESSAGE = "Date interval is too big. Please narrow the date range or use different date dimension.";
     private final static Logger LOGGER = Logger.get(AbstractEventExplorer.class);
     private final static String OTHERS_TAG = "Others";
-
-    protected final static String TIME_INTERVAL_ERROR_MESSAGE = "Date interval is too big. Please narrow the date range or use different date dimension.";
-    protected final Reference DEFAULT_SEGMENT = new Reference(COLUMN, "_collection");
-
     protected static SqlParser sqlParser = new SqlParser();
+    protected final Reference DEFAULT_SEGMENT = new Reference(COLUMN, "_collection");
     private final QueryExecutorService executor;
 
     private final Map<TimestampTransformation, String> timestampMapping;
@@ -69,6 +67,38 @@ public abstract class AbstractEventExplorer
         this.executor = executor;
         this.timestampMapping = timestampMapping;
         this.materializedViewService = materializedViewService;
+    }
+
+    public static void checkReference(String refValue, LocalDate startDate, LocalDate endDate, int size) {
+        switch (fromString(refValue.replace(" ", "_"))) {
+            case HOUR_OF_DAY:
+            case DAY_OF_MONTH:
+            case WEEK_OF_YEAR:
+            case MONTH_OF_YEAR:
+            case QUARTER_OF_YEAR:
+            case DAY_OF_WEEK:
+                return;
+            case HOUR:
+                if (startDate.atStartOfDay().until(endDate.plusDays(1).atStartOfDay(), ChronoUnit.HOURS) > 30000 / size) {
+                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
+                }
+                break;
+            case DAY:
+                if (startDate.atStartOfDay().until(endDate.plusDays(1).atStartOfDay(), DAYS) > 30000 / size) {
+                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
+                }
+                break;
+            case MONTH:
+                if (startDate.atStartOfDay().until(endDate.plusDays(1).atStartOfDay(), ChronoUnit.MONTHS) > 30000 / size) {
+                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
+                }
+                break;
+            case YEAR:
+                if (startDate.atStartOfDay().until(endDate.plusDays(1).atStartOfDay(), ChronoUnit.YEARS) > 30000 / size) {
+                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
+                }
+                break;
+        }
     }
 
     public CompletableFuture<PrecalculatedTable> create(RequestContext context, OLAPTable table) {
@@ -144,38 +174,6 @@ public abstract class AbstractEventExplorer
                 return Optional.of(getIntermediateForApproximateUniqueFunction());
             default:
                 throw new IllegalArgumentException("aggregation type is not supported");
-        }
-    }
-
-    public static void checkReference(String refValue, LocalDate startDate, LocalDate endDate, int size) {
-        switch (fromString(refValue.replace(" ", "_"))) {
-            case HOUR_OF_DAY:
-            case DAY_OF_MONTH:
-            case WEEK_OF_YEAR:
-            case MONTH_OF_YEAR:
-            case QUARTER_OF_YEAR:
-            case DAY_OF_WEEK:
-                return;
-            case HOUR:
-                if (startDate.atStartOfDay().until(endDate.plusDays(1).atStartOfDay(), ChronoUnit.HOURS) > 30000 / size) {
-                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
-                }
-                break;
-            case DAY:
-                if (startDate.atStartOfDay().until(endDate.plusDays(1).atStartOfDay(), DAYS) > 30000 / size) {
-                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
-                }
-                break;
-            case MONTH:
-                if (startDate.atStartOfDay().until(endDate.plusDays(1).atStartOfDay(), ChronoUnit.MONTHS) > 30000 / size) {
-                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
-                }
-                break;
-            case YEAR:
-                if (startDate.atStartOfDay().until(endDate.plusDays(1).atStartOfDay(), ChronoUnit.YEARS) > 30000 / size) {
-                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
-                }
-                break;
         }
     }
 

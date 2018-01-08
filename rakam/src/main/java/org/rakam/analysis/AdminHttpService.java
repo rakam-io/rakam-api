@@ -23,16 +23,14 @@ import java.util.stream.Collectors;
 @Path("/admin")
 @Api(value = "/admin", nickname = "admin", description = "System operations", tags = "admin")
 public class AdminHttpService
-        extends HttpService
-{
+        extends HttpService {
     private final SystemRegistry systemRegistry;
     private final ActiveModuleList activeModules;
     private final ProjectConfig projectConfig;
     private final Set<EventMapper> eventMappers;
 
     @Inject
-    public AdminHttpService(SystemRegistry systemRegistry, Set<EventMapper> eventMappers, ProjectConfig projectConfig, ActiveModuleListBuilder activeModuleListBuilder)
-    {
+    public AdminHttpService(SystemRegistry systemRegistry, Set<EventMapper> eventMappers, ProjectConfig projectConfig, ActiveModuleListBuilder activeModuleListBuilder) {
         this.systemRegistry = systemRegistry;
         this.projectConfig = projectConfig;
         this.eventMappers = eventMappers;
@@ -45,8 +43,7 @@ public class AdminHttpService
     @GET
     @Path("/configurations")
     @JsonRequest
-    public List<ModuleDescriptor> getConfigurations()
-    {
+    public List<ModuleDescriptor> getConfigurations() {
         return systemRegistry.getModules();
     }
 
@@ -56,8 +53,7 @@ public class AdminHttpService
     @GET
     @Path("/event_mappers")
     @JsonRequest
-    public List<EventMapperDescription> getEventMappers()
-    {
+    public List<EventMapperDescription> getEventMappers() {
         return eventMappers.stream().map(mapper -> {
             Mapper annotation = mapper.getClass().getAnnotation(Mapper.class);
             String name;
@@ -65,8 +61,7 @@ public class AdminHttpService
             if (annotation != null) {
                 name = annotation.name();
                 description = annotation.description();
-            }
-            else {
+            } else {
                 name = mapper.getClass().getSimpleName();
                 description = "";
             }
@@ -80,23 +75,6 @@ public class AdminHttpService
         }).collect(Collectors.toList());
     }
 
-    public static class EventMapperDescription
-    {
-        public final String name;
-        public final String description;
-        public final Map<String, List<SchemaField>> dependentFields;
-        public final Set<SchemaField> constantFields;
-
-        @JsonCreator
-        public EventMapperDescription(String name, String description, Map<String, List<SchemaField>> dependentFields, Set<SchemaField> constantFields)
-        {
-            this.name = name;
-            this.description = description;
-            this.dependentFields = dependentFields;
-            this.constantFields = constantFields;
-        }
-    }
-
     @ApiOperation(value = "Get types",
             authorizations = @Authorization(value = "master_key")
     )
@@ -104,8 +82,7 @@ public class AdminHttpService
     @GET
     @JsonRequest
     @Path("/types")
-    public Map<String, String> getTypes()
-    {
+    public Map<String, String> getTypes() {
         return Arrays.stream(FieldType.values()).collect(Collectors.toMap(FieldType::name, FieldType::getPrettyName));
     }
 
@@ -114,8 +91,7 @@ public class AdminHttpService
     )
     @JsonRequest
     @Path("/lock_key")
-    public boolean checkLockKey(@ApiParam(value = "lock_key", required = false) String lockKey)
-    {
+    public boolean checkLockKey(@ApiParam(value = "lock_key", required = false) String lockKey) {
         return Objects.equals(lockKey, projectConfig.getLockKey());
     }
 
@@ -125,8 +101,22 @@ public class AdminHttpService
     @ApiOperation(value = "List installed modules for Rakam UI",
             authorizations = @Authorization(value = "master_key")
     )
-    public ActiveModuleList modules()
-    {
+    public ActiveModuleList modules() {
         return activeModules;
+    }
+
+    public static class EventMapperDescription {
+        public final String name;
+        public final String description;
+        public final Map<String, List<SchemaField>> dependentFields;
+        public final Set<SchemaField> constantFields;
+
+        @JsonCreator
+        public EventMapperDescription(String name, String description, Map<String, List<SchemaField>> dependentFields, Set<SchemaField> constantFields) {
+            this.name = name;
+            this.description = description;
+            this.dependentFields = dependentFields;
+            this.constantFields = constantFields;
+        }
     }
 }

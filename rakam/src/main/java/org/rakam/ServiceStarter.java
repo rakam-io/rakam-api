@@ -67,10 +67,9 @@ import java.util.Set;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static java.lang.String.format;
 
-public final class ServiceStarter
-{
-    public static String RAKAM_VERSION;
+public final class ServiceStarter {
     private final static Logger LOGGER = Logger.get(ServiceStarter.class);
+    public static String RAKAM_VERSION;
 
     static {
         Properties properties = new Properties();
@@ -79,32 +78,27 @@ public final class ServiceStarter
             URL resource = ServiceStarter.class.getResource("/git.properties");
             if (resource == null) {
                 LOGGER.warn("git.properties doesn't exist.");
-            }
-            else {
+            } else {
                 inputStream = resource.openStream();
                 properties.load(inputStream);
             }
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             LOGGER.warn(e, "Error while reading git.properties");
         }
         try {
             RAKAM_VERSION = properties.get("git.commit.id.describe-short").toString().split("-", 2)[0];
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             LOGGER.warn(e, "Error while parsing git.properties");
         }
     }
 
     private ServiceStarter()
-            throws InstantiationException
-    {
+            throws InstantiationException {
         throw new InstantiationException("The class is not created for instantiation");
     }
 
     public static void main(String[] args)
-            throws Throwable
-    {
+            throws Throwable {
         if (args.length > 0) {
             System.setProperty("config", args[0]);
         }
@@ -114,7 +108,8 @@ public final class ServiceStarter
         Injector injector = app.strictConfig().initialize();
 
         Set<InjectionHook> hooks = injector.getInstance(
-                Key.get(new TypeLiteral<Set<InjectionHook>>() {}));
+                Key.get(new TypeLiteral<Set<InjectionHook>>() {
+                }));
         hooks.forEach(InjectionHook::call);
 
         HttpServerConfig httpConfig = injector.getInstance(HttpServerConfig.class);
@@ -127,8 +122,7 @@ public final class ServiceStarter
         LOGGER.info("======== SERVER STARTED ========");
     }
 
-    public static Set<Module> getModules()
-    {
+    public static Set<Module> getModules() {
         ImmutableSet.Builder<Module> builder = ImmutableSet.builder();
 
         ServiceLoader<RakamModule> modules = ServiceLoader.load(RakamModule.class);
@@ -146,20 +140,17 @@ public final class ServiceStarter
     }
 
     public static class FieldDependencyProvider
-            implements Provider<FieldDependency>
-    {
+            implements Provider<FieldDependency> {
 
         private final Set<EventMapper> eventMappers;
 
         @Inject
-        public FieldDependencyProvider(Set<EventMapper> eventMappers)
-        {
+        public FieldDependencyProvider(Set<EventMapper> eventMappers) {
             this.eventMappers = eventMappers;
         }
 
         @Override
-        public FieldDependency get()
-        {
+        public FieldDependency get() {
             FieldDependencyBuilder builder = new FieldDependencyBuilder();
             eventMappers.stream().forEach(mapper -> mapper.addFieldDependency(builder));
             return builder.build();
@@ -167,11 +158,9 @@ public final class ServiceStarter
     }
 
     public static class ServiceRecipe
-            extends AbstractConfigurationAwareModule
-    {
+            extends AbstractConfigurationAwareModule {
         @Override
-        protected void setup(Binder binder)
-        {
+        protected void setup(Binder binder) {
             binder.bind(Clock.class).toInstance(Clock.systemUTC());
 //            binder.bind(FlywayExecutor.class).asEagerSingleton();
             binder.bind(LockService.class).toProvider(LockServiceProvider.class);
@@ -183,23 +172,19 @@ public final class ServiceStarter
             OptionalBinder.newOptionalBinder(binder, UserStorage.class);
             OptionalBinder.newOptionalBinder(binder, UserMailboxStorage.class);
 
-            EventBus eventBus = new EventBus(new SubscriberExceptionHandler()
-            {
+            EventBus eventBus = new EventBus(new SubscriberExceptionHandler() {
                 Logger logger = Logger.get("System Event Listener");
 
                 @Override
-                public void handleException(Throwable exception, SubscriberExceptionContext context)
-                {
+                public void handleException(Throwable exception, SubscriberExceptionContext context) {
                     logger.error(exception, "Could not dispatch event: " +
                             context.getSubscriber() + " to " + context.getSubscriberMethod(), exception.getCause());
                 }
             });
             binder.bind(EventBus.class).toInstance(eventBus);
 
-            binder.bindListener(Matchers.any(), new TypeListener()
-            {
-                public void hear(TypeLiteral typeLiteral, TypeEncounter typeEncounter)
-                {
+            binder.bindListener(Matchers.any(), new TypeListener() {
+                public void hear(TypeLiteral typeLiteral, TypeEncounter typeEncounter) {
                     typeEncounter.register((InjectionListener) i -> eventBus.register(i));
                 }
             });
@@ -269,30 +254,25 @@ public final class ServiceStarter
     }
 
     public static class ProjectPermissionParameterProvider
-            implements Provider<CustomParameter>
-    {
+            implements Provider<CustomParameter> {
 
         private final ApiKeyService apiKeyService;
 
         @Inject
-        public ProjectPermissionParameterProvider(ApiKeyService apiKeyService)
-        {
+        public ProjectPermissionParameterProvider(ApiKeyService apiKeyService) {
             this.apiKeyService = apiKeyService;
         }
 
         @Override
-        public CustomParameter get()
-        {
+        public CustomParameter get() {
             return new CustomParameter("project",
                     method -> new WebServiceModule.ProjectPermissionIRequestParameter(apiKeyService, method));
         }
     }
 
-    public static class FlywayExecutor
-    {
+    public static class FlywayExecutor {
         @Inject
-        public FlywayExecutor(@Named("report.metadata.store.jdbc") JDBCPoolDataSource config)
-        {
+        public FlywayExecutor(@Named("report.metadata.store.jdbc") JDBCPoolDataSource config) {
             Flyway flyway = new Flyway();
             flyway.setBaselineOnMigrate(true);
             flyway.setDataSource(config);
@@ -300,8 +280,7 @@ public final class ServiceStarter
             flyway.setTable("schema_version_report");
             try {
                 flyway.migrate();
-            }
-            catch (FlywayException e) {
+            } catch (FlywayException e) {
                 flyway.repair();
             }
         }

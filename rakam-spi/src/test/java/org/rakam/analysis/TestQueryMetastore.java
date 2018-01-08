@@ -8,8 +8,7 @@ import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertEquals;
 
-public abstract class TestQueryMetastore
-{
+public abstract class TestQueryMetastore {
     private static final String PROJECT_NAME = TestQueryMetastore.class.getName().replace(".", "_").toLowerCase();
 
 
@@ -17,8 +16,7 @@ public abstract class TestQueryMetastore
 
     @Test
     public void testMaterializedViewCreateGetList()
-            throws Exception
-    {
+            throws Exception {
         MaterializedView materializedView = new MaterializedView("test", "test",
                 "select 1", null, false, false, ImmutableMap.of());
         getQuerymetastore().createMaterializedView(PROJECT_NAME, materializedView);

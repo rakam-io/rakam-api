@@ -15,8 +15,7 @@ import java.util.List;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 class PluginClassLoader
-        extends URLClassLoader
-{
+        extends URLClassLoader {
     private final List<String> hiddenClasses;
     private final List<String> parentFirstClasses;
     private final List<String> hiddenResources;
@@ -25,8 +24,7 @@ class PluginClassLoader
     public PluginClassLoader(List<URL> urls,
                              ClassLoader parent,
                              Iterable<String> hiddenClasses,
-                             Iterable<String> parentFirstClasses)
-    {
+                             Iterable<String> parentFirstClasses) {
         this(urls,
                 parent,
                 hiddenClasses,
@@ -40,8 +38,7 @@ class PluginClassLoader
                              Iterable<String> hiddenClasses,
                              Iterable<String> parentFirstClasses,
                              Iterable<String> hiddenResources,
-                             Iterable<String> parentFirstResources)
-    {
+                             Iterable<String> parentFirstResources) {
         // child first requires a parent class loader
         super(urls.toArray(new URL[urls.size()]), checkNotNull(parent, "parent is null"));
         this.hiddenClasses = ImmutableList.copyOf(hiddenClasses);
@@ -50,10 +47,13 @@ class PluginClassLoader
         this.parentFirstResources = ImmutableList.copyOf(parentFirstResources);
     }
 
+    private static String classNameToResource(String className) {
+        return className.replace('.', '/');
+    }
+
     @Override
     protected Class<?> loadClass(String name, boolean resolve)
-            throws ClassNotFoundException
-    {
+            throws ClassNotFoundException {
         // grab the magic lock
         synchronized (getClassLoadingLock(name)) {
             // Check if class is in the loaded classes cache
@@ -67,8 +67,7 @@ class PluginClassLoader
                 try {
                     Class<?> clazz = findClass(name);
                     return resolveClass(clazz, resolve);
-                }
-                catch (ClassNotFoundException ignored) {
+                } catch (ClassNotFoundException ignored) {
                     // not a local class
                 }
             }
@@ -78,8 +77,7 @@ class PluginClassLoader
                 try {
                     Class<?> clazz = getParent().loadClass(name);
                     return resolveClass(clazz, resolve);
-                }
-                catch (ClassNotFoundException ignored) {
+                } catch (ClassNotFoundException ignored) {
                     // this parent didn't have the class
                 }
             }
@@ -94,16 +92,14 @@ class PluginClassLoader
         }
     }
 
-    private Class<?> resolveClass(Class<?> clazz, boolean resolve)
-    {
+    private Class<?> resolveClass(Class<?> clazz, boolean resolve) {
         if (resolve) {
             resolveClass(clazz);
         }
         return clazz;
     }
 
-    private boolean isParentFirstClass(String name)
-    {
+    private boolean isParentFirstClass(String name) {
         for (String nonOverridableClass : parentFirstClasses) {
             // todo maybe make this more precise and only match base package
             if (name.startsWith(nonOverridableClass)) {
@@ -113,8 +109,7 @@ class PluginClassLoader
         return false;
     }
 
-    private boolean isHiddenClass(String name)
-    {
+    private boolean isHiddenClass(String name) {
         for (String hiddenClass : hiddenClasses) {
             // todo maybe make this more precise and only match base package
             if (name.startsWith(hiddenClass)) {
@@ -125,8 +120,7 @@ class PluginClassLoader
     }
 
     @Override
-    public URL getResource(String name)
-    {
+    public URL getResource(String name) {
         // If this is not a parent first resource, check local resources first
         if (!isParentFirstResource(name)) {
             URL url = findResource(name);
@@ -156,8 +150,7 @@ class PluginClassLoader
 
     @Override
     public Enumeration<URL> getResources(String name)
-            throws IOException
-    {
+            throws IOException {
         List<Iterator<URL>> resources = new ArrayList<>();
 
         // If this is not a parent first resource, add resources from local urls first
@@ -181,8 +174,7 @@ class PluginClassLoader
         return Iterators.asEnumeration(Iterators.concat(resources.iterator()));
     }
 
-    private boolean isParentFirstResource(String name)
-    {
+    private boolean isParentFirstResource(String name) {
         for (String nonOverridableResource : parentFirstResources) {
             if (name.startsWith(nonOverridableResource)) {
                 return true;
@@ -191,18 +183,12 @@ class PluginClassLoader
         return false;
     }
 
-    private boolean isHiddenResource(String name)
-    {
+    private boolean isHiddenResource(String name) {
         for (String hiddenResource : hiddenResources) {
             if (name.startsWith(hiddenResource)) {
                 return true;
             }
         }
         return false;
-    }
-
-    private static String classNameToResource(String className)
-    {
-        return className.replace('.', '/');
     }
 }

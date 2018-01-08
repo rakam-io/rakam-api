@@ -13,25 +13,21 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "webhook.enable", value = "true")
 public class WebhookModule
-        extends RakamModule
-{
+        extends RakamModule {
     @Override
-    protected void setup(Binder binder)
-    {
+    protected void setup(Binder binder) {
         configBinder(binder).bindConfig(TaskConfig.class);
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(WebHookHttpService.class);
     }
 
     @Override
-    public String name()
-    {
+    public String name() {
         return null;
     }
 
     @Override
-    public String description()
-    {
+    public String description() {
         return null;
     }
 }

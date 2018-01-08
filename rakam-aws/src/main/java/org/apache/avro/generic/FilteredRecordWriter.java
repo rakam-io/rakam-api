@@ -17,7 +17,7 @@ public class FilteredRecordWriter extends GenericDatumWriter {
     public void writeRecord(Schema schema, Object datum, Encoder out) throws IOException {
         Object state = data.getRecordState(datum, schema);
         for (Schema.Field f : schema.getFields()) {
-            if(f.schema().getType() != Schema.Type.NULL) {
+            if (f.schema().getType() != Schema.Type.NULL) {
                 writeField(datum, f, out, state);
             }
         }

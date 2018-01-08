@@ -23,16 +23,13 @@ import static java.lang.Boolean.FALSE;
 import static org.rakam.analysis.datasource.RemoteTable.ExternalSourceType.AVRO;
 import static org.rakam.analysis.datasource.RemoteTable.ExternalSourceType.CSV;
 
-public class ExternalFileCustomDataSource
-{
-    public static List<SchemaField> fillColumnIfNotSet(Map<String, String> typeOptions, RemoteTable.ExternalSourceType format, URL url, boolean indexUrl)
-    {
+public class ExternalFileCustomDataSource {
+    public static List<SchemaField> fillColumnIfNotSet(Map<String, String> typeOptions, RemoteTable.ExternalSourceType format, URL url, boolean indexUrl) {
         if (format == CSV && !FALSE.toString().equals(typeOptions.get("use_header"))) {
             URL file;
             try {
                 file = getFile(url, indexUrl);
-            }
-            catch (RuntimeException e) {
+            } catch (RuntimeException e) {
                 throw new RakamException(e.getMessage(), BAD_REQUEST);
             }
 
@@ -47,8 +44,7 @@ public class ExternalFileCustomDataSource
                 }
 
                 return builder.build();
-            }
-            catch (IOException e) {
+            } catch (IOException e) {
                 throw new RakamException("Error while parsing CSV: " + e.getMessage(), BAD_REQUEST);
             }
         }
@@ -57,8 +53,7 @@ public class ExternalFileCustomDataSource
     }
 
     private static URL getFile(URL url, boolean indexUrl)
-            throws RuntimeException
-    {
+            throws RuntimeException {
         if (!url.getProtocol().equals("http") && !url.getProtocol().equals("https") && !url.getProtocol().equals("ftp")) {
             throw new RuntimeException("URL is not valid. Use http, https or ftp schemes");
         }
@@ -68,9 +63,9 @@ public class ExternalFileCustomDataSource
             List<String> urls;
             try {
                 urls = JsonHelper.read(ByteStreams.toByteArray(url.openStream()),
-                        new TypeReference<List<String>>() {});
-            }
-            catch (IOException e) {
+                        new TypeReference<List<String>>() {
+                        });
+            } catch (IOException e) {
                 throw new RuntimeException("The index file must be an array containing urls. Example: [\"http://myurl.com/a.csv\"]");
             }
             if (urls == null || urls.isEmpty()) {
@@ -79,8 +74,7 @@ public class ExternalFileCustomDataSource
 
             try {
                 testUrl = new URL(urls.get(0));
-            }
-            catch (MalformedURLException e) {
+            } catch (MalformedURLException e) {
                 throw new RuntimeException("Index file doesn't contain URL values");
             }
         }
@@ -88,14 +82,12 @@ public class ExternalFileCustomDataSource
         return testUrl;
     }
 
-    public static Optional<String> test(RemoteTable remoteTable)
-    {
+    public static Optional<String> test(RemoteTable remoteTable) {
         try {
             URL testUrl;
             try {
                 testUrl = getFile(remoteTable.url, remoteTable.indexUrl);
-            }
-            catch (RuntimeException e) {
+            } catch (RuntimeException e) {
                 return Optional.of(e.getMessage());
             }
 
@@ -111,26 +103,21 @@ public class ExternalFileCustomDataSource
                         }
                         i++;
                     }
-                }
-                finally {
+                } finally {
                     bufferedReader.close();
                 }
-            }
-            else if (remoteTable.format == AVRO) {
+            } else if (remoteTable.format == AVRO) {
                 try {
                     testUrl.openStream().read();
-                }
-                catch (IOException e) {
+                } catch (IOException e) {
                     return Optional.of("Unable to read data from server");
                 }
-            }
-            else {
+            } else {
                 throw new IllegalStateException();
             }
 
             return Optional.empty();
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             return Optional.of(e.getMessage());
         }
     }

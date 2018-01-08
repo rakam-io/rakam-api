@@ -21,8 +21,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.testng.Assert.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 
-public abstract class TestUserStorage
-{
+public abstract class TestUserStorage {
     private final String PROJECT_NAME = this.getClass().getSimpleName().toLowerCase();
     private final RequestContext CONTEXT = new RequestContext(PROJECT_NAME, null);
 
@@ -41,30 +40,26 @@ public abstract class TestUserStorage
 
     @BeforeSuite
     public void setUp()
-            throws Exception
-    {
+            throws Exception {
         getMetastore().createProject(PROJECT_NAME);
     }
 
     @AfterSuite
     public void setDown()
-            throws Exception
-    {
+            throws Exception {
         getMetastore().deleteProject(PROJECT_NAME);
     }
 
     @AfterMethod
     public void deleteProject()
-            throws Exception
-    {
+            throws Exception {
         getUserService().dropProject(PROJECT_NAME);
         getConfigManager().clear();
     }
 
     @Test
     public void testCreate()
-            throws Exception
-    {
+            throws Exception {
         AbstractUserService userService = getUserService();
 
         userService.setUserProperties(PROJECT_NAME, 1L, sampleProperties);
@@ -76,8 +71,7 @@ public abstract class TestUserStorage
 
     @Test
     public void testCastingSetProperties()
-            throws Exception
-    {
+            throws Exception {
         AbstractUserService userService = getUserService();
         userService.setUserProperties(PROJECT_NAME, 2, sampleProperties);
 
@@ -100,8 +94,7 @@ public abstract class TestUserStorage
 
     @Test
     public void testSetProperties()
-            throws Exception
-    {
+            throws Exception {
         AbstractUserService userService = getUserService();
         userService.setUserProperties(PROJECT_NAME, 3, sampleProperties);
 
@@ -112,8 +105,7 @@ public abstract class TestUserStorage
 
     @Test
     public void testSetNullProperties()
-            throws Exception
-    {
+            throws Exception {
         AbstractUserService userService = getUserService();
 
         userService.setUserProperties(PROJECT_NAME, 3, JsonHelper.jsonObject()
@@ -127,8 +119,7 @@ public abstract class TestUserStorage
 
     @Test
     public void testSetSomeOfNullProperties()
-            throws Exception
-    {
+            throws Exception {
         AbstractUserService userService = getUserService();
 
         userService.setUserProperties(PROJECT_NAME, 3, JsonHelper.jsonObject()
@@ -147,8 +138,7 @@ public abstract class TestUserStorage
 
     @Test
     public void testUserIdStringToNumber()
-            throws Exception
-    {
+            throws Exception {
         AbstractUserService userService = getUserService();
 
         userService.setUserProperties(PROJECT_NAME, "3", sampleProperties);
@@ -160,8 +150,7 @@ public abstract class TestUserStorage
 
     @Test
     public void testUserIdInitialConcurrent()
-            throws Exception
-    {
+            throws Exception {
         AbstractUserService userService = getUserService();
 
         ExecutorService executorService = Executors.newFixedThreadPool(8);
@@ -185,8 +174,7 @@ public abstract class TestUserStorage
 
     @Test
     public void testUserIdNumberToString()
-            throws Exception
-    {
+            throws Exception {
         AbstractUserService userService = getUserService();
 
         userService.setUserProperties(PROJECT_NAME, 3, sampleProperties);
@@ -198,8 +186,7 @@ public abstract class TestUserStorage
 
     @Test(expectedExceptions = CompletionException.class)
     public void testUserIdInvalid()
-            throws Exception
-    {
+            throws Exception {
         AbstractUserService userService = getUserService();
 
         userService.setUserProperties(PROJECT_NAME, 3, sampleProperties);
@@ -211,8 +198,7 @@ public abstract class TestUserStorage
 
     @Test
     public void testConcurrentSetProperties()
-            throws Exception
-    {
+            throws Exception {
         ExecutorService executorService = Executors.newFixedThreadPool(8);
 
         Set<String> objects = new ConcurrentSkipListSet<>();
@@ -248,8 +234,7 @@ public abstract class TestUserStorage
 
     @Test
     public void testChangeSchemaSetProperties()
-            throws Exception
-    {
+            throws Exception {
         AbstractUserService userService = getUserService();
         userService.setUserProperties(PROJECT_NAME, 4, sampleProperties);
 
@@ -271,8 +256,7 @@ public abstract class TestUserStorage
 
     @Test
     public void testSetOncePropertiesFirstSet()
-            throws Exception
-    {
+            throws Exception {
         AbstractUserService userService = getUserService();
         userService.setUserPropertiesOnce(PROJECT_NAME, 5, sampleProperties);
 
@@ -283,8 +267,7 @@ public abstract class TestUserStorage
 
     @Test
     public void testSetOncePropertiesLatterSet()
-            throws Exception
-    {
+            throws Exception {
         AbstractUserService userService = getUserService();
         userService.setUserProperties(PROJECT_NAME, 6, sampleProperties);
 
@@ -301,8 +284,7 @@ public abstract class TestUserStorage
 
     @Test
     public void testUnsetSetProperties()
-            throws Exception
-    {
+            throws Exception {
         AbstractUserService userService = getUserService();
         userService.setUserProperties(PROJECT_NAME, 7, sampleProperties);
 
@@ -320,8 +302,7 @@ public abstract class TestUserStorage
 
     @Test
     public void testIncrementProperties()
-            throws Exception
-    {
+            throws Exception {
         AbstractUserService userService = getUserService();
         userService.incrementProperty(PROJECT_NAME, 8, "test", 10);
 

@@ -6,12 +6,10 @@ import org.testng.annotations.Test;
 
 import javax.script.ScriptException;
 
-public class TestJSCodeCompiler
-{
+public class TestJSCodeCompiler {
     @Test
     public void testName()
-            throws ScriptException
-    {
+            throws ScriptException {
 
         JSCodeCompiler jsCodeCompiler = new JSCodeCompiler(new TestingConfigManager(),
                 new RAsyncHttpClient(new OkHttpClient()),

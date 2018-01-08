@@ -1,13 +1,13 @@
 //@ sourceURL=rakam-ui/src/main/resources/webhook/intercom/script.js
 
-var mapUser = function(properties, user) {
+var mapUser = function (properties, user) {
     properties.user_intercom_id = user.id;
     properties.user_id = user.user_id;
     properties.user_anonymous = user.anonymous;
     properties.user_email = user.email;
     properties.user_name = user.name;
     var companies = user.companies;
-    if(companies && companies.companies && companies.companies.length > 0) {
+    if (companies && companies.companies && companies.companies.length > 0) {
         properties.user_companies = [];
         for (var company in companies.companies) {
             properties.user_companies.push(company.id);
@@ -23,7 +23,7 @@ var mapUser = function(properties, user) {
     properties._user_agent = user.user_agent_data;
 
     var tags = user.tags;
-    if(tags && tags.tags && tags.tags.length > 0) {
+    if (tags && tags.tags && tags.tags.length > 0) {
         properties.user_tags = [];
         for (var tag in tags.tags) {
             properties.user_tags.push(tag.id);
@@ -31,7 +31,7 @@ var mapUser = function(properties, user) {
     }
 
     var segments = user.segments;
-    if(segments && segments.segments && segments.segments.length > 0) {
+    if (segments && segments.segments && segments.segments.length > 0) {
         properties.user_segments = [];
         for (var segment in segments.segments) {
             properties.user_segments.push(segments.segments[segment].id);
@@ -40,7 +40,7 @@ var mapUser = function(properties, user) {
 
     var props = user.custom_attributes;
     properties.user_custom_attributes = {};
-    if(props) {
+    if (props) {
         properties.user_custom_attributes = props;
         // cast values to string
         for (var attr in props) {
@@ -49,21 +49,21 @@ var mapUser = function(properties, user) {
     }
 }
 
-var module = function(queryParams, body, params, headers) {
-    if(!body) return;
-    
+var module = function (queryParams, body, params, headers) {
+    if (!body) return;
+
     var body = JSON.parse(body);
-    if(!body || body.topic == 'ping') {
+    if (!body || body.topic == 'ping') {
         return null;
     }
 
-    if(params.app_id && body.app_id !== params.app_id) {
+    if (params.app_id && body.app_id !== params.app_id) {
         return null;
     }
 
-    if(params.hub_secret) {
+    if (params.hub_secret) {
         var signature = headers['X-Hub-Signature'];
-        if(signature !== ('sha1=' + util.crypt.sha1(params.hub_secret))) {
+        if (signature !== ('sha1=' + util.crypt.sha1(params.hub_secret))) {
             return null;
         }
     }
@@ -73,17 +73,17 @@ var module = function(queryParams, body, params, headers) {
     };
 
     properties.topic = body.topic;
-    if(body.data.item.tag) {
+    if (body.data.item.tag) {
         properties.tag_name = body.data.item.tag.name
     }
 
-    if(body.data.item.type == 'event') {
+    if (body.data.item.type == 'event') {
         properties.event_name = body.data.item.event_name;
         //properties.properties = body.data.item.metadata;
         properties.properties = {};
 
         var attrs = body.data.item.properties;
-        if(attrs) {
+        if (attrs) {
             // cast values to string
             for (var key in attrs) {
                 properties.properties[key] = new String(attrs[key]);
@@ -91,16 +91,16 @@ var module = function(queryParams, body, params, headers) {
         }
     }
 
-    if(body.data.item.type == 'user') {
+    if (body.data.item.type == 'user') {
         mapUser(properties, body.data.item);
     }
-    else if(body.data.item.type == 'visitor') {
+    else if (body.data.item.type == 'visitor') {
         mapUser(properties, body.data.item);
     }
-    else if(body.data.item.type == 'contact') {
+    else if (body.data.item.type == 'contact') {
         mapUser(properties, body.data.item);
     }
-    else if(body.data.item.type == 'conversation') {
+    else if (body.data.item.type == 'conversation') {
         properties.assignee_type = body.data.item.assignee.type;
         properties.assignee_id = body.data.item.assignee.id;
 
@@ -110,7 +110,7 @@ var module = function(queryParams, body, params, headers) {
         properties.body = body.data.item.conversation_parts.body;
     }
 
-    if(body.data.item.user) {
+    if (body.data.item.user) {
         mapUser(properties, body.data.item.user)
     }
 

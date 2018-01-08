@@ -81,6 +81,123 @@ public class JsonEventDeserializer
                 .flatMap(e -> e.stream()).collect(toImmutableMap(e -> e.getName(), e -> e.getType()));
     }
 
+    public static Object getValueOfMagicField(JsonParser jp)
+            throws IOException {
+        switch (jp.getCurrentToken()) {
+            case VALUE_TRUE:
+                return TRUE;
+            case VALUE_FALSE:
+                return Boolean.FALSE;
+            case VALUE_NUMBER_FLOAT:
+                return jp.getValueAsDouble();
+            case VALUE_NUMBER_INT:
+                return jp.getValueAsLong();
+            case VALUE_STRING:
+                return jp.getValueAsString();
+            case VALUE_NULL:
+                return null;
+            default:
+                throw new RakamException("The value of magic field is unknown", BAD_REQUEST);
+        }
+    }
+
+    private static FieldType getTypeForUnknown(JsonParser jp)
+            throws IOException {
+        switch (jp.getCurrentToken()) {
+            case VALUE_NULL:
+                return null;
+            case VALUE_STRING:
+                String value = jp.getValueAsString();
+
+                try {
+                    DateTimeUtils.parseDate(value);
+                    return FieldType.DATE;
+                } catch (Exception e) {
+
+                }
+
+                try {
+                    DateTimeUtils.parseTimestamp(value);
+                    return FieldType.TIMESTAMP;
+                } catch (Exception e) {
+
+                }
+
+                return STRING;
+            case VALUE_FALSE:
+                return FieldType.BOOLEAN;
+            case VALUE_NUMBER_FLOAT:
+            case VALUE_NUMBER_INT:
+                return FieldType.DOUBLE;
+            case VALUE_TRUE:
+                return FieldType.BOOLEAN;
+            case START_ARRAY:
+                JsonToken t = jp.nextToken();
+                if (t == JsonToken.END_ARRAY) {
+                    // if the array is null, return null as value.
+                    // TODO: if the key already has a type, return that type instead of null.
+                    return null;
+                }
+
+                FieldType type;
+                if (t.isScalarValue()) {
+                    type = getTypeForUnknown(jp);
+                } else {
+                    type = MAP_STRING;
+                }
+                if (type == null) {
+                    // TODO: what if the other values are not null?
+                    while (t != END_ARRAY) {
+                        if (!t.isScalarValue()) {
+                            return ARRAY_STRING;
+                        } else {
+                            t = jp.nextToken();
+                        }
+                    }
+                    return null;
+                }
+                if (type.isArray() || type.isMap()) {
+                    return ARRAY_STRING;
+                }
+                return type.convertToArrayType();
+            case START_OBJECT:
+                t = jp.nextToken();
+                if (t == JsonToken.END_OBJECT) {
+                    // if the map is null, return null as value.
+                    // TODO: if the key already has a type, return that type instead of null.
+                    return null;
+                }
+                if (t != JsonToken.FIELD_NAME) {
+                    throw new IllegalArgumentException();
+                }
+                t = jp.nextToken();
+                if (!t.isScalarValue()) {
+                    return MAP_STRING;
+                }
+                type = getTypeForUnknown(jp);
+                if (type == null) {
+                    // TODO: what if the other values are not null?
+                    while (t != END_OBJECT) {
+                        if (!t.isScalarValue()) {
+                            return MAP_STRING;
+                        } else {
+                            t = jp.nextToken();
+                        }
+                    }
+                    jp.nextToken();
+
+                    return null;
+                }
+
+                if (type.isArray() || type.isMap()) {
+                    return MAP_STRING;
+                }
+                return type.convertToMapValueType();
+            default:
+                throw new JsonMappingException(jp, format("The type is not supported: %s", jp.getValueAsString()));
+        }
+    }
+
     @Override
     public Event deserialize(JsonParser jp, DeserializationContext ctx)
             throws IOException {
@@ -302,7 +419,7 @@ public class JsonEventDeserializer
             record.put(field.pos(), value);
         }
 
-        if(isNew && newFields == null) {
+        if (isNew && newFields == null) {
             newFields = new ArrayList<>();
         }
 
@@ -354,26 +471,6 @@ public class JsonEventDeserializer
         avroSchema.setFields(avroFields);
 
         return avroSchema;
-    }
-
-    public static Object getValueOfMagicField(JsonParser jp)
-            throws IOException {
-        switch (jp.getCurrentToken()) {
-            case VALUE_TRUE:
-                return TRUE;
-            case VALUE_FALSE:
-                return Boolean.FALSE;
-            case VALUE_NUMBER_FLOAT:
-                return jp.getValueAsDouble();
-            case VALUE_NUMBER_INT:
-                return jp.getValueAsLong();
-            case VALUE_STRING:
-                return jp.getValueAsString();
-            case VALUE_NULL:
-                return null;
-            default:
-                throw new RakamException("The value of magic field is unknown", BAD_REQUEST);
-        }
     }
 
     private Object getValue(JsonParser jp, FieldType type, Schema.Field field, boolean passInitialToken)
@@ -523,103 +620,6 @@ public class JsonEventDeserializer
 //                    throw new JsonMappingException(jp, String.format("Cannot cast object to %s for '%s' field", type.name(), field.name()));
                 }
             }
-        }
-    }
-
-    private static FieldType getTypeForUnknown(JsonParser jp)
-            throws IOException {
-        switch (jp.getCurrentToken()) {
-            case VALUE_NULL:
-                return null;
-            case VALUE_STRING:
-                String value = jp.getValueAsString();
-
-                try {
-                    DateTimeUtils.parseDate(value);
-                    return FieldType.DATE;
-                } catch (Exception e) {
-
-                }
-
-                try {
-                    DateTimeUtils.parseTimestamp(value);
-                    return FieldType.TIMESTAMP;
-                } catch (Exception e) {
-
-                }
-
-                return STRING;
-            case VALUE_FALSE:
-                return FieldType.BOOLEAN;
-            case VALUE_NUMBER_FLOAT:
-            case VALUE_NUMBER_INT:
-                return FieldType.DOUBLE;
-            case VALUE_TRUE:
-                return FieldType.BOOLEAN;
-            case START_ARRAY:
-                JsonToken t = jp.nextToken();
-                if (t == JsonToken.END_ARRAY) {
-                    // if the array is null, return null as value.
-                    // TODO: if the key already has a type, return that type instead of null.
-                    return null;
-                }
-
-                FieldType type;
-                if (t.isScalarValue()) {
-                    type = getTypeForUnknown(jp);
-                } else {
-                    type = MAP_STRING;
-                }
-                if (type == null) {
-                    // TODO: what if the other values are not null?
-                    while (t != END_ARRAY) {
-                        if (!t.isScalarValue()) {
-                            return ARRAY_STRING;
-                        } else {
-                            t = jp.nextToken();
-                        }
-                    }
-                    return null;
-                }
-                if (type.isArray() || type.isMap()) {
-                    return ARRAY_STRING;
-                }
-                return type.convertToArrayType();
-            case START_OBJECT:
-                t = jp.nextToken();
-                if (t == JsonToken.END_OBJECT) {
-                    // if the map is null, return null as value.
-                    // TODO: if the key already has a type, return that type instead of null.
-                    return null;
-                }
-                if (t != JsonToken.FIELD_NAME) {
-                    throw new IllegalArgumentException();
-                }
-                t = jp.nextToken();
-                if (!t.isScalarValue()) {
-                    return MAP_STRING;
-                }
-                type = getTypeForUnknown(jp);
-                if (type == null) {
-                    // TODO: what if the other values are not null?
-                    while (t != END_OBJECT) {
-                        if (!t.isScalarValue()) {
-                            return MAP_STRING;
-                        } else {
-                            t = jp.nextToken();
-                        }
-                    }
-                    jp.nextToken();
-
-                    return null;
-                }
-
-                if (type.isArray() || type.isMap()) {
-                    return MAP_STRING;
-                }
-                return type.convertToMapValueType();
-            default:
-                throw new JsonMappingException(jp, format("The type is not supported: %s", jp.getValueAsString()));
         }
     }
 

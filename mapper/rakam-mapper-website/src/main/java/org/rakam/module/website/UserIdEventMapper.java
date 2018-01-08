@@ -30,29 +30,24 @@ import static org.rakam.collection.FieldType.STRING;
 
 @Mapper(name = "User Id Event mapper", description = "")
 public class UserIdEventMapper
-        implements SyncEventMapper, UserPropertyMapper
-{
+        implements SyncEventMapper, UserPropertyMapper {
     private final LoadingCache<String, FieldType> userTypeCache;
     DistributedIdGenerator idGenerator;
 
     @Inject
-    public UserIdEventMapper(ConfigManager configManager)
-    {
+    public UserIdEventMapper(ConfigManager configManager) {
         idGenerator = new DistributedIdGenerator();
-        userTypeCache = CacheBuilder.newBuilder().build(new CacheLoader<String, FieldType>()
-        {
+        userTypeCache = CacheBuilder.newBuilder().build(new CacheLoader<String, FieldType>() {
             @Override
             public FieldType load(String key)
-                    throws Exception
-            {
+                    throws Exception {
                 return configManager.setConfigOnce(key, InternalConfig.USER_TYPE.name(), STRING);
             }
         });
     }
 
     @Override
-    public List<Cookie> map(Event event, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders)
-    {
+    public List<Cookie> map(Event event, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders) {
         GenericRecord properties = event.properties();
 
         if (properties.get("_user") == null) {
@@ -76,8 +71,7 @@ public class UserIdEventMapper
         return null;
     }
 
-    private Object generate(Schema.Type type)
-    {
+    private Object generate(Schema.Type type) {
         switch (type) {
             case STRING:
                 return UUID.randomUUID().toString();
@@ -90,23 +84,20 @@ public class UserIdEventMapper
         }
     }
 
-    private Object cast(Schema.Type type, String value)
-    {
+    private Object cast(Schema.Type type, String value) {
         switch (type) {
             case STRING:
                 return value;
             case LONG:
                 try {
                     return Long.parseLong(value);
-                }
-                catch (NumberFormatException e) {
+                } catch (NumberFormatException e) {
                     return null;
                 }
             case INT:
                 try {
                     return Integer.parseInt(value);
-                }
-                catch (NumberFormatException e) {
+                } catch (NumberFormatException e) {
                     return null;
                 }
             default:
@@ -115,8 +106,7 @@ public class UserIdEventMapper
     }
 
     @Override
-    public List<Cookie> map(String project, List<? extends ISingleUserBatchOperation> user, RequestParams requestParams, InetAddress sourceAddress)
-    {
+    public List<Cookie> map(String project, List<? extends ISingleUserBatchOperation> user, RequestParams requestParams, InetAddress sourceAddress) {
 //        if (user.id == null) {
 //            FieldType fieldType = userTypeCache.getUnchecked(project);
 //            Schema field = AvroUtil.generateAvroSchema(fieldType);
@@ -146,8 +136,7 @@ public class UserIdEventMapper
      *
      * @author Maxim Khodanovich
      */
-    public static class DistributedIdGenerator
-    {
+    public static class DistributedIdGenerator {
         private static final long START_EPOCH = 1464307172048L;
 
         private static final long SEQUENCE_BITS = 12L;
@@ -163,8 +152,7 @@ public class UserIdEventMapper
         private volatile long lastTimestamp = -1L;
         private volatile long sequence = 0L;
 
-        public DistributedIdGenerator()
-        {
+        public DistributedIdGenerator() {
             hostId = getHostId();
             if (hostId < 0 || hostId > HOST_ID_MAX) {
                 throw new IllegalStateException("Invalid host ID: " + hostId);
@@ -172,21 +160,18 @@ public class UserIdEventMapper
         }
 
         public long generateId()
-                throws IllegalStateException
-        {
+                throws IllegalStateException {
             long timestamp = System.currentTimeMillis();
             if (lastTimestamp == timestamp) {
                 sequence = (sequence + 1) & SEQUENCE_MASK;
-            }
-            else {
+            } else {
                 sequence = 0;
             }
             lastTimestamp = timestamp;
             return ((timestamp - START_EPOCH) << TIMESTAMP_SHIFT) | (hostId << HOST_ID_SHIFT) | sequence;
         }
 
-        private long nextTimestamp(long lastTimestamp)
-        {
+        private long nextTimestamp(long lastTimestamp) {
             long timestamp = System.currentTimeMillis();
             while (timestamp <= lastTimestamp) {
                 timestamp = System.currentTimeMillis();
@@ -195,21 +180,18 @@ public class UserIdEventMapper
         }
 
         private long getHostId()
-                throws IllegalStateException
-        {
+                throws IllegalStateException {
             try {
                 NetworkInterface iface = NetworkInterface.getByInetAddress(getHostAddress());
                 byte[] mac = iface.getHardwareAddress();
                 return ((0x000000FF & (long) mac[mac.length - 1]) | (0x0000FF00 & (((long) mac[mac.length - 2]) << 8))) >> 6;
-            }
-            catch (IOException e) {
+            } catch (IOException e) {
                 throw new IllegalStateException("Failed to get host ID", e);
             }
         }
 
         private InetAddress getHostAddress()
-                throws IOException
-        {
+                throws IOException {
             InetAddress address = null;
 
             // Iterate all the network interfaces

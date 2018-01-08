@@ -27,7 +27,8 @@ public interface Metastore {
 
     CompletableFuture<List<String>> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate, Optional<LocalDate> endDate, Optional<String> filter);
 
-    default void setup() {}
+    default void setup() {
+    }
 
     class Stats {
         public Long allEvents;

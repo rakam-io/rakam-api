@@ -32,28 +32,24 @@ import static com.google.common.collect.ImmutableList.of;
 
 @Mapper(name = "Timestamp mapper", description = "Attaches or re-configures time attribute of events.")
 public class TimestampEventMapper
-        implements SyncEventMapper
-{
+        implements SyncEventMapper {
     private static final int HASHCODE = TimestampEventMapper.class.getName().hashCode();
     private final ProjectConfig projectConfig;
 
     @Inject
-    public TimestampEventMapper(ProjectConfig projectConfig)
-    {
+    public TimestampEventMapper(ProjectConfig projectConfig) {
         this.projectConfig = projectConfig;
     }
 
     @Override
-    public List<Cookie> map(Event event, RequestParams extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders)
-    {
+    public List<Cookie> map(Event event, RequestParams extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders) {
         GenericRecord properties = event.properties();
         Object time = properties.get(projectConfig.getTimeColumn());
         if (time == null) {
             long serverTime = Instant.now().getEpochSecond();
 
             properties.put(projectConfig.getTimeColumn(), serverTime * 1000);
-        }
-        else if (time instanceof Number && event.api() != null && event.api().uploadTime != null) {
+        } else if (time instanceof Number && event.api() != null && event.api().uploadTime != null) {
             // match server time and client time and get an estimate
             long fixedTime = ((Number) time).longValue() + ((Instant.now().getEpochSecond() - (event.api().uploadTime / 1000)) * 1000);
             properties.put(projectConfig.getTimeColumn(), fixedTime);
@@ -62,20 +58,17 @@ public class TimestampEventMapper
     }
 
     @Override
-    public void addFieldDependency(FieldDependencyBuilder builder)
-    {
+    public void addFieldDependency(FieldDependencyBuilder builder) {
         builder.addFields(of(new SchemaField(projectConfig.getTimeColumn(), FieldType.TIMESTAMP)));
     }
 
     @Override
-    public int hashCode()
-    {
+    public int hashCode() {
         return HASHCODE;
     }
 
     @Override
-    public boolean equals(Object obj)
-    {
+    public boolean equals(Object obj) {
         return obj instanceof TimestampEventMapper;
     }
 }

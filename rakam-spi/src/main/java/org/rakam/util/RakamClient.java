@@ -12,9 +12,19 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-public class RakamClient
-{
+public class RakamClient {
+    public static final String RELEASE;
+    public static final String HOST_NAME;
     private static final Logger logger = Logger.get(RakamClient.class);
+    private static final String JAVA_VERSION;
+    private static final String OS_NAME;
+    private static final String OS_ARCHITECTURE;
+    private static final String OS_VERSION;
+    private static final int AVAILABLE_PROCESSOR;
+    private static final long TOTAL_JVM_MEMORY;
+    private static final String url = "https://pool1.rakam.io/event/collect";
+    private static final OkHttpClient client = new OkHttpClient();
+    private static final MediaType mediaType = MediaType.parse("application/json");
 
     static {
         URL gitProps = LogUtil.class.getResource("/git.properties");
@@ -23,21 +33,18 @@ public class RakamClient
             Properties properties = new Properties();
             try {
                 properties.load(gitProps.openStream());
-            }
-            catch (IOException e) {
+            } catch (IOException e) {
             }
 
             RELEASE = properties.get("git.commit.id.describe").toString();
-        }
-        else {
+        } else {
             RELEASE = null;
         }
 
         String hostName;
         try {
             hostName = InetAddress.getLocalHost().getHostAddress();
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             logger.warn(e, "Not found host address");
             hostName = null;
         }
@@ -52,20 +59,7 @@ public class RakamClient
         TOTAL_JVM_MEMORY = Runtime.getRuntime().totalMemory();
     }
 
-    private static final String JAVA_VERSION;
-    private static final String OS_NAME;
-    private static final String OS_ARCHITECTURE;
-    private static final String OS_VERSION;
-    private static final int AVAILABLE_PROCESSOR;
-    private static final long TOTAL_JVM_MEMORY;
-    public static final String RELEASE;
-    public static final String HOST_NAME;
-    private static final String url = "https://pool1.rakam.io/event/collect";
-    private static final OkHttpClient client = new OkHttpClient();
-    private static final MediaType mediaType = MediaType.parse("application/json");
-
-    public static void logEvent(String collection, Map<String, Object> map)
-    {
+    public static void logEvent(String collection, Map<String, Object> map) {
         try {
             map = new HashMap<>(map);
 
@@ -89,30 +83,25 @@ public class RakamClient
                     .post(body)
                     .build();
 
-            client.newCall(request).enqueue(new Callback()
-            {
+            client.newCall(request).enqueue(new Callback() {
                 @Override
-                public void onFailure(Call call, IOException e)
-                {
+                public void onFailure(Call call, IOException e) {
                     logger.warn(e, "Error while logging event %s", collection);
                 }
 
                 @Override
                 public void onResponse(Call call, Response response)
-                        throws IOException
-                {
+                        throws IOException {
                     logger.debug("Successfully logged %s event", collection);
                     response.close();
                 }
             });
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             logger.error(e);
         }
     }
 
-    public static void logEvent(String collection)
-    {
+    public static void logEvent(String collection) {
         logEvent(collection, ImmutableMap.of());
     }
 }

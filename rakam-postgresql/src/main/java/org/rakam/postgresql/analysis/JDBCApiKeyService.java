@@ -21,34 +21,28 @@ import static java.lang.String.format;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.*;
 
 public class JDBCApiKeyService
-        implements ApiKeyService
-{
-    private final LoadingCache<String, List<Set<String>>> apiKeyCache;
+        implements ApiKeyService {
     protected final JDBCPoolDataSource connectionPool;
+    private final LoadingCache<String, List<Set<String>>> apiKeyCache;
     private final LoadingCache<ApiKey, String> apiKeyReverseCache;
 
-    public JDBCApiKeyService(JDBCPoolDataSource connectionPool)
-    {
+    public JDBCApiKeyService(JDBCPoolDataSource connectionPool) {
         this.connectionPool = connectionPool;
 
-        apiKeyCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<String, List<Set<String>>>()
-        {
+        apiKeyCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<String, List<Set<String>>>() {
             @Override
             public List<Set<String>> load(String project)
-                    throws Exception
-            {
+                    throws Exception {
                 try (Connection conn = connectionPool.getConnection()) {
                     return getKeys(conn, project);
                 }
             }
         });
 
-        apiKeyReverseCache = CacheBuilder.newBuilder().build(new CacheLoader<ApiKey, String>()
-        {
+        apiKeyReverseCache = CacheBuilder.newBuilder().build(new CacheLoader<ApiKey, String>() {
             @Override
             public String load(ApiKey apiKey)
-                    throws Exception
-            {
+                    throws Exception {
                 try (Connection conn = connectionPool.getConnection()) {
                     PreparedStatement ps = conn.prepareStatement(format("SELECT lower(project) FROM api_key WHERE %s = ?", apiKey.type.name()));
                     ps.setString(1, apiKey.key);
@@ -57,8 +51,7 @@ public class JDBCApiKeyService
                         throw new RakamException(apiKey.type.getKey() + " is invalid", FORBIDDEN);
                     }
                     return resultSet.getString(1);
-                }
-                catch (SQLException e) {
+                } catch (SQLException e) {
                     throw Throwables.propagate(e);
                 }
             }
@@ -66,16 +59,14 @@ public class JDBCApiKeyService
     }
 
     @PostConstruct
-    public void setup()
-    {
+    public void setup() {
         try (Connection connection = connectionPool.getConnection()) {
             Statement statement = connection.createStatement();
             URI uri = URI.create(connectionPool.getConfig().getUrl().replaceAll("^jdbc:", ""));
             String primaryKey;
-            if(uri.getScheme().equals("mysql")) {
+            if (uri.getScheme().equals("mysql")) {
                 primaryKey = "  id MEDIUMINT NOT NULL AUTO_INCREMENT,\n";
-            } else
-            if(uri.getScheme().equals("postgresql")) {
+            } else if (uri.getScheme().equals("postgresql")) {
                 primaryKey = "  id SERIAL,\n";
             } else {
                 throw new IllegalStateException();
@@ -89,15 +80,13 @@ public class JDBCApiKeyService
                     "  created_at TIMESTAMP default current_timestamp NOT NULL," +
                     "PRIMARY KEY (id)\n" +
                     "  )");
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
     @Override
-    public ProjectApiKeys createApiKeys(String project)
-    {
+    public ProjectApiKeys createApiKeys(String project) {
         String masterKey = CryptUtil.generateRandomKey(64);
         String readKey = CryptUtil.generateRandomKey(64);
         String writeKey = CryptUtil.generateRandomKey(64);
@@ -113,8 +102,7 @@ public class JDBCApiKeyService
             ps.executeUpdate();
             final ResultSet generatedKeys = ps.getGeneratedKeys();
             generatedKeys.next();
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
 
@@ -122,8 +110,7 @@ public class JDBCApiKeyService
     }
 
     @Override
-    public String getProjectOfApiKey(String apiKey, AccessKeyType type)
-    {
+    public String getProjectOfApiKey(String apiKey, AccessKeyType type) {
         if (type == null) {
             throw new IllegalStateException();
         }
@@ -132,42 +119,36 @@ public class JDBCApiKeyService
         }
         try {
             return apiKeyReverseCache.getUnchecked(new ApiKey(apiKey, type));
-        }
-        catch (UncheckedExecutionException e) {
+        } catch (UncheckedExecutionException e) {
             throw Throwables.propagate(e.getCause());
         }
     }
 
     @Override
-    public void revokeApiKeys(String project, String masterKey)
-    {
+    public void revokeApiKeys(String project, String masterKey) {
         try (Connection conn = connectionPool.getConnection()) {
             PreparedStatement ps = conn.prepareStatement("DELETE FROM api_key WHERE project = ? AND master_key = ?");
             ps.setString(1, project);
             ps.setString(2, masterKey);
             ps.execute();
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
     }
 
     @Override
-    public void revokeAllKeys(String project)
-    {
+    public void revokeAllKeys(String project) {
         try (Connection conn = connectionPool.getConnection()) {
             PreparedStatement ps = conn.prepareStatement("DELETE FROM api_key WHERE project = ?");
             ps.setString(1, project);
             ps.execute();
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
     }
 
     private List<Set<String>> getKeys(Connection conn, String project)
-            throws SQLException
-    {
+            throws SQLException {
         Set<String> masterKeyList = new HashSet<>();
         Set<String> readKeyList = new HashSet<>();
         Set<String> writeKeyList = new HashSet<>();
@@ -202,25 +183,21 @@ public class JDBCApiKeyService
         return Collections.unmodifiableList(Arrays.asList(keys));
     }
 
-    public void clearCache()
-    {
+    public void clearCache() {
         apiKeyCache.cleanUp();
     }
 
-    public static final class ApiKey
-    {
+    public static final class ApiKey {
         public final String key;
         public final AccessKeyType type;
 
-        public ApiKey(String key, AccessKeyType type)
-        {
+        public ApiKey(String key, AccessKeyType type) {
             this.key = key;
             this.type = type;
         }
 
         @Override
-        public boolean equals(Object o)
-        {
+        public boolean equals(Object o) {
             if (this == o) {
                 return true;
             }
@@ -237,8 +214,7 @@ public class JDBCApiKeyService
         }
 
         @Override
-        public int hashCode()
-        {
+        public int hashCode() {
             int result = key.hashCode();
             result = 31 * result + type.hashCode();
             return result;

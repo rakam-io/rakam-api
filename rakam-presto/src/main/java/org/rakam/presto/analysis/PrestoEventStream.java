@@ -24,8 +24,7 @@ import static io.airlift.http.client.Request.Builder.*;
 import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
 
 public class PrestoEventStream
-        implements EventStream
-{
+        implements EventStream {
     private final static Logger LOGGER = Logger.get(PrestoEventStream.class);
 
     private final HttpClient httpClient;
@@ -34,8 +33,7 @@ public class PrestoEventStream
     private final JsonCodec<StreamQuery> queryCodec;
 
     @Inject
-    public PrestoEventStream(@ForStreamer HttpClient httpClient, AWSKinesisModule.PrestoStreamConfig config, PrestoConfig prestoConfig)
-    {
+    public PrestoEventStream(@ForStreamer HttpClient httpClient, AWSKinesisModule.PrestoStreamConfig config, PrestoConfig prestoConfig) {
         this.httpClient = httpClient;
         this.streamingPort = config.getPort();
         this.prestoAddress = prestoConfig.getAddress();
@@ -43,8 +41,7 @@ public class PrestoEventStream
     }
 
     @Override
-    public EventStreamer subscribe(String project, List<CollectionStreamQuery> collections, List<String> columns, StreamResponse response)
-    {
+    public EventStreamer subscribe(String project, List<CollectionStreamQuery> collections, List<String> columns, StreamResponse response) {
 
         StreamQuery query = new StreamQuery(project, collections);
 
@@ -61,13 +58,11 @@ public class PrestoEventStream
 
         String ticket = httpClient.execute(request, StringResponseHandler.createStringResponseHandler()).getBody();
 
-        return new EventStreamer()
-        {
+        return new EventStreamer() {
             private AtomicInteger failed = new AtomicInteger();
 
             @Override
-            public synchronized void sync()
-            {
+            public synchronized void sync() {
                 try {
                     URI uri = UriBuilder.fromUri(prestoAddress)
                             .port(streamingPort)
@@ -79,8 +74,7 @@ public class PrestoEventStream
                     String data = httpClient.execute(request, StringResponseHandler.createStringResponseHandler()).getBody();
 
                     response.send("data", data);
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     if (failed.incrementAndGet() > 5) {
                         LOGGER.error(e, "Error while streaming records to client");
                         shutdown();
@@ -89,8 +83,7 @@ public class PrestoEventStream
             }
 
             @Override
-            public void shutdown()
-            {
+            public void shutdown() {
                 URI uri = UriBuilder.fromUri(prestoAddress)
                         .port(streamingPort)
                         .path("connector/streamer")

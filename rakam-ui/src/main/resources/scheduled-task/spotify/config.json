@@ -3,8 +3,8 @@
   "description": "Collects music history data from Spotify",
   "defaultDuration": "PT1H",
   "external": {
-     "url": "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/spotify",
-     "name": "Login with Spotify"
+    "url": "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/spotify",
+    "name": "Login with Spotify"
   },
   "parameters": {
     "collection": {

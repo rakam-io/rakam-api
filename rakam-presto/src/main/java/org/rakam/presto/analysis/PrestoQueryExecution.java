@@ -30,46 +30,39 @@ import static org.rakam.collection.FieldType.*;
 import static org.rakam.report.QueryStats.State.FINISHED;
 
 public class PrestoQueryExecution
-        implements QueryExecution
-{
+        implements QueryExecution {
+    public static final DateTimeFormatter PRESTO_TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
+    public static final DateTimeFormatter PRESTO_TIMESTAMP_WITH_TIMEZONE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS z");
     private final static Logger LOGGER = Logger.get(PrestoQueryExecution.class);
     private static final OkHttpClient HTTP_CLIENT = new OkHttpClient().newBuilder()
             .build();
-
     private static final ThreadPoolExecutor QUERY_EXECUTOR = new ThreadPoolExecutor(0, 1000,
             60L, TimeUnit.SECONDS,
             new SynchronousQueue<>(), new ThreadFactoryBuilder()
             .setNameFormat("presto-query-executor").build());
-
+    private static final String SERVER_NOT_ACTIVE = "Database server is not active.";
     private final List<List<Object>> data = Lists.newArrayList();
     private final String query;
     private final boolean update;
-    private List<SchemaField> columns;
-
     private final CompletableFuture<QueryResult> result;
-    public static final DateTimeFormatter PRESTO_TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
-    public static final DateTimeFormatter PRESTO_TIMESTAMP_WITH_TIMEZONE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS z");
-
-    private StatementClient client;
     private final Instant startTime;
+    private List<SchemaField> columns;
+    private StatementClient client;
 
-    public PrestoQueryExecution(ClientSession session, String query, boolean update)
-    {
+    public PrestoQueryExecution(ClientSession session, String query, boolean update) {
         this.startTime = Instant.now();
         this.query = query;
         this.update = update;
         try {
             QUERY_EXECUTOR.execute(new QueryTracker(session));
-        }
-        catch (RejectedExecutionException e) {
+        } catch (RejectedExecutionException e) {
             throw new RakamException("There are already 1000 running queries. Please calm down.", HttpResponseStatus.TOO_MANY_REQUESTS);
         }
 
         result = new CompletableFuture<>();
     }
 
-    public static FieldType fromPrestoType(String rawType, Iterator<String> parameter)
-    {
+    public static FieldType fromPrestoType(String rawType, Iterator<String> parameter) {
         switch (rawType) {
             case StandardTypes.BIGINT:
                 return LONG;
@@ -105,9 +98,12 @@ public class PrestoQueryExecution
         }
     }
 
+    public static boolean isServerInactive(QueryError error) {
+        return error.message.startsWith(SERVER_NOT_ACTIVE);
+    }
+
     @Override
-    public QueryStats currentStats()
-    {
+    public QueryStats currentStats() {
         if (client == null) {
             return new QueryStats(QueryStats.State.WAITING_FOR_AVAILABLE_THREAD);
         }
@@ -133,46 +129,33 @@ public class PrestoQueryExecution
     }
 
     @Override
-    public boolean isFinished()
-    {
+    public boolean isFinished() {
         return result.isDone();
     }
 
     @Override
-    public CompletableFuture<QueryResult> getResult()
-    {
+    public CompletableFuture<QueryResult> getResult() {
         return result;
     }
 
-    public static boolean isServerInactive(QueryError error)
-    {
-        return error.message.startsWith(SERVER_NOT_ACTIVE);
-    }
-
     @Override
-    public void kill()
-    {
+    public void kill() {
         if (!update) {
             client.close();
         }
     }
 
-    private static final String SERVER_NOT_ACTIVE = "Database server is not active.";
-
     private class QueryTracker
-            implements Runnable
-    {
+            implements Runnable {
         private final ClientSession session;
         private final ZoneId zone;
 
-        public QueryTracker(ClientSession session)
-        {
+        public QueryTracker(ClientSession session) {
             this.session = session;
             this.zone = Optional.ofNullable(session.getTimeZone()).map(e -> ZoneId.of(e.getId())).orElse(ZoneOffset.UTC);
         }
 
-        private void waitForQuery()
-        {
+        private void waitForQuery() {
             while (client.isValid()) {
                 if (Thread.currentThread().isInterrupted()) {
                     client.close();
@@ -185,12 +168,10 @@ public class PrestoQueryExecution
         }
 
         @Override
-        public void run()
-        {
+        public void run() {
             try {
                 client = new StatementClient(HTTP_CLIENT, session, query);
-            }
-            catch (RuntimeException e) {
+            } catch (RuntimeException e) {
                 String message = SERVER_NOT_ACTIVE + " " + e.getMessage();
                 LOGGER.warn(e, message);
                 result.complete(QueryResult.errorResult(QueryError.create(message), query));
@@ -203,12 +184,10 @@ public class PrestoQueryExecution
                 if (client.isClosed()) {
                     QueryError queryError = QueryError.create("Query aborted by user");
                     result.complete(QueryResult.errorResult(queryError, query));
-                }
-                else if (client.isGone()) {
+                } else if (client.isGone()) {
                     QueryError queryError = QueryError.create("Query is gone (server restarted?)");
                     result.complete(QueryResult.errorResult(queryError, query));
-                }
-                else if (client.isFailed()) {
+                } else if (client.isFailed()) {
                     com.facebook.presto.client.QueryError error = client.finalStatusInfo().getError();
                     com.facebook.presto.client.ErrorLocation errorLocation = error.getErrorLocation();
                     QueryError queryError = new QueryError(
@@ -220,8 +199,7 @@ public class PrestoQueryExecution
                             errorLocation != null ? errorLocation.getColumnNumber() : null);
                     LogUtil.logQueryError(query, queryError, PrestoQueryExecutor.class);
                     result.complete(QueryResult.errorResult(queryError, query));
-                }
-                else {
+                } else {
                     transformAndAdd();
 
                     ImmutableMap<String, Object> stats = ImmutableMap.of(
@@ -230,16 +208,14 @@ public class PrestoQueryExecution
 
                     result.complete(new QueryResult(columns, data, stats));
                 }
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 QueryError queryError = QueryError.create(e.getMessage());
                 LogUtil.logQueryError(query, queryError, PrestoQueryExecutor.class);
                 result.complete(QueryResult.errorResult(queryError, query));
             }
         }
 
-        private void transformAndAdd()
-        {
+        private void transformAndAdd() {
             QueryStatusInfo queryStatusInfo = client.isValid() ? client.currentStatusInfo() : client.finalStatusInfo();
 
             if (queryStatusInfo.getError() != null || queryStatusInfo.getColumns() == null || !client.isValid()) {
@@ -273,27 +249,21 @@ public class PrestoQueryExecution
                         if (type.equals(StandardTypes.TIMESTAMP)) {
                             try {
                                 row[i] = LocalDateTime.parse((CharSequence) value, PRESTO_TIMESTAMP_FORMAT).atZone(zone);
-                            }
-                            catch (Exception e) {
+                            } catch (Exception e) {
                                 LOGGER.error(e, "Error while parsing Presto TIMESTAMP.");
                             }
-                        }
-                        else if (type.equals(StandardTypes.TIMESTAMP_WITH_TIME_ZONE)) {
+                        } else if (type.equals(StandardTypes.TIMESTAMP_WITH_TIME_ZONE)) {
                             try {
                                 row[i] = ZonedDateTime.parse((CharSequence) value, PRESTO_TIMESTAMP_WITH_TIMEZONE_FORMAT);
-                            }
-                            catch (Exception e) {
+                            } catch (Exception e) {
                                 LOGGER.error(e, "Error while parsing Presto TIMESTAMP WITH TIMEZONE.");
                             }
-                        }
-                        else if (type.equals(StandardTypes.DATE)) {
+                        } else if (type.equals(StandardTypes.DATE)) {
                             row[i] = LocalDate.parse((CharSequence) value);
-                        }
-                        else {
+                        } else {
                             row[i] = objects.get(i);
                         }
-                    }
-                    else {
+                    } else {
                         row[i] = objects.get(i);
                     }
                 }

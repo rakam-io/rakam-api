@@ -74,11 +74,9 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 public class EventCollectionHttpService
         extends HttpService {
     private final static Logger LOGGER = Logger.get(EventCollectionHttpService.class);
-
+    private static final int[] FAILED_SINGLE_EVENT = new int[]{0};
     private final byte[] OK_MESSAGE = "1".getBytes(UTF_8);
     private final byte[] gif1x1 = Base64.getDecoder().decode("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7");
-    private static final int[] FAILED_SINGLE_EVENT = new int[]{0};
-
     private final ObjectMapper jsonMapper;
     private final ObjectMapper csvMapper;
     private final EventStore eventStore;
@@ -165,6 +163,28 @@ public class EventCollectionHttpService
         if (headerList != null) {
             response.headers().set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
         }
+    }
+
+    public static InetAddress getRemoteAddress(String socketAddress) {
+        try {
+            return InetAddress.getByName(socketAddress);
+        } catch (UnknownHostException e) {
+            return null;
+        }
+    }
+
+    public static String getHeaderList(Iterator<Map.Entry<String, String>> it) {
+        StringBuilder builder = new StringBuilder("cf-ray,server,status");
+        while (it.hasNext()) {
+            String key = it.next().getKey();
+            if (!key.equals(SET_COOKIE)) {
+                if (builder.length() != 0) {
+                    builder.append(',');
+                }
+                builder.append(key.toLowerCase(Locale.ENGLISH));
+            }
+        }
+        return builder == null ? null : builder.toString();
     }
 
     @POST
@@ -314,14 +334,6 @@ public class EventCollectionHttpService
         request.headers().add(CONTENT_LENGTH, "42");
 
         request.response(gif1x1).end();
-    }
-
-    public static InetAddress getRemoteAddress(String socketAddress) {
-        try {
-            return InetAddress.getByName(socketAddress);
-        } catch (UnknownHostException e) {
-            return null;
-        }
     }
 
     @POST
@@ -680,20 +692,6 @@ public class EventCollectionHttpService
                 });
             });
         });
-    }
-
-    public static String getHeaderList(Iterator<Map.Entry<String, String>> it) {
-        StringBuilder builder = new StringBuilder("cf-ray,server,status");
-        while (it.hasNext()) {
-            String key = it.next().getKey();
-            if (!key.equals(SET_COOKIE)) {
-                if (builder.length() != 0) {
-                    builder.append(',');
-                }
-                builder.append(key.toLowerCase(Locale.ENGLISH));
-            }
-        }
-        return builder == null ? null : builder.toString();
     }
 
     interface ThrowableFunction {

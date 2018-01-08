@@ -48,15 +48,14 @@ import static org.rakam.util.ValidationUtil.*;
 // forbid crosstab, dblink
 public class PostgresqlQueryExecutor
         implements QueryExecutor {
-    private final static Logger LOGGER = Logger.get(PostgresqlQueryExecutor.class);
     public final static String MATERIALIZED_VIEW_PREFIX = "$materialized_";
     public final static String CONTINUOUS_QUERY_PREFIX = "$view_";
-
-    private final JDBCPoolDataSource connectionPool;
     protected static final ExecutorService QUERY_EXECUTOR = new ThreadPoolExecutor(0, 1000,
             60L, TimeUnit.SECONDS,
             new SynchronousQueue<>(), new ThreadFactoryBuilder()
             .setNameFormat("jdbc-query-executor").build());
+    private final static Logger LOGGER = Logger.get(PostgresqlQueryExecutor.class);
+    private final JDBCPoolDataSource connectionPool;
     private final Metastore metastore;
     private final boolean userServiceIsPostgresql;
     private final CustomDataSourceService customDataSource;
@@ -99,6 +98,17 @@ public class PostgresqlQueryExecutor
         }
     }
 
+    public static char dbSeparator(String externalType) {
+        switch (externalType) {
+            case "POSTGRESQL":
+                return '"';
+            case "MYSQL":
+                return '`';
+            default:
+                return '"';
+        }
+    }
+
     @Override
     public QueryExecution executeRawQuery(RequestContext context, String query, ZoneId zoneId, Map<String, String> sessionParameters) {
         String remotedb = sessionParameters.get("remotedb");
@@ -126,7 +136,8 @@ public class PostgresqlQueryExecutor
 
     @Override
     public QueryExecution executeRawStatement(String sqlQuery) {
-        return new JDBCQueryExecution(connectionPool::getConnection, sqlQuery, true, Optional.empty(), true); }
+        return new JDBCQueryExecution(connectionPool::getConnection, sqlQuery, true, Optional.empty(), true);
+    }
 
     @Override
     public String formatTableReference(String project, QualifiedName name, Optional<QuerySampling> sample, Map<String, String> sessionParameters) {
@@ -217,17 +228,6 @@ public class PostgresqlQueryExecutor
     public Connection getConnection()
             throws SQLException {
         return connectionPool.getConnection();
-    }
-
-    public static char dbSeparator(String externalType) {
-        switch (externalType) {
-            case "POSTGRESQL":
-                return '"';
-            case "MYSQL":
-                return '`';
-            default:
-                return '"';
-        }
     }
 
     private QueryExecution getSingleQueryExecution(String query, List<CustomDataSource> type) {

@@ -212,79 +212,6 @@ public class DashboardService
         }
     }
 
-    public static class DashboardList {
-        public final List<Dashboard> dashboards;
-        public final Integer defaultDashboard;
-
-        public DashboardList(List<Dashboard> dashboards, Integer defaultDashboard) {
-            this.dashboards = dashboards;
-            this.defaultDashboard = defaultDashboard;
-        }
-    }
-
-    public static class DashboardPermission {
-        public final int id;
-        public final Instant sharedAt;
-
-        public DashboardPermission(int id, Instant sharedAt) {
-            this.id = id;
-            this.sharedAt = sharedAt;
-        }
-    }
-
-    public static class Dashboard {
-        public final int id;
-        public final int userId;
-        public final String name;
-        public final Map<String, Object> options;
-        public final Duration refresh_interval;
-        public final boolean sharedEveryone;
-
-        @JsonCreator
-        public Dashboard(int id, int userId, String name, Duration refresh_interval, Map<String, Object> options, boolean sharedEveryone) {
-            this.id = id;
-            this.name = name;
-            this.userId = userId;
-            this.refresh_interval = refresh_interval;
-            this.options = options;
-            this.sharedEveryone = sharedEveryone;
-        }
-    }
-
-    public static class DashboardItem {
-        public final Integer id;
-        public final Map options;
-        public final Duration refreshInterval;
-        public final String directive;
-        public final String name;
-        @JsonInclude(JsonInclude.Include.NON_NULL)
-        public final Instant lastUpdated;
-        @JsonInclude(JsonInclude.Include.NON_NULL)
-        public final byte[] data;
-
-        @JsonCreator
-        public DashboardItem(
-                @JsonProperty("id") Integer id,
-                @JsonProperty("name") String name,
-                @JsonProperty("directive") String directive,
-                @JsonProperty("options") Map options,
-                @JsonProperty("refreshInterval") Duration refreshInterval,
-                @JsonProperty("data") byte[] data) {
-            this(id, name, directive, options, refreshInterval, null, data);
-        }
-
-        public DashboardItem(Integer id, String name, String directive, Map options, Duration refreshInterval,
-                             Instant lastUpdated, byte[] data) {
-            this.id = id;
-            this.options = options;
-            this.refreshInterval = refreshInterval;
-            this.directive = directive;
-            this.name = name;
-            this.lastUpdated = lastUpdated;
-            this.data = data;
-        }
-    }
-
     @JsonRequest
     @ApiOperation(value = "Add item to dashboard")
     @Path("/add_item")
@@ -427,5 +354,78 @@ public class DashboardService
             }
         }
         return SuccessMessage.success();
+    }
+
+    public static class DashboardList {
+        public final List<Dashboard> dashboards;
+        public final Integer defaultDashboard;
+
+        public DashboardList(List<Dashboard> dashboards, Integer defaultDashboard) {
+            this.dashboards = dashboards;
+            this.defaultDashboard = defaultDashboard;
+        }
+    }
+
+    public static class DashboardPermission {
+        public final int id;
+        public final Instant sharedAt;
+
+        public DashboardPermission(int id, Instant sharedAt) {
+            this.id = id;
+            this.sharedAt = sharedAt;
+        }
+    }
+
+    public static class Dashboard {
+        public final int id;
+        public final int userId;
+        public final String name;
+        public final Map<String, Object> options;
+        public final Duration refresh_interval;
+        public final boolean sharedEveryone;
+
+        @JsonCreator
+        public Dashboard(int id, int userId, String name, Duration refresh_interval, Map<String, Object> options, boolean sharedEveryone) {
+            this.id = id;
+            this.name = name;
+            this.userId = userId;
+            this.refresh_interval = refresh_interval;
+            this.options = options;
+            this.sharedEveryone = sharedEveryone;
+        }
+    }
+
+    public static class DashboardItem {
+        public final Integer id;
+        public final Map options;
+        public final Duration refreshInterval;
+        public final String directive;
+        public final String name;
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        public final Instant lastUpdated;
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        public final byte[] data;
+
+        @JsonCreator
+        public DashboardItem(
+                @JsonProperty("id") Integer id,
+                @JsonProperty("name") String name,
+                @JsonProperty("directive") String directive,
+                @JsonProperty("options") Map options,
+                @JsonProperty("refreshInterval") Duration refreshInterval,
+                @JsonProperty("data") byte[] data) {
+            this(id, name, directive, options, refreshInterval, null, data);
+        }
+
+        public DashboardItem(Integer id, String name, String directive, Map options, Duration refreshInterval,
+                             Instant lastUpdated, byte[] data) {
+            this.id = id;
+            this.options = options;
+            this.refreshInterval = refreshInterval;
+            this.directive = directive;
+            this.name = name;
+            this.lastUpdated = lastUpdated;
+            this.data = data;
+        }
     }
 }

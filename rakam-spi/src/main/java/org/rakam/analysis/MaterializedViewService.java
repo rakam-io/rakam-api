@@ -77,16 +77,6 @@ public abstract class MaterializedViewService {
         database.changeMaterializedView(project, tableName, realTime);
     }
 
-    public static class MaterializedViewExecution {
-        public final QueryExecution queryExecution;
-        public final String computeQuery;
-
-        public MaterializedViewExecution(QueryExecution queryExecution, String computeQuery) {
-            this.queryExecution = queryExecution;
-            this.computeQuery = computeQuery;
-        }
-    }
-
     public abstract MaterializedViewExecution lockAndUpdateView(RequestContext context, MaterializedView materializedView);
 
     public List<MaterializedView> list(String project) {
@@ -123,5 +113,15 @@ public abstract class MaterializedViewService {
             }
         });
         return f;
+    }
+
+    public static class MaterializedViewExecution {
+        public final QueryExecution queryExecution;
+        public final String computeQuery;
+
+        public MaterializedViewExecution(QueryExecution queryExecution, String computeQuery) {
+            this.queryExecution = queryExecution;
+            this.computeQuery = computeQuery;
+        }
     }
 }

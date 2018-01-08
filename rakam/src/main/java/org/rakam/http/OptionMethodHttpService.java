@@ -14,8 +14,7 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 @Path("/")
 @IgnoreApi
-public class OptionMethodHttpService extends HttpService
-{
+public class OptionMethodHttpService extends HttpService {
     @OPTIONS
     @Path("/*")
     public static void handle(RakamHttpRequest request) {

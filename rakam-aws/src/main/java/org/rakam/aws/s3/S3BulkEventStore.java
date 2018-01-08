@@ -34,8 +34,7 @@ import java.util.*;
 
 import static org.rakam.util.AvroUtil.convertAvroSchema;
 
-public class S3BulkEventStore
-{
+public class S3BulkEventStore {
     private final static Logger LOGGER = Logger.get(S3BulkEventStore.class);
     private final Metastore metastore;
     private final AmazonS3Client s3Client;
@@ -44,8 +43,7 @@ public class S3BulkEventStore
     private final AmazonCloudWatchAsyncClient cloudWatchClient;
     private final AmazonKinesisClient kinesis;
 
-    public S3BulkEventStore(Metastore metastore, AWSConfig config, FieldDependencyBuilder.FieldDependency fieldDependency)
-    {
+    public S3BulkEventStore(Metastore metastore, AWSConfig config, FieldDependencyBuilder.FieldDependency fieldDependency) {
         this.metastore = metastore;
         this.config = config;
         this.s3Client = new AmazonS3Client(config.getCredentials());
@@ -66,8 +64,7 @@ public class S3BulkEventStore
         this.conditionalMagicFieldsSize = fieldDependency.dependentFields.size();
     }
 
-    public void upload(String project, List<Event> events, int tryCount)
-    {
+    public void upload(String project, List<Event> events, int tryCount) {
         GenericData data = GenericData.get();
 
         DynamicSliceOutput buffer = new DynamicSliceOutput(events.size() * 30);
@@ -144,12 +141,11 @@ public class S3BulkEventStore
                             .withMetricName("bulk")
                             .withValue(((Number) events.size()).doubleValue())
                             .withDimensions(new Dimension().withName("project").withValue(project))));
-        }
-        catch (IOException | AmazonClientException e) {
+        } catch (IOException | AmazonClientException e) {
             for (String uploadedFile : uploadedFiles) {
                 s3Client.deleteObject(config.getEventStoreBulkS3Bucket(), uploadedFile);
             }
-            if(tryCount <= 0) {
+            if (tryCount <= 0) {
                 throw Throwables.propagate(e);
             }
 
@@ -157,13 +153,11 @@ public class S3BulkEventStore
         }
     }
 
-    private void putMetadataToKinesis(ByteBuffer allocate, String project, String collection, int tryCount)
-    {
+    private void putMetadataToKinesis(ByteBuffer allocate, String project, String collection, int tryCount) {
         try {
             kinesis.putRecord(config.getEventStoreStreamName(), allocate,
                     project + "|" + collection);
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             if (tryCount == 0) {
                 throw e;
             }
@@ -173,73 +167,62 @@ public class S3BulkEventStore
     }
 
     private class SafeSliceInputStream
-            extends InputStream
-    {
+            extends InputStream {
         private final BasicSliceInput sliceInput;
 
-        public SafeSliceInputStream(BasicSliceInput sliceInput)
-        {
+        public SafeSliceInputStream(BasicSliceInput sliceInput) {
             this.sliceInput = sliceInput;
         }
 
         @Override
         public int read()
-                throws IOException
-        {
+                throws IOException {
             return sliceInput.read();
         }
 
         @Override
         public int read(byte[] b)
-                throws IOException
-        {
+                throws IOException {
             return sliceInput.read(b);
         }
 
         @Override
         public int read(byte[] b, int off, int len)
-                throws IOException
-        {
+                throws IOException {
             return sliceInput.read(b, off, len);
         }
 
         @Override
         public long skip(long n)
-                throws IOException
-        {
+                throws IOException {
             return sliceInput.skip(n);
         }
 
         @Override
         public int available()
-                throws IOException
-        {
+                throws IOException {
             return sliceInput.available();
         }
 
         @Override
         public void close()
-                throws IOException
-        {
+                throws IOException {
             sliceInput.close();
         }
 
         @Override
-        public synchronized void mark(int readlimit)
-        {
+        public synchronized void mark(int readlimit) {
             throw new RuntimeException("mark/reset not supported");
         }
 
         @Override
         public synchronized void reset()
-                throws IOException
-        {
+                throws IOException {
             throw new IOException("mark/reset not supported");
         }
 
         @Override
-        public boolean markSupported()
-        {
+        public boolean markSupported() {
             return false;
         }
     }

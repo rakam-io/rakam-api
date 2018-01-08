@@ -25,8 +25,7 @@ import org.testng.annotations.BeforeSuite;
 import java.time.Clock;
 
 public class TestPostgresqlUserStorage
-        extends TestUserStorage
-{
+        extends TestUserStorage {
     private TestingEnvironmentPg9 testingPostgresqlServer;
     private PostgresqlMetastore metastore;
     private PostgresqlUserService userService;
@@ -35,8 +34,7 @@ public class TestPostgresqlUserStorage
     @BeforeSuite
     @Override
     public void setUp()
-            throws Exception
-    {
+            throws Exception {
         testingPostgresqlServer = new TestingEnvironmentPg9();
 
         InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();
@@ -59,20 +57,17 @@ public class TestPostgresqlUserStorage
     }
 
     @Override
-    public AbstractUserService getUserService()
-    {
+    public AbstractUserService getUserService() {
         return userService;
     }
 
     @Override
-    public ConfigManager getConfigManager()
-    {
+    public ConfigManager getConfigManager() {
         return configManager;
     }
 
     @Override
-    public Metastore getMetastore()
-    {
+    public Metastore getMetastore() {
         return metastore;
     }
 }

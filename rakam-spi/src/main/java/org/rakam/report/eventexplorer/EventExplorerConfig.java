@@ -19,12 +19,12 @@ import io.airlift.configuration.Config;
 public class EventExplorerConfig {
     private boolean enabled = false;
 
+    public boolean isEventExplorerEnabled() {
+        return enabled;
+    }
+
     @Config("event-explorer.enabled")
     public void setEventExplorerEnabled(boolean enabled) {
         this.enabled = enabled;
-    }
-
-    public boolean isEventExplorerEnabled() {
-        return enabled;
     }
 }

@@ -30,8 +30,6 @@ import static org.rakam.util.ValidationUtil.*;
 
 public class ClickHouseEventExplorer
         implements EventExplorer {
-    protected final Reference DEFAULT_SEGMENT = new Reference(COLUMN, "_collection");
-
     private static final Map<TimestampTransformation, String> timestampMapping = ImmutableMap.
             <TimestampTransformation, String>builder()
             .put(HOUR_OF_DAY, "toHour(%s)")
@@ -45,9 +43,10 @@ public class ClickHouseEventExplorer
             .put(MONTH, "toStartOfMonth(%s)")
             .put(YEAR, "toStartOfYear(%s)")
             .build();
+    private static final SqlParser sqlParser = new SqlParser();
+    protected final Reference DEFAULT_SEGMENT = new Reference(COLUMN, "_collection");
     private final QueryExecutor executor;
     private final QueryExecutorService service;
-    private static final SqlParser sqlParser = new SqlParser();
     private final ProjectConfig projectConfig;
 
     @Inject
@@ -55,6 +54,12 @@ public class ClickHouseEventExplorer
         this.executor = executor;
         this.service = service;
         this.projectConfig = projectConfig;
+    }
+
+    private static String formatExpression(Expression value) {
+        return ClickhouseExpressionFormatter.formatExpression(value,
+                name -> name.getParts().stream().map(e -> formatIdentifier(e, '`')).collect(Collectors.joining(".")),
+                ValidationUtil::checkTableColumn, '`');
     }
 
     @Override
@@ -148,12 +153,6 @@ public class ClickHouseEventExplorer
             List<List<Object>> newResult = result.getResult();
             return new QueryResult(result.getMetadata(), newResult, result.getProperties());
         });
-    }
-
-    private static String formatExpression(Expression value) {
-        return ClickhouseExpressionFormatter.formatExpression(value,
-                name -> name.getParts().stream().map(e -> formatIdentifier(e, '`')).collect(Collectors.joining(".")),
-                ValidationUtil::checkTableColumn, '`');
     }
 
     @Override

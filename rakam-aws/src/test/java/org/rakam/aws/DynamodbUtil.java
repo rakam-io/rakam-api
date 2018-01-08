@@ -11,21 +11,18 @@ import static com.google.common.collect.ImmutableList.of;
 import static java.lang.String.format;
 import static java.lang.System.getProperty;
 
-public class DynamodbUtil
-{
+public class DynamodbUtil {
     private final static Logger LOGGER = Logger.get(DynamodbUtil.class);
 
     public static int randomPort()
-            throws IOException
-    {
+            throws IOException {
         try (ServerSocket socket = new ServerSocket(0)) {
             return socket.getLocalPort();
         }
     }
 
     public static DynamodbProcess createDynamodbProcess()
-            throws Exception
-    {
+            throws Exception {
         int randomPort = randomPort();
         Path mainDir = new File(getProperty("user.dir"), ".test/dynamodb").toPath();
 
@@ -40,13 +37,11 @@ public class DynamodbUtil
         return new DynamodbProcess(dynamodbServer, randomPort);
     }
 
-    public static class DynamodbProcess
-    {
+    public static class DynamodbProcess {
         public final Process process;
         public final int port;
 
-        public DynamodbProcess(Process process, int port)
-        {
+        public DynamodbProcess(Process process, int port) {
             this.process = process;
             this.port = port;
         }

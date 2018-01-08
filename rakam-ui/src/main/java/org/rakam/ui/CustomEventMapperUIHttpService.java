@@ -37,18 +37,15 @@ import static org.rakam.ui.ScheduledTaskUIHttpService.getResourceFiles;
 @Path("/ui/custom-event-mapper")
 @Api(value = "/ui/custom-event-mapper")
 public class CustomEventMapperUIHttpService
-        extends HttpService
-{
+        extends HttpService {
     @GET
     @ApiOperation(value = "List custom event mapper", response = Integer.class)
     @Path("/list")
-    public List<UIEventMapper> list()
-    {
+    public List<UIEventMapper> list() {
         List<String> resourceFiles;
         try {
             resourceFiles = getResourceFiles("custom-event-mapper");
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             throw new RakamException("Unable to read files", INTERNAL_SERVER_ERROR);
         }
 
@@ -60,8 +57,7 @@ public class CustomEventMapperUIHttpService
                 resource = JsonHelper.read(toByteArray(config.openStream()), UIEventMapper.class);
                 resource.script = new String(script, UTF_8);
                 resource.image = "/ui/custom-event-mapper/image/" + e;
-            }
-            catch (IOException ex) {
+            } catch (IOException ex) {
                 return Stream.of();
             }
 
@@ -72,8 +68,7 @@ public class CustomEventMapperUIHttpService
     @GET
     @ApiOperation(value = "List custom event mappers", response = Integer.class)
     @Path("/image/*")
-    public void image(RakamHttpRequest request)
-    {
+    public void image(RakamHttpRequest request) {
         String substring = request.path().substring("/ui/custom-event-mapper/image".length() + 1);
         if (!substring.matches("^[A-Za-z0-9-]+$")) {
             throw new RakamException(FORBIDDEN);
@@ -86,8 +81,7 @@ public class CustomEventMapperUIHttpService
         byte[] script;
         try {
             script = toByteArray(resource.openStream());
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             throw Throwables.propagate(e);
         }
         DefaultFullHttpResponse resp = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(script));
@@ -98,8 +92,7 @@ public class CustomEventMapperUIHttpService
         request.response(resp).end();
     }
 
-    public static class Parameter
-    {
+    public static class Parameter {
         public final FieldType type;
         public final String placeholder;
         public final String description;
@@ -110,8 +103,7 @@ public class CustomEventMapperUIHttpService
                 @ApiParam("type") FieldType type,
                 @ApiParam("placeholder") String placeholder,
                 @ApiParam("description") String description,
-                @ApiParam(value = "value", required = false) Object value)
-        {
+                @ApiParam(value = "value", required = false) Object value) {
             this.type = type;
             this.placeholder = placeholder;
             this.description = description;
@@ -119,21 +111,19 @@ public class CustomEventMapperUIHttpService
         }
     }
 
-    public static class UIEventMapper
-    {
+    public static class UIEventMapper {
         public final String name;
-        public String image;
         public final String description;
-        public String script;
         public final Map<String, Parameter> parameters;
+        public String image;
+        public String script;
 
         @JsonCreator
         public UIEventMapper(@ApiParam("name") String name,
-                @ApiParam(value = "image", required = false) String image,
-                @ApiParam(value = "description", required = false) String description,
-                @ApiParam(value = "code", required = false) String code,
-                @ApiParam("parameters") Map<String, Parameter> parameters)
-        {
+                             @ApiParam(value = "image", required = false) String image,
+                             @ApiParam(value = "description", required = false) String description,
+                             @ApiParam(value = "code", required = false) String code,
+                             @ApiParam("parameters") Map<String, Parameter> parameters) {
             this.name = name;
             this.image = image;
             this.description = description;

@@ -36,11 +36,10 @@ import static org.rakam.util.ValidationUtil.*;
 @Singleton
 public class PostgresqlEventStore
         implements SyncEventStore {
+    public static final Calendar UTC_CALENDAR = Calendar.getInstance(TimeZone.getTimeZone(ZoneId.of("UTC")));
     private final static Logger LOGGER = Logger.get(PostgresqlEventStore.class);
-
     private final Set<String> sourceFields;
     private final JDBCPoolDataSource connectionPool;
-    public static final Calendar UTC_CALENDAR = Calendar.getInstance(TimeZone.getTimeZone(ZoneId.of("UTC")));
     private final PostgresqlModule.PostgresqlVersion version;
 
     @Inject
@@ -48,6 +47,31 @@ public class PostgresqlEventStore
         this.connectionPool = connectionPool;
         this.version = version;
         this.sourceFields = fieldDependency.dependentFields.keySet();
+    }
+
+    public static String toPostgresqlPrimitiveTypeName(FieldType type) {
+        switch (type) {
+            case LONG:
+                return "int8";
+            case INTEGER:
+                return "int4";
+            case DECIMAL:
+                return "decimal";
+            case STRING:
+                return "text";
+            case BOOLEAN:
+                return "bool";
+            case DATE:
+                return "date";
+            case TIME:
+                return "time";
+            case TIMESTAMP:
+                return "timestamp";
+            case DOUBLE:
+                return "float8";
+            default:
+                throw new IllegalStateException("sql type couldn't converted to fieldtype");
+        }
     }
 
     @Override
@@ -210,8 +234,8 @@ public class PostgresqlEventStore
             for (Map.Entry<String, List<Event>> entries : groupedByCollection.entrySet()) {
                 int numberOfEvents = entries.getValue().size();
                 int checkPoint = Optional.of(successfulCollections.get(entries.getKey())).orElse(0);
-                if(numberOfEvents > checkPoint) {
-                    if(result == null) {
+                if (numberOfEvents > checkPoint) {
+                    if (result == null) {
                         result = new ArrayList<>();
                     }
                     for (int checkpoint = 0; checkpoint < numberOfEvents; checkpoint++) {
@@ -220,7 +244,7 @@ public class PostgresqlEventStore
                 }
             }
 
-            if(result == null) {
+            if (result == null) {
                 return EventStore.SUCCESSFUL_BATCH;
             } else {
                 return result.stream().mapToInt(i -> i).toArray();
@@ -341,30 +365,5 @@ public class PostgresqlEventStore
         }
 
         return query.append(") VALUES (").append(params.toString()).append(")").toString();
-    }
-
-    public static String toPostgresqlPrimitiveTypeName(FieldType type) {
-        switch (type) {
-            case LONG:
-                return "int8";
-            case INTEGER:
-                return "int4";
-            case DECIMAL:
-                return "decimal";
-            case STRING:
-                return "text";
-            case BOOLEAN:
-                return "bool";
-            case DATE:
-                return "date";
-            case TIME:
-                return "time";
-            case TIMESTAMP:
-                return "timestamp";
-            case DOUBLE:
-                return "float8";
-            default:
-                throw new IllegalStateException("sql type couldn't converted to fieldtype");
-        }
     }
 }

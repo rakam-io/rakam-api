@@ -23,8 +23,7 @@ import static org.rakam.presto.analysis.PrestoQueryExecution.PRESTO_TIMESTAMP_FO
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
 
-public class TestingPrestoEventStore implements SyncEventStore
-{
+public class TestingPrestoEventStore implements SyncEventStore {
     private final PrestoQueryExecutor queryExecutor;
     private final PrestoConfig config;
 
@@ -52,7 +51,7 @@ public class TestingPrestoEventStore implements SyncEventStore
                             .map(e -> buildValues(e.properties(), e.schema()))
                             .collect(Collectors.joining(" union all "))))
                     .getResult().join();
-            if(join.isFailed()) {
+            if (join.isFailed()) {
                 try {
                     Thread.sleep(300000);
                 } catch (InterruptedException e) {

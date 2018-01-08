@@ -27,8 +27,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static org.rakam.report.QueryResult.EXECUTION_TIME;
 
-public class QueryExecutorService
-{
+public class QueryExecutorService {
     public static final int DEFAULT_QUERY_RESULT_COUNT = 50000;
     public static final int MAX_QUERY_RESULT_LIMIT = 1000000;
 
@@ -39,32 +38,27 @@ public class QueryExecutorService
     private volatile Set<String> projectCache;
 
     @Inject
-    public QueryExecutorService(QueryExecutor executor, Metastore metastore, MaterializedViewService materializedViewService, Clock clock, @EscapeIdentifier char escapeIdentifier)
-    {
+    public QueryExecutorService(QueryExecutor executor, Metastore metastore, MaterializedViewService materializedViewService, Clock clock, @EscapeIdentifier char escapeIdentifier) {
         this.executor = executor;
         this.materializedViewService = materializedViewService;
         this.metastore = metastore;
         this.escapeIdentifier = escapeIdentifier;
     }
 
-    public QueryExecution executeQuery(String project, String sqlQuery, Optional<QuerySampling> sample, String defaultSchema, ZoneId zoneId, int limit)
-    {
+    public QueryExecution executeQuery(String project, String sqlQuery, Optional<QuerySampling> sample, String defaultSchema, ZoneId zoneId, int limit) {
         return executeQuery(new RequestContext(project, null), sqlQuery, sample, defaultSchema, zoneId, limit);
     }
 
-    public QueryExecution executeQuery(String project, String sqlQuery, ZoneId timezone)
-    {
+    public QueryExecution executeQuery(String project, String sqlQuery, ZoneId timezone) {
         return executeQuery(new RequestContext(project, null), sqlQuery, timezone);
     }
 
-    public QueryExecution executeQuery(RequestContext context, String sqlQuery, ZoneId timezone)
-    {
+    public QueryExecution executeQuery(RequestContext context, String sqlQuery, ZoneId timezone) {
         return executeQuery(context, sqlQuery, Optional.empty(), null,
                 timezone, DEFAULT_QUERY_RESULT_COUNT);
     }
 
-    public QueryExecution executeQuery(RequestContext context, String sqlQuery, Optional<QuerySampling> sample, String defaultSchema, ZoneId zoneId, int limit)
-    {
+    public QueryExecution executeQuery(RequestContext context, String sqlQuery, Optional<QuerySampling> sample, String defaultSchema, ZoneId zoneId, int limit) {
         if (!projectExists(context.project)) {
             throw new NotExistsException("Project");
         }
@@ -75,8 +69,7 @@ public class QueryExecutorService
 
         try {
             query = buildQuery(context.project, sqlQuery, sample, defaultSchema, limit, materializedViews, sessionParameters);
-        }
-        catch (ParsingException e) {
+        } catch (ParsingException e) {
             QueryError error = new QueryError(e.getMessage(), null, null, e.getLineNumber(), e.getColumnNumber());
             LogUtil.logQueryError(sqlQuery, error, executor.getClass());
             return QueryExecution.completedQueryExecution(sqlQuery, QueryResult.errorResult(error, sqlQuery));
@@ -93,16 +86,14 @@ public class QueryExecutorService
             execution = executor.executeRawQuery(context, query, zoneId, sessionParameters);
             if (materializedViews.isEmpty()) {
                 return execution;
-            }
-            else {
+            } else {
                 Map<String, Long> collect = materializedViews.entrySet().stream().collect(Collectors.toMap(v -> v.getKey().tableName, v -> v.getKey().lastUpdate != null ? v.getKey().lastUpdate.toEpochMilli() : -1));
                 execution = new DelegateQueryExecution(execution, result -> {
                     result.setProperty("materializedViews", collect);
                     return result;
                 });
             }
-        }
-        else {
+        } else {
             List<QueryExecution> executions = queryExecutions.stream()
                     .filter(e -> e.queryExecution != null)
                     .map(e -> e.queryExecution)
@@ -141,13 +132,11 @@ public class QueryExecutorService
         return execution;
     }
 
-    private synchronized void updateProjectCache()
-    {
+    private synchronized void updateProjectCache() {
         projectCache = metastore.getProjects();
     }
 
-    private boolean projectExists(String project)
-    {
+    private boolean projectExists(String project) {
         if (projectCache == null) {
             updateProjectCache();
         }
@@ -162,21 +151,18 @@ public class QueryExecutorService
         return true;
     }
 
-    public String buildQuery(String project, String query, Optional<QuerySampling> sample, String defaultSchema, Integer maxLimit, Map<MaterializedView, MaterializedViewExecution> materializedViews, Map<String, String> sessionParameters)
-    {
+    public String buildQuery(String project, String query, Optional<QuerySampling> sample, String defaultSchema, Integer maxLimit, Map<MaterializedView, MaterializedViewExecution> materializedViews, Map<String, String> sessionParameters) {
         Query statement;
         Function<QualifiedName, String> tableNameMapper = tableNameMapper(project, materializedViews, sample, defaultSchema, sessionParameters);
         Statement queryStatement = SqlUtil.parseSql(query);
         if ((queryStatement instanceof Query)) {
             statement = (Query) queryStatement;
-        }
-        else if ((queryStatement instanceof Call)) {
+        } else if ((queryStatement instanceof Call)) {
             StringBuilder builder = new StringBuilder();
             new RakamSqlFormatter.Formatter(builder, tableNameMapper, escapeIdentifier)
                     .process(queryStatement, 1);
             return builder.toString();
-        }
-        else {
+        } else {
             throw new RakamException(queryStatement.getClass().getSimpleName() + " is not supported", BAD_REQUEST);
         }
 
@@ -196,8 +182,7 @@ public class QueryExecutorService
                 if (limit > maxLimit) {
                     throw new RakamException(format("The maximum value of LIMIT statement is %s", maxLimit), BAD_REQUEST);
                 }
-            }
-            else {
+            } else {
                 builder.append(" LIMIT ").append(maxLimit);
             }
         }
@@ -205,15 +190,13 @@ public class QueryExecutorService
         return builder.toString();
     }
 
-    private Function<QualifiedName, String> tableNameMapper(String project, Map<MaterializedView, MaterializedViewExecution> materializedViews, Optional<QuerySampling> sample, String defaultSchema, Map<String, String> sessionParameters)
-    {
+    private Function<QualifiedName, String> tableNameMapper(String project, Map<MaterializedView, MaterializedViewExecution> materializedViews, Optional<QuerySampling> sample, String defaultSchema, Map<String, String> sessionParameters) {
         return (node) -> {
             if (node.getPrefix().isPresent() && node.getPrefix().get().toString().equals("materialized")) {
                 MaterializedView materializedView;
                 try {
                     materializedView = materializedViewService.get(project, node.getSuffix());
-                }
-                catch (NotExistsException e) {
+                } catch (NotExistsException e) {
                     throw new MaterializedViewNotExists(node.getSuffix());
                 }
 
@@ -224,10 +207,10 @@ public class QueryExecutorService
                     throw new IllegalStateException();
                 }
 
-                return materializedViewExecution.computeQuery ;
+                return materializedViewExecution.computeQuery;
             }
 
-            if(!node.getPrefix().isPresent() && defaultSchema != null) {
+            if (!node.getPrefix().isPresent() && defaultSchema != null) {
                 node = QualifiedName.of(defaultSchema, node.getSuffix());
             }
 
@@ -235,14 +218,12 @@ public class QueryExecutorService
         };
     }
 
-    public CompletableFuture<List<SchemaField>> metadata(RequestContext context, String query)
-    {
+    public CompletableFuture<List<SchemaField>> metadata(RequestContext context, String query) {
         StringBuilder builder = new StringBuilder();
         Query queryStatement;
         try {
             queryStatement = (Query) SqlUtil.parseSql(checkNotNull(query, "query is required"));
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             throw new RakamException("Unable to parse query: " + e.getMessage(), BAD_REQUEST);
         }
 
@@ -257,8 +238,7 @@ public class QueryExecutorService
         execution.getResult().thenAccept(result -> {
             if (result.isFailed()) {
                 f.completeExceptionally(new RakamException(result.getError().message, HttpResponseStatus.INTERNAL_SERVER_ERROR));
-            }
-            else {
+            } else {
                 f.complete(result.getMetadata());
             }
         });

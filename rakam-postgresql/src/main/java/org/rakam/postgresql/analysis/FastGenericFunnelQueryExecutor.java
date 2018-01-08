@@ -53,7 +53,7 @@ public class FastGenericFunnelQueryExecutor
         }
 
         if (segment.isPresent()) {
-            if(dimension.isPresent()) {
+            if (dimension.isPresent()) {
                 SchemaField column = metastore.getCollection(context.project, steps.get(0).getCollection()).stream()
                         .filter(c -> c.getName().equals(dimension.get()))
                         .findAny().orElseThrow(() -> new RakamException("Dimension is not exist.", BAD_REQUEST));

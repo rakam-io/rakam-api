@@ -10,16 +10,14 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
 
-public class MaxmindGeoIPModuleConfig
-{
+public class MaxmindGeoIPModuleConfig {
 
     private static final URL DEMO_URL;
 
     static {
         try {
             DEMO_URL = new URL("http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz");
-        }
-        catch (MalformedURLException e) {
+        } catch (MalformedURLException e) {
             throw Throwables.propagate(e);
         }
     }
@@ -30,27 +28,13 @@ public class MaxmindGeoIPModuleConfig
     private URL connectionTypeDatabaseUrl;
     private boolean useExistingFields;
 
-    @Config("plugin.geoip.database.url")
-    public MaxmindGeoIPModuleConfig setDatabaseUrl(URL url)
-    {
-        this.databaseUrl = url;
-        return this;
-    }
-    @Config("plugin.geoip.isp-database.url")
-    public MaxmindGeoIPModuleConfig setIspDatabaseUrl(URL url)
-    {
-        this.ispDatabaseUrl = url;
-        return this;
-    }
-
     public URL getIspDatabaseUrl() {
         return ispDatabaseUrl;
     }
 
-    @Config("plugin.geoip.connection-type-database.url")
-    public MaxmindGeoIPModuleConfig setConnectionTypeDatabaseUrl(URL url)
-    {
-        this.connectionTypeDatabaseUrl = url;
+    @Config("plugin.geoip.isp-database.url")
+    public MaxmindGeoIPModuleConfig setIspDatabaseUrl(URL url) {
+        this.ispDatabaseUrl = url;
         return this;
     }
 
@@ -58,12 +42,9 @@ public class MaxmindGeoIPModuleConfig
         return connectionTypeDatabaseUrl;
     }
 
-    @Config("plugin.geoip.attributes")
-    @ConfigDescription("The list of attributes that will be attached to event. " +
-            "Available attributes: country, country_code, region,city, latitude, longitude, timezone")
-    public MaxmindGeoIPModuleConfig setAttributes(String attributes)
-    {
-        this.attributes = ImmutableList.copyOf(Splitter.on(',').omitEmptyStrings().trimResults().split(attributes));
+    @Config("plugin.geoip.connection-type-database.url")
+    public MaxmindGeoIPModuleConfig setConnectionTypeDatabaseUrl(URL url) {
+        this.connectionTypeDatabaseUrl = url;
         return this;
     }
 
@@ -71,18 +52,31 @@ public class MaxmindGeoIPModuleConfig
         return databaseUrl;
     }
 
+    @Config("plugin.geoip.database.url")
+    public MaxmindGeoIPModuleConfig setDatabaseUrl(URL url) {
+        this.databaseUrl = url;
+        return this;
+    }
+
     public List<String> getAttributes() {
         return attributes;
     }
 
-    @Config("plugin.geoip.use-existing-fields")
-    public MaxmindGeoIPModuleConfig setUseExistingFields(boolean useExistingFields)
-    {
-        this.useExistingFields = useExistingFields;
+    @Config("plugin.geoip.attributes")
+    @ConfigDescription("The list of attributes that will be attached to event. " +
+            "Available attributes: country, country_code, region,city, latitude, longitude, timezone")
+    public MaxmindGeoIPModuleConfig setAttributes(String attributes) {
+        this.attributes = ImmutableList.copyOf(Splitter.on(',').omitEmptyStrings().trimResults().split(attributes));
         return this;
     }
 
     public boolean getUseExistingFields() {
         return useExistingFields;
+    }
+
+    @Config("plugin.geoip.use-existing-fields")
+    public MaxmindGeoIPModuleConfig setUseExistingFields(boolean useExistingFields) {
+        this.useExistingFields = useExistingFields;
+        return this;
     }
 }

@@ -29,44 +29,38 @@ import java.util.stream.Collectors;
 
 import static org.apache.avro.Schema.Type.NULL;
 
-public final class AvroUtil
-{
-    static  {
+public final class AvroUtil {
+    static {
         try {
             Field validateNames = Schema.class.getDeclaredField("validateNames");
             boolean accessible = validateNames.isAccessible();
             validateNames.setAccessible(true);
             validateNames.set(null, new ThreadLocal<Boolean>() {
                 @Override
-                public Boolean get()
-                {
+                public Boolean get() {
                     return false;
                 }
 
                 @Override
-                public void set(Boolean value)
-                {
+                public void set(Boolean value) {
                     // no-op
                     return;
                 }
             });
-            if(!accessible) {
+            if (!accessible) {
                 validateNames.setAccessible(false);
             }
-        }
-        catch (NoSuchFieldException|IllegalAccessException e) {
+        } catch (NoSuchFieldException | IllegalAccessException e) {
             throw Throwables.propagate(e);
         }
     }
 
     private AvroUtil()
-            throws InstantiationException
-    {
+            throws InstantiationException {
         throw new InstantiationException("The class is not created for instantiation");
     }
 
-    public static Schema convertAvroSchema(List<SchemaField> fields, Map<String, List<SchemaField>> conditionalMagicFields)
-    {
+    public static Schema convertAvroSchema(List<SchemaField> fields, Map<String, List<SchemaField>> conditionalMagicFields) {
         List<Schema.Field> avroFields = fields.stream()
                 .map(AvroUtil::generateAvroField).collect(Collectors.toList());
 
@@ -81,8 +75,7 @@ public final class AvroUtil
         return schema;
     }
 
-    public static Schema convertAvroSchema(Collection<SchemaField> fields)
-    {
+    public static Schema convertAvroSchema(Collection<SchemaField> fields) {
         List<Schema.Field> avroFields = fields.stream()
                 .map(AvroUtil::generateAvroField).collect(Collectors.toList());
 
@@ -92,18 +85,15 @@ public final class AvroUtil
         return schema;
     }
 
-    public static Schema.Field generateAvroField(SchemaField field)
-    {
+    public static Schema.Field generateAvroField(SchemaField field) {
         return new Schema.Field(field.getName(), generateAvroSchema(field.getType()), null, NullNode.getInstance());
     }
 
-    public static Schema generateAvroSchema(FieldType field)
-    {
+    public static Schema generateAvroSchema(FieldType field) {
         return Schema.createUnion(Lists.newArrayList(Schema.create(NULL), getAvroSchema(field)));
     }
 
-    public static Schema getAvroSchema(FieldType type)
-    {
+    public static Schema getAvroSchema(FieldType type) {
         switch (type) {
             case STRING:
                 return Schema.create(Schema.Type.STRING);

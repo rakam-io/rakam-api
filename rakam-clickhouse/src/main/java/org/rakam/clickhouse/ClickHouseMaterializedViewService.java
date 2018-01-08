@@ -9,29 +9,24 @@ import org.rakam.report.QueryResult;
 
 import java.util.concurrent.CompletableFuture;
 
-public class ClickHouseMaterializedViewService extends MaterializedViewService
-{
+public class ClickHouseMaterializedViewService extends MaterializedViewService {
     @Inject
-    public ClickHouseMaterializedViewService(QueryMetadataStore database, QueryExecutor queryExecutor)
-    {
+    public ClickHouseMaterializedViewService(QueryMetadataStore database, QueryExecutor queryExecutor) {
         super(database, queryExecutor, '`');
     }
 
     @Override
-    public CompletableFuture<Void> create(String project, MaterializedView materializedView)
-    {
+    public CompletableFuture<Void> create(String project, MaterializedView materializedView) {
         return null;
     }
 
     @Override
-    public CompletableFuture<QueryResult> delete(String project, String name)
-    {
+    public CompletableFuture<QueryResult> delete(String project, String name) {
         return null;
     }
 
     @Override
-    public MaterializedViewExecution lockAndUpdateView(String project, MaterializedView materializedView)
-    {
+    public MaterializedViewExecution lockAndUpdateView(String project, MaterializedView materializedView) {
         return null;
     }
 }

@@ -3,8 +3,8 @@
   "description": "Collects data from Google Adwords",
   "defaultDuration": "PT24H",
   "external": {
-     "url": "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/google?type=https://www.googleapis.com/auth/adwords",
-     "name": "Login with Google"
+    "url": "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/google?type=https://www.googleapis.com/auth/adwords",
+    "name": "Login with Google"
   },
   "parameters": {
     "collection": {

@@ -39,12 +39,11 @@ public class KafkaStream implements EventStream {
 
     public class KafkaEventSupplier implements EventStreamer {
         private final StreamResponse response;
-        private Map<String, Long> lastOffsets;
         private final List<CollectionStreamQuery> collections;
         private final Set<String> collectionNames;
         private final String project;
         private final List<SchemaField> columns;
-
+        private Map<String, Long> lastOffsets;
         private Map<String, List<SchemaField>> metadata;
 
         public KafkaEventSupplier(String project, List<CollectionStreamQuery> collections, List<String> columns, StreamResponse response) {

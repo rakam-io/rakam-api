@@ -3,8 +3,8 @@
   "description": "Collects data from Google Analytics",
   "defaultDuration": "PT24H",
   "external": {
-     "url": "https://us-central1-rakam-dev.cloudfunctions.net/google?type=https://www.googleapis.com/auth/analytics.readonly",
-     "name": "Login with Google"
+    "url": "https://us-central1-rakam-dev.cloudfunctions.net/google?type=https://www.googleapis.com/auth/analytics.readonly",
+    "name": "Login with Google"
   },
   "parameters": {
     "collection": {

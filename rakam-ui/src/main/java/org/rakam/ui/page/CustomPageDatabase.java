@@ -22,8 +22,7 @@ import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public interface CustomPageDatabase
-{
+public interface CustomPageDatabase {
     void save(Integer user, int project, Page page);
 
     List<Page> list(int project);
@@ -34,8 +33,7 @@ public interface CustomPageDatabase
 
     void delete(int project, String slug);
 
-    class Page
-    {
+    class Page {
         public final String name;
         public final String slug;
         public final String category;
@@ -43,18 +41,16 @@ public interface CustomPageDatabase
 
         @JsonCreator
         public Page(@JsonProperty(value = "name", required = true) String name,
-                @JsonProperty(value = "slug", required = true) String slug,
-                @JsonProperty(value = "category", required = true) String category,
-                @JsonProperty(value = "files", required = true) Map<String, String> files)
-        {
+                    @JsonProperty(value = "slug", required = true) String slug,
+                    @JsonProperty(value = "category", required = true) String category,
+                    @JsonProperty(value = "files", required = true) Map<String, String> files) {
             this.name = name;
             this.slug = slug;
             this.category = category;
             this.files = checkNotNull(files);
         }
 
-        public Page(String name, String slug, String category)
-        {
+        public Page(String name, String slug, String category) {
             this.name = name;
             this.slug = slug;
             this.category = category;

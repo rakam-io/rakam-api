@@ -7,8 +7,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Optional;
 
-public class JDBCConfig
-{
+public class JDBCConfig {
     private String url;
     private String table;
     private String username;
@@ -19,17 +18,21 @@ public class JDBCConfig
     private Long connectionIdleTimeout;
     private boolean connectionDisablePool;
 
+    @NotNull
+    public String getUrl() {
+        return url;
+    }
+
     @Config("url")
     public JDBCConfig setUrl(String url)
-            throws URISyntaxException
-    {
+            throws URISyntaxException {
         if (url.startsWith("jdbc:")) {
             url = url.substring(5);
         }
 
         URI dbUri = new URI(url);
         String userInfo = dbUri.getUserInfo();
-        if(userInfo != null) {
+        if (userInfo != null) {
             String[] split = userInfo.split(":");
             this.username = split[0];
             if (split.length > 1) {
@@ -38,8 +41,8 @@ public class JDBCConfig
         }
 
         String query = Optional.ofNullable(dbUri.getQuery()).orElse("");
-        if(dbUri.getScheme().equals("postgresql")) {
-            if(!query.isEmpty()) {
+        if (dbUri.getScheme().equals("postgresql")) {
+            if (!query.isEmpty()) {
                 query += "&";
             }
             query += "currentSchema=public";
@@ -54,110 +57,87 @@ public class JDBCConfig
         return this;
     }
 
-    @NotNull
-    public String getUrl()
-    {
-        return url;
+    public String getDataSource() {
+        return dataSource;
     }
 
     @Config("data-source")
-    public JDBCConfig setDataSource(String dataSource)
-    {
+    public JDBCConfig setDataSource(String dataSource) {
         this.dataSource = dataSource;
         return this;
     }
 
-    public String getDataSource()
-    {
-        return dataSource;
+    public String getUsername() {
+        return username;
     }
 
     @Config("username")
-    public JDBCConfig setUsername(String username)
-    {
+    public JDBCConfig setUsername(String username) {
         this.username = username;
         return this;
     }
 
-    public String getUsername()
-    {
-        return username;
+    public Integer getMaxConnection() {
+        return maxConnection;
     }
 
     @Config("max-connection")
-    public JDBCConfig setMaxConnection(Integer maxConnection)
-    {
+    public JDBCConfig setMaxConnection(Integer maxConnection) {
         this.maxConnection = maxConnection;
         return this;
     }
 
-    public Integer getMaxConnection()
-    {
-        return maxConnection;
+    public String getPassword() {
+        return password;
     }
 
     @Config("password")
-    public JDBCConfig setPassword(String password)
-    {
+    public JDBCConfig setPassword(String password) {
         this.password = password;
         return this;
     }
 
-    public String getPassword()
-    {
-        return password;
-    }
-
-    @Config("table")
-    public JDBCConfig setTable(String table)
-    {
-        this.table = table;
-        return this;
+    public boolean getConnectionDisablePool() {
+        return connectionDisablePool;
     }
 
     @Config("connection.disable-pool")
-    public JDBCConfig setConnectionDisablePool(boolean connectionDisablePool)
-    {
+    public JDBCConfig setConnectionDisablePool(boolean connectionDisablePool) {
         this.connectionDisablePool = connectionDisablePool;
         return this;
     }
 
-    public boolean getConnectionDisablePool()
-    {
-        return connectionDisablePool;
-    }
-
-    public String getTable()
-    {
+    public String getTable() {
         return table;
     }
 
+    @Config("table")
+    public JDBCConfig setTable(String table) {
+        this.table = table;
+        return this;
+    }
+
+    public Long getConnectionMaxLifeTime() {
+        return connectionMaxLifeTime;
+    }
+
     @Config("connection.max-life-time")
-    public JDBCConfig setConnectionMaxLifeTime(Long connectionMaxLifeTime)
-    {
+    public JDBCConfig setConnectionMaxLifeTime(Long connectionMaxLifeTime) {
         this.connectionMaxLifeTime = connectionMaxLifeTime;
         return this;
     }
 
-    public Long getConnectionMaxLifeTime()
-    {
-        return connectionMaxLifeTime;
+    public Long getConnectionIdleTimeout() {
+        return connectionIdleTimeout;
     }
 
     @Config("connection.max-idle-timeout")
-    public JDBCConfig setConnectionIdleTimeout(Long connectionIdleTimeout)
-    {
+    public JDBCConfig setConnectionIdleTimeout(Long connectionIdleTimeout) {
         this.connectionIdleTimeout = connectionIdleTimeout;
         return this;
     }
 
-    public Long getConnectionIdleTimeout()
-    {
-        return connectionIdleTimeout;
-    }
-
-    public String convertScheme(String scheme)
-    {
+    public String convertScheme(String scheme) {
         switch (scheme) {
             case "postgres":
                 return "postgresql";
@@ -167,8 +147,7 @@ public class JDBCConfig
     }
 
     @Override
-    public boolean equals(Object o)
-    {
+    public boolean equals(Object o) {
         if (this == o) {
             return true;
         }
@@ -197,8 +176,7 @@ public class JDBCConfig
     }
 
     @Override
-    public int hashCode()
-    {
+    public int hashCode() {
         int result = url != null ? url.hashCode() : 0;
         result = 31 * result + (table != null ? table.hashCode() : 0);
         result = 31 * result + (username != null ? username.hashCode() : 0);
@@ -209,8 +187,7 @@ public class JDBCConfig
     }
 
     @Override
-    public String toString()
-    {
+    public String toString() {
         return username + "@" + url;
     }
 }

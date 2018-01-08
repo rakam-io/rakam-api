@@ -24,7 +24,7 @@ public class InMemoryApiKeyService implements ApiKeyService {
                 .filter(e -> e.getValue().stream()
                         .anyMatch(a -> a.getKey(type).equals(apiKey)))
                 .findAny().map(e -> e.getKey());
-        if(!project.isPresent()) {
+        if (!project.isPresent()) {
             throw new IllegalStateException();
         }
         return project.get();

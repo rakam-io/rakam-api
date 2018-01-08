@@ -10,14 +10,13 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 
-public class JDBCUtil
-{
+public class JDBCUtil {
     private static final Map<String, FieldType> REVERSE_TYPE_MAP = Arrays.asList(FieldType.values()).stream()
             .collect(Collectors.toMap(JDBCUtil::toSql, a -> a));
 
     public static FieldType getType(String name) {
         FieldType fieldType = REVERSE_TYPE_MAP.get(name.toUpperCase());
-        if(fieldType == null) {
+        if (fieldType == null) {
             throw new IllegalArgumentException(String.format("type %s couldn't recognized.", name));
         }
         return fieldType;
@@ -53,8 +52,7 @@ public class JDBCUtil
         }
     }
 
-    public static FieldType fromSql(int sqlType, String typeName)
-    {
+    public static FieldType fromSql(int sqlType, String typeName) {
         return fromSql(sqlType, typeName, name -> {
             if (name.startsWith("_")) {
                 if (name.startsWith("_int")) {
@@ -84,8 +82,7 @@ public class JDBCUtil
         });
     }
 
-    public static FieldType fromSql(int sqlType, String typeName, Function<String, FieldType> arrayTypeNameMapper)
-    {
+    public static FieldType fromSql(int sqlType, String typeName, Function<String, FieldType> arrayTypeNameMapper) {
         switch (sqlType) {
             case Types.VARBINARY:
             case Types.BINARY:
@@ -121,13 +118,13 @@ public class JDBCUtil
             case Types.VARCHAR:
                 return FieldType.STRING;
             case Types.OTHER:
-                if(typeName.equals("citext")) {
+                if (typeName.equals("citext")) {
                     return FieldType.STRING;
                 }
-                if(typeName.equals("jsonb")) {
+                if (typeName.equals("jsonb")) {
                     return FieldType.MAP_STRING;
                 }
-                if(typeName.equals("json")) {
+                if (typeName.equals("json")) {
                     return FieldType.STRING;
                 }
             default:

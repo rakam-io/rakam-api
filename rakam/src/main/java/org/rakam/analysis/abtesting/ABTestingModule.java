@@ -8,7 +8,7 @@ import org.rakam.plugin.RakamModule;
 import org.rakam.server.http.HttpService;
 import org.rakam.util.ConditionalModule;
 
-@ConditionalModule(config="event.ab-testing.enabled", value = "true")
+@ConditionalModule(config = "event.ab-testing.enabled", value = "true")
 public class ABTestingModule extends RakamModule {
 
     @Override

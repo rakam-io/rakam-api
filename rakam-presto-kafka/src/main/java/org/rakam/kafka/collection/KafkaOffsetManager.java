@@ -32,9 +32,32 @@ public class KafkaOffsetManager {
         this.consumerManager = new KafkaSimpleConsumerManager();
     }
 
+    private static long[] findAllOffsets(SimpleConsumer consumer, String topicName, int partitionId) {
+        TopicAndPartition topicAndPartition = new TopicAndPartition(topicName, partitionId);
+
+        // The API implies that this will always return all of the offsets. So it seems a partition can not have
+        // more than Integer.MAX_VALUE-1 segments.
+        //
+        // This also assumes that the lowest value returned will be the first segment available. So if segments have been dropped off, this value
+        // should not be 0.
+        PartitionOffsetRequestInfo partitionOffsetRequestInfo = new PartitionOffsetRequestInfo(kafka.api.OffsetRequest.LatestTime(), 10000);
+        OffsetRequest offsetRequest = new OffsetRequest(ImmutableMap.of(topicAndPartition, partitionOffsetRequestInfo), kafka.api.OffsetRequest.CurrentVersion(), consumer.clientId());
+        OffsetResponse offsetResponse = consumer.getOffsetsBefore(offsetRequest);
+
+        if (offsetResponse.hasError()) {
+            short errorCode = offsetResponse.errorCode(topicName, partitionId);
+            LOGGER.warn(format("Offset response has error: %d", errorCode));
+            throw new RakamException("could not fetch data from Kafka, error code is '" + errorCode + "'", HttpResponseStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        long[] offsets = offsetResponse.offsets(topicName, partitionId);
+
+        return offsets;
+    }
+
     public Map<String, Long> getOffset(String project, Set<String> collections) {
         return getTopicOffsets(collections.stream()
-                .map(col -> project+"_"+col.toLowerCase()).collect(Collectors.toList()));
+                .map(col -> project + "_" + col.toLowerCase()).collect(Collectors.toList()));
     }
 
     private Map<String, Long> getTopicOffsets(List<String> topics) {
@@ -64,28 +87,5 @@ public class KafkaOffsetManager {
         }
 
         return builder.build();
-    }
-
-    private static long[] findAllOffsets(SimpleConsumer consumer, String topicName, int partitionId) {
-        TopicAndPartition topicAndPartition = new TopicAndPartition(topicName, partitionId);
-
-        // The API implies that this will always return all of the offsets. So it seems a partition can not have
-        // more than Integer.MAX_VALUE-1 segments.
-        //
-        // This also assumes that the lowest value returned will be the first segment available. So if segments have been dropped off, this value
-        // should not be 0.
-        PartitionOffsetRequestInfo partitionOffsetRequestInfo = new PartitionOffsetRequestInfo(kafka.api.OffsetRequest.LatestTime(), 10000);
-        OffsetRequest offsetRequest = new OffsetRequest(ImmutableMap.of(topicAndPartition, partitionOffsetRequestInfo), kafka.api.OffsetRequest.CurrentVersion(), consumer.clientId());
-        OffsetResponse offsetResponse = consumer.getOffsetsBefore(offsetRequest);
-
-        if (offsetResponse.hasError()) {
-            short errorCode = offsetResponse.errorCode(topicName, partitionId);
-            LOGGER.warn(format("Offset response has error: %d", errorCode));
-            throw new RakamException("could not fetch data from Kafka, error code is '" + errorCode + "'", HttpResponseStatus.INTERNAL_SERVER_ERROR);
-        }
-
-        long[] offsets = offsetResponse.offsets(topicName, partitionId);
-
-        return offsets;
     }
 }

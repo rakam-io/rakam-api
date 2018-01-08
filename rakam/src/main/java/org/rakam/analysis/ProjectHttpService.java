@@ -225,7 +225,7 @@ public class ProjectHttpService
                                                       @ApiParam("attribute") String attribute,
                                                       @ApiParam(value = "startDate", required = false) LocalDate startDate,
                                                       @ApiParam(value = "endDate", required = false) LocalDate endDate,
-                                                      @ApiParam(value = "filter", required = false) String filter)  {
+                                                      @ApiParam(value = "filter", required = false) String filter) {
         return metastore.getAttributes(context.project, collection, attribute, Optional.ofNullable(startDate),
                 Optional.ofNullable(endDate), Optional.ofNullable(filter));
     }

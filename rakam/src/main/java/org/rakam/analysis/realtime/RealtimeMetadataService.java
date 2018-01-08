@@ -19,12 +19,12 @@ import java.util.Set;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
-public class RealtimeMetadataService
-{
+public class RealtimeMetadataService {
     private final DBI dbi;
 
     private ResultSetMapper<RealTimeReport> mapper = (index, r, ctx) -> new RealTimeReport(r.getString(1),
-            JsonHelper.read(r.getString(2), new TypeReference<List<RealTimeReport.Measure>>() {}), r.getString(3),
+            JsonHelper.read(r.getString(2), new TypeReference<List<RealTimeReport.Measure>>() {
+            }), r.getString(3),
             JsonHelper.read(r.getString(4), Set.class), r.getString(5),
             JsonHelper.read(r.getString(6), List.class));
 
@@ -34,8 +34,7 @@ public class RealtimeMetadataService
     }
 
     @PostConstruct
-    public void setup()
-    {
+    public void setup() {
         try (Handle handle = dbi.open()) {
             handle.createStatement("CREATE TABLE IF NOT EXISTS realtime_reports (" +
                     "  project VARCHAR(255) NOT NULL,\n" +
@@ -77,7 +76,7 @@ public class RealtimeMetadataService
             int execute = handle.createStatement("DELETE FROM realtime_reports WHERE project = :project AND table_name = :table_name")
                     .bind("project", project)
                     .bind("table_name", tableName).execute();
-            if(execute == 0) {
+            if (execute == 0) {
                 throw new NotExistsException("Report");
             }
         }

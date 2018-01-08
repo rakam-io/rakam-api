@@ -11,14 +11,12 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
 
 public class PostgresqlLockService
-        implements LockService
-{
+        implements LockService {
     private final DBI dbi;
     private Handle currentHandle;
     private Set<String> locks;
 
-    public PostgresqlLockService(JDBCPoolDataSource poolDataSource)
-    {
+    public PostgresqlLockService(JDBCPoolDataSource poolDataSource) {
         this.dbi = new DBI(() -> {
             return poolDataSource.getConnection(true);
         });
@@ -27,22 +25,19 @@ public class PostgresqlLockService
     }
 
     @Override
-    public synchronized Lock tryLock(String name)
-    {
+    public synchronized Lock tryLock(String name) {
         if (!locks.add(name)) {
             return null;
         }
         try {
             return tryLock(name, 4);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
             locks.remove(name);
             throw Throwables.propagate(e);
         }
     }
 
-    private Lock tryLock(String name, int tryCount)
-    {
+    private Lock tryLock(String name, int tryCount) {
         try {
             if (currentHandle.getConnection().isClosed()) {
                 synchronized (this) {
@@ -67,16 +62,14 @@ public class PostgresqlLockService
                         .map(BooleanMapper.FIRST)
                         .first();
             };
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             try {
                 if (currentHandle.getConnection().isClosed()) {
                     synchronized (this) {
                         currentHandle = dbi.open();
                     }
                 }
-            }
-            catch (SQLException e1) {
+            } catch (SQLException e1) {
                 synchronized (this) {
                     currentHandle = dbi.open();
                 }

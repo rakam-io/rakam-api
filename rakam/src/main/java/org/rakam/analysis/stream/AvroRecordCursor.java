@@ -22,47 +22,40 @@ import org.apache.avro.generic.GenericRecord;
 import java.util.List;
 
 public class AvroRecordCursor
-        implements RecordCursor
-{
+        implements RecordCursor {
 
     private final int[] projections;
     private final List<Type> types;
     private GenericRecord record;
     private boolean ready;
 
-    public AvroRecordCursor(List<Type> types, int[] projections)
-    {
+    public AvroRecordCursor(List<Type> types, int[] projections) {
         this.projections = projections;
         this.types = types;
     }
 
-    public void setRecord(GenericRecord record)
-    {
+    public void setRecord(GenericRecord record) {
         this.record = record;
         ready = true;
     }
 
     @Override
-    public long getCompletedBytes()
-    {
+    public long getCompletedBytes() {
         return 0;
     }
 
     @Override
-    public long getReadTimeNanos()
-    {
+    public long getReadTimeNanos() {
         return 0;
     }
 
     @Override
-    public Type getType(int field)
-    {
+    public Type getType(int field) {
         return types.get(field);
     }
 
     @Override
-    public boolean advanceNextPosition()
-    {
+    public boolean advanceNextPosition() {
         if (ready) {
             ready = false;
             return true;
@@ -71,44 +64,37 @@ public class AvroRecordCursor
     }
 
     @Override
-    public boolean getBoolean(int field)
-    {
+    public boolean getBoolean(int field) {
         return (Boolean) record.get(projections[field]);
     }
 
     @Override
-    public long getLong(int field)
-    {
+    public long getLong(int field) {
         return (Long) record.get(projections[field]);
     }
 
     @Override
-    public double getDouble(int field)
-    {
+    public double getDouble(int field) {
         return (Double) record.get(projections[field]);
     }
 
     @Override
-    public Slice getSlice(int field)
-    {
+    public Slice getSlice(int field) {
         return Slices.utf8Slice((String) record.get(projections[field]));
     }
 
     @Override
-    public Object getObject(int field)
-    {
+    public Object getObject(int field) {
         return record.get(projections[field]);
     }
 
     @Override
-    public boolean isNull(int field)
-    {
+    public boolean isNull(int field) {
         return record.get(projections[field]) == null;
     }
 
     @Override
-    public void close()
-    {
+    public void close() {
 
     }
 }

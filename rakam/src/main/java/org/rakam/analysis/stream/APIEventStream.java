@@ -27,29 +27,26 @@ import java.util.stream.Collectors;
 import static org.rakam.presto.analysis.PrestoRakamRaptorMetastore.toType;
 
 public class APIEventStream
-        implements EventStream
-{
+        implements EventStream {
     private final Map<String, List<CollectionStreamHolder>> holder;
     private final ExpressionCompiler expressionCompiler;
     private final Metastore metastore;
 
     @Inject
-    public APIEventStream(Map<String, List<CollectionStreamHolder>> holder, Metastore metastore, ExpressionCompiler expressionCompiler)
-    {
+    public APIEventStream(Map<String, List<CollectionStreamHolder>> holder, Metastore metastore, ExpressionCompiler expressionCompiler) {
         this.holder = holder;
         this.expressionCompiler = expressionCompiler;
         this.metastore = metastore;
     }
 
     @Override
-    public EventStreamer subscribe(String project, List<CollectionStreamQuery> collections, List<String> columns, StreamResponse response)
-    {
+    public EventStreamer subscribe(String project, List<CollectionStreamQuery> collections, List<String> columns, StreamResponse response) {
         List<CollectionFilter> collect1;
-        if(collections != null) {
+        if (collections != null) {
             collect1 = collections.stream().map(item -> {
                 Predicate<GenericRecord> predicate;
 
-                if(item.getCollection() == null) {
+                if (item.getCollection() == null) {
                     predicate = (val) -> true;
                 } else {
                     List<Map.Entry<String, Type>> collect = metastore.getCollection(project, item.getCollection())
@@ -76,11 +73,9 @@ public class APIEventStream
             holders.add(streamHolder);
         }
 
-        return new EventStreamer()
-        {
+        return new EventStreamer() {
             @Override
-            public void sync()
-            {
+            public void sync() {
                 Event message = streamHolder.messageQueue.poll();
                 StringBuilder builder = new StringBuilder("[");
 
@@ -107,8 +102,7 @@ public class APIEventStream
             }
 
             @Override
-            public void shutdown()
-            {
+            public void shutdown() {
                 synchronized (this) {
                     holder.remove(holder);
                 }

@@ -54,9 +54,9 @@ import static org.rakam.analysis.FunnelQueryExecutor.FunnelType.*;
 @Api(value = "/funnel", nickname = "funnelAnalyzer", tags = "funnel")
 public class FunnelAnalyzerHttpService
         extends HttpService {
+    private final static Logger LOGGER = Logger.get(FunnelAnalyzerHttpService.class);
     private final FunnelQueryExecutor funnelQueryExecutor;
     private final QueryHttpService queryService;
-    private final static Logger LOGGER = Logger.get(FunnelAnalyzerHttpService.class);
     private final ProjectConfig projectConfig;
 
     @Inject

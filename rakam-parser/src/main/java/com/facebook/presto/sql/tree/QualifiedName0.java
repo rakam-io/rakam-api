@@ -23,30 +23,29 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.isEmpty;
-import static com.google.common.collect.Iterables.transform;
-import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 
 // It overrides QualifiedName and do not lowercase the names
-public class QualifiedName0
-{
+public class QualifiedName0 {
     private final List<String> parts;
     private final List<String> originalParts;
 
-    public static QualifiedName0 of(String first, String... rest)
-    {
+    private QualifiedName0(List<String> originalParts, List<String> parts) {
+        this.originalParts = originalParts;
+        this.parts = parts;
+    }
+
+    public static QualifiedName0 of(String first, String... rest) {
         requireNonNull(first, "first is null");
         return of(ImmutableList.copyOf(Lists.asList(first, rest)));
     }
 
-    public static QualifiedName0 of(String name)
-    {
+    public static QualifiedName0 of(String name) {
         requireNonNull(name, "name is null");
         return of(ImmutableList.of(name));
     }
 
-    public static QualifiedName0 of(Iterable<String> originalParts)
-    {
+    public static QualifiedName0 of(Iterable<String> originalParts) {
         requireNonNull(originalParts, "originalParts is null");
         checkArgument(!isEmpty(originalParts), "originalParts is empty");
 
@@ -54,25 +53,16 @@ public class QualifiedName0
                 ImmutableList.copyOf(originalParts));
     }
 
-    private QualifiedName0(List<String> originalParts, List<String> parts)
-    {
-        this.originalParts = originalParts;
-        this.parts = parts;
-    }
-
-    public List<String> getParts()
-    {
+    public List<String> getParts() {
         return parts;
     }
 
-    public List<String> getOriginalParts()
-    {
+    public List<String> getOriginalParts() {
         return originalParts;
     }
 
     @Override
-    public String toString()
-    {
+    public String toString() {
         return Joiner.on('.').join(parts);
     }
 
@@ -80,8 +70,7 @@ public class QualifiedName0
      * For an identifier of the form "a.b.c.d", returns "a.b.c"
      * For an identifier of the form "a", returns absent
      */
-    public Optional<QualifiedName0> getPrefix()
-    {
+    public Optional<QualifiedName0> getPrefix() {
         if (parts.size() == 1) {
             return Optional.empty();
         }
@@ -90,8 +79,7 @@ public class QualifiedName0
         return Optional.of(new QualifiedName0(subList, subList));
     }
 
-    public boolean hasSuffix(QualifiedName0 suffix)
-    {
+    public boolean hasSuffix(QualifiedName0 suffix) {
         if (parts.size() < suffix.getParts().size()) {
             return false;
         }
@@ -101,14 +89,12 @@ public class QualifiedName0
         return parts.subList(start, parts.size()).equals(suffix.getParts());
     }
 
-    public String getSuffix()
-    {
+    public String getSuffix() {
         return Iterables.getLast(parts);
     }
 
     @Override
-    public boolean equals(Object o)
-    {
+    public boolean equals(Object o) {
         if (this == o) {
             return true;
         }
@@ -119,8 +105,7 @@ public class QualifiedName0
     }
 
     @Override
-    public int hashCode()
-    {
+    public int hashCode() {
         return parts.hashCode();
     }
 }

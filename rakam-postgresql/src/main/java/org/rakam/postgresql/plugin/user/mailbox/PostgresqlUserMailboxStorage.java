@@ -19,12 +19,7 @@ import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.sql.Timestamp;
+import java.sql.*;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
@@ -36,10 +31,9 @@ import static org.rakam.util.ValidationUtil.checkProject;
 
 public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
     private final static Logger LOGGER = Logger.get(PostgresqlUserMailboxStorage.class);
-
-    private final PostgresqlQueryExecutor queryExecutor;
     private final static String USER_NOTIFICATION_SUFFIX = "_user_mailbox";
     private final static String USER_NOTIFICATION_ALL_SUFFIX = "_user_mailbox_all_listener";
+    private final PostgresqlQueryExecutor queryExecutor;
     private final JDBCPoolDataSource dataSource;
     private final LoadingCache<String, Boolean> userTypeCache;
 

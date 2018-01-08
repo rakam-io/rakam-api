@@ -52,11 +52,9 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "store.adapter", value = "presto")
 public class PrestoModule
-        extends RakamModule
-{
+        extends RakamModule {
     @Override
-    protected void setup(Binder binder)
-    {
+    protected void setup(Binder binder) {
         configBinder(binder).bindConfig(MetadataConfig.class);
         configBinder(binder).bindConfig(PrestoConfig.class);
         PrestoConfig prestoConfig = buildConfigObject(PrestoConfig.class);
@@ -78,8 +76,7 @@ public class PrestoModule
                 httpClientBinder(binder).bindHttpClient("streamer", ForStreamer.class);
                 binder.bind(EventStream.class).to(PrestoEventStream.class).in(Scopes.SINGLETON);
             }
-        }
-        else {
+        } else {
             metadataDataSource = bindJDBCConfig(binder, "report.metadata.store.jdbc");
         }
 
@@ -94,11 +91,9 @@ public class PrestoModule
             String url = metadataDataSource.getConfig().getUrl();
             if (url.startsWith("jdbc:mysql")) {
                 binder.bind(ConfigManager.class).to(MysqlConfigManager.class);
-            }
-            else if (url.startsWith("jdbc:postgresql")) {
+            } else if (url.startsWith("jdbc:postgresql")) {
                 binder.bind(ConfigManager.class).to(PostgresqlConfigManager.class);
-            }
-            else {
+            } else {
                 throw new IllegalStateException(format("Invalid report metadata database: %s", url));
             }
 
@@ -109,8 +104,7 @@ public class PrestoModule
         Class<? extends PrestoAbstractMetastore> implementation;
         if ("rakam_raptor".equals(prestoConfig.getColdStorageConnector())) {
             implementation = PrestoRakamRaptorMetastore.class;
-        }
-        else {
+        } else {
             implementation = PrestoMetastore.class;
         }
 
@@ -150,19 +144,16 @@ public class PrestoModule
     }
 
     @Override
-    public String name()
-    {
+    public String name() {
         return "PrestoDB backend for Rakam";
     }
 
     @Override
-    public String description()
-    {
+    public String description() {
         return "Rakam backend for high-throughput systems.";
     }
 
-    private JDBCPoolDataSource bindJDBCConfig(Binder binder, String config)
-    {
+    private JDBCPoolDataSource bindJDBCConfig(Binder binder, String config) {
         JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(
                 buildConfigObject(JDBCConfig.class, config));
         binder.bind(JDBCPoolDataSource.class)
@@ -171,30 +162,28 @@ public class PrestoModule
         return dataSource;
     }
 
-    public static class UserMergeTableHook
-    {
+    @BindingAnnotation
+    @Target({FIELD, PARAMETER, METHOD})
+    @Retention(RUNTIME)
+    public @interface UserConfig {
+    }
+
+    public static class UserMergeTableHook {
         private final PrestoQueryExecutor executor;
         private final ProjectConfig projectConfig;
 
         @Inject
-        public UserMergeTableHook(ProjectConfig projectConfig, PrestoQueryExecutor executor)
-        {
+        public UserMergeTableHook(ProjectConfig projectConfig, PrestoQueryExecutor executor) {
             this.projectConfig = projectConfig;
             this.executor = executor;
         }
 
         @Subscribe
-        public void onCreateProject(ProjectCreatedEvent event)
-        {
+        public void onCreateProject(ProjectCreatedEvent event) {
             executor.executeRawStatement(format("CREATE TABLE %s(id VARCHAR, %s VARCHAR, " +
                             "created_at TIMESTAMP, merged_at TIMESTAMP)",
                     executor.formatTableReference(event.project, QualifiedName.of(ANONYMOUS_ID_MAPPING), Optional.empty(), ImmutableMap.of()),
                     checkCollection(projectConfig.getUserColumn())));
         }
     }
-
-    @BindingAnnotation
-    @Target({FIELD, PARAMETER, METHOD})
-    @Retention(RUNTIME)
-    public @interface UserConfig {}
 }

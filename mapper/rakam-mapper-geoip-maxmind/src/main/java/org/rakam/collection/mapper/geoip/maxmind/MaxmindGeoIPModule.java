@@ -25,39 +25,9 @@ import java.util.zip.GZIPInputStream;
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "plugin.geoip.enabled", value = "true")
 public class MaxmindGeoIPModule
-        extends RakamModule
-{
-    @Override
-    protected void setup(Binder binder)
-    {
-        MaxmindGeoIPModuleConfig geoIPModuleConfig = buildConfigObject(MaxmindGeoIPModuleConfig.class);
-        MaxmindGeoIPEventMapper geoIPEventMapper;
-        try {
-            geoIPEventMapper = new MaxmindGeoIPEventMapper(geoIPModuleConfig);
-        }
-        catch (IOException e) {
-            binder.addError(e);
-            return;
-        }
-        Multibinder.newSetBinder(binder, UserPropertyMapper.class).addBinding().toInstance(geoIPEventMapper);
-        Multibinder.newSetBinder(binder, EventMapper.class).addBinding().toInstance(geoIPEventMapper);
-    }
-
-    @Override
-    public String name()
-    {
-        return "GeoIP Event Mapper";
-    }
-
-    @Override
-    public String description()
-    {
-        return "It attaches the events that have ip attribute with location information by GeoIP lookup service.";
-    }
-
+        extends RakamModule {
     static File downloadOrGetFile(URL url)
-            throws Exception
-    {
+            throws Exception {
         if ("file".equals(url.getProtocol())) {
             return new File(url.toString().substring("file:/".length()));
         }
@@ -69,16 +39,14 @@ public class MaxmindGeoIPModule
         String extension;
         if (url.getHost().equals("download.maxmind.com") && url.getPath().startsWith("/app")) {
             extension = "tar.gz";
-        }
-        else {
+        } else {
             extension = Files.getFileExtension(data.getAbsolutePath()).split("\\?")[0];
         }
 
         if (!data.exists()) {
             try {
                 new HttpDownloadHelper().download(url, data.toPath(), new HttpDownloadHelper.VerboseProgress(System.out));
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 throw Throwables.propagate(e);
             }
         }
@@ -116,16 +84,14 @@ public class MaxmindGeoIPModule
                 byte[] bytes = new byte[size];
                 tarInput.read(bytes);
                 out.write(bytes);
-            }
-            finally {
+            } finally {
                 tarInput.close();
                 out.close();
                 data.delete();
             }
 
             return extractedFile;
-        }
-        else {
+        } else {
             if (extension.equals("gz")) {
                 GZIPInputStream gzipInputStream =
                         new GZIPInputStream(new FileInputStream(data));
@@ -143,13 +109,35 @@ public class MaxmindGeoIPModule
                 data.delete();
 
                 return extractedFile;
-            }
-            else if (extension.equals("mmdb")) {
+            } else if (extension.equals("mmdb")) {
                 return data;
-            }
-            else {
+            } else {
                 throw new IllegalArgumentException("Unknown extension of Maxming GeoIP file: " + extension);
             }
         }
+    }
+
+    @Override
+    protected void setup(Binder binder) {
+        MaxmindGeoIPModuleConfig geoIPModuleConfig = buildConfigObject(MaxmindGeoIPModuleConfig.class);
+        MaxmindGeoIPEventMapper geoIPEventMapper;
+        try {
+            geoIPEventMapper = new MaxmindGeoIPEventMapper(geoIPModuleConfig);
+        } catch (IOException e) {
+            binder.addError(e);
+            return;
+        }
+        Multibinder.newSetBinder(binder, UserPropertyMapper.class).addBinding().toInstance(geoIPEventMapper);
+        Multibinder.newSetBinder(binder, EventMapper.class).addBinding().toInstance(geoIPEventMapper);
+    }
+
+    @Override
+    public String name() {
+        return "GeoIP Event Mapper";
+    }
+
+    @Override
+    public String description() {
+        return "It attaches the events that have ip attribute with location information by GeoIP lookup service.";
     }
 }

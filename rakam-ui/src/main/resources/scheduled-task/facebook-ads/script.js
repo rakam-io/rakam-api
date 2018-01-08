@@ -10,17 +10,17 @@ var nested_properties = [
     'video_p95_watched_actions'];
 
 var double_fields = ["cost_per_inline_link_click", "cost_per_inline_post_engagement", "inline_post_engagement",
-                     "cost_per_total_action", "cost_per_estimated_ad_recallers",
-                     "cost_per_unique_click", "cost_per_unique_inline_link_click", "cpc", "cpm", "cpp", "ctr",
-                     "frequency", "inline_link_click_ctr", "newsfeed_avg_position",
-                     "social_spend", "spend", "unique_ctr", "unique_inline_link_click_ctr", "unique_link_clicks_ctr"];
+    "cost_per_total_action", "cost_per_estimated_ad_recallers",
+    "cost_per_unique_click", "cost_per_unique_inline_link_click", "cpc", "cpm", "cpp", "ctr",
+    "frequency", "inline_link_click_ctr", "newsfeed_avg_position",
+    "social_spend", "spend", "unique_ctr", "unique_inline_link_click_ctr", "unique_link_clicks_ctr"];
 var long_fields = ["app_store_clicks", "call_to_action_clicks",
-                   "canvas_avg_view_percent", "canvas_avg_view_time",
-                   "clicks", "deeplink_clicks", "estimated_ad_recall_rate",
-                   "impressions", "reach", "social_clicks",
-                   "social_impressions", "social_reach", "total_actions",
-                   "total_unique_actions", "unique_clicks", "unique_impressions",
-                   "unique_inline_link_clicks", "unique_social_clicks", "unique_social_clicks", "website_clicks"];
+    "canvas_avg_view_percent", "canvas_avg_view_time",
+    "clicks", "deeplink_clicks", "estimated_ad_recall_rate",
+    "impressions", "reach", "social_clicks",
+    "social_impressions", "social_reach", "total_actions",
+    "total_unique_actions", "unique_clicks", "unique_impressions",
+    "unique_inline_link_clicks", "unique_social_clicks", "unique_social_clicks", "website_clicks"];
 var valueMapper = {};
 double_fields.forEach(function (key) {
     valueMapper[key] = parseFloat;

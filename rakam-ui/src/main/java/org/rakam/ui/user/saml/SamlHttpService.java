@@ -7,18 +7,12 @@ import com.google.common.io.ByteStreams;
 import com.google.inject.Inject;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.QueryStringDecoder;
-import io.netty.handler.codec.http.cookie.Cookie;
-import org.rakam.Mapper;
-import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.Response;
 import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.user.WebUser;
 import org.rakam.ui.user.WebUserService;
@@ -26,19 +20,14 @@ import org.rakam.util.RakamException;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.SET_COOKIE;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_GATEWAY;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.FOUND;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static io.netty.handler.codec.http.cookie.ServerCookieEncoder.STRICT;
@@ -47,32 +36,28 @@ import static org.rakam.ui.user.WebUserHttpService.getLoginResponseForUser;
 @Path("/saml")
 @Api(value = "/saml", nickname = "saml", description = "SAML operations", tags = "saml")
 public class SamlHttpService
-        extends HttpService
-{
+        extends HttpService {
     private final SamlClient client;
     private final WebUserService service;
     private final String secretKey;
     private final SamlConfig config;
 
     @Inject
-    public SamlHttpService(EncryptionConfig encryptionConfig, WebUserService service, SamlConfig config)
-    {
+    public SamlHttpService(EncryptionConfig encryptionConfig, WebUserService service, SamlConfig config) {
         this.service = service;
         this.config = config;
         this.secretKey = encryptionConfig.getSecretKey();
         try {
             client = SamlClient.fromMetadata(null, "http://some/url/that/processes/assertions", new StringReader(config.getSamlMetadata()));
-        }
-        catch (SamlException e) {
+        } catch (SamlException e) {
             throw new RuntimeException(e.getMessage());
         }
     }
 
     @Path("/login")
     @GET
-    public void redirect(RakamHttpRequest request)
-    {
-        DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, FOUND, Unpooled.wrappedBuffer(new byte[] {}));
+    public void redirect(RakamHttpRequest request) {
+        DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, FOUND, Unpooled.wrappedBuffer(new byte[]{}));
         response.headers().add("Location", client.getIdentityProviderUrl());
 
         request.response(response).end();
@@ -80,9 +65,8 @@ public class SamlHttpService
 
     @Path("/check")
     @GET
-    public void check(RakamHttpRequest request)
-    {
-        DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, FOUND, Unpooled.wrappedBuffer(new byte[] {}));
+    public void check(RakamHttpRequest request) {
+        DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, FOUND, Unpooled.wrappedBuffer(new byte[]{}));
         response.headers().add("Location", client.getIdentityProviderUrl());
 
         request.response(response).end();
@@ -90,14 +74,12 @@ public class SamlHttpService
 
     @Path("/callback")
     @JsonRequest
-    public void callback(RakamHttpRequest request)
-    {
+    public void callback(RakamHttpRequest request) {
         request.bodyHandler(inputStream -> {
             String post;
             try {
                 post = new String(ByteStreams.toByteArray(inputStream), StandardCharsets.UTF_8);
-            }
-            catch (IOException e) {
+            } catch (IOException e) {
                 throw new RuntimeException(e);
             }
 
@@ -107,16 +89,14 @@ public class SamlHttpService
             String data;
             if (samlResponseParam == null) {
                 data = "";
-            }
-            else {
+            } else {
                 data = samlResponseParam.get(0);
             }
 
             SamlResponse samlResponse;
             try {
                 samlResponse = client.decodeAndValidateSamlResponse(data);
-            }
-            catch (SamlException e) {
+            } catch (SamlException e) {
                 throw new RakamException(e.getMessage(), BAD_GATEWAY);
             }
 
@@ -130,7 +110,7 @@ public class SamlHttpService
 
             Response loginResponseForUser = getLoginResponseForUser(secretKey, user, config.getSamlCookieTtl());
 
-            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, FOUND, Unpooled.wrappedBuffer(new byte[] {}));
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, FOUND, Unpooled.wrappedBuffer(new byte[]{}));
             response.headers().add("Location", "/");
             response.headers().add(SET_COOKIE, STRICT.encode(loginResponseForUser.getCookies()));
 

@@ -32,14 +32,8 @@ public class EmailClientConfig {
         }
     }
 
-    @Config("mail.smtp.host")
-    public void setHost(String host) {
-        this.host = host;
-    }
-
-    @Config("mail.from-address")
-    public void setFromAddress(String fromAddress) {
-        this.fromAddress = fromAddress;
+    public String getFromName() {
+        return fromName;
     }
 
     @Config("mail.from-name")
@@ -47,8 +41,8 @@ public class EmailClientConfig {
         this.fromName = fromName;
     }
 
-    public String getFromName() {
-        return fromName;
+    public URL getSiteUrl() {
+        return siteUrl;
     }
 
     @Config("mail.site-url")
@@ -56,8 +50,17 @@ public class EmailClientConfig {
         this.siteUrl = siteUrl;
     }
 
-    public URL getSiteUrl() {
-        return siteUrl;
+    public String getHost() {
+        return host;
+    }
+
+    @Config("mail.smtp.host")
+    public void setHost(String host) {
+        this.host = host;
+    }
+
+    public String getPort() {
+        return port;
     }
 
     @Config("mail.smtp.port")
@@ -66,10 +69,27 @@ public class EmailClientConfig {
         return this;
     }
 
+    public String getFromAddress() {
+        return fromAddress;
+    }
+
+    @Config("mail.from-address")
+    public void setFromAddress(String fromAddress) {
+        this.fromAddress = fromAddress;
+    }
+
+    public String getUser() {
+        return user;
+    }
+
     @Config("mail.smtp.user")
     public EmailClientConfig setUser(String user) {
         this.user = user;
         return this;
+    }
+
+    public String getPassword() {
+        return password;
     }
 
     @Config("mail.smtp.password")
@@ -78,47 +98,27 @@ public class EmailClientConfig {
         return this;
     }
 
+    public boolean isUseTls() {
+        return useTls;
+    }
+
     @Config("mail.smtp.use-tls")
     public void setUseTls(boolean useTls) {
         this.useTls = useTls;
-    }
-
-    public String getHost() {
-        return host;
-    }
-
-    public String getPort() {
-        return port;
-    }
-
-    public String getFromAddress() {
-        return fromAddress;
-    }
-
-    public String getUser() {
-        return user;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public boolean isUseTls() {
-        return useTls;
     }
 
     /*
         The javax documentation doesn't mention but it seems that Session is thread-safe. See http://stackoverflow.com/a/12733317/689144
      */
     public MailSender getMailSender() {
-        if(getHost() == null || getUser() == null) {
+        if (getHost() == null || getUser() == null) {
             throw new RakamException("mail.smtp.host or mail.smtp.username is not set.", NOT_IMPLEMENTED);
         }
         Properties props = new Properties();
         props.put("mail.smtp.auth", "true");
         props.put("mail.smtp.starttls.enable", isUseTls());
         props.put("mail.smtp.host", getHost());
-        if(getPort() != null) {
+        if (getPort() != null) {
             props.put("mail.smtp.port", getPort());
         }
         Session session = Session.getInstance(props,

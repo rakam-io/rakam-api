@@ -14,15 +14,12 @@ import java.util.stream.Collectors;
 
 //@Path("/ui/user-default")
 //@IgnoreApi
-public class UserDefaultService
-{
+public class UserDefaultService {
     @Inject
-    public UserDefaultService()
-    {
+    public UserDefaultService() {
     }
 
-    public Map<String, Object> getAll(Handle handle, @Named("user_id") UIPermissionParameterProvider.Project project)
-    {
+    public Map<String, Object> getAll(Handle handle, @Named("user_id") UIPermissionParameterProvider.Project project) {
         return handle.createQuery("SELECT name, value FROM ui_user_defaults WHERE user_id = :user AND project_id = :project")
                 .bind("project", project.project)
                 .bind("user", project.userId)
@@ -31,8 +28,7 @@ public class UserDefaultService
                 .list().stream().collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
     }
 
-    public <T> T get(Handle handle, @Named("user_id") UIPermissionParameterProvider.Project project, @ApiParam("name") String name)
-    {
+    public <T> T get(Handle handle, @Named("user_id") UIPermissionParameterProvider.Project project, @ApiParam("name") String name) {
         return (T) handle.createQuery("SELECT value FROM ui_user_defaults WHERE user_id = :user AND project_id = :project AND name = :name")
                 .bind("project", project.project)
                 .bind("user", project.userId)
@@ -46,16 +42,14 @@ public class UserDefaultService
     public void set(
             Handle handle,
             @Named("user_id") UIPermissionParameterProvider.Project project,
-            @ApiParam("name") String name, @ApiParam("value") Object value)
-    {
+            @ApiParam("name") String name, @ApiParam("value") Object value) {
         try {
             handle.createStatement("INSERT INTO ui_user_defaults (project_id, user_id, name, value) VALUES (:project, :user, :name, :value)")
                     .bind("project", project.project)
                     .bind("user", project.userId)
                     .bind("name", name.toUpperCase(Locale.ENGLISH))
                     .bind("value", JsonHelper.encode(value)).execute();
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             handle.createStatement("UPDATE ui_user_defaults SET value = :value WHERE project_id = :project AND user_id = :user AND name = :name")
                     .bind("project", project.project)
                     .bind("user", project.userId)

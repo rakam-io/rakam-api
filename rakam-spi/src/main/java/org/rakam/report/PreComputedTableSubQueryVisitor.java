@@ -157,8 +157,7 @@ public class PreComputedTableSubQueryVisitor extends AstVisitor<String, Boolean>
     }
 
     @Override
-    protected String visitIdentifier(Identifier node, Boolean context)
-    {
+    protected String visitIdentifier(Identifier node, Boolean context) {
         String tableColumn = ValidationUtil
                 .checkTableColumn(node.getValue(), "reference in filter", '"');
 

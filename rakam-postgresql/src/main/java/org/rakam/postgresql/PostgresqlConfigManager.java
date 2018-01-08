@@ -50,7 +50,7 @@ public class PostgresqlConfigManager implements ConfigManager {
         try (Handle handle = dbi.open()) {
             T config = getConfig(project, configName, (Class<T>) value.getClass());
 
-            if(config == null) {
+            if (config == null) {
                 try {
                     handle.createStatement("INSERT INTO config (project, name, value) VALUES (:project, :name, :value)")
                             .bind("project", project)
@@ -60,7 +60,7 @@ public class PostgresqlConfigManager implements ConfigManager {
                 } catch (Exception e) {
                     // handle race condition
                     T lastValue = getConfig(project, configName, (Class<T>) value.getClass());
-                    if(lastValue == null) {
+                    if (lastValue == null) {
                         throw Throwables.propagate(e);
                     }
                     return lastValue;
@@ -72,8 +72,7 @@ public class PostgresqlConfigManager implements ConfigManager {
     }
 
     @Override
-    public void clear()
-    {
+    public void clear() {
         try (Handle handle = dbi.open()) {
             handle.createStatement("DELETE FROM config").execute();
         }

@@ -14,20 +14,17 @@ import java.util.stream.Collectors;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 
-public class SchemaChecker
-{
+public class SchemaChecker {
     private final Metastore metastore;
     private final FieldDependencyBuilder.FieldDependency fieldDependency;
 
     @Inject
-    public SchemaChecker(Metastore metastore, FieldDependencyBuilder.FieldDependency fieldDependency)
-    {
+    public SchemaChecker(Metastore metastore, FieldDependencyBuilder.FieldDependency fieldDependency) {
         this.metastore = metastore;
         this.fieldDependency = fieldDependency;
     }
 
-    public HashSet<SchemaField> checkNewFields(String collection, Set<SchemaField> newFields)
-    {
+    public HashSet<SchemaField> checkNewFields(String collection, Set<SchemaField> newFields) {
         HashSet<SchemaField> fields = new HashSet<>(newFields);
 
         Iterator<SchemaField> it = fields.iterator();
@@ -57,23 +54,20 @@ public class SchemaChecker
         return fields;
     }
 
-    private void addConditionalModuleField(Set<SchemaField> fields, String field, List<SchemaField> newFields)
-    {
+    private void addConditionalModuleField(Set<SchemaField> fields, String field, List<SchemaField> newFields) {
         if (fields.stream().anyMatch(f -> f.getName().equals(field))) {
             newFields.forEach(newField -> addModuleField(fields, newField));
         }
     }
 
-    private void addModuleField(Set<SchemaField> fields, SchemaField newField)
-    {
+    private void addModuleField(Set<SchemaField> fields, SchemaField newField) {
         Iterator<SchemaField> iterator = fields.iterator();
         while (iterator.hasNext()) {
             SchemaField field = iterator.next();
             if (field.getName().equals(newField.getName())) {
                 if (field.getType().equals(newField.getType())) {
                     return;
-                }
-                else {
+                } else {
                     iterator.remove();
                     break;
                 }
@@ -83,8 +77,7 @@ public class SchemaChecker
     }
 
     //    @PostConstruct
-    protected void checkExistingSchema()
-    {
+    protected void checkExistingSchema() {
         for (String project : metastore.getProjects()) {
             Map<String, List<SchemaField>> collections = metastore.getCollections(project);
             collections.forEach((collection, fields) -> {
@@ -107,8 +100,7 @@ public class SchemaChecker
                 if (!collect.isEmpty()) {
                     try {
                         metastore.getOrCreateCollectionFields(project, collection, collect);
-                    }
-                    catch (NotExistsException e) {
+                    } catch (NotExistsException e) {
                         throw Throwables.propagate(e);
                     }
                 }
@@ -116,8 +108,7 @@ public class SchemaChecker
         }
     }
 
-    private boolean check(String project, String collection, SchemaField existing, SchemaField moduleField)
-    {
+    private boolean check(String project, String collection, SchemaField existing, SchemaField moduleField) {
         if (existing.getName().equals(moduleField.getName())) {
             if (!existing.getType().equals(moduleField.getType())) {
                 throw new IllegalStateException(format("Module field '%s' type does not match existing field in event of project %s.%s. Existing type: %s, Module field type: %s. \n" +

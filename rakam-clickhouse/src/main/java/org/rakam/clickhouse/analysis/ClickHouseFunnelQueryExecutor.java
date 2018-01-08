@@ -30,20 +30,17 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class ClickHouseFunnelQueryExecutor
-        implements FunnelQueryExecutor
-{
+        implements FunnelQueryExecutor {
     private final QueryExecutor queryExecutor;
     private final ProjectConfig projectConfig;
 
     @Inject
-    public ClickHouseFunnelQueryExecutor(ProjectConfig projectConfig, QueryExecutor queryExecutor)
-    {
+    public ClickHouseFunnelQueryExecutor(ProjectConfig projectConfig, QueryExecutor queryExecutor) {
         this.projectConfig = projectConfig;
         this.queryExecutor = queryExecutor;
     }
 
-    private static int toSeconds(FunnelWindow window)
-    {
+    private static int toSeconds(FunnelWindow window) {
         switch (window.type) {
             case DAY:
                 return window.value * 86400;
@@ -58,9 +55,8 @@ public class ClickHouseFunnelQueryExecutor
 
     @Override
     public QueryExecution query(String project, List<FunnelStep> steps,
-            Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate,
-            Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, FunnelType funnelType)
-    {
+                                Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate,
+                                Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, FunnelType funnelType) {
         if (steps.size() == 0) {
             throw new RakamException("Funnel steps parameter is empty", BAD_REQUEST);
         }
@@ -148,8 +144,7 @@ public class ClickHouseFunnelQueryExecutor
                             new SchemaField("step", FieldType.STRING),
                             new SchemaField("dimension", result.getMetadata().get(0).getType()),
                             new SchemaField("value", FieldType.LONG)), data);
-                }
-                else {
+                } else {
                     data = IntStream.range(0, steps.size())
                             .mapToObj(step -> ImmutableList.of("Step " + (step + 1),
                                     result.getResult().isEmpty() ? 0L : result.getResult().get(0).get(step)))

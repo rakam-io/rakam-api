@@ -1,22 +1,7 @@
 package org.rakam.aws.dynamodb.apikey;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
-import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.amazonaws.services.dynamodbv2.model.Condition;
-import com.amazonaws.services.dynamodbv2.model.CreateTableRequest;
-import com.amazonaws.services.dynamodbv2.model.DeleteItemRequest;
-import com.amazonaws.services.dynamodbv2.model.DescribeTableResult;
-import com.amazonaws.services.dynamodbv2.model.GetItemRequest;
-import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
-import com.amazonaws.services.dynamodbv2.model.KeyType;
-import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
-import com.amazonaws.services.dynamodbv2.model.PutItemRequest;
-import com.amazonaws.services.dynamodbv2.model.QueryRequest;
-import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
-import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
-import com.amazonaws.services.dynamodbv2.model.ScanRequest;
-import com.amazonaws.services.dynamodbv2.model.Select;
+import com.amazonaws.services.dynamodbv2.model.*;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -28,7 +13,6 @@ import org.rakam.util.CryptUtil;
 import org.rakam.util.RakamException;
 
 import javax.annotation.PostConstruct;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -37,20 +21,18 @@ import static com.amazonaws.services.dynamodbv2.model.KeyType.HASH;
 import static java.lang.String.format;
 
 public class DynamodbApiKeyService
-        implements ApiKeyService
-{
-    private final AmazonDynamoDBClient dynamoDBClient;
+        implements ApiKeyService {
     private static final List<KeySchemaElement> PROJECT_KEYSCHEMA = ImmutableList.of(
             new KeySchemaElement().withKeyType(HASH).withAttributeName("project")
     );
     private static final Set<AttributeDefinition> ATTRIBUTES = ImmutableSet.of(
             new AttributeDefinition().withAttributeName("project").withAttributeType(ScalarAttributeType.S)
     );
+    private final AmazonDynamoDBClient dynamoDBClient;
     private final DynamodbApiKeyConfig apiKeyConfig;
 
     @Inject
-    public DynamodbApiKeyService(AWSConfig config, DynamodbApiKeyConfig apiKeyConfig)
-    {
+    public DynamodbApiKeyService(AWSConfig config, DynamodbApiKeyConfig apiKeyConfig) {
         dynamoDBClient = new AmazonDynamoDBClient(config.getCredentials());
         dynamoDBClient.setRegion(config.getAWSRegion());
         if (config.getDynamodbEndpoint() != null) {
@@ -60,8 +42,7 @@ public class DynamodbApiKeyService
     }
 
     @PostConstruct
-    public void setup()
-    {
+    public void setup() {
         try {
             DescribeTableResult table = dynamoDBClient.describeTable(apiKeyConfig.getTableName());
 
@@ -72,14 +53,12 @@ public class DynamodbApiKeyService
             if (!ImmutableSet.copyOf(table.getTable().getAttributeDefinitions()).equals(ATTRIBUTES)) {
                 throw new IllegalStateException("Dynamodb table for api key service has invalid attribute schema");
             }
-        }
-        catch (ResourceNotFoundException e) {
+        } catch (ResourceNotFoundException e) {
             createTable();
         }
     }
 
-    private void createTable()
-    {
+    private void createTable() {
         dynamoDBClient.createTable(new CreateTableRequest()
                 .withTableName(apiKeyConfig.getTableName()).withKeySchema(PROJECT_KEYSCHEMA)
                 .withAttributeDefinitions(ATTRIBUTES)
@@ -89,8 +68,7 @@ public class DynamodbApiKeyService
     }
 
     @Override
-    public ProjectApiKeys createApiKeys(String project)
-    {
+    public ProjectApiKeys createApiKeys(String project) {
         String masterKey = CryptUtil.generateRandomKey(64);
         String readKey = CryptUtil.generateRandomKey(64);
         String writeKey = CryptUtil.generateRandomKey(64);
@@ -107,8 +85,7 @@ public class DynamodbApiKeyService
     }
 
     @Override
-    public String getProjectOfApiKey(String apiKey, AccessKeyType type)
-    {
+    public String getProjectOfApiKey(String apiKey, AccessKeyType type) {
         List<Map<String, AttributeValue>> project = dynamoDBClient.scan(new ScanRequest()
                 .withTableName(apiKeyConfig.getTableName())
                 .withConsistentRead(true)
@@ -124,8 +101,7 @@ public class DynamodbApiKeyService
     }
 
     @Override
-    public void revokeApiKeys(String project, String masterKey)
-    {
+    public void revokeApiKeys(String project, String masterKey) {
         dynamoDBClient.deleteItem(new DeleteItemRequest()
                 .withTableName(apiKeyConfig.getTableName())
                 .withKey(ImmutableMap.of("project", new AttributeValue(project)))
@@ -135,8 +111,7 @@ public class DynamodbApiKeyService
     }
 
     @Override
-    public void revokeAllKeys(String project)
-    {
+    public void revokeAllKeys(String project) {
         dynamoDBClient.deleteItem(new DeleteItemRequest().withTableName(apiKeyConfig.getTableName())
                 .withKey(ImmutableMap.of("project", new AttributeValue(project))));
     }

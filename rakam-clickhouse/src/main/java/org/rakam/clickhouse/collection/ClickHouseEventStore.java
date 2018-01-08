@@ -30,8 +30,6 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
-import java.util.*;
-import java.util.concurrent.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -45,8 +43,7 @@ import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.util.ValidationUtil.checkCollection;
 
 public class ClickHouseEventStore
-        implements EventStore
-{
+        implements EventStore {
     private final static Logger LOGGER = Logger.get(ClickHouseEventStore.class);
 
     private static final byte[] EMPTY_ARRAY = new byte[]{};
@@ -63,8 +60,7 @@ public class ClickHouseEventStore
     Map<ProjectCollection, CompletableFuture<Void>> currentFutureSingle;
 
     @Inject
-    public ClickHouseEventStore(ProjectConfig projectConfig, ClickHouseConfig config)
-    {
+    public ClickHouseEventStore(ProjectConfig projectConfig, ClickHouseConfig config) {
         this.config = config;
         this.projectConfig = projectConfig;
         queuedEvents = new ConcurrentHashMap<>();
@@ -83,96 +79,14 @@ public class ClickHouseEventStore
 
                     executeRequest(next.getKey(), schema, next.getValue(), remove, false);
                 }
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }, 1, 1, TimeUnit.SECONDS);
     }
 
-    private void executeRequest(ProjectCollection collection, List<SchemaField> schema, List<Event> events, CompletableFuture<Void> future, boolean tried) {
-        HttpResponseFuture<StringResponse> f = HTTP_CLIENT.executeAsync(Request.builder()
-                .setUri(buildInsertUri(collection, schema))
-                .setMethod("POST")
-                .setBodyGenerator(new BinaryRawGenerator(events, schema))
-                .build(), createStringResponseHandler());
-
-        f.addListener(() -> {
-            try {
-                StringResponse stringResponse = f.get(1L, MINUTES);
-                if (stringResponse.getStatusCode() == 200) {
-                    future.complete(null);
-                }
-                else {
-                    RuntimeException ex = new RuntimeException(stringResponse.getStatusMessage() + " : "
-                            + stringResponse.getBody().split("\n", 2)[0]);
-                    future.completeExceptionally(ex);
-                }
-            }
-            catch (InterruptedException|ExecutionException|TimeoutException e) {
-                if(!tried) {
-                    executeRequest(collection, schema, events, future, true);
-                } else {
-                    future.completeExceptionally(e);
-                    LOGGER.error(e);
-                }
-
-            }
-        }, Runnable::run);
-    }
-
-    private URI buildInsertUri(ProjectCollection collection, List<SchemaField> schema)
-    {
-        return UriBuilder
-                .fromUri(config.getAddress())
-                .queryParam("query", format("INSERT INTO %s.%s (`$date`, %s) FORMAT RowBinary",
-                        collection.project, checkCollection(collection.collection, '`'),
-                        schema.stream().flatMap(f -> f.getType().isMap() ? Stream.of(checkCollection(f.getName(), '`') + ".Key", checkCollection(f.getName(), '`') + ".Value") : Stream.of(checkCollection(f.getName(), '`')))
-                                .collect(Collectors.joining(", ")))).build();
-    }
-
-    @Override
-    public CompletableFuture<int[]> storeBatchAsync(List<Event> events)
-    {
-        CompletableFuture[] futures = new CompletableFuture[events.size()];
-
-        for (int i = 0; i < events.size(); i++) {
-            futures[i] = storeAsync(events.get(i));
-        }
-
-        return CompletableFuture.allOf(futures).thenApply(v -> {
-            List<Integer> ints = null;
-            for (int i = 0; i < futures.length; i++) {
-                if (futures[i].isCompletedExceptionally()) {
-                    if (ints == null) {
-                        ints = new ArrayList();
-                        ints.add(i);
-                    }
-                }
-            }
-
-            if (ints == null) {
-                return SUCCESSFUL_BATCH;
-            }
-            else {
-                return Ints.toArray(ints);
-            }
-        });
-    }
-
-    @Override
-    public CompletableFuture<Void> storeAsync(Event event)
-    {
-        ProjectCollection tuple = new ProjectCollection(event.project(), event.collection());
-        CompletableFuture<Void> future = currentFutureSingle.computeIfAbsent(tuple, (k) -> new CompletableFuture<>());
-
-        queuedEvents.computeIfAbsent(tuple, (k) -> Collections.synchronizedList(new ArrayList<>())).add(event);
-        return future;
-    }
-
     public static void writeValue(Object value, FieldType type, DataOutput out)
-            throws IOException
-    {
+            throws IOException {
         switch (type) {
             case STRING:
                 String str = value == null ? EMPTY_STRING : value.toString();
@@ -180,7 +94,7 @@ public class ClickHouseEventStore
                 out.writeBytes(str);
                 break;
             case DATE:
-                out.writeShort(value == null ? 0 :(Integer) value);
+                out.writeShort(value == null ? 0 : (Integer) value);
                 break;
             case TIMESTAMP:
                 out.writeInt(value == null ? 0 : ((int) ((Long) value / 1000)));
@@ -213,8 +127,7 @@ public class ClickHouseEventStore
                     for (Object item : list) {
                         writeValue(item, arrayElementType, out);
                     }
-                }
-                else if (type.isMap()) {
+                } else if (type.isMap()) {
                     Map<String, Object> map = value == null ? ImmutableMap.of() : (Map<String, Object>) value;
                     writeVarInt(map.size(), out);
                     for (Map.Entry<String, Object> entry : map.entrySet()) {
@@ -227,16 +140,14 @@ public class ClickHouseEventStore
                     for (Map.Entry<String, Object> entry : map.entrySet()) {
                         writeValue(entry.getValue(), mapValueType, out);
                     }
-                }
-                else {
+                } else {
                     throw new IllegalStateException();
                 }
         }
     }
 
     public static void writeVarInt(int message, DataOutput output)
-            throws IOException
-    {
+            throws IOException {
         // VarInts don't support negative values
         if (message < 0) {
             message = 0;
@@ -249,22 +160,93 @@ public class ClickHouseEventStore
         output.write((byte) value);
     }
 
+    private void executeRequest(ProjectCollection collection, List<SchemaField> schema, List<Event> events, CompletableFuture<Void> future, boolean tried) {
+        HttpResponseFuture<StringResponse> f = HTTP_CLIENT.executeAsync(Request.builder()
+                .setUri(buildInsertUri(collection, schema))
+                .setMethod("POST")
+                .setBodyGenerator(new BinaryRawGenerator(events, schema))
+                .build(), createStringResponseHandler());
+
+        f.addListener(() -> {
+            try {
+                StringResponse stringResponse = f.get(1L, MINUTES);
+                if (stringResponse.getStatusCode() == 200) {
+                    future.complete(null);
+                } else {
+                    RuntimeException ex = new RuntimeException(stringResponse.getStatusMessage() + " : "
+                            + stringResponse.getBody().split("\n", 2)[0]);
+                    future.completeExceptionally(ex);
+                }
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                if (!tried) {
+                    executeRequest(collection, schema, events, future, true);
+                } else {
+                    future.completeExceptionally(e);
+                    LOGGER.error(e);
+                }
+
+            }
+        }, Runnable::run);
+    }
+
+    private URI buildInsertUri(ProjectCollection collection, List<SchemaField> schema) {
+        return UriBuilder
+                .fromUri(config.getAddress())
+                .queryParam("query", format("INSERT INTO %s.%s (`$date`, %s) FORMAT RowBinary",
+                        collection.project, checkCollection(collection.collection, '`'),
+                        schema.stream().flatMap(f -> f.getType().isMap() ? Stream.of(checkCollection(f.getName(), '`') + ".Key", checkCollection(f.getName(), '`') + ".Value") : Stream.of(checkCollection(f.getName(), '`')))
+                                .collect(Collectors.joining(", ")))).build();
+    }
+
+    @Override
+    public CompletableFuture<int[]> storeBatchAsync(List<Event> events) {
+        CompletableFuture[] futures = new CompletableFuture[events.size()];
+
+        for (int i = 0; i < events.size(); i++) {
+            futures[i] = storeAsync(events.get(i));
+        }
+
+        return CompletableFuture.allOf(futures).thenApply(v -> {
+            List<Integer> ints = null;
+            for (int i = 0; i < futures.length; i++) {
+                if (futures[i].isCompletedExceptionally()) {
+                    if (ints == null) {
+                        ints = new ArrayList();
+                        ints.add(i);
+                    }
+                }
+            }
+
+            if (ints == null) {
+                return SUCCESSFUL_BATCH;
+            } else {
+                return Ints.toArray(ints);
+            }
+        });
+    }
+
+    @Override
+    public CompletableFuture<Void> storeAsync(Event event) {
+        ProjectCollection tuple = new ProjectCollection(event.project(), event.collection());
+        CompletableFuture<Void> future = currentFutureSingle.computeIfAbsent(tuple, (k) -> new CompletableFuture<>());
+
+        queuedEvents.computeIfAbsent(tuple, (k) -> Collections.synchronizedList(new ArrayList<>())).add(event);
+        return future;
+    }
+
     private class BinaryRawGenerator
-            implements BodyGenerator
-    {
+            implements BodyGenerator {
         private final List<Event> value;
         private final List<SchemaField> schema;
 
-        public BinaryRawGenerator(List<Event> value, List<SchemaField> schema)
-        {
+        public BinaryRawGenerator(List<Event> value, List<SchemaField> schema) {
             this.value = value;
             this.schema = schema;
         }
 
         @Override
         public void write(OutputStream outputStream)
-                throws Exception
-        {
+                throws Exception {
             LittleEndianDataOutputStream out = new LittleEndianDataOutputStream(outputStream);
 
             for (Event event : value) {

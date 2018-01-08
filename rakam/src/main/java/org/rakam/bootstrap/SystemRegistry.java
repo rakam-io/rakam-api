@@ -65,7 +65,7 @@ public class SystemRegistry {
     }
 
     public synchronized List<ModuleDescriptor> getModules() {
-        if(moduleDescriptors == null) {
+        if (moduleDescriptors == null) {
             this.moduleDescriptors = createModuleDescriptor();
         }
 
@@ -82,11 +82,11 @@ public class SystemRegistry {
 
         @JsonCreator
         public ModuleDescriptor(@JsonProperty("name") String name,
-                      @JsonProperty("description") String description,
-                      @JsonProperty("className") String className,
-                      @JsonProperty("isActive") boolean isActive,
-                      @JsonProperty("condition") Optional<Condition> condition,
-                      @JsonProperty("properties") List<ConfigItem> properties) {
+                                @JsonProperty("description") String description,
+                                @JsonProperty("className") String className,
+                                @JsonProperty("isActive") boolean isActive,
+                                @JsonProperty("condition") Optional<Condition> condition,
+                                @JsonProperty("properties") List<ConfigItem> properties) {
             this.name = name;
             this.description = description;
             this.className = className;

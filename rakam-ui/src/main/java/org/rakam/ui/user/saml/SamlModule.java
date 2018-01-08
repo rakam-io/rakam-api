@@ -14,11 +14,9 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "ui.authentication", value = "saml")
 public class SamlModule
-        extends RakamModule
-{
+        extends RakamModule {
     @Override
-    protected void setup(Binder binder)
-    {
+    protected void setup(Binder binder) {
         OptionalBinder.newOptionalBinder(binder, AuthService.class).setBinding().to(SamlAuthService.class);
         configBinder(binder).bindConfig(SamlConfig.class);
 
@@ -27,14 +25,12 @@ public class SamlModule
     }
 
     @Override
-    public String name()
-    {
+    public String name() {
         return "Ldap Auth module";
     }
 
     @Override
-    public String description()
-    {
+    public String description() {
         return "Implements Ldap Auth Service";
     }
 }

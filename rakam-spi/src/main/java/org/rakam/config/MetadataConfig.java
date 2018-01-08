@@ -11,10 +11,8 @@ public class MetadataConfig {
     private String reportMetastore;
     private boolean enableDynamic = true;
 
-    @Config("event.schema.store")
-    public MetadataConfig setMetastore(String store) {
-        this.metastore = store;
-        return this;
+    public boolean getEnableDynamic() {
+        return enableDynamic;
     }
 
     @Config("event.schema.enable-dynamic")
@@ -23,8 +21,8 @@ public class MetadataConfig {
         return this;
     }
 
-    public boolean getEnableDynamic() {
-        return enableDynamic;
+    public String getReportMetastore() {
+        return reportMetastore;
     }
 
     @Config("report.metadata.store")
@@ -33,21 +31,23 @@ public class MetadataConfig {
         return this;
     }
 
-    public String getReportMetastore() {
-        return reportMetastore;
-    }
-
     public String getMetastore() {
         return metastore;
+    }
+
+    @Config("event.schema.store")
+    public MetadataConfig setMetastore(String store) {
+        this.metastore = store;
+        return this;
+    }
+
+    public String getEventStore() {
+        return eventStore;
     }
 
     @Config("event.store")
     public MetadataConfig setEventStore(String eventStore) {
         this.eventStore = eventStore;
         return this;
-    }
-
-    public String getEventStore() {
-        return eventStore;
     }
 }

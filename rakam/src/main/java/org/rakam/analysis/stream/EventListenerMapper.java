@@ -15,19 +15,16 @@ import java.util.Map;
 
 @Mapper(name = "Event stream module listener", description = "An internal event mapper that sends matching events to the API request")
 public class EventListenerMapper
-        implements SyncEventMapper
-{
+        implements SyncEventMapper {
     Map<String, List<CollectionStreamHolder>> lists;
 
     @Inject
-    public EventListenerMapper(Map<String, List<CollectionStreamHolder>> lists)
-    {
+    public EventListenerMapper(Map<String, List<CollectionStreamHolder>> lists) {
         this.lists = lists;
     }
 
     @Override
-    public List<Cookie> map(Event event, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders)
-    {
+    public List<Cookie> map(Event event, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders) {
         List<CollectionStreamHolder> streamHolder = lists.get(event.project());
 
         if (streamHolder == null) {

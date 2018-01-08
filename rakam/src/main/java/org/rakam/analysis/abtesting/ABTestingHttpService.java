@@ -51,7 +51,7 @@ public class ABTestingHttpService extends HttpService {
     public void data(RakamHttpRequest request) {
         Map<String, List<String>> params = request.params();
         List<String> api_key = params.get("read_key");
-        if(api_key == null || api_key.isEmpty()) {
+        if (api_key == null || api_key.isEmpty()) {
             request.response("\"read_key is missing\"", BAD_REQUEST).end();
             return;
         }
@@ -68,7 +68,7 @@ public class ABTestingHttpService extends HttpService {
     @ApiOperation(value = "Delete report", authorizations = @Authorization(value = "master_key"))
     @Path("/delete")
     public SuccessMessage delete(@Named("project") RequestContext context,
-                               @ApiParam("id") int id) {
+                                 @ApiParam("id") int id) {
         metadata.delete(context.project, id);
         return SuccessMessage.success();
     }

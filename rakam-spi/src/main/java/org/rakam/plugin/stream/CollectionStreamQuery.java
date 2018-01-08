@@ -39,8 +39,7 @@ public class CollectionStreamQuery {
     }
 
     @Override
-    public boolean equals(Object o)
-    {
+    public boolean equals(Object o) {
         if (this == o) {
             return true;
         }
@@ -57,8 +56,7 @@ public class CollectionStreamQuery {
     }
 
     @Override
-    public int hashCode()
-    {
+    public int hashCode() {
         int result = collection.hashCode();
         result = 31 * result + (filter != null ? filter.hashCode() : 0);
         return result;

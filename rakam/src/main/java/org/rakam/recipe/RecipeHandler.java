@@ -30,8 +30,7 @@ import static org.rakam.analysis.InternalConfig.USER_TYPE;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.report.QueryError.create;
 
-public class RecipeHandler
-{
+public class RecipeHandler {
     private final Metastore metastore;
     private final MaterializedViewService materializedViewService;
     private final ConfigManager configManager;
@@ -42,16 +41,14 @@ public class RecipeHandler
             Metastore metastore,
             ConfigManager configManager,
             SchemaChecker schemaChecker,
-            MaterializedViewService materializedViewService)
-    {
+            MaterializedViewService materializedViewService) {
         this.metastore = metastore;
         this.configManager = configManager;
         this.schemaChecker = schemaChecker;
         this.materializedViewService = materializedViewService;
     }
 
-    public Recipe export(String project)
-    {
+    public Recipe export(String project) {
         final Map<String, Recipe.CollectionDefinition> collections = metastore.getCollections(project).entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> {
             List<Map<String, Recipe.SchemaFieldInfo>> map = e.getValue().stream()
                     .map(a -> ImmutableMap.of(a.getName(), new Recipe.SchemaFieldInfo(a.getCategory(), a.getType())))
@@ -65,26 +62,22 @@ public class RecipeHandler
         return new Recipe(Recipe.Strategy.SPECIFIC, collections, materializedViews);
     }
 
-    public void install(Recipe recipe, String project, boolean overrideExisting)
-    {
+    public void install(Recipe recipe, String project, boolean overrideExisting) {
         installInternal(recipe, project, overrideExisting);
     }
 
-    public void install(String project, Recipe recipe, boolean overrideExisting)
-    {
+    public void install(String project, Recipe recipe, boolean overrideExisting) {
         installInternal(recipe, project, overrideExisting);
     }
 
-    public void installInternal(Recipe recipe, String project, boolean overrideExisting)
-    {
+    public void installInternal(Recipe recipe, String project, boolean overrideExisting) {
         recipe.getCollections().forEach((collectionName, collection) -> {
             List<SchemaField> build = collection.build().stream()
                     .map(e -> {
                         FieldType type;
                         if (e.getName().equals("_user")) {
                             type = configManager.setConfigOnce(project, USER_TYPE.name(), STRING);
-                        }
-                        else {
+                        } else {
                             type = e.getType();
                         }
                         SchemaField schemaField = new SchemaField(e.getName(), type, e.getDescriptiveName(), e.getDescription(), e.getCategory());
@@ -123,14 +116,12 @@ public class RecipeHandler
                                         materializedViewService.delete(new RequestContext(project, null), materializedView.tableName).join();
                                         materializedViewService.create(new RequestContext(project, null), materializedView);
                                         result.complete(QueryResult.empty());
-                                    }
-                                    catch (Throwable e) {
+                                    } catch (Throwable e) {
                                         result.complete(QueryResult.errorResult(
                                                 create(format("Error while re-creating materialized view %s: %s",
                                                         materializedView.tableName, e.getMessage()))));
                                     }
-                                }
-                                else {
+                                } else {
                                     result.complete(QueryResult.errorResult(create(format("Materialized view %s already exists",
                                             materializedView.tableName))));
                                 }
@@ -138,8 +129,7 @@ public class RecipeHandler
                             result.complete(QueryResult.errorResult(
                                     create(format("Error while creating materialized view %s: %s",
                                             materializedView.tableName, ex.getMessage()))));
-                        }
-                        else {
+                        } else {
                             result.complete(QueryResult.empty());
                         }
                     });
