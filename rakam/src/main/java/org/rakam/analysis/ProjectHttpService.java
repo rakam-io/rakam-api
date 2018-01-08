@@ -24,7 +24,6 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
-import static java.util.Locale.ENGLISH;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.*;
 import static org.rakam.util.ValidationUtil.checkProject;
 
@@ -82,19 +81,19 @@ public class ProjectHttpService
     @JsonRequest
     @DELETE
     @Path("/delete")
-    public SuccessMessage deleteProject(@Named("project") String project) {
+    public SuccessMessage deleteProject(@Named("project") RequestContext context) {
         if (!projectConfig.getAllowProjectDeletion()) {
             throw new RakamException("Project deletion is disabled, you can enable it with `allow-project-deletion` config.", NOT_IMPLEMENTED);
         }
-        checkProject(project);
-        metastore.deleteProject(project.toLowerCase(ENGLISH));
+        checkProject(context.project);
+        metastore.deleteProject(context.project);
 
-        List<MaterializedView> views = materializedViewService.list(project);
+        List<MaterializedView> views = materializedViewService.list(context.project);
         for (MaterializedView view : views) {
-            materializedViewService.delete(new RequestContext(project, null), view.tableName);
+            materializedViewService.delete(new RequestContext(context.project, null), view.tableName);
         }
 
-        apiKeyService.revokeAllKeys(project);
+        apiKeyService.revokeAllKeys(context.project);
 
         return SuccessMessage.success();
     }
@@ -143,10 +142,10 @@ public class ProjectHttpService
             authorizations = @Authorization(value = "master_key"))
 
     @Path("/schema/add")
-    public List<SchemaField> addFieldsToSchema(@Named("project") String project,
+    public List<SchemaField> addFieldsToSchema(@Named("project") RequestContext context,
                                                @ApiParam("collection") String collection,
                                                @ApiParam("fields") Set<SchemaField> fields) {
-        return metastore.getOrCreateCollectionFields(project, collection,
+        return metastore.getOrCreateCollectionFields(context.project, collection,
                 schemaChecker.checkNewFields(collection, fields));
     }
 
@@ -155,11 +154,11 @@ public class ProjectHttpService
             authorizations = @Authorization(value = "master_key"))
 
     @Path("/schema/add/custom")
-    public List<SchemaField> addCustomFieldsToSchema(@Named("project") String project,
+    public List<SchemaField> addCustomFieldsToSchema(@Named("project") RequestContext context,
                                                      @ApiParam("collection") String collection,
                                                      @ApiParam("schema_type") SchemaConverter type,
                                                      @ApiParam("schema") String schema) {
-        return metastore.getOrCreateCollectionFields(project, collection,
+        return metastore.getOrCreateCollectionFields(context.project, collection,
                 schemaChecker.checkNewFields(collection, type.getMapper().apply(schema)));
     }
 
@@ -168,9 +167,9 @@ public class ProjectHttpService
             authorizations = @Authorization(value = "read_key"))
 
     @Path("/schema")
-    public List<Collection> schema(@Named("project") String project,
+    public List<Collection> schema(@Named("project") RequestContext context,
                                    @ApiParam(value = "names", required = false) Set<String> names) {
-        return metastore.getCollections(project).entrySet().stream()
+        return metastore.getCollections(context.project).entrySet().stream()
                 .filter(entry -> names == null || names.contains(entry.getKey()))
                 .map(entry -> new Collection(entry.getKey(), entry.getValue()))
                 .collect(Collectors.toList());
@@ -181,8 +180,8 @@ public class ProjectHttpService
             authorizations = @Authorization(value = "master_key"))
 
     @Path("/create-api-keys")
-    public ProjectApiKeys createApiKeys(@Named("project") String project) {
-        return transformKeys(apiKeyService.createApiKeys(project));
+    public ProjectApiKeys createApiKeys(@Named("project") RequestContext context) {
+        return transformKeys(apiKeyService.createApiKeys(context.project));
     }
 
     @JsonRequest
@@ -221,13 +220,13 @@ public class ProjectHttpService
     @ApiOperation(value = "Get possible attribute values",
             authorizations = @Authorization(value = "read_key"))
     @Path("/attributes")
-    public CompletableFuture<List<String>> attributes(@Named("project") String project,
+    public CompletableFuture<List<String>> attributes(@Named("project") RequestContext context,
                                                       @ApiParam("collection") String collection,
                                                       @ApiParam("attribute") String attribute,
                                                       @ApiParam(value = "startDate", required = false) LocalDate startDate,
                                                       @ApiParam(value = "endDate", required = false) LocalDate endDate,
                                                       @ApiParam(value = "filter", required = false) String filter)  {
-        return metastore.getAttributes(project, collection, attribute, Optional.ofNullable(startDate),
+        return metastore.getAttributes(context.project, collection, attribute, Optional.ofNullable(startDate),
                 Optional.ofNullable(endDate), Optional.ofNullable(filter));
     }
 
@@ -236,8 +235,8 @@ public class ProjectHttpService
             authorizations = @Authorization(value = "read_key"))
 
     @Path("/collection")
-    public Set<String> collections(@Named("project") String project) {
-        return metastore.getCollectionNames(project);
+    public Set<String> collections(@Named("project") RequestContext context) {
+        return metastore.getCollectionNames(context.project);
     }
 
     @JsonRequest

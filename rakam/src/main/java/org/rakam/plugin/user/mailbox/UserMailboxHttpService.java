@@ -3,23 +3,16 @@ package org.rakam.plugin.user.mailbox;
 import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.ApiKeyService;
+import org.rakam.analysis.RequestContext;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiImplicitParam;
-import org.rakam.server.http.annotations.ApiImplicitParams;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.ApiResponse;
-import org.rakam.server.http.annotations.ApiResponses;
-import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.IgnoreApi;
-import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.*;
 import org.rakam.util.SuccessMessage;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -57,12 +50,12 @@ public class UserMailboxHttpService extends HttpService {
             authorizations = @Authorization(value = "read_key")
     )
     @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
-    public List<Message> getMailbox(@javax.inject.Named("project") String project,
+    public List<Message> getMailbox(@Named("project") RequestContext context,
                                     @ApiParam(value = "user", description = "User id") String user,
                                     @ApiParam(value = "parent", description = "Parent message id", required = false) Integer parent,
                                     @ApiParam(value = "limit", description = "Message query result limit", allowableValues = "range[1,100]", required = false) Integer limit,
                                     @ApiParam(value = "offset", description = "Message query result offset", required = false) Long offset) {
-        return storage.getConversation(project, user, parent, firstNonNull(limit, 100), firstNonNull(offset, 0L));
+        return storage.getConversation(context.project, user, parent, firstNonNull(limit, 100), firstNonNull(offset, 0L));
     }
 
     @Path("/listen")
@@ -104,10 +97,10 @@ public class UserMailboxHttpService extends HttpService {
             @ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/mark_as_read")
     public SuccessMessage markAsRead(
-            @javax.inject.Named("project") String project,
+            @Named("project") RequestContext context,
             @ApiParam(value = "user", description = "User id") String user,
             @ApiParam(value = "message_ids", description = "The list of of message ids that will be marked as read") int[] message_ids) {
-        storage.markMessagesAsRead(project, user, message_ids);
+        storage.markMessagesAsRead(context.project, user, message_ids);
         return SuccessMessage.success();
     }
 
@@ -118,8 +111,8 @@ public class UserMailboxHttpService extends HttpService {
             authorizations = @Authorization(value = "read_key")
     )
 
-    public CompletableFuture<Collection<Map<String, Object>>> getConnectedUsers(@javax.inject.Named("project") String project) {
-        Collection<Object> connectedUsers = webSocketService.getConnectedUsers(project);
+    public CompletableFuture<Collection<Map<String, Object>>> getConnectedUsers(@Named("project") RequestContext context) {
+        Collection<Object> connectedUsers = webSocketService.getConnectedUsers(context.project);
         return CompletableFuture.completedFuture(connectedUsers.stream()
                 .map(id -> ImmutableMap.of(config.getIdentifierColumn(), id))
                 .collect(Collectors.toList()));

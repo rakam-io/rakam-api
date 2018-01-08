@@ -101,11 +101,11 @@ public class QueryHttpService
     @JsonRequest
     public CompletableFuture<Response<QueryResult>> execute(
             RakamHttpRequest request,
-            @Named("project") String project,
+            @Named("project") RequestContext context,
             @BodyParam QueryRequest query)
     {
         QueryExecution queryExecution = executorService.executeQuery(
-                new RequestContext(project, null),
+                context,
                 query.query,
                 query.sample,
                 query.defaultSchema,
@@ -137,10 +137,9 @@ public class QueryHttpService
     )
     @IgnoreApi
     @JsonRequest
-    public void export(RakamHttpRequest request, @Named("project") String project, @BodyParam QueryRequest query)
+    public void export(RakamHttpRequest request, @Named("project") RequestContext context, @BodyParam QueryRequest query)
     {
-        String apiKey = request.headers().get("read_key");
-        executorService.executeQuery(new RequestContext(project, apiKey), query.query,
+        executorService.executeQuery(context, query.query,
                 query.sample, query.defaultSchema,
                 query.timezone,
                 query.limit == null ? DEFAULT_QUERY_RESULT_COUNT : query.limit)
@@ -429,9 +428,9 @@ public class QueryHttpService
     @ApiOperation(value = "Test query", authorizations = @Authorization(value = "read_key"))
 
     @Path("/metadata")
-    public CompletableFuture<List<SchemaField>> metadata(@javax.inject.Named("project") String project, @ApiParam("query") String query)
+    public CompletableFuture<List<SchemaField>> metadata(@Named("project") RequestContext context, @ApiParam("query") String query)
     {
-        return executorService.metadata(new RequestContext(project, null), query);
+        return executorService.metadata(context, query);
     }
 
     private ResponseQuery parseQuerySpecification(QuerySpecification queryBody, Optional<String> limitOutside, List<SortItem> orderByOutside, Map<String, NodeLocation> with)

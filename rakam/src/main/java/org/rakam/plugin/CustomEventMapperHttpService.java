@@ -27,30 +27,22 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericArray;
 import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.metadata.Metastore;
-import org.rakam.collection.Event;
-import org.rakam.collection.EventCollectionHttpService;
-import org.rakam.collection.EventList;
-import org.rakam.collection.FieldType;
+import org.rakam.collection.*;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
-import org.rakam.util.javascript.JSCodeJDBCLoggerService;
-import org.rakam.collection.SchemaField;
-import org.rakam.util.javascript.JSCodeCompiler;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.BodyParam;
-import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.*;
 import org.rakam.ui.CustomEventMapperUIHttpService.Parameter;
 import org.rakam.util.AvroUtil;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 import org.rakam.util.SuccessMessage;
+import org.rakam.util.javascript.JSCodeCompiler;
+import org.rakam.util.javascript.JSCodeJDBCLoggerService;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.GeneratedKeys;
 import org.skife.jdbi.v2.Handle;
@@ -63,7 +55,6 @@ import javax.script.Invocable;
 import javax.script.ScriptException;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-
 import java.net.InetAddress;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -80,9 +71,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static java.lang.String.format;
 import static java.util.Optional.ofNullable;
-import static java.util.concurrent.TimeUnit.HOURS;
-import static java.util.concurrent.TimeUnit.MINUTES;
-import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.concurrent.TimeUnit.*;
 import static org.rakam.report.QueryExecutorService.DEFAULT_QUERY_RESULT_COUNT;
 import static org.rakam.util.AvroUtil.generateAvroSchema;
 
@@ -182,14 +171,18 @@ public class CustomEventMapperHttpService
     @GET
     @Path("/list")
     @JsonRequest
-    public List<JSEventMapperCode> list(@Named("project") String project)
+    public List<JSEventMapperCode> list(@Named("project") RequestContext context)
+    {
+        return list(context.project);
+    }
+
+    private List<JSEventMapperCode> list(String project)
     {
         try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT id, name, script, image, parameters " +
                     "FROM custom_event_mappers WHERE project = :project")
-                    .bind("project", project).map((index, r, ctx) -> {
-                        return new JSEventMapperCode(r.getInt(1), r.getString(2), r.getString(3), r.getString(4), JsonHelper.read(r.getString(5), new TypeReference<Map<String, Parameter>>() {}));
-                    }).list();
+                    .bind("project", project).map((index, r, ctx) ->
+                            new JSEventMapperCode(r.getInt(1), r.getString(2), r.getString(3), r.getString(4), JsonHelper.read(r.getString(5), new TypeReference<Map<String, Parameter>>() {}))).list();
         }
     }
 
@@ -198,12 +191,12 @@ public class CustomEventMapperHttpService
     )
     @Path("/update")
     @JsonRequest
-    public SuccessMessage update(@Named("project") String project, @BodyParam JSEventMapperCode mapper)
+    public SuccessMessage update(@Named("project") RequestContext context, @BodyParam JSEventMapperCode mapper)
     {
         try (Handle handle = dbi.open()) {
             int execute = handle.createStatement("UPDATE custom_event_mappers SET script = :script, parameters = :parameters, image = :image " +
                     "WHERE id = :id AND project = :project")
-                    .bind("project", project)
+                    .bind("project", context.project)
                     .bind("id", mapper.id)
                     .bind("image", mapper.image)
                     .bind("parameters", JsonHelper.encode(mapper.parameters))
@@ -220,12 +213,12 @@ public class CustomEventMapperHttpService
     )
     @Path("/create")
     @JsonRequest
-    public long create(@Named("project") String project, @ApiParam("name") String name, @ApiParam("script") String script, @ApiParam(value = "image", required = false) String image, @ApiParam(value = "parameters", required = false) Map<String, Parameter> parameters)
+    public long create(@Named("project") RequestContext context, @ApiParam("name") String name, @ApiParam("script") String script, @ApiParam(value = "image", required = false) String image, @ApiParam(value = "parameters", required = false) Map<String, Parameter> parameters)
     {
         try (Handle handle = dbi.open()) {
             GeneratedKeys<Long> longs = handle.createStatement("INSERT INTO custom_event_mappers (project, name, script, parameters, image) " +
                     "VALUES (:project, :name, :script, :parameters, :image)")
-                    .bind("project", project)
+                    .bind("project", context.project)
                     .bind("script", script)
                     .bind("name", name)
                     .bind("image", image)
@@ -240,11 +233,11 @@ public class CustomEventMapperHttpService
     )
     @Path("/delete")
     @JsonRequest
-    public SuccessMessage delete(@Named("project") String project, @ApiParam("id") int id)
+    public SuccessMessage delete(@Named("project") RequestContext context, @ApiParam("id") int id)
     {
         try (Handle handle = dbi.open()) {
             handle.createStatement("DELETE FROM custom_event_mappers WHERE project = :project AND id = :id")
-                    .bind("project", project)
+                    .bind("project", context.project)
                     .bind("id", id)
                     .execute();
             return SuccessMessage.success();
@@ -254,9 +247,9 @@ public class CustomEventMapperHttpService
     @ApiOperation(value = "Get logs", authorizations = @Authorization(value = "master_key"))
     @JsonRequest
     @Path("/get_logs")
-    public List<JSCodeJDBCLoggerService.LogEntry> getLogs(@Named("project") String project, @ApiParam("id") int id, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end)
+    public List<JSCodeJDBCLoggerService.LogEntry> getLogs(@Named("project") RequestContext context, @ApiParam("id") int id, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end)
     {
-        return loggerService.getLogs(project, start, end, "custom-event-mapper." + id);
+        return loggerService.getLogs(context, start, end, "custom-event-mapper." + id);
     }
 
     public static class TestEventMapperResult
@@ -278,25 +271,25 @@ public class CustomEventMapperHttpService
     @JsonRequest
     public CompletableFuture<TestEventMapperResult> test(
             RakamHttpRequest request,
-            @Named("project") String project,
+            @Named("project") RequestContext context,
             @ApiParam("script") String script,
             @ApiParam("body") String requestBody,
             @ApiParam(value = "parameters", required = false) Map<String, Object> parameters)
     {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                Invocable engine = jsCodeCompiler.createEngine(project, script, null);
+                Invocable engine = jsCodeCompiler.createEngine(context.project, script, null);
 
                 DefaultHttpHeaders responseHeaders = new DefaultHttpHeaders();
 
                 Map<String, Object> read = JsonHelper.read(requestBody, Map.class);
-                TestEventsProxy testEventsProxy = new TestEventsProxy(read, project);
+                TestEventsProxy testEventsProxy = new TestEventsProxy(read, context.project);
                 Object mapper = engine.invokeFunction("mapper",
                         testEventsProxy,
                         new EventCollectionHttpService.HttpRequestParams(request),
                         EventCollectionHttpService.getRemoteAddress(request.getRemoteAddress()),
                         responseHeaders,
-                        new JSSQLExecutor(project),
+                        new JSSQLExecutor(context.project),
                         parameters);
 
                 if (mapper == null) {

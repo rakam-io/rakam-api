@@ -25,6 +25,7 @@ import io.netty.util.concurrent.FutureListener;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.analysis.RequestContext;
 import org.rakam.util.javascript.JSCodeCompiler;
 import org.rakam.util.javascript.JSCodeJDBCLoggerService;
 import org.rakam.plugin.EventStore;
@@ -338,12 +339,12 @@ public class WebHookHttpService
     @ApiOperation(value = "Set hook", authorizations = @Authorization(value = "master_key"))
     @Path("/activate")
     @JsonRequest
-    public SuccessMessage activate(@Named("project") String project, @BodyParam WebHook hook)
+    public SuccessMessage activate(@Named("project") RequestContext context, @BodyParam WebHook hook)
     {
         try (Handle handle = dbi.open()) {
             try {
                 handle.createStatement("INSERT INTO webhook (project, identifier, code, active, parameters) VALUES (:project, :identifier, :code, true, :parameters)")
-                        .bind("project", project)
+                        .bind("project", context.project)
                         .bind("identifier", hook.identifier)
                         .bind("code", hook.script)
                         .bind("image", hook.image)
@@ -352,9 +353,9 @@ public class WebHookHttpService
                 return SuccessMessage.success();
             }
             catch (Exception e) {
-                if (get(project, hook.identifier) != null) {
+                if (get(context, hook.identifier) != null) {
                     handle.createStatement("UPDATE webhook SET code = :code WHERE project = :project AND identifier = :identifier")
-                            .bind("project", project)
+                            .bind("project", context.project)
                             .bind("identifier", hook.identifier)
                             .bind("code", hook.script)
                             .bind("image", hook.image)
@@ -370,11 +371,11 @@ public class WebHookHttpService
     @ApiOperation(value = "Delete hook", authorizations = @Authorization(value = "master_key"))
     @Path("/delete")
     @JsonRequest
-    public SuccessMessage delete(@Named("project") String project, @ApiParam("identifier") String identifier)
+    public SuccessMessage delete(@Named("project") RequestContext context, @ApiParam("identifier") String identifier)
     {
         try (Handle handle = dbi.open()) {
             int execute = handle.createStatement("DELETE FROM webhook WHERE project = :project AND identifier = :identifier")
-                    .bind("project", project)
+                    .bind("project", context.project)
                     .bind("identifier", identifier).execute();
             if (execute == 0) {
                 throw new RakamException(NOT_FOUND);
@@ -386,7 +387,12 @@ public class WebHookHttpService
     @ApiOperation(value = "Get hook", authorizations = @Authorization(value = "master_key"))
     @Path("/get")
     @JsonRequest
-    public WebHook get(@Named("project") String project, @ApiParam("identifier") String identifier)
+    public WebHook get(@Named("project") RequestContext context, @ApiParam("identifier") String identifier)
+    {
+        return get(context.project, identifier);
+    }
+
+    private WebHook get(String project, String identifier)
     {
         try (Handle handle = dbi.open()) {
             WebHook first = handle.createQuery("SELECT code, image, active, parameters FROM webhook WHERE project = :project AND identifier = :identifier")
@@ -413,11 +419,11 @@ public class WebHookHttpService
     @ApiOperation(value = "Get hook", authorizations = @Authorization(value = "master_key"))
     @Path("/list")
     @GET
-    public List<WebHook> list(@Named("project") String project)
+    public List<WebHook> list(@Named("project") RequestContext context)
     {
         try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT identifier, code, image, active, parameters FROM webhook WHERE project = :project")
-                    .bind("project", project)
+                    .bind("project", context.project)
                     .map(new ResultSetMapper<WebHook>()
                     {
                         @Override
@@ -433,9 +439,9 @@ public class WebHookHttpService
     @ApiOperation(value = "Get logs", authorizations = @Authorization(value = "master_key"))
     @JsonRequest
     @Path("/get_logs")
-    public List<JSCodeJDBCLoggerService.LogEntry> getLogs(@Named("project") String project, @ApiParam("identifier") String identifier, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end)
+    public List<JSCodeJDBCLoggerService.LogEntry> getLogs(@Named("project") RequestContext context, @ApiParam("identifier") String identifier, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end)
     {
-        return loggerService.getLogs(project, start, end, "webhook." + project + "." + identifier);
+        return loggerService.getLogs(context, start, end, "webhook." + context.project + "." + identifier);
     }
 
     @ApiOperation(value = "Test a webhook", authorizations = @Authorization(value = "master_key"))
@@ -444,7 +450,7 @@ public class WebHookHttpService
     public void test(
             RakamHttpRequest request,
             @HeaderParam(CONTENT_TYPE) String contentType,
-            @Named("project") String project,
+            @Named("project") RequestContext context,
             @ApiParam("script") String script,
             @ApiParam(value = "parameters", required = false) Map<String, Object> params,
             @ApiParam(value = "body", required = false) Object body)

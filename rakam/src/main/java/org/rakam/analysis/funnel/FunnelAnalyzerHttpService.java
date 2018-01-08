@@ -121,8 +121,8 @@ public class FunnelAnalyzerHttpService
     @POST
     @JsonRequest
     @Path("/analyze")
-    public CompletableFuture<QueryResult> analyzeFunnel(@Named("project") String project, @BodyParam FunnelQuery query) {
-        CompletableFuture<QueryResult> result = funnelQueryExecutor.query(new RequestContext(project, null),
+    public CompletableFuture<QueryResult> analyzeFunnel(@Named("project") RequestContext context, @BodyParam FunnelQuery query) {
+        CompletableFuture<QueryResult> result = funnelQueryExecutor.query(context,
                 query.steps,
                 Optional.ofNullable(query.dimension),
                 Optional.ofNullable(query.segment),

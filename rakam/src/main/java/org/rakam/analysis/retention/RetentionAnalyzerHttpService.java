@@ -82,8 +82,8 @@ public class RetentionAnalyzerHttpService
     @POST
     @JsonRequest
     @Path("/analyze")
-    public CompletableFuture<QueryResult> analyzeRetention(@Named("project") String project, @BodyParam RetentionQuery query) {
-        CompletableFuture<QueryResult> result = retentionQueryExecutor.query(new RequestContext(project, null),
+    public CompletableFuture<QueryResult> analyzeRetention(@Named("project") RequestContext context, @BodyParam RetentionQuery query) {
+        CompletableFuture<QueryResult> result = retentionQueryExecutor.query(context,
                 Optional.ofNullable(query.firstAction),
                 Optional.ofNullable(query.returningAction),
                 query.dateUnit,

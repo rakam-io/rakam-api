@@ -7,21 +7,15 @@ import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.BodyParam;
-import org.rakam.server.http.annotations.IgnoreApi;
-import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.*;
 import org.rakam.util.RakamException;
 import org.rakam.util.SuccessMessage;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -48,18 +42,18 @@ public class MaterializedViewHttpService
     @ApiOperation(value = "List views", authorizations = @Authorization(value = "read_key"))
 
     @Path("/list")
-    public List<MaterializedView> listViews(@javax.inject.Named("project") String project)
+    public List<MaterializedView> listViews(@Named("project") RequestContext context)
     {
-        return service.list(project);
+        return service.list(context.project);
     }
 
     @JsonRequest
     @ApiOperation(value = "Get schemas", authorizations = @Authorization(value = "read_key"))
     @Path("/schema")
-    public List<MaterializedViewSchema> getSchemaOfView(@javax.inject.Named("project") String project,
+    public List<MaterializedViewSchema> getSchemaOfView(@Named("project") RequestContext context,
             @ApiParam(value = "names", required = false) List<String> tableNames)
     {
-        return service.getSchemas(new RequestContext(project, null), Optional.ofNullable(tableNames)).entrySet().stream()
+        return service.getSchemas(context, Optional.ofNullable(tableNames)).entrySet().stream()
                 .map(entry -> new MaterializedViewSchema(entry.getKey(), entry.getValue()))
                 .collect(Collectors.toList());
     }
@@ -92,19 +86,19 @@ public class MaterializedViewHttpService
     @ApiOperation(value = "Create view", authorizations = @Authorization(value = "master_key"))
 
     @Path("/create")
-    public CompletableFuture<SuccessMessage> createView(@javax.inject.Named("project") String project, @BodyParam MaterializedView query)
+    public CompletableFuture<SuccessMessage> createView(@Named("project") RequestContext context, @BodyParam MaterializedView query)
     {
-        return service.create(new RequestContext(project, null), query).thenApply(res -> SuccessMessage.success());
+        return service.create(context, query).thenApply(res -> SuccessMessage.success());
     }
 
     @JsonRequest
     @ApiOperation(value = "Delete materialized view", authorizations = @Authorization(value = "master_key"))
 
     @Path("/delete")
-    public CompletableFuture<SuccessMessage> deleteView(@javax.inject.Named("project") String project,
+    public CompletableFuture<SuccessMessage> deleteView(@Named("project") RequestContext context,
             @ApiParam("table_name") String name)
     {
-        return service.delete(new RequestContext(project, null), name)
+        return service.delete(context, name)
                 .thenApply(result -> {
                     if (result.getError() == null) {
                         return SuccessMessage.success();
@@ -119,11 +113,11 @@ public class MaterializedViewHttpService
     @ApiOperation(value = "Change materialized view", authorizations = @Authorization(value = "master_key"))
 
     @Path("/change")
-    public SuccessMessage changeView(@javax.inject.Named("project") String project,
+    public SuccessMessage changeView(@Named("project") RequestContext context,
             @ApiParam("table_name") String tableName,
             @ApiParam("real_time") boolean realTime)
     {
-        service.changeView(project, tableName, realTime);
+        service.changeView(context.project, tableName, realTime);
         return SuccessMessage.success();
     }
 
@@ -160,9 +154,9 @@ public class MaterializedViewHttpService
     @ApiOperation(value = "Get view", authorizations = @Authorization(value = "read_key"))
 
     @Path("/get")
-    public MaterializedView getView(@javax.inject.Named("project") String project,
+    public MaterializedView getView(@Named("project") RequestContext context,
             @ApiParam("table_name") String tableName)
     {
-        return service.get(project, tableName);
+        return service.get(context.project, tableName);
     }
 }

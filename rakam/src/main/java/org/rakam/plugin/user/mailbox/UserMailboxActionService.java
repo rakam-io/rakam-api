@@ -50,7 +50,7 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
     @ApiOperation(value = "Apply batch operation", authorizations = @Authorization(value = "read_key"))
 
     @Path("/batch")
-    public CompletableFuture<Long> batchSendMessages(@Named("project") String project,
+    public CompletableFuture<Long> batchSendMessages(@Named("project") RequestContext context,
                                                      @ApiParam(value = "filter", required = false) String filter,
                                                      @ApiParam(value = "event_filters", required = false) List<EventFilter> event_filter,
                                                      @ApiParam("config") MailAction config) {
@@ -59,8 +59,8 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
 
         Expression expression = parseExpression(filter);
 
-        CompletableFuture<QueryResult> future = userService.searchUsers(new RequestContext(project, null), variables, expression, event_filter, null, 100000, null);
-        return batch(project, future, config);
+        CompletableFuture<QueryResult> future = userService.searchUsers(context, variables, expression, event_filter, null, 100000, null);
+        return batch(context.project, future, config);
     }
 
 
@@ -127,14 +127,14 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
             authorizations = @Authorization(value = "write_key")
     )
     @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
-    public Message sendMail(@Named("project") String project,
+    public Message sendMail(@Named("project") RequestContext context,
                         @ApiParam("from_user") String fromUser,
                         @ApiParam("to_user") String toUser,
                         @ApiParam(value = "parent", description = "Parent message id", required = false) Integer parent,
                         @ApiParam(value = "message", description = "The content of the message", required = false) String message,
                         @ApiParam(value = "timestamp", description = "The timestamp of the message") long datetime) {
         try {
-            return mailboxStorage.send(project, fromUser, toUser, parent, message, Instant.ofEpochMilli(datetime));
+            return mailboxStorage.send(context.project, fromUser, toUser, parent, message, Instant.ofEpochMilli(datetime));
         } catch (Exception e) {
             throw new RakamException("Error while sending message: "+e.getMessage(), HttpResponseStatus.BAD_REQUEST);
         }

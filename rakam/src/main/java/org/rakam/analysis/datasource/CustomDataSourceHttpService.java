@@ -8,16 +8,11 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import org.rakam.analysis.RequestContext;
 import org.rakam.collection.SchemaField;
-import org.rakam.plugin.Parameter;
 import org.rakam.presto.analysis.PrestoRakamRaptorMetastore;
 import org.rakam.server.http.HttpService;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.BodyParam;
-import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.*;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.SuccessMessage;
 
@@ -25,7 +20,6 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -70,9 +64,9 @@ public class CustomDataSourceHttpService
     @ApiOperation(value = "List data-sources", authorizations = @Authorization(value = "master_key"))
     @Path("/list")
     @GET
-    public CustomDataSourceService.CustomDataSourceList listDatabases(@Named("project") String project)
+    public CustomDataSourceService.CustomDataSourceList listDatabases(@Named("project") RequestContext context)
     {
-        CustomDataSourceService.CustomDataSourceList customDataSourceList = service.listDatabases(project);
+        CustomDataSourceService.CustomDataSourceList customDataSourceList = service.listDatabases(context.project);
         for (CustomDataSource customDataSource : customDataSourceList.customDataSources) {
             customDataSource.options.setPassword(null);
         }
@@ -82,88 +76,88 @@ public class CustomDataSourceHttpService
     @ApiOperation(value = "Schema of data-sources", authorizations = @Authorization(value = "read_key"))
     @Path("/schema/tables")
     @GET
-    public CompletableFuture<Map<String, List<String>>> schemaDatabases(@Named("project") String project)
+    public CompletableFuture<Map<String, List<String>>> schemaDatabases(@Named("project") RequestContext context)
     {
-        return service.schemaDatabases(project);
+        return service.schemaDatabases(context.project);
     }
 
     @ApiOperation(value = "Schema of table in data-sources", authorizations = @Authorization(value = "read_key"))
     @Path("/schema/table")
     @JsonRequest
-    public CompletableFuture<List<SchemaField>> schemaDatabases(@Named("project") String project, @ApiParam("schema") String schema, @ApiParam("table") String table)
+    public CompletableFuture<List<SchemaField>> schemaDatabases(@Named("project") RequestContext context, @ApiParam("schema") String schema, @ApiParam("table") String table)
     {
-        return service.schemaTable(project, schema, table);
+        return service.schemaTable(context.project, schema, table);
     }
 
     @ApiOperation(value = "Get data-source", authorizations = @Authorization(value = "master_key"))
     @Path("/get/database")
     @JsonRequest
-    public CustomDataSource getDatabase(@Named("project") String project, String schema)
+    public CustomDataSource getDatabase(@Named("project") RequestContext context, String schema)
     {
-        return service.getDatabase(project, schema);
+        return service.getDatabase(context.project, schema);
     }
 
     @ApiOperation(value = "Get data-source", authorizations = @Authorization(value = "master_key"))
     @Path("/get/file")
     @JsonRequest
-    public RemoteTable getFile(@Named("project") String project, String tableName)
+    public RemoteTable getFile(@Named("project") RequestContext context, String tableName)
     {
-        return service.getFile(project, tableName);
+        return service.getFile(context.project, tableName);
     }
 
     @ApiOperation(value = "Get file", authorizations = @Authorization(value = "master_key"))
     @Path("/list/file")
     @JsonRequest
-    public Map<String, RemoteTable> getFiles(@Named("project") String project)
+    public Map<String, RemoteTable> getFiles(@Named("project") RequestContext context)
     {
-        return service.getFiles(project);
+        return service.getFiles(context.project);
     }
 
     @ApiOperation(value = "Add data-source", authorizations = @Authorization(value = "master_key"))
     @Path("/add/database")
     @JsonRequest
-    public SuccessMessage addDatabase(@Named("project") String project, @BodyParam CustomDataSource hook)
+    public SuccessMessage addDatabase(@Named("project") RequestContext context, @BodyParam CustomDataSource hook)
     {
-        return service.addDatabase(project, hook);
+        return service.addDatabase(context.project, hook);
     }
 
     @ApiOperation(value = "Add file data-source", authorizations = @Authorization(value = "master_key"))
     @Path("/add/file")
     @JsonRequest
-    public SuccessMessage addFile(@Named("project") String project, @ApiParam("tableName") String tableName, @ApiParam("options") CustomDataSourceService.DiscoverableRemoteTable hook)
+    public SuccessMessage addFile(@Named("project") RequestContext context, @ApiParam("tableName") String tableName, @ApiParam("options") CustomDataSourceService.DiscoverableRemoteTable hook)
     {
-        return service.addFile(project, tableName, hook);
+        return service.addFile(context.project, tableName, hook);
     }
 
     @ApiOperation(value = "Add file data-source", authorizations = @Authorization(value = "master_key"))
     @Path("/remove/file")
     @JsonRequest
-    public SuccessMessage removeFile(@Named("project") String project, @ApiParam("tableName") String tableName)
+    public SuccessMessage removeFile(@Named("project") RequestContext context, @ApiParam("tableName") String tableName)
     {
-        return service.removeFile(project, tableName);
+        return service.removeFile(context.project, tableName);
     }
 
     @ApiOperation(value = "Add file data-source", authorizations = @Authorization(value = "master_key"))
     @Path("/remove/database")
     @JsonRequest
-    public SuccessMessage removeDatabase(@Named("project") String project, @ApiParam("schemaName") String schemaName)
+    public SuccessMessage removeDatabase(@Named("project") RequestContext context, @ApiParam("schemaName") String schemaName)
     {
-        return service.removeDatabase(project, schemaName);
+        return service.removeDatabase(context.project, schemaName);
     }
 
     @ApiOperation(value = "Test database", authorizations = @Authorization(value = "master_key"))
     @Path("/test/database")
     @JsonRequest
-    public SuccessMessage testDatabase(@Named("project") String project, @ApiParam("type") String type, @ApiParam(value = "options") JDBCSchemaConfig options)
+    public SuccessMessage testDatabase(@Named("project") RequestContext context, @ApiParam("type") String type, @ApiParam(value = "options") JDBCSchemaConfig options)
     {
-        return service.testDatabase(project, type, options);
+        return service.testDatabase(context.project, type, options);
     }
 
     @ApiOperation(value = "Test database", authorizations = @Authorization(value = "master_key"))
     @Path("/test/file")
     @JsonRequest
-    public SuccessMessage testFile(@Named("project") String project, @BodyParam CustomDataSourceService.DiscoverableRemoteTable hook)
+    public SuccessMessage testFile(@Named("project") RequestContext context, @BodyParam CustomDataSourceService.DiscoverableRemoteTable hook)
     {
-        return service.testFile(project, hook);
+        return service.testFile(context.project, hook);
     }
 }

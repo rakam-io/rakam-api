@@ -1,6 +1,7 @@
 package org.rakam.analysis.suggestion;
 
 
+import org.rakam.analysis.RequestContext;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.server.http.HttpService;
@@ -18,7 +19,7 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static org.rakam.analysis.suggestion.AttributeHook.TABLE_NAME;
-import static org.rakam.util.ValidationUtil.*;
+import static org.rakam.util.ValidationUtil.checkLiteral;
 
 @Path("/suggestion")
 @Api(value = "/suggestion", nickname = "query", description = "Auto-suggestion", tags = "query")
@@ -38,7 +39,7 @@ public class AutoSuggestionHttpService extends HttpService {
     @ApiOperation(value = "Get possible attribute values",
             authorizations = @Authorization(value = "read_key"))
     @Path("/get")
-    public CompletableFuture<List<String>> attributes(@Named("project") String project,
+    public CompletableFuture<List<String>> attributes(@Named("project") RequestContext context,
                                                       @ApiParam("collection") String collection,
                                                       @ApiParam("attribute") String attribute,
                                                       @ApiParam(value = "startDate", required = false) LocalDate startDate,
@@ -62,10 +63,10 @@ public class AutoSuggestionHttpService extends HttpService {
 
         QueryExecution queryExecution;
         try {
-            queryExecution = queryExecutorService.executeQuery(project, query, ZoneOffset.UTC);
+            queryExecution = queryExecutorService.executeQuery(context.project, query, ZoneOffset.UTC);
         } catch (NotExistsException e) {
-            hook.add(project, collection);
-            queryExecution = queryExecutorService.executeQuery(project, query, ZoneOffset.UTC);
+            hook.add(context.project, collection);
+            queryExecution = queryExecutorService.executeQuery(context.project, query, ZoneOffset.UTC);
         }
         return queryExecution.getResult().thenApply(value -> value.getResult().stream().map(e -> (String) e.get(0))
                         .collect(Collectors.toList()));

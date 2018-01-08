@@ -16,23 +16,15 @@ import org.rakam.util.SuccessMessage;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.Query;
-import org.skife.jdbi.v2.StatementContext;
-import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Named;
-
 import java.net.URL;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -90,7 +82,7 @@ public class CustomDataSourceService
         }
     }
 
-    public CustomDataSourceList listDatabases(@Named("project") String project)
+    public CustomDataSourceList listDatabases(String project)
     {
         try (Handle handle = dbi.open()) {
             List<CustomDataSource> customDataSources = handle.createQuery("SELECT schema_name, type, options FROM custom_data_source WHERE project = :project")
@@ -185,7 +177,7 @@ public class CustomDataSourceService
         }, executor);
     }
 
-    public CustomDataSource getDatabase(@Named("project") String project, String schema)
+    public CustomDataSource getDatabase(String project, String schema)
     {
         try (Handle handle = dbi.open()) {
             Query<Map<String, Object>> bind = handle.createQuery("SELECT type, options FROM custom_data_source WHERE project = :project AND lower(schema_name) = :schema_name")
@@ -213,7 +205,7 @@ public class CustomDataSourceService
         }
     }
 
-    public RemoteTable getFile(@Named("project") String project, String tableName)
+    public RemoteTable getFile(String project, String tableName)
     {
         try (Handle handle = dbi.open()) {
             Query<Map<String, Object>> bind = handle.createQuery("SELECT options FROM custom_file_source WHERE project = :project AND table_name = :table_name")
@@ -232,7 +224,7 @@ public class CustomDataSourceService
         }
     }
 
-    public Map<String, RemoteTable> getFiles(@Named("project") String project)
+    public Map<String, RemoteTable> getFiles(String project)
     {
         try (Handle handle = dbi.open()) {
             Query<Map<String, Object>> bind = handle.createQuery("SELECT table_name, options FROM custom_file_source WHERE project = :project")
@@ -249,7 +241,7 @@ public class CustomDataSourceService
         }
     }
 
-    public SuccessMessage addDatabase(@Named("project") String project, CustomDataSource hook)
+    public SuccessMessage addDatabase(String project, CustomDataSource hook)
     {
         try (Handle handle = dbi.open()) {
             try {
@@ -279,7 +271,7 @@ public class CustomDataSourceService
         }
     }
 
-    public SuccessMessage addFile(@Named("project") String project, @ApiParam("tableName") String tableName, @ApiParam("options") DiscoverableRemoteTable hook)
+    public SuccessMessage addFile(String project, @ApiParam("tableName") String tableName, @ApiParam("options") DiscoverableRemoteTable hook)
     {
         try (Handle handle = dbi.open()) {
             try {

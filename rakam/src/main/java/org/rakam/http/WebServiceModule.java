@@ -21,6 +21,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.rakam.ServiceStarter;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.CustomParameter;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.RequestPreProcessorItem;
 import org.rakam.server.http.*;
 import org.rakam.server.http.HttpServerBuilder.IRequestParameterFactory;
@@ -34,6 +35,7 @@ import java.lang.reflect.Method;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_CREDENTIALS;
@@ -205,7 +207,8 @@ public class WebServiceModule
                             "query parameter is missing.", FORBIDDEN);
                 }
             }
-            return apiKeyService.getProjectOfApiKey(apiKey, type);
+            String project = apiKeyService.getProjectOfApiKey(apiKey, type);
+            return new RequestContext(project.toLowerCase(Locale.ENGLISH), apiKey);
         }
     }
 }

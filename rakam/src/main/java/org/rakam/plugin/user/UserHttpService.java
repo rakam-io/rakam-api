@@ -100,10 +100,10 @@ public class UserHttpService
     @JsonRequest
     @ApiOperation(value = "Create multiple new users", authorizations = @Authorization(value = "write_key"), notes = "Returns user ids. User id may be string or numeric.")
     @Path("/batch/create")
-    public List<Object> createUsers(@Named("project") String project, @ApiParam("users") List<User> users)
+    public List<Object> createUsers(@Named("project") RequestContext context, @ApiParam("users") List<User> users)
     {
         try {
-            return service.batchCreate(new RequestContext(project, null), users);
+            return service.batchCreate(context, users);
         }
         catch (Exception e) {
             throw new RakamException(e.getMessage(), BAD_REQUEST);
@@ -114,9 +114,9 @@ public class UserHttpService
     @ApiOperation(value = "Get user storage metadata", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
     @Path("/metadata")
-    public MetadataResponse getMetadata(@Named("project") String project)
+    public MetadataResponse getMetadata(@Named("project") RequestContext context)
     {
-        return new MetadataResponse(config.getIdentifierColumn(), service.getMetadata(new RequestContext(project, null)));
+        return new MetadataResponse(config.getIdentifierColumn(), service.getMetadata(context));
     }
 
     public static class MetadataResponse
@@ -153,7 +153,7 @@ public class UserHttpService
     @ApiOperation(value = "Search users", authorizations = @Authorization(value = "read_key"))
 
     @Path("/search")
-    public CompletableFuture<QueryResult> searchUsers(@Named("project") String project,
+    public CompletableFuture<QueryResult> searchUsers(@Named("project") RequestContext context,
             @ApiParam(value = "columns", required = false) List<String> columns,
             @ApiParam(value = "filter", required = false) String filter,
             @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
@@ -165,7 +165,7 @@ public class UserHttpService
 
         limit = limit == null ? 100 : Math.min(5000, limit);
 
-        return service.searchUsers(new RequestContext(project, null), columns, expression, event_filter, sorting, limit, offset);
+        return service.searchUsers(context, columns, expression, event_filter, sorting, limit, offset);
     }
 
     @POST
@@ -173,13 +173,13 @@ public class UserHttpService
     @ApiOperation(value = "Get events of the user", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/get_events")
-    public CompletableFuture<List<CollectionEvent>> getEvents(@Named("project") String project,
+    public CompletableFuture<List<CollectionEvent>> getEvents(@Named("project") RequestContext context,
             @ApiParam("user") String user,
             @ApiParam(value = "limit", required = false) Integer limit,
             @ApiParam(value = "properties", required = false) List<String> properties,
             @ApiParam(value = "offset", required = false) Instant offset)
     {
-        return service.getEvents(new RequestContext(project, null), user,
+        return service.getEvents(context, user,
                 properties == null ? Optional.empty() : Optional.of(properties),
                 limit == null ? 15 : limit, offset);
     }
@@ -189,7 +189,7 @@ public class UserHttpService
     @ApiOperation(value = "Get events of the user", authorizations = @Authorization(value = "master_key"))
     @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/create_segment")
-    public SuccessMessage createSegment(@Named("project") String project,
+    public SuccessMessage createSegment(@Named("project") RequestContext context,
             @ApiParam("name") String name,
             @ApiParam("table_name") String tableName,
             @ApiParam(value = "filter_expression", required = false) String filterExpression,
@@ -207,7 +207,7 @@ public class UserHttpService
             }
         }
 
-        service.createSegment(new RequestContext(project, null), name, tableName, expression, eventFilters, duration);
+        service.createSegment(context, name, tableName, expression, eventFilters, duration);
 
         return SuccessMessage.success();
     }
@@ -216,9 +216,9 @@ public class UserHttpService
     @ApiOperation(value = "Get user", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/get")
-    public CompletableFuture<User> getUser(@Named("project") String project, @ApiParam("user") Object user)
+    public CompletableFuture<User> getUser(@Named("project") RequestContext context, @ApiParam("user") Object user)
     {
-        return service.getUser(new RequestContext(project, null), user);
+        return service.getUser(context, user);
     }
 
     public static class MergeRequest

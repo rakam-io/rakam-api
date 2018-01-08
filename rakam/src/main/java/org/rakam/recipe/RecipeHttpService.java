@@ -16,12 +16,12 @@ import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.ApiKeyService;
+import org.rakam.analysis.RequestContext;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.util.JsonHelper;
@@ -34,9 +34,7 @@ import javax.ws.rs.Path;
 import java.io.IOException;
 import java.util.Arrays;
 
-import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN;
-import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
-import static io.netty.handler.codec.http.HttpHeaders.Names.ORIGIN;
+import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
@@ -114,9 +112,9 @@ public class RecipeHttpService extends HttpService {
     )
     @GET
     @Path("/export")
-    public void exportRecipe(@HeaderParam("Accept") String contentType, @Named("project") String project, RakamHttpRequest request) throws JsonProcessingException {
+    public void exportRecipe(@HeaderParam("Accept") String contentType, @Named("project") RequestContext context, RakamHttpRequest request) throws JsonProcessingException {
         request.bodyHandler(s -> {
-            Recipe export = installer.export(project);
+            Recipe export = installer.export(context.project);
 
             ExportType exportType = Arrays.stream(ExportType.values())
                     .filter(f -> f.contentType.equals(contentType))

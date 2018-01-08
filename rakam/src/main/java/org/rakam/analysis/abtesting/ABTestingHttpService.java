@@ -1,15 +1,10 @@
 package org.rakam.analysis.abtesting;
 
 import org.rakam.analysis.ApiKeyService;
+import org.rakam.analysis.RequestContext;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.BodyParam;
-import org.rakam.server.http.annotations.IgnoreApi;
-import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.*;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.SuccessMessage;
 
@@ -38,15 +33,15 @@ public class ABTestingHttpService extends HttpService {
     @GET
     @ApiOperation(value = "List reports", authorizations = @Authorization(value = "read_key"))
     @Path("/list")
-    public List<ABTestingReport> list(@Named("project") String project) {
-        return metadata.getReports(project);
+    public List<ABTestingReport> list(@Named("project") RequestContext context) {
+        return metadata.getReports(context.project);
     }
 
     @JsonRequest
     @ApiOperation(value = "Create test", authorizations = @Authorization(value = "master_key"))
     @Path("/create")
-    public SuccessMessage create(@Named("project") String project, @BodyParam ABTestingReport report) {
-        metadata.save(project, report);
+    public SuccessMessage create(@Named("project") RequestContext context, @BodyParam ABTestingReport report) {
+        metadata.save(context.project, report);
         return SuccessMessage.success();
     }
 
@@ -72,23 +67,23 @@ public class ABTestingHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Delete report", authorizations = @Authorization(value = "master_key"))
     @Path("/delete")
-    public SuccessMessage delete(@Named("project") String project,
+    public SuccessMessage delete(@Named("project") RequestContext context,
                                @ApiParam("id") int id) {
-        metadata.delete(project, id);
+        metadata.delete(context.project, id);
         return SuccessMessage.success();
     }
 
     @JsonRequest
     @ApiOperation(value = "Get report", authorizations = @Authorization(value = "read_key"))
     @Path("/get")
-    public ABTestingReport get(@Named("project") String project, @ApiParam("id") int id) {
-        return metadata.get(project, id);
+    public ABTestingReport get(@Named("project") RequestContext context, @ApiParam("id") int id) {
+        return metadata.get(context.project, id);
     }
 
     @JsonRequest
     @ApiOperation(value = "Update report", authorizations = @Authorization(value = "master_key"))
     @Path("/update")
-    public ABTestingReport update(@Named("project") String project, @BodyParam ABTestingReport report) {
-        return metadata.update(project, report);
+    public ABTestingReport update(@Named("project") RequestContext context, @BodyParam ABTestingReport report) {
+        return metadata.update(context.project, report);
     }
 }

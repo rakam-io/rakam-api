@@ -1,18 +1,14 @@
 package org.rakam.plugin.user;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.RequestContext;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.EmailClientConfig;
 import org.rakam.report.QueryResult;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.*;
 import org.rakam.util.MailSender;
 import org.rakam.util.RakamException;
 import org.rakam.util.StringTemplate;
@@ -22,7 +18,6 @@ import javax.inject.Named;
 import javax.mail.MessagingException;
 import javax.mail.internet.AddressException;
 import javax.ws.rs.Path;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,15 +48,15 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
     @ApiOperation(value = "Apply batch operation", authorizations = @Authorization(value = "read_key"))
 
     @Path("/batch")
-    public CompletableFuture<Long> batch(@Named("project") String project,
+    public CompletableFuture<Long> batch(@Named("project") RequestContext context,
                                          @ApiParam(value = "filter", required = false) String filter,
                                          @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
                                          @ApiParam("config") EmailActionConfig config) {
         List<String> variables = new StringTemplate(config.content).getVariables();
         variables.add(config.columnName);
 
-        CompletableFuture<QueryResult> future = httpService.searchUsers(project, variables, filter, event_filter, null, null, 100000);
-        return batch(project, future, config);
+        CompletableFuture<QueryResult> future = httpService.searchUsers(context, variables, filter, event_filter, null, null, 100000);
+        return batch(context.project, future, config);
     }
 
     public static class EmailActionConfig {
@@ -152,10 +147,10 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
     @ApiOperation(value = "Perform action for single user", authorizations = @Authorization(value = "read_key"))
 
     @Path("/single")
-    public CompletableFuture<Boolean> send(@Named("project") String project,
+    public CompletableFuture<Boolean> send(@Named("project") RequestContext context,
                                            @ApiParam("user") String userId,
                                            @ApiParam("config") EmailActionConfig config) {
-        return httpService.getUser(project, userId).thenApply(user -> send(project, user, config));
+        return httpService.getUser(context, userId).thenApply(user -> send(context.project, user, config));
     }
 
     @Override

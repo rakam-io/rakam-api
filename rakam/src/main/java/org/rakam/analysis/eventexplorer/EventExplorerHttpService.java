@@ -68,15 +68,14 @@ public class EventExplorerHttpService
     @JsonRequest
     @Path("/statistics")
     public CompletableFuture<QueryResult> getEventStatistics(RakamHttpRequest request,
-                                                             @Named("project") String project,
-                                                             @QueryParam("read_key") String readKey,
+                                                             @Named("project") RequestContext context,
                                                              @ApiParam(value = "collections", required = false) Set<String> collections,
                                                              @ApiParam(value = "dimension", required = false) String dimension,
                                                              @ApiParam("startDate") LocalDate startDate,
                                                              @ApiParam("endDate") LocalDate endDate,
                                                              @ApiParam(value = "timezone", required = false) ZoneId timezone) {
         timezone = timezone == null ? ZoneOffset.UTC : timezone;
-        CompletableFuture<QueryResult> eventStatistics = eventExplorer.getEventStatistics(new RequestContext(project, readKey),
+        CompletableFuture<QueryResult> eventStatistics = eventExplorer.getEventStatistics(context,
                 Optional.ofNullable(collections),
                 Optional.ofNullable(dimension),
                 startDate, endDate,
@@ -100,8 +99,8 @@ public class EventExplorerHttpService
     )
     @Path("/extra_dimensions")
     @JsonRequest
-    public Map<String, List<String>> getExtraDimensions(@Named("project") String project) {
-        return eventExplorer.getExtraDimensions(project);
+    public Map<String, List<String>> getExtraDimensions(@Named("project") RequestContext context) {
+        return eventExplorer.getExtraDimensions(context.project);
     }
 
     @ApiOperation(value = "Perform simple query on event data",
@@ -109,10 +108,10 @@ public class EventExplorerHttpService
     )
     @JsonRequest
     @Path("/analyze")
-    public CompletableFuture<QueryResult> analyzeEvents(@Named("project") String project, @QueryParam("read_key") String readKey, @BodyParam AnalyzeRequest analyzeRequest) {
+    public CompletableFuture<QueryResult> analyzeEvents(@Named("project") RequestContext context, @QueryParam("read_key") String readKey, @BodyParam AnalyzeRequest analyzeRequest) {
         checkArgument(!analyzeRequest.collections.isEmpty(), "collections array is empty");
 
-        return eventExplorer.analyze(new RequestContext(project, readKey), analyzeRequest.collections,
+        return eventExplorer.analyze(context, analyzeRequest.collections,
                 analyzeRequest.measure, analyzeRequest.grouping,
                 analyzeRequest.segment, analyzeRequest.filterExpression,
                 analyzeRequest.startDate, analyzeRequest.endDate,
@@ -124,8 +123,8 @@ public class EventExplorerHttpService
     )
     @JsonRequest
     @Path("/pre_calculate")
-    public CompletableFuture<AbstractEventExplorer.PrecalculatedTable> createPrecomputedTable(@Named("project") String project, @BodyParam OLAPTable table) {
-        return eventExplorer.create(new RequestContext(project, null), table);
+    public CompletableFuture<AbstractEventExplorer.PrecalculatedTable> createPrecomputedTable(@Named("project") RequestContext context, @BodyParam OLAPTable table) {
+        return eventExplorer.create(context, table);
     }
 
     @ApiOperation(value = "Perform simple query on event data",
