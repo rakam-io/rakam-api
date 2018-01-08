@@ -11,6 +11,7 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.ws.rs.Path;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -61,10 +62,10 @@ public class AutoSuggestionHttpService extends HttpService {
 
         QueryExecution queryExecution;
         try {
-            queryExecution = queryExecutorService.executeQuery(project, query);
+            queryExecution = queryExecutorService.executeQuery(project, query, ZoneOffset.UTC);
         } catch (NotExistsException e) {
             hook.add(project, collection);
-            queryExecution = queryExecutorService.executeQuery(project, query);
+            queryExecution = queryExecutorService.executeQuery(project, query, ZoneOffset.UTC);
         }
         return queryExecution.getResult().thenApply(value -> value.getResult().stream().map(e -> (String) e.get(0))
                         .collect(Collectors.toList()));

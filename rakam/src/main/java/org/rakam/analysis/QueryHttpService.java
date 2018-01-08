@@ -33,13 +33,7 @@ import org.rakam.report.QueryStats;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.Response;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.BodyParam;
-import org.rakam.server.http.annotations.IgnoreApi;
-import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.*;
 import org.rakam.util.ExportUtil;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.LogUtil;
@@ -111,12 +105,13 @@ public class QueryHttpService
             @BodyParam QueryRequest query)
     {
         QueryExecution queryExecution = executorService.executeQuery(
-                project,
+                new RequestContext(project, null),
                 query.query,
                 query.sample,
                 query.defaultSchema,
                 query.timezone,
                 query.limit == null ? DEFAULT_QUERY_RESULT_COUNT : query.limit);
+
         return queryExecution
                 .getResult().thenApply(result -> {
                     RakamClient.logEvent("run_query",
@@ -145,10 +140,10 @@ public class QueryHttpService
     public void export(RakamHttpRequest request, @Named("project") String project, @BodyParam QueryRequest query)
     {
         String apiKey = request.headers().get("read_key");
-        executorService.executeQuery(project, query.query,
+        executorService.executeQuery(new RequestContext(project, apiKey), query.query,
                 query.sample, query.defaultSchema,
                 query.timezone,
-                query.limit == null ? DEFAULT_QUERY_RESULT_COUNT : query.limit, apiKey)
+                query.limit == null ? DEFAULT_QUERY_RESULT_COUNT : query.limit)
 
                 .getResult().thenAccept(result -> {
             if (result.isFailed()) {
@@ -197,7 +192,7 @@ public class QueryHttpService
     public void execute(RakamHttpRequest request)
     {
         handleServerSentQueryExecution(request, QueryRequest.class, (project, query) ->
-                executorService.executeQuery(project, query.query,
+                executorService.executeQuery(new RequestContext(project, null), query.query,
                         query.sample,
                         query.defaultSchema,
                         query.timezone,
@@ -436,7 +431,7 @@ public class QueryHttpService
     @Path("/metadata")
     public CompletableFuture<List<SchemaField>> metadata(@javax.inject.Named("project") String project, @ApiParam("query") String query)
     {
-        return executorService.metadata(project, query);
+        return executorService.metadata(new RequestContext(project, null), query);
     }
 
     private ResponseQuery parseQuerySpecification(QuerySpecification queryBody, Optional<String> limitOutside, List<SortItem> orderByOutside, Map<String, NodeLocation> with)

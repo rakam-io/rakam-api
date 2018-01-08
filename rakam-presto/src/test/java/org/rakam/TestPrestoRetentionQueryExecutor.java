@@ -31,7 +31,7 @@ public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor
         metastore = new PrestoRakamRaptorMetastore(testingEnvironment.getPrestoMetastore(), new EventBus(), new ProjectConfig(), prestoConfig);
         metastore.setup();
 
-        PrestoQueryExecutor queryExecutor = new PrestoQueryExecutor(new ProjectConfig(), prestoConfig, null, null, metastore);
+        PrestoQueryExecutor queryExecutor = new PrestoQueryExecutor(new ProjectConfig(), prestoConfig, null, metastore);
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(
                 new PrestoConfig(),
                 queryExecutor, metastore, queryMetadataStore, Clock.systemUTC());

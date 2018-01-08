@@ -5,6 +5,7 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.*;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
@@ -57,9 +58,9 @@ public class PrestoMaterializedViewService
     }
 
     @Override
-    public Map<String, List<SchemaField>> getSchemas(String project, Optional<List<String>> names)
+    public Map<String, List<SchemaField>> getSchemas(RequestContext context, Optional<List<String>> names)
     {
-        Stream<Map.Entry<String, List<SchemaField>>> views = metastore.getSchemas(project, e -> e.startsWith(MATERIALIZED_VIEW_PREFIX))
+        Stream<Map.Entry<String, List<SchemaField>>> views = metastore.getSchemas(context.project, e -> e.startsWith(MATERIALIZED_VIEW_PREFIX))
                 .entrySet()
                 .stream().filter(e -> e.getKey().startsWith(MATERIALIZED_VIEW_PREFIX));
         if (names.isPresent()) {
@@ -70,13 +71,13 @@ public class PrestoMaterializedViewService
     }
 
     @Override
-    public List<SchemaField> getSchema(String project, String tableName)
+    public List<SchemaField> getSchema(RequestContext context, String tableName)
     {
-        return metastore.getCollection(project, MATERIALIZED_VIEW_PREFIX + tableName);
+        return metastore.getCollection(context.project, MATERIALIZED_VIEW_PREFIX + tableName);
     }
 
     @Override
-    public CompletableFuture<Void> create(String project, MaterializedView materializedView)
+    public CompletableFuture<Void> create(RequestContext context, MaterializedView materializedView)
     {
         Query statement = (Query) sqlParser.createStatement(materializedView.query);
         QuerySpecification queryBody = (QuerySpecification) statement.getQueryBody();
@@ -95,17 +96,17 @@ public class PrestoMaterializedViewService
 
         StringBuilder builder = new StringBuilder();
         HashMap<String, String> map = new HashMap<>();
-        new RakamSqlFormatter.Formatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName, Optional.empty(), map), '"')
+        new RakamSqlFormatter.Formatter(builder, qualifiedName -> queryExecutor.formatTableReference(context.project, qualifiedName, Optional.empty(), map), '"')
                 .process(statement, 1);
 
         QueryExecution execution = queryExecutor
-                .executeRawStatement(format("create table %s as %s limit 0",
-                        queryExecutor.formatTableReference(project,
+                .executeRawStatement(context, format("create table %s as %s limit 0",
+                        queryExecutor.formatTableReference(context.project,
                                 QualifiedName.of("materialized", materializedView.tableName), Optional.empty(), ImmutableMap.of()), builder.toString(), Optional.empty()), map);
 
         return execution.getResult().thenAccept(result -> {
             try {
-                get(project, materializedView.tableName);
+                get(context.project, materializedView.tableName);
                 throw new AlreadyExistsException("Materialized view", BAD_REQUEST);
             }
             catch (NotExistsException e) {
@@ -115,18 +116,18 @@ public class PrestoMaterializedViewService
                 throw new RakamException(result.getError().message, INTERNAL_SERVER_ERROR);
             }
             else {
-                database.createMaterializedView(project, materializedView);
+                database.createMaterializedView(context.project, materializedView);
             }
         });
     }
 
     @Override
-    public CompletableFuture<QueryResult> delete(String project, String name)
+    public CompletableFuture<QueryResult> delete(RequestContext context, String name)
     {
-        MaterializedView materializedView = database.getMaterializedView(project, name);
-        database.deleteMaterializedView(project, name);
-        String reference = queryExecutor.formatTableReference(project, QualifiedName.of("materialized", materializedView.tableName), Optional.empty(), ImmutableMap.of());
-        return queryExecutor.executeRawQuery(format("DROP TABLE %s", reference)).getResult().thenApply(result -> {
+        MaterializedView materializedView = database.getMaterializedView(context.project, name);
+        database.deleteMaterializedView(context.project, name);
+        String reference = queryExecutor.formatTableReference(context.project, QualifiedName.of("materialized", materializedView.tableName), Optional.empty(), ImmutableMap.of());
+        return queryExecutor.executeRawQuery(context, format("DROP TABLE %s", reference)).getResult().thenApply(result -> {
             if (result.isFailed()) {
                 throw new RakamException("Error while deleting materialized table: " + result.getError().toString(), INTERNAL_SERVER_ERROR);
             }
@@ -135,30 +136,30 @@ public class PrestoMaterializedViewService
     }
 
     @Override
-    public MaterializedViewExecution lockAndUpdateView(String project, MaterializedView materializedView)
+    public MaterializedViewExecution lockAndUpdateView(RequestContext context, MaterializedView materializedView)
     {
         CompletableFuture<Instant> f = new CompletableFuture<>();
 
-        String tableName = queryExecutor.formatTableReference(project,
+        String tableName = queryExecutor.formatTableReference(context.project,
                 QualifiedName.of("materialized", materializedView.tableName), Optional.empty(), ImmutableMap.of());
         Query statement = (Query) sqlParser.createStatement(materializedView.query);
 
         Map<String, String> sessionProperties = new HashMap<>();
         if (!materializedView.incremental) {
-            if (!materializedView.needsUpdate(clock) || !database.updateMaterializedView(project, materializedView, f)) {
+            if (!materializedView.needsUpdate(clock) || !database.updateMaterializedView(context.project, materializedView, f)) {
                 return new MaterializedViewExecution(null, tableName);
             }
 
-            QueryResult join = queryExecutor.executeRawStatement(format("DELETE FROM %s", tableName)).getResult().join();
+            QueryResult join = queryExecutor.executeRawStatement(context, format("DELETE FROM %s", tableName)).getResult().join();
             if (join.isFailed()) {
                 throw new RakamException("Failed to delete table: " + join.getError().toString(), INTERNAL_SERVER_ERROR);
             }
             StringBuilder builder = new StringBuilder();
 
             new RakamSqlFormatter.Formatter(builder, name ->
-                    queryExecutor.formatTableReference(project, name, Optional.empty(),
+                    queryExecutor.formatTableReference(context.project, name, Optional.empty(),
                     sessionProperties), '"').process(statement, 1);
-            QueryExecution execution = queryExecutor.executeRawStatement(format("INSERT INTO %s %s", tableName, builder.toString()), sessionProperties);
+            QueryExecution execution = queryExecutor.executeRawStatement(context, format("INSERT INTO %s %s", tableName, builder.toString()), sessionProperties);
             execution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? Instant.now() : null));
             return new MaterializedViewExecution(execution, tableName);
         }
@@ -178,7 +179,7 @@ public class PrestoMaterializedViewService
             Instant now = Instant.now();
 
             QueryExecution queryExecution;
-            if (materializedView.needsUpdate(clock) && database.updateMaterializedView(project, materializedView, f)) {
+            if (materializedView.needsUpdate(clock) && database.updateMaterializedView(context.project, materializedView, f)) {
                 String query = formatSql(statement,
                         name -> {
                             String predicate = lastUpdated != null ? String.format("between from_unixtime(%d) and from_unixtime(%d)",
@@ -186,12 +187,12 @@ public class PrestoMaterializedViewService
                                     String.format(" < from_unixtime(%d)", now.getEpochSecond());
 
                             return format("(SELECT * FROM %s WHERE %s %s)",
-                                    queryExecutor.formatTableReference(project, name, Optional.empty(), sessionProperties),
+                                    queryExecutor.formatTableReference(context.project, name, Optional.empty(), sessionProperties),
                                     checkTableColumn(prestoConfig.getCheckpointColumn()),
                                     predicate);
                         }, '"');
 
-                queryExecution = queryExecutor.executeRawStatement(format("INSERT INTO %s %s", materializedTableReference, query), sessionProperties);
+                queryExecution = queryExecutor.executeRawStatement(context, format("INSERT INTO %s %s", materializedTableReference, query), sessionProperties);
                 queryExecution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? now : null));
             }
             else {
@@ -207,7 +208,7 @@ public class PrestoMaterializedViewService
                 String query = formatSql(statement,
                         name -> {
                             String collection = format("(SELECT * FROM %s %s) data",
-                                    queryExecutor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of()),
+                                    queryExecutor.formatTableReference(context.project, name, Optional.empty(), ImmutableMap.of()),
                                     format("WHERE %s > from_unixtime(%d)",
                                             checkTableColumn(prestoConfig.getCheckpointColumn()),
                                             (lastUpdated != null ? lastUpdated : now).getEpochSecond()));

@@ -14,7 +14,6 @@
 package org.rakam.analysis;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
@@ -22,18 +21,12 @@ import org.rakam.config.ProjectConfig;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
-import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -65,7 +58,7 @@ public abstract class AbstractFunnelQueryExecutor
     public abstract String convertFunnel(String project, String connectorField, int idx, FunnelStep funnelStep, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate);
 
     @Override
-    public QueryExecution query(String project,
+    public QueryExecution query(RequestContext context,
             List<FunnelStep> steps,
             Optional<String> dimension,
             Optional<String> segment,
@@ -74,7 +67,7 @@ public abstract class AbstractFunnelQueryExecutor
             Optional<List<String>> connectors,
             FunnelType type)
     {
-        Map<String, List<SchemaField>> collections = metastore.getCollections(project);
+        Map<String, List<SchemaField>> collections = metastore.getCollections(context.project);
 
         if(dimension.isPresent()) {
             if(dimension.get().equals(projectConfig.getTimeColumn())) {
@@ -82,7 +75,7 @@ public abstract class AbstractFunnelQueryExecutor
                     throw new RakamException("When dimension is time, segmenting should be done on timestamp field.", BAD_REQUEST);
                 }
             }
-            if(metastore.getCollections(project).entrySet().stream()
+            if(metastore.getCollections(context.project).entrySet().stream()
                     .filter(c -> !c.getValue().contains(dimension.get())).findAny().get().getValue().stream()
                     .filter(d -> d.getName().equals(dimension.get())).findAny().get().getType().getPrettyName().equals("TIMESTAMP")) {
                 if(!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
@@ -96,7 +89,7 @@ public abstract class AbstractFunnelQueryExecutor
 
         String ctes = IntStream.range(0, steps.size())
                 .mapToObj(i -> convertFunnel(
-                        project, connectors.orElse(ImmutableList.of(testDeviceIdExists(steps.get(i), collections) ? ("coalesce(cast(%s." + checkTableColumn(projectConfig.getUserColumn()) + " as varchar), _device_id) as " + checkTableColumn(projectConfig.getUserColumn())) : projectConfig.getUserColumn()))
+                        context.project, connectors.orElse(ImmutableList.of(testDeviceIdExists(steps.get(i), collections) ? ("coalesce(cast(%s." + checkTableColumn(projectConfig.getUserColumn()) + " as varchar), _device_id) as " + checkTableColumn(projectConfig.getUserColumn())) : projectConfig.getUserColumn()))
                                 .stream().collect(Collectors.joining(", ")), i,
                         steps.get(i), dimension, segment, startDate, endDate))
                 .collect(Collectors.joining(" UNION ALL "));
@@ -115,7 +108,7 @@ public abstract class AbstractFunnelQueryExecutor
                             "(select *, row_number() OVER(ORDER BY total DESC) rank from (%s) t) t GROUP BY 1, 2",
                     dimension.map(v -> checkTableColumn(v+segment2)).get(), query);
         }
-        QueryExecution queryExecution = executor.executeRawQuery(query, timezone);
+        QueryExecution queryExecution = executor.executeRawQuery(context, query, timezone);
 
         return new DelegateQueryExecution(queryExecution,
                 result -> {

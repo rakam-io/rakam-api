@@ -59,7 +59,7 @@ public class MaterializedViewHttpService
     public List<MaterializedViewSchema> getSchemaOfView(@javax.inject.Named("project") String project,
             @ApiParam(value = "names", required = false) List<String> tableNames)
     {
-        return service.getSchemas(project, Optional.ofNullable(tableNames)).entrySet().stream()
+        return service.getSchemas(new RequestContext(project, null), Optional.ofNullable(tableNames)).entrySet().stream()
                 .map(entry -> new MaterializedViewSchema(entry.getKey(), entry.getValue()))
                 .collect(Collectors.toList());
     }
@@ -94,7 +94,7 @@ public class MaterializedViewHttpService
     @Path("/create")
     public CompletableFuture<SuccessMessage> createView(@javax.inject.Named("project") String project, @BodyParam MaterializedView query)
     {
-        return service.create(project, query).thenApply(res -> SuccessMessage.success());
+        return service.create(new RequestContext(project, null), query).thenApply(res -> SuccessMessage.success());
     }
 
     @JsonRequest
@@ -104,7 +104,7 @@ public class MaterializedViewHttpService
     public CompletableFuture<SuccessMessage> deleteView(@javax.inject.Named("project") String project,
             @ApiParam("table_name") String name)
     {
-        return service.delete(project, name)
+        return service.delete(new RequestContext(project, null), name)
                 .thenApply(result -> {
                     if (result.getError() == null) {
                         return SuccessMessage.success();
@@ -137,7 +137,7 @@ public class MaterializedViewHttpService
     {
         queryService.handleServerSentQueryExecution(request, MaterializedViewRequest.class,
                 (project, query) -> {
-                    QueryExecution execution = service.lockAndUpdateView(project, service.get(project, query.name)).queryExecution;
+                    QueryExecution execution = service.lockAndUpdateView(new RequestContext(project, null), service.get(project, query.name)).queryExecution;
                     if (execution == null) {
                         QueryResult result = QueryResult.errorResult(new QueryError("There is another process that updates materialized view", null, null, null, null));
                         return QueryExecution.completedQueryExecution(null, result);

@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.Subscribe;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
@@ -88,7 +89,7 @@ public class AttributeHook {
 
         view = new MaterializedView(view.tableName, view.name, query, view.updateInterval, view.incremental, view.realTime, view.options);
         if (isNew) {
-            materializedViewService.create(project, view);
+            materializedViewService.create(new RequestContext(project, null), view);
         } else {
             materializedViewService.replaceView(project, view);
         }

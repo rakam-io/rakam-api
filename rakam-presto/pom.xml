@@ -87,6 +87,12 @@
         </dependency>
 
         <dependency>
+            <groupId>org.rakam</groupId>
+            <artifactId>rakam-ui</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>http-client</artifactId>
         </dependency>

@@ -44,7 +44,7 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
         metastore = new PrestoRakamRaptorMetastore(prestoMetastore, eventBus, new ProjectConfig(), prestoConfig);
         metastore.setup();
 
-        PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(new ProjectConfig(), prestoConfig, null, null, metastore);
+        PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(new ProjectConfig(), prestoConfig, null, metastore);
 
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(
                 new PrestoConfig(),

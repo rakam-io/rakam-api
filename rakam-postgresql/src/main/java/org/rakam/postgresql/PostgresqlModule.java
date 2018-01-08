@@ -86,6 +86,8 @@ public class PostgresqlModule
         binder.bind(Metastore.class).to(PostgresqlMetastore.class).asEagerSingleton();
         binder.bind(ApiKeyService.class).toInstance(new PostgresqlApiKeyService(orCreateDataSource));
 
+        binder.bind(PostgresqlVersion.class).asEagerSingleton();
+
         binder.bind(MaterializedViewService.class).to(PostgresqlMaterializedViewService.class).in(Scopes.SINGLETON);
         binder.bind(QueryExecutor.class).to(PostgresqlQueryExecutor.class).in(Scopes.SINGLETON);
         binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class).toInstance("to_unixtime");

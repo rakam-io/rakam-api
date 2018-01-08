@@ -39,7 +39,7 @@ public class EventExplorerListener
                 format("Event explorer metrics"),
                 query,
                 Duration.ofHours(1), true, true, ImmutableMap.of());
-        materializedViewService.create(project, report).join();
+        materializedViewService.create(new RequestContext(project, null), report).join();
     }
 
     public static String tableName() {

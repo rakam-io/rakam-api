@@ -1,5 +1,6 @@
 package org.rakam.kafka.collection;
 
+import org.rakam.analysis.RequestContext;
 import org.rakam.collection.SchemaField;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.stream.CollectionStreamQuery;
@@ -116,7 +117,7 @@ public class KafkaStream implements EventStream {
             if (query.isEmpty())
                 return;
 
-            prestoExecutor.executeRawQuery(query + " limit 1000").getResult()
+            prestoExecutor.executeRawQuery(new RequestContext(null, null), query + " limit 1000").getResult()
                     .thenAccept(r -> {
                         lastOffsets = offsets;
                         response.send("data", "[" + r.getResult().stream()

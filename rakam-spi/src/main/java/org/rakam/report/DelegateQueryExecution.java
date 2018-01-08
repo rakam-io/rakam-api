@@ -6,11 +6,11 @@ import java.util.function.Function;
 public class DelegateQueryExecution implements QueryExecution {
 
     private final QueryExecution execution;
-    private final Function<QueryResult, QueryResult> function;
+    private final CompletableFuture<QueryResult> result;
 
     public DelegateQueryExecution(QueryExecution execution, Function<QueryResult, QueryResult> function) {
         this.execution = execution;
-        this.function = function;
+        this.result = execution.getResult().thenApply(function);
     }
 
     @Override
@@ -25,7 +25,7 @@ public class DelegateQueryExecution implements QueryExecution {
 
     @Override
     public CompletableFuture<QueryResult> getResult() {
-        return execution.getResult().thenApply(function);
+        return result;
     }
 
     @Override

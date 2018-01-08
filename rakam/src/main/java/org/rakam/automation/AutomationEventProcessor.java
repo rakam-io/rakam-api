@@ -8,15 +8,14 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
 import org.rakam.Mapper;
+import org.rakam.analysis.RequestContext;
 import org.rakam.collection.Event;
 import org.rakam.config.EncryptionConfig;
-import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.SyncEventMapper;
 import org.rakam.plugin.user.User;
 import org.rakam.plugin.user.UserStorage;
 import org.rakam.util.CryptUtil;
 
-import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
@@ -133,7 +132,7 @@ public class AutomationEventProcessor implements SyncEventMapper
                                 if (user == null) {
                                     String userAttr = event.getAttribute("_user");
                                     if (userAttr != null) {
-                                        user = userStorage.getUser(event.project(), userAttr).join();
+                                        user = userStorage.getUser(new RequestContext(event.project(), null), userAttr).join();
                                     }
                                 }
                                 return user;

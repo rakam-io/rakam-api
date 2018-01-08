@@ -18,6 +18,7 @@ import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.EventExplorer.OLAPTable;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.QueryHttpService;
+import org.rakam.analysis.RequestContext;
 import org.rakam.config.ProjectConfig;
 import org.rakam.report.QueryResult;
 import org.rakam.report.eventexplorer.AbstractEventExplorer;
@@ -66,18 +67,31 @@ public class EventExplorerHttpService
     )
     @JsonRequest
     @Path("/statistics")
-    public CompletableFuture<QueryResult> getEventStatistics(@Named("project") String project,
+    public CompletableFuture<QueryResult> getEventStatistics(RakamHttpRequest request,
+                                                             @Named("project") String project,
+                                                             @QueryParam("read_key") String readKey,
                                                              @ApiParam(value = "collections", required = false) Set<String> collections,
                                                              @ApiParam(value = "dimension", required = false) String dimension,
                                                              @ApiParam("startDate") LocalDate startDate,
                                                              @ApiParam("endDate") LocalDate endDate,
                                                              @ApiParam(value = "timezone", required = false) ZoneId timezone) {
         timezone = timezone == null ? ZoneOffset.UTC : timezone;
-        return eventExplorer.getEventStatistics(project,
+        CompletableFuture<QueryResult> eventStatistics = eventExplorer.getEventStatistics(new RequestContext(project, readKey),
                 Optional.ofNullable(collections),
                 Optional.ofNullable(dimension),
                 startDate, endDate,
                 Optional.ofNullable(timezone).orElse(ZoneOffset.UTC));
+
+        request.context().channel().closeFuture()
+                .addListener(future -> {
+                    try {
+                        eventStatistics.complete(QueryResult.empty());
+                    } catch (Throwable e) {
+                        e.printStackTrace();
+                    }
+                });
+
+        return eventStatistics;
     }
 
     @GET
@@ -95,10 +109,10 @@ public class EventExplorerHttpService
     )
     @JsonRequest
     @Path("/analyze")
-    public CompletableFuture<QueryResult> analyzeEvents(@Named("project") String project, @BodyParam AnalyzeRequest analyzeRequest) {
+    public CompletableFuture<QueryResult> analyzeEvents(@Named("project") String project, @QueryParam("read_key") String readKey, @BodyParam AnalyzeRequest analyzeRequest) {
         checkArgument(!analyzeRequest.collections.isEmpty(), "collections array is empty");
 
-        return eventExplorer.analyze(project, analyzeRequest.collections,
+        return eventExplorer.analyze(new RequestContext(project, readKey), analyzeRequest.collections,
                 analyzeRequest.measure, analyzeRequest.grouping,
                 analyzeRequest.segment, analyzeRequest.filterExpression,
                 analyzeRequest.startDate, analyzeRequest.endDate,
@@ -111,7 +125,7 @@ public class EventExplorerHttpService
     @JsonRequest
     @Path("/pre_calculate")
     public CompletableFuture<AbstractEventExplorer.PrecalculatedTable> createPrecomputedTable(@Named("project") String project, @BodyParam OLAPTable table) {
-        return eventExplorer.create(project, table);
+        return eventExplorer.create(new RequestContext(project, null), table);
     }
 
     @ApiOperation(value = "Perform simple query on event data",
@@ -124,18 +138,19 @@ public class EventExplorerHttpService
     @GET
     @IgnoreApi
     @Path("/analyze")
-    public void analyzeEvents(RakamHttpRequest request) {
+    public void analyzeEvents(RakamHttpRequest request, @QueryParam("read_key") String readKey) {
         queryService.handleServerSentQueryExecution(request, AnalyzeRequest.class, (project, analyzeRequest) -> {
             checkArgument(!analyzeRequest.collections.isEmpty(), "collections array is empty");
             if (analyzeRequest.measure.column != null) {
                 checkArgument(!analyzeRequest.measure.column.equals(projectConfig.getTimeColumn()), "measure column value cannot be time column");
             }
 
-            return eventExplorer.analyze(project, analyzeRequest.collections,
+            ZoneId timezone = Optional.ofNullable(analyzeRequest.timezone).orElse(ZoneOffset.UTC);
+            return eventExplorer.analyze(new RequestContext(project, readKey), analyzeRequest.collections,
                     analyzeRequest.measure, analyzeRequest.grouping,
                     analyzeRequest.segment, analyzeRequest.filterExpression,
                     analyzeRequest.startDate, analyzeRequest.endDate,
-                    Optional.ofNullable(analyzeRequest.timezone).orElse(ZoneOffset.UTC));
+                    timezone);
         });
     }
 
@@ -149,14 +164,14 @@ public class EventExplorerHttpService
     @GET
     @IgnoreApi
     @Path("/analyze/export")
-    public void exportEvents(RakamHttpRequest request) {
+    public void exportEvents(RakamHttpRequest request, @QueryParam("read_key") String readKey) {
         queryService.handleServerSentQueryExecution(request, AnalyzeRequest.class, (project, analyzeRequest) -> {
             checkArgument(!analyzeRequest.collections.isEmpty(), "collections array is empty");
             if (analyzeRequest.measure.column != null) {
                 checkArgument(!analyzeRequest.measure.column.equals(projectConfig.getTimeColumn()), "measure column value cannot be time column");
             }
 
-            return eventExplorer.export(project, analyzeRequest.collections,
+            return eventExplorer.export(new RequestContext(project, readKey), analyzeRequest.collections,
                     analyzeRequest.measure, analyzeRequest.grouping,
                     analyzeRequest.segment, analyzeRequest.filterExpression,
                     analyzeRequest.startDate, analyzeRequest.endDate,

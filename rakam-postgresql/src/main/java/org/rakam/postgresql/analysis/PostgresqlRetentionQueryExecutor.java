@@ -16,6 +16,7 @@ package org.rakam.postgresql.analysis;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
@@ -106,10 +107,10 @@ public class PostgresqlRetentionQueryExecutor
     }
 
     @Override
-    public QueryExecution query(String project, Optional<RetentionAction> firstAction,
-            Optional<RetentionAction> returningAction, DateUnit dateUnit,
-            Optional<String> dimension, Optional<Integer> period,
-            LocalDate startDate, LocalDate endDate, ZoneId zoneId, boolean approximate)
+    public QueryExecution query(RequestContext context, Optional<RetentionAction> firstAction,
+                                Optional<RetentionAction> returningAction, DateUnit dateUnit,
+                                Optional<String> dimension, Optional<Integer> period,
+                                LocalDate startDate, LocalDate endDate, ZoneId zoneId, boolean approximate)
     {
         period.ifPresent(e -> checkArgument(e >= 0, "Period must be 0 or a positive value"));
         if (approximate) {
@@ -146,14 +147,14 @@ public class PostgresqlRetentionQueryExecutor
             return QueryExecution.completedQueryExecution(null, QueryResult.empty());
         }
 
-        Map<String, List<SchemaField>> collections = metastore.getCollections(project);
+        Map<String, List<SchemaField>> collections = metastore.getCollections(context.project);
 
         String firstActionQuery = generateQuery(
-                collections, project, firstAction,
+                collections, context.project, firstAction,
                 testDeviceIdExists(firstAction, collections) ? format("coalesce(cast(%s as varchar), _device_id) as %s", projectConfig.getUserColumn(), checkTableColumn(projectConfig.getUserColumn())) : projectConfig.getUserColumn(),
                 dimension, startDate, endDate);
         String returningActionQuery = generateQuery(
-                collections, project, returningAction,
+                collections, context.project, returningAction,
                 testDeviceIdExists(firstAction, collections) ? format("coalesce(cast(%s as varchar), _device_id) as %s", projectConfig.getUserColumn(), checkTableColumn(projectConfig.getUserColumn())) : projectConfig.getUserColumn(),
                 dimension, startDate, endDate);
 
@@ -232,7 +233,7 @@ public class PostgresqlRetentionQueryExecutor
                             dateUnit.name().toLowerCase(ENGLISH))));
         }
 
-        return new DelegateQueryExecution(executor.executeRawQuery(query, zoneId), (result) -> {
+        return new DelegateQueryExecution(executor.executeRawQuery(context, query, zoneId), (result) -> {
             if (result.isFailed()) {
                 return result;
             }

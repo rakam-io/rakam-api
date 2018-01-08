@@ -24,12 +24,12 @@ import org.rakam.analysis.*;
 import org.rakam.analysis.datasource.CustomDataSourceConfig;
 import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.bootstrap.ProxyBootstrap;
-import org.rakam.collection.EventCollectionHttpService;
-import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.collection.*;
 import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.config.MetadataConfig;
 import org.rakam.config.ProjectConfig;
+import org.rakam.config.TaskConfig;
 import org.rakam.http.ForHttpServer;
 import org.rakam.http.HttpServerConfig;
 import org.rakam.http.OptionMethodHttpService;
@@ -38,12 +38,17 @@ import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.InjectionHook;
 import org.rakam.plugin.LockServiceProvider;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.stream.EventStreamConfig;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserStorage;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
+import org.rakam.postgresql.analysis.FastGenericFunnelQueryExecutor;
+import org.rakam.report.QueryExecutorService;
+import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.server.http.HttpRequestHandler;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
+import org.rakam.ui.ActiveModuleListBuilder;
 import org.rakam.util.NotFoundHandler;
 import org.rakam.util.RAsyncHttpClient;
 import org.rakam.util.javascript.JSCodeJDBCLoggerService;
@@ -105,7 +110,7 @@ public final class ServiceStarter
         }
 
         ProxyBootstrap app = new ProxyBootstrap(getModules());
-        app.requireExplicitBindings(false);
+        app.requireExplicitBindings(true);
         Injector injector = app.strictConfig().initialize();
 
         Set<InjectionHook> hooks = injector.getInstance(
@@ -213,6 +218,13 @@ public final class ServiceStarter
             Multibinder<CustomParameter> customParameters = Multibinder.newSetBinder(binder, CustomParameter.class);
             customParameters.addBinding().toProvider(ProjectPermissionParameterProvider.class);
 
+            binder.bind(QueryHttpService.class).asEagerSingleton();
+            binder.bind(QueryExecutorService.class).asEagerSingleton();
+            configBinder(binder).bindConfig(TaskConfig.class);
+            configBinder(binder).bindConfig(EventStreamConfig.class);
+            configBinder(binder).bindConfig(RealTimeConfig.class);
+            binder.bind(ActiveModuleListBuilder.class).asEagerSingleton();
+
             Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
             httpServices.addBinding().to(AdminHttpService.class);
             httpServices.addBinding().to(ProjectHttpService.class);
@@ -222,6 +234,13 @@ public final class ServiceStarter
             httpServices.addBinding().to(OptionMethodHttpService.class);
 
             Multibinder.newSetBinder(binder, WebSocketService.class);
+
+            binder.bind(AvroEventDeserializer.class);
+            binder.bind(CsvEventDeserializer.class);
+            binder.bind(EventListDeserializer.class);
+            binder.bind(JsonEventDeserializer.class);
+
+            binder.bind(FastGenericFunnelQueryExecutor.class);
 
             configBinder(binder).bindConfig(HttpServerConfig.class);
             configBinder(binder).bindConfig(ProjectConfig.class);

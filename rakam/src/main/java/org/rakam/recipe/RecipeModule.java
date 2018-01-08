@@ -50,6 +50,8 @@ public class RecipeModule extends RakamModule {
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(RecipeHttpService.class).in(Scopes.SINGLETON);
 
+        binder.bind(RecipeHandler.class).in(Scopes.SINGLETON);
+
         if (recipes.getRecipes() == null) {
             return;
         }
@@ -116,7 +118,6 @@ public class RecipeModule extends RakamModule {
                     }
                     binder.bind(Recipe.class).toInstance(recipe);
                     binder.bind(RecipeLoader.class).asEagerSingleton();
-                    binder.bind(RecipeHandler.class).in(Scopes.SINGLETON);
                     set_default = true;
                     break;
                 case SPECIFIC:

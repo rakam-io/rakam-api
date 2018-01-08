@@ -5,6 +5,7 @@ import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.analysis.RequestContext;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecutorService;
@@ -102,7 +103,7 @@ public class PostgresqlUserStorage
     }
 
     @Override
-    public void createSegment(String project, String name, String tableName, Expression filterExpression, List<EventFilter> eventFilter, Duration interval)
+    public void createSegment(RequestContext context, String name, String tableName, Expression filterExpression, List<EventFilter> eventFilter, Duration interval)
     {
         StringBuilder builder = new StringBuilder("select distinct id from _users where ");
 
@@ -114,10 +115,10 @@ public class PostgresqlUserStorage
             if(filterExpression != null) {
                 builder.append(" AND ");
             }
-            builder.append(getEventFilterPredicate(project, eventFilter).stream().collect(Collectors.joining(" AND ")));
+            builder.append(getEventFilterPredicate(context.project, eventFilter).stream().collect(Collectors.joining(" AND ")));
         }
 
-        materializedViewService.create(project, new MaterializedView(tableName,
+        materializedViewService.create(context, new MaterializedView(tableName,
                 "Users who did " + (tableName == null ? "at least one event" : tableName + " event"),
                 builder.toString(), interval, null, null, ImmutableMap.of()));
     }

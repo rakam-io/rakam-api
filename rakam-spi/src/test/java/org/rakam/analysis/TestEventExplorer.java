@@ -93,7 +93,7 @@ public abstract class TestEventExplorer
     public void testTotalStatistics()
             throws Exception
     {
-        QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
+        QueryResult test = getEventExplorer().getEventStatistics(new RequestContext(PROJECT_NAME, null),
                 Optional.empty(), Optional.empty(),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR), ZoneOffset.UTC).join();
@@ -106,7 +106,7 @@ public abstract class TestEventExplorer
     public void testCollectionSingleName()
             throws Exception
     {
-        QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
+        QueryResult test = getEventExplorer().getEventStatistics(new RequestContext(PROJECT_NAME, null),
                 Optional.of(ImmutableSet.of("test")), Optional.empty(),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR), ZoneOffset.UTC).join();
@@ -119,7 +119,7 @@ public abstract class TestEventExplorer
     public void testCollectionNotExisting()
             throws Exception
     {
-        QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
+        QueryResult test = getEventExplorer().getEventStatistics(new RequestContext(PROJECT_NAME, null),
                 Optional.of(ImmutableSet.of()), Optional.empty(),
                 LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR), ZoneOffset.UTC).join();
 
@@ -133,7 +133,7 @@ public abstract class TestEventExplorer
     {
         Collection<List<String>> dimensions = getEventExplorer().getExtraDimensions("test").values();
         dimensions.stream().flatMap(e -> e.stream()).forEach(dimension -> {
-            QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
+            QueryResult test = getEventExplorer().getEventStatistics(new RequestContext(PROJECT_NAME, null),
                     Optional.empty(), Optional.of(dimension),
                     LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR), ZoneOffset.UTC).join();
 
@@ -153,7 +153,7 @@ public abstract class TestEventExplorer
     public void testStatisticsDates()
             throws Exception
     {
-        QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
+        QueryResult test = getEventExplorer().getEventStatistics(new RequestContext(PROJECT_NAME, null),
                 Optional.empty(), Optional.empty(),
                 LocalDate.ofEpochDay(100),
                 LocalDate.ofEpochDay(101), ZoneOffset.UTC).join();
@@ -167,7 +167,7 @@ public abstract class TestEventExplorer
     public void testAllDimensionsNumberBoolean()
             throws Exception
     {
-        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
+        QueryResult test = getEventExplorer().analyze(new RequestContext(PROJECT_NAME, null),
                 of("test"), new EventExplorer.Measure(null, COUNT),
                 new EventExplorer.Reference(COLUMN, "testnumber"),
                 new EventExplorer.Reference(COLUMN, "testbool"),
@@ -191,7 +191,7 @@ public abstract class TestEventExplorer
     public void testGroupingNumberBoolean()
             throws Exception
     {
-        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
+        QueryResult test = getEventExplorer().analyze(new RequestContext(PROJECT_NAME, null),
                 of("test"), new EventExplorer.Measure(null, COUNT),
                 new EventExplorer.Reference(COLUMN, "testnumber"),
                 null,
@@ -211,7 +211,7 @@ public abstract class TestEventExplorer
     public void testSimpleWithFilter()
             throws Exception
     {
-        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
+        QueryResult test = getEventExplorer().analyze(new RequestContext(PROJECT_NAME, null),
                 of("test"), new EventExplorer.Measure(null, COUNT),
                 null,
                 null,
@@ -225,7 +225,7 @@ public abstract class TestEventExplorer
     public void testSimple()
             throws Exception
     {
-        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
+        QueryResult test = getEventExplorer().analyze(new RequestContext(PROJECT_NAME, null),
                 of("test"), new EventExplorer.Measure(null, COUNT),
                 null,
                 null,
@@ -239,7 +239,7 @@ public abstract class TestEventExplorer
     public void testSumAggregation()
             throws Exception
     {
-        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
+        QueryResult test = getEventExplorer().analyze(new RequestContext(PROJECT_NAME, null),
                 of("test"), new EventExplorer.Measure("testnumber", SUM),
                 null,
                 null,
@@ -254,7 +254,7 @@ public abstract class TestEventExplorer
     public void testInvalidAvgAggregation()
             throws Exception
     {
-        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
+        QueryResult test = getEventExplorer().analyze(new RequestContext(PROJECT_NAME, null),
                 of("test"), new EventExplorer.Measure("teststr", AVERAGE),
                 new EventExplorer.Reference(COLUMN, "testbool"),
                 null,
@@ -267,7 +267,7 @@ public abstract class TestEventExplorer
     public void testAvgAggregation()
             throws Exception
     {
-        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
+        QueryResult test = getEventExplorer().analyze(new RequestContext(PROJECT_NAME, null),
                 of("test"), new EventExplorer.Measure("testnumber", AVERAGE),
                 new EventExplorer.Reference(COLUMN, "testbool"),
                 null,
@@ -281,7 +281,7 @@ public abstract class TestEventExplorer
     public void testMaximumAggregation()
             throws Exception
     {
-        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
+        QueryResult test = getEventExplorer().analyze(new RequestContext(PROJECT_NAME, null),
                 of("test"), new EventExplorer.Measure("testnumber", MAXIMUM),
                 new EventExplorer.Reference(COLUMN, "testbool"),
                 null,
@@ -295,7 +295,7 @@ public abstract class TestEventExplorer
     public void testSegmentAggregation()
             throws Exception
     {
-        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
+        QueryResult test = getEventExplorer().analyze(new RequestContext(PROJECT_NAME, null),
                 of("test"), new EventExplorer.Measure("testnumber", AggregationType.COUNT_UNIQUE),
                 new EventExplorer.Reference(COLUMN, "testbool"),
                 new EventExplorer.Reference(COLUMN, "testbool"),
@@ -309,7 +309,7 @@ public abstract class TestEventExplorer
     public void testCountUniqueAggregation()
             throws Exception
     {
-        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
+        QueryResult test = getEventExplorer().analyze(new RequestContext(PROJECT_NAME, null),
                 of("test"), new EventExplorer.Measure("testnumber", AggregationType.COUNT_UNIQUE),
                 new EventExplorer.Reference(COLUMN, "testbool"),
                 null,
@@ -323,7 +323,7 @@ public abstract class TestEventExplorer
     public void testCountAggregation()
             throws Exception
     {
-        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
+        QueryResult test = getEventExplorer().analyze(new RequestContext(PROJECT_NAME, null),
                 of("test"), new EventExplorer.Measure("testnumber", COUNT),
                 new EventExplorer.Reference(COLUMN, "testbool"),
                 null,
@@ -337,7 +337,7 @@ public abstract class TestEventExplorer
     public void testMinimumAggregation()
             throws Exception
     {
-        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
+        QueryResult test = getEventExplorer().analyze(new RequestContext(PROJECT_NAME, null),
                 of("test"), new EventExplorer.Measure("testnumber", MINIMUM),
                 new EventExplorer.Reference(COLUMN, "testbool"),
                 null,
@@ -351,7 +351,7 @@ public abstract class TestEventExplorer
     public void testApproxAggregation()
             throws Exception
     {
-        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
+        QueryResult test = getEventExplorer().analyze(new RequestContext(PROJECT_NAME, null),
                 of("test"), new EventExplorer.Measure("teststr", AggregationType.APPROXIMATE_UNIQUE),
                 new EventExplorer.Reference(COLUMN, "testbool"),
                 null,
@@ -384,7 +384,7 @@ public abstract class TestEventExplorer
                     Optional<TimestampTransformation> trans = fromPrettyName(dimension);
 
                     if (trans.isPresent()) {
-                        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
+                        QueryResult test = getEventExplorer().analyze(new RequestContext(PROJECT_NAME, null),
                                 of("test"), new EventExplorer.Measure("teststr", AggregationType.APPROXIMATE_UNIQUE),
                                 new EventExplorer.Reference(EventExplorer.ReferenceType.REFERENCE, trans.get().getPrettyName()),
                                 null,
@@ -403,7 +403,7 @@ public abstract class TestEventExplorer
     public void testMultipleReferenceGrouping()
             throws Exception
     {
-        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
+        QueryResult test = getEventExplorer().analyze(new RequestContext(PROJECT_NAME, null),
                 of("test"), new EventExplorer.Measure("teststr", AggregationType.APPROXIMATE_UNIQUE),
                 new EventExplorer.Reference(EventExplorer.ReferenceType.REFERENCE, DAY_OF_MONTH.getPrettyName()),
                 new EventExplorer.Reference(EventExplorer.ReferenceType.REFERENCE, DAY_OF_MONTH.getPrettyName()),

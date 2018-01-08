@@ -20,6 +20,7 @@ import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.FunnelQueryExecutor.FunnelStep;
 import org.rakam.analysis.FunnelQueryExecutor.FunnelWindow;
 import org.rakam.analysis.QueryHttpService;
+import org.rakam.analysis.RequestContext;
 import org.rakam.collection.FieldType;
 import org.rakam.config.ProjectConfig;
 import org.rakam.report.QueryResult;
@@ -83,7 +84,7 @@ public class FunnelAnalyzerHttpService
                         }
                     }
 
-                    return funnelQueryExecutor.query(project,
+                    return funnelQueryExecutor.query(new RequestContext(project, null),
                             query.steps,
                             Optional.ofNullable(query.dimension),
                             Optional.ofNullable(query.segment),
@@ -121,7 +122,7 @@ public class FunnelAnalyzerHttpService
     @JsonRequest
     @Path("/analyze")
     public CompletableFuture<QueryResult> analyzeFunnel(@Named("project") String project, @BodyParam FunnelQuery query) {
-        CompletableFuture<QueryResult> result = funnelQueryExecutor.query(project,
+        CompletableFuture<QueryResult> result = funnelQueryExecutor.query(new RequestContext(project, null),
                 query.steps,
                 Optional.ofNullable(query.dimension),
                 Optional.ofNullable(query.segment),

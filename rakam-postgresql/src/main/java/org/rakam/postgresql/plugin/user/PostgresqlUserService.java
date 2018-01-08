@@ -7,6 +7,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.postgresql.util.PSQLException;
 import org.rakam.analysis.ConfigManager;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
@@ -49,13 +50,13 @@ public class PostgresqlUserService
 {
     private final Metastore metastore;
     private final PostgresqlQueryExecutor executor;
-    private final PostgresqlUserStorage storage;
+    private final AbstractPostgresqlUserStorage storage;
     private final ProjectConfig projectConfig;
     private final EventStore eventStore;
     private final ConfigManager configManager;
 
     @Inject
-    public PostgresqlUserService(ProjectConfig projectConfig, ConfigManager configManager, EventStore eventStore, PostgresqlUserStorage storage, Metastore metastore, PostgresqlQueryExecutor executor)
+    public PostgresqlUserService(ProjectConfig projectConfig, ConfigManager configManager, EventStore eventStore, AbstractPostgresqlUserStorage storage, Metastore metastore, PostgresqlQueryExecutor executor)
     {
         super(storage);
         this.storage = storage;
@@ -67,17 +68,17 @@ public class PostgresqlUserService
     }
 
     @Override
-    public CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, Optional<List<String>> properties, int limit, Instant beforeThisTime)
+    public CompletableFuture<List<CollectionEvent>> getEvents(RequestContext context, String user, Optional<List<String>> properties, int limit, Instant beforeThisTime)
     {
-        checkProject(project);
+        checkProject(context.project);
         checkNotNull(user);
         checkArgument(limit <= 1000, "Maximum 1000 events can be fetched at once.");
-        String sqlQuery = metastore.getCollections(project).entrySet().stream()
+        String sqlQuery = metastore.getCollections(context.project).entrySet().stream()
                 .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals(projectConfig.getUserColumn())))
                 .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals(projectConfig.getTimeColumn())))
                 .map(entry ->
                         format("select '%s' as collection, row_to_json(coll) json, %s from %s.%s coll where _user = '%s' %s",
-                                entry.getKey(), checkTableColumn(projectConfig.getTimeColumn()), checkCollection(project), checkCollection(entry.getKey()), checkLiteral(user),
+                                entry.getKey(), checkTableColumn(projectConfig.getTimeColumn()), checkCollection(context.project), checkCollection(entry.getKey()), checkLiteral(user),
                                 beforeThisTime == null ? "" : format("and %s < timestamp '%s'", checkTableColumn(projectConfig.getTimeColumn()), beforeThisTime.toString())))
                 .collect(Collectors.joining(" union all "));
 
@@ -85,7 +86,7 @@ public class PostgresqlUserService
             return CompletableFuture.completedFuture(ImmutableList.<CollectionEvent>of());
         }
 
-        CompletableFuture<QueryResult> queryResult = executor.executeRawQuery(format("select collection, json from (%s) data order by %s desc limit %d",
+        CompletableFuture<QueryResult> queryResult = executor.executeRawQuery(context, format("select collection, json from (%s) data order by %s desc limit %d",
                 sqlQuery, checkTableColumn(projectConfig.getTimeColumn()), limit), ZoneOffset.UTC, ImmutableMap.of()).getResult();
         return queryResult.thenApply(result -> {
             if (result.isFailed()) {

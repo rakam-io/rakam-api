@@ -67,6 +67,12 @@
         </dependency>
 
         <dependency>
+            <groupId>org.rakam</groupId>
+            <artifactId>rakam-ui</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>com.google.code.findbugs</groupId>
             <artifactId>jsr305</artifactId>
         </dependency>

@@ -17,6 +17,7 @@ import com.facebook.presto.sql.tree.Expression;
 import com.google.common.primitives.Ints;
 import org.rakam.analysis.CalculatedUserSet;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
@@ -67,7 +68,8 @@ public class PrestoRetentionQueryExecutor
     }
 
     @Override
-    public QueryExecution query(String project,
+    public QueryExecution query(
+            RequestContext context,
             Optional<RetentionAction> firstAction,
             Optional<RetentionAction> returningAction,
             DateUnit dateUnit,
@@ -112,9 +114,9 @@ public class PrestoRetentionQueryExecutor
 
         Set<CalculatedUserSet> missingPreComputedTables = new HashSet<>();
 
-        String firstActionQuery = generateQuery(project, firstAction, projectConfig.getUserColumn(), timeColumn, dimension,
+        String firstActionQuery = generateQuery(context.project, firstAction, projectConfig.getUserColumn(), timeColumn, dimension,
                 startDate, endDate, missingPreComputedTables, timezone, approximate);
-        String returningActionQuery = generateQuery(project, returningAction, projectConfig.getUserColumn(), timeColumn, dimension,
+        String returningActionQuery = generateQuery(context.project, returningAction, projectConfig.getUserColumn(), timeColumn, dimension,
                 startDate, endDate, missingPreComputedTables, timezone, approximate);
 
         if (firstActionQuery == null || returningActionQuery == null) {
@@ -142,7 +144,7 @@ public class PrestoRetentionQueryExecutor
                 range.map(v -> String.format("AND data.date + interval '%d' day >= returning_action.date", v)).orElse(""),
                 dimension.map(v -> "GROUP BY 1, 2").orElse(""));
 
-        return new DelegateQueryExecution(executor.executeQuery(project, query, timezone),
+        return new DelegateQueryExecution(executor.executeQuery(context.project, query, timezone),
                 result -> {
                     result.setProperty("calculatedUserSets", missingPreComputedTables);
                     if (!result.isFailed()) {

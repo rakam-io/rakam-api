@@ -44,7 +44,7 @@ public class TestPrestoEventExplorer
         metastore = new PrestoRakamRaptorMetastore(testingEnvironment.getPrestoMetastore(), new EventBus(), new ProjectConfig(), prestoConfig);
         metastore.setup();
 
-        prestoQueryExecutor = new PrestoQueryExecutor(new ProjectConfig(), prestoConfig, null, null, metastore);
+        prestoQueryExecutor = new PrestoQueryExecutor(new ProjectConfig(), prestoConfig, null, metastore);
 
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(
                 new PrestoConfig(),

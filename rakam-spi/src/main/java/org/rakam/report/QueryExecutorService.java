@@ -8,6 +8,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.EscapeIdentifier;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.MaterializedViewService.MaterializedViewExecution;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
@@ -16,7 +17,6 @@ import org.rakam.util.*;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -49,12 +49,23 @@ public class QueryExecutorService
 
     public QueryExecution executeQuery(String project, String sqlQuery, Optional<QuerySampling> sample, String defaultSchema, ZoneId zoneId, int limit)
     {
-        return executeQuery(project, sqlQuery, sample, defaultSchema, zoneId, limit, null);
+        return executeQuery(new RequestContext(project, null), sqlQuery, sample, defaultSchema, zoneId, limit);
     }
 
-    public QueryExecution executeQuery(String project, String sqlQuery, Optional<QuerySampling> sample, String defaultSchema, ZoneId zoneId, int limit, String apiKey)
+    public QueryExecution executeQuery(String project, String sqlQuery, ZoneId timezone)
     {
-        if (!projectExists(project)) {
+        return executeQuery(new RequestContext(project, null), sqlQuery, timezone);
+    }
+
+    public QueryExecution executeQuery(RequestContext context, String sqlQuery, ZoneId timezone)
+    {
+        return executeQuery(context, sqlQuery, Optional.empty(), null,
+                timezone, DEFAULT_QUERY_RESULT_COUNT);
+    }
+
+    public QueryExecution executeQuery(RequestContext context, String sqlQuery, Optional<QuerySampling> sample, String defaultSchema, ZoneId zoneId, int limit)
+    {
+        if (!projectExists(context.project)) {
             throw new NotExistsException("Project");
         }
         HashMap<MaterializedView, MaterializedViewExecution> materializedViews = new HashMap<>();
@@ -63,7 +74,7 @@ public class QueryExecutorService
         String query;
 
         try {
-            query = buildQuery(project, sqlQuery, sample, defaultSchema, limit, materializedViews, sessionParameters);
+            query = buildQuery(context.project, sqlQuery, sample, defaultSchema, limit, materializedViews, sessionParameters);
         }
         catch (ParsingException e) {
             QueryError error = new QueryError(e.getMessage(), null, null, e.getLineNumber(), e.getColumnNumber());
@@ -79,7 +90,7 @@ public class QueryExecutorService
 
         QueryExecution execution;
         if (queryExecutions.isEmpty()) {
-            execution = executor.executeRawQuery(query, zoneId, sessionParameters, apiKey);
+            execution = executor.executeRawQuery(context, query, zoneId, sessionParameters);
             if (materializedViews.isEmpty()) {
                 return execution;
             }
@@ -112,7 +123,7 @@ public class QueryExecutorService
                     }
                 }
 
-                return executor.executeRawQuery(query, zoneId, sessionParameters, apiKey);
+                return executor.executeRawQuery(context, query, zoneId, sessionParameters);
             }), result -> {
                 if (!result.isFailed()) {
                     Map<String, Long> collect = materializedViews.entrySet().stream()
@@ -128,23 +139,6 @@ public class QueryExecutorService
         }
 
         return execution;
-    }
-
-    public QueryExecution executeQuery(String project, String sqlQuery)
-    {
-        return executeQuery(project, sqlQuery, Optional.empty(), null,
-                ZoneOffset.UTC, DEFAULT_QUERY_RESULT_COUNT);
-    }
-
-    public QueryExecution executeQuery(String project, String sqlQuery, ZoneId timezone)
-    {
-        return executeQuery(project, sqlQuery, Optional.empty(), null,
-                timezone, DEFAULT_QUERY_RESULT_COUNT);
-    }
-
-    public QueryExecution executeStatement(String project, String sqlQuery)
-    {
-        return executeQuery(project, sqlQuery);
     }
 
     private synchronized void updateProjectCache()
@@ -224,7 +218,7 @@ public class QueryExecutorService
                 }
 
                 MaterializedViewExecution materializedViewExecution = materializedViews.computeIfAbsent(materializedView,
-                        (key) -> materializedViewService.lockAndUpdateView(project, materializedView));
+                        (key) -> materializedViewService.lockAndUpdateView(new RequestContext(project, null), materializedView));
 
                 if (materializedViewExecution == null) {
                     throw new IllegalStateException();
@@ -241,7 +235,7 @@ public class QueryExecutorService
         };
     }
 
-    public CompletableFuture<List<SchemaField>> metadata(String project, String query)
+    public CompletableFuture<List<SchemaField>> metadata(RequestContext context, String query)
     {
         StringBuilder builder = new StringBuilder();
         Query queryStatement;
@@ -254,11 +248,11 @@ public class QueryExecutorService
 
         Map<String, String> map = new HashMap<>();
         new RakamSqlFormatter.Formatter(builder, qualifiedName ->
-                executor.formatTableReference(project, qualifiedName, Optional.empty(), map), escapeIdentifier)
+                executor.formatTableReference(context.project, qualifiedName, Optional.empty(), map), escapeIdentifier)
                 .process(queryStatement, 1);
 
         QueryExecution execution = executor
-                .executeRawQuery(builder.toString() + " limit 0", map);
+                .executeRawQuery(context, builder.toString() + " limit 0", map);
         CompletableFuture<List<SchemaField>> f = new CompletableFuture<>();
         execution.getResult().thenAccept(result -> {
             if (result.isFailed()) {

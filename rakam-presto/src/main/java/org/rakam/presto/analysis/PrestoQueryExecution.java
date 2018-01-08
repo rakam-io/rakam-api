@@ -46,7 +46,7 @@ public class PrestoQueryExecution
     private final boolean update;
     private List<SchemaField> columns;
 
-    private final CompletableFuture<QueryResult> result = new CompletableFuture<>();
+    private final CompletableFuture<QueryResult> result;
     public static final DateTimeFormatter PRESTO_TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
     public static final DateTimeFormatter PRESTO_TIMESTAMP_WITH_TIMEZONE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS z");
 
@@ -64,6 +64,8 @@ public class PrestoQueryExecution
         catch (RejectedExecutionException e) {
             throw new RakamException("There are already 1000 running queries. Please calm down.", HttpResponseStatus.TOO_MANY_REQUESTS);
         }
+
+        result = new CompletableFuture<>();
     }
 
     public static FieldType fromPrestoType(String rawType, Iterator<String> parameter)

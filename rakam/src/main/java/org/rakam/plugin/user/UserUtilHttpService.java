@@ -21,6 +21,7 @@ import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.rakam.analysis.ApiKeyService;
+import org.rakam.analysis.RequestContext;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryResult;
@@ -131,7 +132,7 @@ public class UserUtilHttpService
             expression = null;
         }
 
-        final CompletableFuture<QueryResult> search = service.searchUsers(project, null, expression,
+        final CompletableFuture<QueryResult> search = service.searchUsers(new RequestContext(project, null), null, expression,
                 read.filterQuery.event_filter, read.filterQuery.sorting, 100000, null);
         final CompletableFuture<byte[]> stream;
         switch (read.exportFormat) {

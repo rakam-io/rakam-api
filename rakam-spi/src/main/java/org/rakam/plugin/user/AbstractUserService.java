@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
+import org.rakam.analysis.RequestContext;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
@@ -32,8 +33,8 @@ public abstract class AbstractUserService {
         return storage.create(project, id, properties);
     }
 
-    public List<Object> batchCreate(String project, List<User> users) {
-        return storage.batchCreate(project, users);
+    public List<Object> batchCreate(RequestContext context, List<User> users) {
+        return storage.batchCreate(context, users);
     }
 
     @VisibleForTesting
@@ -45,25 +46,25 @@ public abstract class AbstractUserService {
         storage.createProjectIfNotExists(project, userIdIsNumeric);
     }
 
-    public List<SchemaField> getMetadata(String project) {
-        return storage.getMetadata(project);
+    public List<SchemaField> getMetadata(RequestContext context) {
+        return storage.getMetadata(context);
     }
 
-    public CompletableFuture<QueryResult> searchUsers(String project, List<String> columns, Expression filterExpression, List<UserStorage.EventFilter> eventFilter, UserStorage.Sorting sorting, int limit, String offset) {
-        return storage.searchUsers(project, columns, filterExpression, eventFilter, sorting, limit, offset);
+    public CompletableFuture<QueryResult> searchUsers(RequestContext context, List<String> columns, Expression filterExpression, List<UserStorage.EventFilter> eventFilter, UserStorage.Sorting sorting, int limit, String offset) {
+        return storage.searchUsers(context, columns, filterExpression, eventFilter, sorting, limit, offset);
     }
 
-    public void createSegment(String project, String name, String tableName, Expression filterExpression, List<UserStorage.EventFilter> eventFilter, Duration interval)
+    public void createSegment(RequestContext context, String name, String tableName, Expression filterExpression, List<UserStorage.EventFilter> eventFilter, Duration interval)
             throws RakamException
     {
         if(filterExpression == null && (eventFilter == null || eventFilter.isEmpty())) {
             throw new RakamException("At least one filter is required.", BAD_REQUEST);
         }
-        storage.createSegment(project, name, tableName, filterExpression, eventFilter, interval);
+        storage.createSegment(context, name, tableName, filterExpression, eventFilter, interval);
     }
 
-    public CompletableFuture<User> getUser(String project, Object user) {
-        return storage.getUser(project, user);
+    public CompletableFuture<User> getUser(RequestContext context, Object user) {
+        return storage.getUser(context, user);
     }
 
     public void setUserProperties(String project, Object user, ObjectNode properties) {
@@ -74,7 +75,7 @@ public abstract class AbstractUserService {
         storage.setUserPropertiesOnce(project, user, properties);
     }
 
-    public abstract CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, Optional<List<String>> properties, int limit, Instant beforeThisTime);
+    public abstract CompletableFuture<List<CollectionEvent>> getEvents(RequestContext context, String user, Optional<List<String>> properties, int limit, Instant beforeThisTime);
 
     public void incrementProperty(String project, Object user, String property, double value) {
         storage.incrementProperty(project, user, property, value);

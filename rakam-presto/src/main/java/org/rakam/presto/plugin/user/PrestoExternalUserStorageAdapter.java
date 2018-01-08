@@ -5,6 +5,7 @@ import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
@@ -25,6 +26,7 @@ import javax.inject.Inject;
 
 import java.time.Duration;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -81,7 +83,8 @@ public class PrestoExternalUserStorageAdapter
     }
 
     @Override
-    public CompletableFuture<QueryResult> searchUsers(String project,
+    public CompletableFuture<QueryResult> searchUsers(
+            RequestContext context,
             List<String> selectColumns,
             Expression filterExpression,
             List<EventFilter> eventFilter,
@@ -89,7 +92,7 @@ public class PrestoExternalUserStorageAdapter
             String offset)
     {
         if (filterExpression != null && eventFilter != null && !eventFilter.isEmpty()) {
-            return super.searchUsers(project, selectColumns, filterExpression, eventFilter, sortColumn, limit, offset);
+            return super.searchUsers(context, selectColumns, filterExpression, eventFilter, sortColumn, limit, offset);
         }
 
         String query;
@@ -97,11 +100,11 @@ public class PrestoExternalUserStorageAdapter
             query = String.format("select distinct %s as %s from (%s) ",
                     checkTableColumn(projectConfig.getUserColumn()),
                     config.getIdentifierColumn(),
-                    eventFilter.stream().map(f -> String.format(getEventFilterQuery(project, f), checkCollection(f.collection)))
+                    eventFilter.stream().map(f -> String.format(getEventFilterQuery(context.project, f), checkCollection(f.collection)))
                             .collect(Collectors.joining(" union all ")));
         }
         else {
-            List<Map.Entry<String, List<SchemaField>>> collections = metastore.getCollections(project)
+            List<Map.Entry<String, List<SchemaField>>> collections = metastore.getCollections(context.project)
                     .entrySet().stream()
                     .filter(c -> c.getValue().stream().anyMatch(a -> a.getName().equals("_user")))
                     .collect(Collectors.toList());
@@ -121,27 +124,27 @@ public class PrestoExternalUserStorageAdapter
 //            sortColumn = new Sorting("_user", Ordering.asc);
 //        }
 
-        return executorService.executeQuery(project, query +
+        return executorService.executeQuery(context, query +
                 (sortColumn == null ? "" : (" ORDER BY " + sortColumn.column + " " + sortColumn.order.name()))
-                + " LIMIT " + limit).getResult();
+                + " LIMIT " + limit, ZoneOffset.UTC).getResult();
     }
 
     @Override
-    public void createSegment(String project, String name, String tableName, Expression filterExpression, List<EventFilter> eventFilter, Duration interval)
+    public void createSegment(RequestContext context, String name, String tableName, Expression filterExpression, List<EventFilter> eventFilter, Duration interval)
     {
 
         String query;
         if (filterExpression == null) {
             query = String.format("select distinct %s as id from (%s) t",
                     checkTableColumn(projectConfig.getUserColumn()),
-                    eventFilter.stream().map(f -> String.format(getEventFilterQuery(project, f), f.collection)).collect(Collectors.joining(" UNION ALL ")));
+                    eventFilter.stream().map(f -> String.format(getEventFilterQuery(context.project, f), f.collection)).collect(Collectors.joining(" UNION ALL ")));
         }
         else {
 
             throw new RakamException("User segment must have at least one event filter", BAD_REQUEST);
         }
 
-        materializedViewService.create(project, new MaterializedView(tableName,
+        materializedViewService.create(context, new MaterializedView(tableName,
                 "Users who did " + (tableName == null ? "at least one event" : tableName + " event"),
                 query, interval, null, null, ImmutableMap.of()));
     }

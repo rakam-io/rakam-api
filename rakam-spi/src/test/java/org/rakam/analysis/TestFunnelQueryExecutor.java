@@ -14,8 +14,6 @@ import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -25,13 +23,10 @@ import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.of;
 import static java.time.ZoneOffset.UTC;
-import static org.rakam.analysis.FunnelQueryExecutor.FunnelType.APPROXIMATE;
-import static org.rakam.analysis.FunnelQueryExecutor.FunnelType.NORMAL;
-import static org.rakam.analysis.FunnelQueryExecutor.FunnelType.ORDERED;
+import static org.rakam.analysis.FunnelQueryExecutor.FunnelType.*;
 import static org.rakam.analysis.FunnelQueryExecutor.WindowType.DAY;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 
 public abstract class TestFunnelQueryExecutor {
     private static final int SCALE_FACTOR = 10;
@@ -78,7 +73,7 @@ public abstract class TestFunnelQueryExecutor {
 
     @Test(dataProvider = "types")
     public void testSingleStep(FunnelQueryExecutor.FunnelType funnelType) throws Exception {
-        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME, of(new FunnelStep("test0", null)),
+        QueryResult query = getFunnelQueryExecutor().query(new RequestContext(PROJECT_NAME, null), of(new FunnelStep("test0", null)),
                 Optional.empty(),
                 Optional.empty(),
                 LocalDate.ofEpochDay(0),
@@ -91,7 +86,7 @@ public abstract class TestFunnelQueryExecutor {
 
     @Test
     public void testSingleStepApproximate() throws Exception {
-        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME, of(new FunnelStep("test0", null)),
+        QueryResult query = getFunnelQueryExecutor().query(new RequestContext(PROJECT_NAME, null), of(new FunnelStep("test0", null)),
                 Optional.empty(),
                 Optional.empty(),
                 LocalDate.ofEpochDay(0),
@@ -103,7 +98,7 @@ public abstract class TestFunnelQueryExecutor {
 
     @Test(dataProvider = "types")
     public void testMultipleSteps(FunnelQueryExecutor.FunnelType funnelType) throws Exception {
-        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
+        QueryResult query = getFunnelQueryExecutor().query(new RequestContext(PROJECT_NAME, null),
                 of(new FunnelStep("test0", null), new FunnelStep("test1", null), new FunnelStep("test2", null)),
                 Optional.empty(),
                 Optional.empty(),
@@ -117,7 +112,7 @@ public abstract class TestFunnelQueryExecutor {
 
     @Test
     public void testMultipleStepsApproximate() throws Exception {
-        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
+        QueryResult query = getFunnelQueryExecutor().query(new RequestContext(PROJECT_NAME, null),
                 of(new FunnelStep("test0", null), new FunnelStep("test1", null), new FunnelStep("test2", null)),
                 Optional.empty(),
                 Optional.empty(),
@@ -130,7 +125,7 @@ public abstract class TestFunnelQueryExecutor {
 
     @Test(dataProvider = "types")
     public void testMultipleStepsGrouping(FunnelQueryExecutor.FunnelType funnelType) throws Exception {
-        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
+        QueryResult query = getFunnelQueryExecutor().query(new RequestContext(PROJECT_NAME, null),
                 of(new FunnelStep("test0", null), new FunnelStep("test1", null), new FunnelStep("test2", null)),
                 Optional.of("teststr"),
                 Optional.empty(),
@@ -147,7 +142,7 @@ public abstract class TestFunnelQueryExecutor {
 
     @Test
     public void testMultipleStepsGroupingApproximate() throws Exception {
-        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
+        QueryResult query = getFunnelQueryExecutor().query(new RequestContext(PROJECT_NAME, null),
                 of(new FunnelStep("test0", null), new FunnelStep("test1", null), new FunnelStep("test2", null)),
                 Optional.of("teststr"),
                 Optional.empty(),
@@ -160,7 +155,7 @@ public abstract class TestFunnelQueryExecutor {
 
     @Test(dataProvider = "types")
     public void testDimension(FunnelQueryExecutor.FunnelType funnelType) throws Exception {
-        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
+        QueryResult query = getFunnelQueryExecutor().query(new RequestContext(PROJECT_NAME, null),
                 of(new FunnelStep("test0", null), new FunnelStep("test1", null)),
                 Optional.of("teststr"),
                 Optional.empty(),
@@ -179,7 +174,7 @@ public abstract class TestFunnelQueryExecutor {
 
     @Test
     public void testDimensionApproximate() throws Exception {
-        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
+        QueryResult query = getFunnelQueryExecutor().query(new RequestContext(PROJECT_NAME, null),
                 of(new FunnelStep("test0", null), new FunnelStep("test1", null)),
                 Optional.of("teststr"),
                 Optional.empty(),
@@ -192,7 +187,7 @@ public abstract class TestFunnelQueryExecutor {
 
     @Test(dataProvider = "types")
     public void testFilter(FunnelQueryExecutor.FunnelType funnelType) throws Exception {
-        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
+        QueryResult query = getFunnelQueryExecutor().query(new RequestContext(PROJECT_NAME, null),
                 of(new FunnelStep("test0", Optional.of("teststr = 'test1'")), new FunnelStep("test1", Optional.of("teststr = 'test1'"))),
                 Optional.of("teststr"),
                 Optional.empty(),
@@ -206,7 +201,7 @@ public abstract class TestFunnelQueryExecutor {
 
     @Test
     public void testFilterApproximate() throws Exception {
-        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
+        QueryResult query = getFunnelQueryExecutor().query(new RequestContext(PROJECT_NAME, null),
                 of(new FunnelStep("test0", Optional.of("teststr = 'test1'")), new FunnelStep("test1", Optional.of("teststr = 'test1'"))),
                 Optional.of("teststr"),
                 Optional.empty(),
@@ -219,7 +214,7 @@ public abstract class TestFunnelQueryExecutor {
 
     @Test
     public void testSegment() throws Exception {
-        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
+        QueryResult query = getFunnelQueryExecutor().query(new RequestContext(PROJECT_NAME, null),
                 of(new FunnelStep("test0", Optional.of("teststr = 'test1'")), new FunnelStep("test1", Optional.of("teststr = 'test1'"))),
                 Optional.of("_time"),
                 Optional.of(FunnelQueryExecutor.FunnelTimestampSegments.DAY_OF_MONTH.value()),
@@ -232,7 +227,7 @@ public abstract class TestFunnelQueryExecutor {
 
     @Test
     public void testSegmentOrdered() throws Exception {
-        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
+        QueryResult query = getFunnelQueryExecutor().query(new RequestContext(PROJECT_NAME, null),
                 of(new FunnelStep("test0", Optional.of("teststr = 'test1'")), new FunnelStep("test1", Optional.of("teststr = 'test1'"))),
                 Optional.of("_time"),
                 Optional.of(FunnelQueryExecutor.FunnelTimestampSegments.DAY_OF_MONTH.value()),
@@ -245,7 +240,7 @@ public abstract class TestFunnelQueryExecutor {
 
     @Test
     public void testSegmentApproximate() throws Exception {
-        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
+        QueryResult query = getFunnelQueryExecutor().query(new RequestContext(PROJECT_NAME, null),
                 of(new FunnelStep("test0", Optional.of("teststr = 'test1'")), new FunnelStep("test1", Optional.of("teststr = 'test1'"))),
                 Optional.of("_time"),
                 Optional.of(FunnelQueryExecutor.FunnelTimestampSegments.DAY_OF_MONTH.value()),
@@ -258,7 +253,7 @@ public abstract class TestFunnelQueryExecutor {
 
     @Test
     public void testApproximate() throws Exception {
-        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
+        QueryResult query = getFunnelQueryExecutor().query(new RequestContext(PROJECT_NAME, null),
                 of(new FunnelStep("test0", Optional.of("teststr = 'test1'")), new FunnelStep("test1", Optional.of("teststr = 'test1'"))),
                 Optional.empty(),
                 Optional.empty(),

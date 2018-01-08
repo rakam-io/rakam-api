@@ -3,6 +3,7 @@ package org.rakam.presto.analysis;
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.google.common.collect.ImmutableList;
 import org.rakam.analysis.FunnelQueryExecutor;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
@@ -49,7 +50,7 @@ public class PrestoApproxFunnelQueryExecutor
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, FunnelType funnelType)
+    public QueryExecution query(RequestContext context, List<FunnelStep> steps, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, FunnelType funnelType)
     {
 
         if(dimension.isPresent()) {
@@ -58,7 +59,7 @@ public class PrestoApproxFunnelQueryExecutor
                     throw new RakamException("When dimension is time, segmenting should be done on timestamp field.", BAD_REQUEST);
                 }
             }
-            if(metastore.getCollections(project).entrySet().stream()
+            if(metastore.getCollections(context.project).entrySet().stream()
                     .filter(c -> !c.getValue().contains(dimension.get())).findAny().get().getValue().stream()
                     .filter(d -> d.getName().equals(dimension.get())).findAny().get().getType().getPrettyName().equals("TIMESTAMP")) {
                 if(!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
@@ -102,7 +103,7 @@ public class PrestoApproxFunnelQueryExecutor
             query = String.format("select funnel_steps(array[%s])", queries);
         }
 
-        QueryExecution queryExecution = executor.executeQuery(project, query, Optional.empty(), null, zoneId, 10000);
+        QueryExecution queryExecution = executor.executeQuery(context, query, Optional.empty(), null, zoneId, 10000);
 
         return new DelegateQueryExecution(queryExecution,
                 result -> {

@@ -18,7 +18,7 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 
 public interface FunnelQueryExecutor
 {
-    QueryExecution query(String project,
+    QueryExecution query(RequestContext context,
             List<FunnelStep> steps,
             Optional<String> dimension,
             Optional<String> segment,

@@ -31,6 +31,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.RequestContext;
 import org.rakam.aws.AWSConfig;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
@@ -170,17 +171,17 @@ public class DynamodbUserStorage
     }
 
     @Override
-    public List<Object> batchCreate(String project, List<User> users)
+    public List<Object> batchCreate(RequestContext context, List<User> users)
     {
         List<WriteRequest> collect = users.stream()
-                .map(user -> new WriteRequest(new PutRequest(generatePutRequest(project, user.id, user.properties))))
+                .map(user -> new WriteRequest(new PutRequest(generatePutRequest(context.project, user.id, user.properties))))
                 .collect(Collectors.toList());
-        dynamoDBClient.batchWriteItem(new BatchWriteItemRequest().withRequestItems(ImmutableMap.of(project, collect)));
+        dynamoDBClient.batchWriteItem(new BatchWriteItemRequest().withRequestItems(ImmutableMap.of(context.project, collect)));
         return null;
     }
 
     @Override
-    public CompletableFuture<QueryResult> searchUsers(String project, List<String> columns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, String offset)
+    public CompletableFuture<QueryResult> searchUsers(RequestContext context, List<String> columns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, String offset)
     {
         QueryRequest scanRequest = new QueryRequest()
                 .withTableName(tableConfig.getTableName());
@@ -189,7 +190,7 @@ public class DynamodbUserStorage
         }
         scanRequest.withKeyConditions(ImmutableMap.of("project", new Condition()
                 .withComparisonOperator(ComparisonOperator.EQ)
-                .withAttributeValueList(new AttributeValue(project))));
+                .withAttributeValueList(new AttributeValue(context.project))));
 
         final ImmutableMap.Builder<String, String> nameBuilder = ImmutableMap.builder();
         final ImmutableMap.Builder<String, AttributeValue> valueBuilder = ImmutableMap.builder();
@@ -241,23 +242,23 @@ public class DynamodbUserStorage
     }
 
     @Override
-    public void createSegment(String project, String name, String tableName, Expression filterExpression, List<EventFilter> eventFilter, Duration interval)
+    public void createSegment(RequestContext context, String name, String tableName, Expression filterExpression, List<EventFilter> eventFilter, Duration interval)
     {
         throw new RakamException("Unsupported", HttpResponseStatus.BAD_REQUEST);
     }
 
     @Override
-    public List<SchemaField> getMetadata(String project)
+    public List<SchemaField> getMetadata(RequestContext context)
     {
         return ImmutableList.of(new SchemaField("id", STRING));
     }
 
     @Override
-    public CompletableFuture<User> getUser(String project, Object userId)
+    public CompletableFuture<User> getUser(RequestContext context, Object userId)
     {
         return CompletableFuture.supplyAsync(() -> {
             GetItemResult item = dynamoDBClient.getItem("users", ImmutableMap.of(
-                    "project", new AttributeValue(project),
+                    "project", new AttributeValue(context.project),
                     "id", new AttributeValue(userId.toString())
             ));
             Map<String, AttributeValue> attrs = item.getItem().get("properties").getM();

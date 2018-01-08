@@ -5,11 +5,11 @@ import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
-import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.QueryHttpService;
+import org.rakam.analysis.RequestContext;
 import org.rakam.collection.EventCollectionHttpService;
 import org.rakam.collection.EventCollectionHttpService.HttpRequestParams;
 import org.rakam.collection.SchemaField;
@@ -23,21 +23,8 @@ import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpRequestException;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.ApiResponse;
-import org.rakam.server.http.annotations.ApiResponses;
-import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.BodyParam;
-import org.rakam.server.http.annotations.CookieParam;
-import org.rakam.server.http.annotations.IgnoreApi;
-import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.util.AllowCookie;
-import org.rakam.util.JsonHelper;
-import org.rakam.util.SuccessMessage;
-import org.rakam.util.RakamException;
-import org.rakam.util.LogUtil;
+import org.rakam.server.http.annotations.*;
+import org.rakam.util.*;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -45,7 +32,6 @@ import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -61,14 +47,8 @@ import java.util.function.Function;
 
 import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.buffer.Unpooled.wrappedBuffer;
-import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN;
-import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_EXPOSE_HEADERS;
-import static io.netty.handler.codec.http.HttpHeaders.Names.ORIGIN;
-import static io.netty.handler.codec.http.HttpHeaders.Names.SET_COOKIE;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
-import static io.netty.handler.codec.http.HttpResponseStatus.PRECONDITION_FAILED;
+import static io.netty.handler.codec.http.HttpHeaders.Names.*;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static io.netty.handler.codec.http.cookie.ServerCookieEncoder.STRICT;
 import static java.lang.String.format;
@@ -123,7 +103,7 @@ public class UserHttpService
     public List<Object> createUsers(@Named("project") String project, @ApiParam("users") List<User> users)
     {
         try {
-            return service.batchCreate(project, users);
+            return service.batchCreate(new RequestContext(project, null), users);
         }
         catch (Exception e) {
             throw new RakamException(e.getMessage(), BAD_REQUEST);
@@ -136,7 +116,7 @@ public class UserHttpService
     @Path("/metadata")
     public MetadataResponse getMetadata(@Named("project") String project)
     {
-        return new MetadataResponse(config.getIdentifierColumn(), service.getMetadata(project));
+        return new MetadataResponse(config.getIdentifierColumn(), service.getMetadata(new RequestContext(project, null)));
     }
 
     public static class MetadataResponse
@@ -185,7 +165,7 @@ public class UserHttpService
 
         limit = limit == null ? 100 : Math.min(5000, limit);
 
-        return service.searchUsers(project, columns, expression, event_filter, sorting, limit, offset);
+        return service.searchUsers(new RequestContext(project, null), columns, expression, event_filter, sorting, limit, offset);
     }
 
     @POST
@@ -199,7 +179,7 @@ public class UserHttpService
             @ApiParam(value = "properties", required = false) List<String> properties,
             @ApiParam(value = "offset", required = false) Instant offset)
     {
-        return service.getEvents(project, user,
+        return service.getEvents(new RequestContext(project, null), user,
                 properties == null ? Optional.empty() : Optional.of(properties),
                 limit == null ? 15 : limit, offset);
     }
@@ -227,7 +207,7 @@ public class UserHttpService
             }
         }
 
-        service.createSegment(project, name, tableName, expression, eventFilters, duration);
+        service.createSegment(new RequestContext(project, null), name, tableName, expression, eventFilters, duration);
 
         return SuccessMessage.success();
     }
@@ -238,7 +218,7 @@ public class UserHttpService
     @Path("/get")
     public CompletableFuture<User> getUser(@Named("project") String project, @ApiParam("user") Object user)
     {
-        return service.getUser(project, user);
+        return service.getUser(new RequestContext(project, null), user);
     }
 
     public static class MergeRequest

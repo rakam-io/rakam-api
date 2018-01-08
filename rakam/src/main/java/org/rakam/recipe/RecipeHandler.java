@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.collection.FieldType;
@@ -111,7 +112,7 @@ public class RecipeHandler
 
         List<CompletableFuture<QueryResult>> materializedViews = recipe.getMaterializedViewBuilders().stream()
                 .map(materializedView -> {
-                    CompletableFuture<Void> future = materializedViewService.create(project, materializedView);
+                    CompletableFuture<Void> future = materializedViewService.create(new RequestContext(project, null), materializedView);
                     CompletableFuture<QueryResult> result = new CompletableFuture<>();
 
                     future.whenComplete((res, ex) -> {
@@ -119,8 +120,8 @@ public class RecipeHandler
                             if (ex.getCause() instanceof AlreadyExistsException) {
                                 if (overrideExisting) {
                                     try {
-                                        materializedViewService.delete(project, materializedView.tableName).join();
-                                        materializedViewService.create(project, materializedView);
+                                        materializedViewService.delete(new RequestContext(project, null), materializedView.tableName).join();
+                                        materializedViewService.create(new RequestContext(project, null), materializedView);
                                         result.complete(QueryResult.empty());
                                     }
                                     catch (Throwable e) {

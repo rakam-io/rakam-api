@@ -27,7 +27,7 @@ public class RakamUIConfig {
     private File uiDirectory;
     private CustomPageBackend customPageBackend;
     private File customPageBackendDirectory;
-    private boolean enableUi = true;
+    private boolean enableUi;
     private boolean hashPassword;
     private String googleClientId;
     private String stripeKey;

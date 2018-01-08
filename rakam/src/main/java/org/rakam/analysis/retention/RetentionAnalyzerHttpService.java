@@ -17,6 +17,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.QueryHttpService;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.RetentionQueryExecutor.DateUnit;
 import org.rakam.analysis.RetentionQueryExecutor.RetentionAction;
@@ -61,7 +62,7 @@ public class RetentionAnalyzerHttpService
     @IgnoreApi
     @Path("/analyze")
     public void analyzeRetention(RakamHttpRequest request) {
-        queryService.handleServerSentQueryExecution(request, RetentionQuery.class, (project, query) -> retentionQueryExecutor.query(project,
+        queryService.handleServerSentQueryExecution(request, RetentionQuery.class, (project, query) -> retentionQueryExecutor.query(new RequestContext(project, null),
                 Optional.ofNullable(query.firstAction),
                 Optional.ofNullable(query.returningAction),
                 query.dateUnit,
@@ -82,7 +83,7 @@ public class RetentionAnalyzerHttpService
     @JsonRequest
     @Path("/analyze")
     public CompletableFuture<QueryResult> analyzeRetention(@Named("project") String project, @BodyParam RetentionQuery query) {
-        CompletableFuture<QueryResult> result = retentionQueryExecutor.query(project,
+        CompletableFuture<QueryResult> result = retentionQueryExecutor.query(new RequestContext(project, null),
                 Optional.ofNullable(query.firstAction),
                 Optional.ofNullable(query.returningAction),
                 query.dateUnit,

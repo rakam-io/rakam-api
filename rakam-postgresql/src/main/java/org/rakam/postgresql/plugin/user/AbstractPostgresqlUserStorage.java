@@ -19,6 +19,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import org.postgresql.util.PGobject;
 import org.rakam.analysis.ConfigManager;
+import org.rakam.analysis.RequestContext;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.user.ISingleUserBatchOperation;
@@ -38,6 +39,7 @@ import javax.annotation.Nullable;
 import java.sql.*;
 import java.sql.Date;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -57,8 +59,7 @@ import static org.rakam.util.JDBCUtil.fromSql;
 import static org.rakam.util.ValidationUtil.*;
 
 public abstract class AbstractPostgresqlUserStorage
-        implements UserStorage
-{
+        implements UserStorage {
     private final QueryExecutorService queryExecutorService;
     private final PostgresqlQueryExecutor queryExecutor;
     private final Cache<String, Map<String, FieldType>> propertyCache;
@@ -66,8 +67,7 @@ public abstract class AbstractPostgresqlUserStorage
     private final ConfigManager configManager;
     private final ThreadPoolExecutor executor;
 
-    public AbstractPostgresqlUserStorage(QueryExecutorService queryExecutorService, PostgresqlQueryExecutor queryExecutor, ConfigManager configManager)
-    {
+    public AbstractPostgresqlUserStorage(QueryExecutorService queryExecutorService, PostgresqlQueryExecutor queryExecutor, ConfigManager configManager) {
         executor = new ThreadPoolExecutor(
                 0,
                 Runtime.getRuntime().availableProcessors() * 4,
@@ -78,37 +78,31 @@ public abstract class AbstractPostgresqlUserStorage
         this.queryExecutor = queryExecutor;
         propertyCache = CacheBuilder.newBuilder().build();
         this.configManager = configManager;
-        userTypeCache = CacheBuilder.newBuilder().build(new CacheLoader<String, Optional<FieldType>>()
-        {
+        userTypeCache = CacheBuilder.newBuilder().build(new CacheLoader<String, Optional<FieldType>>() {
             @Override
             public Optional<FieldType> load(String key)
-                    throws Exception
-            {
+                    throws Exception {
                 return Optional.ofNullable(configManager.getConfig(key, USER_TYPE.name(), FieldType.class));
             }
         });
     }
 
-    public Map<String, FieldType> loadColumns(String project)
-    {
-        Map<String, FieldType> columns = getMetadata(project).stream()
+    public Map<String, FieldType> loadColumns(String project) {
+        Map<String, FieldType> columns = getMetadata(new RequestContext(project, null)).stream()
                 .collect(Collectors.toMap(col -> col.getName(), col -> col.getType()));
         return columns;
     }
 
     @Override
-    public Object create(String project, Object id, ObjectNode properties)
-    {
+    public Object create(String project, Object id, ObjectNode properties) {
         try (Connection conn = queryExecutor.getConnection()) {
             return createInternal(conn, project, id, () -> properties.fields());
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private Map<String, FieldType> createMissingColumns(String project, Object id, Iterable<Map.Entry<String, JsonNode>> fields, Runnable schemaChangeHook)
-    {
+    private Map<String, FieldType> createMissingColumns(String project, Object id, Iterable<Map.Entry<String, JsonNode>> fields, Runnable schemaChangeHook) {
         Map<String, FieldType> columns = propertyCache.getIfPresent(project);
         if (columns == null) {
             columns = loadColumns(project);
@@ -146,8 +140,7 @@ public abstract class AbstractPostgresqlUserStorage
 
     public abstract QueryExecutorService getExecutorForWithEventFilter();
 
-    private Iterable<Map.Entry<String, JsonNode>> strip(Iterable<Map.Entry<String, JsonNode>> fields)
-    {
+    private Iterable<Map.Entry<String, JsonNode>> strip(Iterable<Map.Entry<String, JsonNode>> fields) {
         ObjectNode properties = JsonHelper.jsonObject();
 
         for (Map.Entry<String, JsonNode> entry : fields) {
@@ -163,109 +156,103 @@ public abstract class AbstractPostgresqlUserStorage
     }
 
     public Object createInternal(Connection conn, String project, Object id, Iterable<Map.Entry<String, JsonNode>> _properties)
-            throws SQLException
-    {
+            throws SQLException {
         Iterable<Map.Entry<String, JsonNode>> properties = strip(_properties);
 
         Map<String, FieldType> columns = createMissingColumns(project, id, properties, new CommitConnection(conn));
 
-            StringBuilder cols = new StringBuilder();
-            StringBuilder parametrizedValues = new StringBuilder();
-            Iterator<Map.Entry<String, JsonNode>> stringIterator = properties.iterator();
+        StringBuilder cols = new StringBuilder();
+        StringBuilder parametrizedValues = new StringBuilder();
+        Iterator<Map.Entry<String, JsonNode>> stringIterator = properties.iterator();
 
-            if (stringIterator.hasNext()) {
-                while (stringIterator.hasNext()) {
-                    Map.Entry<String, JsonNode> next = stringIterator.next();
+        if (stringIterator.hasNext()) {
+            while (stringIterator.hasNext()) {
+                Map.Entry<String, JsonNode> next = stringIterator.next();
 
-                    if (!next.getKey().equals(PRIMARY_KEY) && !next.getKey().equals("created_at")) {
-                        if (!columns.containsKey(next.getKey())) {
-                            continue;
-                        }
-                        if (cols.length() > 0) {
-                            cols.append(", ");
-                            parametrizedValues.append(", ");
-                        }
-                        cols.append(checkTableColumn(next.getKey()));
-                        parametrizedValues.append('?');
+                if (!next.getKey().equals(PRIMARY_KEY) && !next.getKey().equals("created_at")) {
+                    if (!columns.containsKey(next.getKey())) {
+                        continue;
                     }
-                }
-            }
-
-            if (parametrizedValues.length() > 0) {
-                parametrizedValues.append(", ");
-            }
-            parametrizedValues.append('?');
-
-            if (cols.length() > 0) {
-                cols.append(", ");
-            }
-            cols.append("created_at");
-
-            if (id != null) {
-                parametrizedValues.append(", ").append('?');
-                cols.append(", ").append(PRIMARY_KEY);
-            }
-
-            ProjectCollection userTable = getUserTable(project, false);
-
-            String table = checkProject(userTable.project, '"') + "." + checkCollection(userTable.collection);
-
-            PreparedStatement statement = conn.prepareStatement(
-                    "INSERT INTO  " + table + " (" + cols + ") " +
-                            "values (" + parametrizedValues + ") RETURNING " + PRIMARY_KEY);
-
-            long createdAt = -1;
-            int i = 1;
-            for (Map.Entry<String, JsonNode> o : properties) {
-                if (o.getKey().equals(PRIMARY_KEY)) {
-                    throw new RakamException(String.format("User property %s is invalid. It's used as primary key", PRIMARY_KEY), BAD_REQUEST);
-                }
-
-                if (!columns.containsKey(o.getKey())) {
-                    continue;
-                }
-
-                if (o.getKey().equals("created_at")) {
-                    try {
-                        createdAt = DateTimeUtils.parseTimestamp(o.getValue().isNumber() ? o.getValue().numberValue()
-                                : o.getValue().textValue());
+                    if (cols.length() > 0) {
+                        cols.append(", ");
+                        parametrizedValues.append(", ");
                     }
-                    catch (Exception e) {
-                        createdAt = Instant.now().toEpochMilli();
-                    }
+                    cols.append(checkTableColumn(next.getKey()));
+                    parametrizedValues.append('?');
                 }
-                else {
-                    FieldType fieldType = columns.get(o.getKey());
-                    statement.setObject(i++, getJDBCValue(fieldType, o.getValue(), conn));
-                }
+            }
+        }
+
+        if (parametrizedValues.length() > 0) {
+            parametrizedValues.append(", ");
+        }
+        parametrizedValues.append('?');
+
+        if (cols.length() > 0) {
+            cols.append(", ");
+        }
+        cols.append("created_at");
+
+        if (id != null) {
+            parametrizedValues.append(", ").append('?');
+            cols.append(", ").append(PRIMARY_KEY);
+        }
+
+        ProjectCollection userTable = getUserTable(project, false);
+
+        String table = checkProject(userTable.project, '"') + "." + checkCollection(userTable.collection);
+
+        PreparedStatement statement = conn.prepareStatement(
+                "INSERT INTO  " + table + " (" + cols + ") " +
+                        "values (" + parametrizedValues + ") RETURNING " + PRIMARY_KEY);
+
+        long createdAt = -1;
+        int i = 1;
+        for (Map.Entry<String, JsonNode> o : properties) {
+            if (o.getKey().equals(PRIMARY_KEY)) {
+                throw new RakamException(String.format("User property %s is invalid. It's used as primary key", PRIMARY_KEY), BAD_REQUEST);
             }
 
-            statement.setTimestamp(i++, new java.sql.Timestamp(createdAt == -1 ? Instant.now().toEpochMilli() : createdAt));
-            if (id != null) {
-                statement.setObject(i++, id);
+            if (!columns.containsKey(o.getKey())) {
+                continue;
             }
 
-            ResultSet resultSet;
-            try {
-                resultSet = statement.executeQuery();
-            }
-            catch (SQLException e) {
-                if (e.getMessage().contains("duplicate key value")) {
-                    setUserProperties(conn, project, id, properties, false);
-                    return id;
+            if (o.getKey().equals("created_at")) {
+                try {
+                    createdAt = DateTimeUtils.parseTimestamp(o.getValue().isNumber() ? o.getValue().numberValue()
+                            : o.getValue().textValue());
+                } catch (Exception e) {
+                    createdAt = Instant.now().toEpochMilli();
                 }
-                else {
-                    throw e;
-                }
+            } else {
+                FieldType fieldType = columns.get(o.getKey());
+                statement.setObject(i++, getJDBCValue(fieldType, o.getValue(), conn));
             }
-            resultSet.next();
-            Object object = resultSet.getObject(1);
-            resultSet.close();
-            return object;
+        }
+
+        statement.setTimestamp(i++, new java.sql.Timestamp(createdAt == -1 ? Instant.now().toEpochMilli() : createdAt));
+        if (id != null) {
+            statement.setObject(i++, id);
+        }
+
+        ResultSet resultSet;
+        try {
+            resultSet = statement.executeQuery();
+        } catch (SQLException e) {
+            if (e.getMessage().contains("duplicate key value")) {
+                setUserProperties(conn, project, id, properties, false);
+                return id;
+            } else {
+                throw e;
+            }
+        }
+        resultSet.next();
+        Object object = resultSet.getObject(1);
+        resultSet.close();
+        return object;
     }
 
-    private String sqlArrayTypeName(FieldType fieldType)
-    {
+    private String sqlArrayTypeName(FieldType fieldType) {
         if (fieldType.isArray()) {
             throw new UnsupportedOperationException();
         }
@@ -300,8 +287,7 @@ public abstract class AbstractPostgresqlUserStorage
     }
 
     public Object getJDBCValue(FieldType fieldType, JsonNode value, Connection conn)
-            throws SQLException
-    {
+            throws SQLException {
         if (value == NullNode.getInstance() || value == null) {
             return null;
         }
@@ -314,8 +300,7 @@ public abstract class AbstractPostgresqlUserStorage
                     objects[i] = getJDBCValue(arrayType, value.get(i), conn);
                 }
                 return conn.createArrayOf(sqlArrayTypeName(arrayType), objects);
-            }
-            else {
+            } else {
                 return null;
             }
         }
@@ -325,8 +310,7 @@ public abstract class AbstractPostgresqlUserStorage
                 jsonObject.setType("jsonb");
                 jsonObject.setValue(JsonHelper.encode(value));
                 return jsonObject;
-            }
-            else {
+            } else {
                 return null;
             }
         }
@@ -336,15 +320,13 @@ public abstract class AbstractPostgresqlUserStorage
                 try {
                     return new Timestamp(value.isNumber() ? DateTimeUtils.parseTimestamp(value.asLong())
                             : DateTimeUtils.parseTimestamp(value.textValue()));
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     return null;
                 }
             case DATE:
                 try {
                     return new Timestamp(DateTimeUtils.parseDate(value.textValue()));
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     return null;
                 }
             case LONG:
@@ -365,28 +347,24 @@ public abstract class AbstractPostgresqlUserStorage
         }
     }
 
-    private Time parseTime(Object value)
-    {
+    private Time parseTime(Object value) {
         if (value instanceof String) {
             try {
                 return Time.valueOf((String) value);
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 return null;
             }
-        }
-        else {
+        } else {
             return null;
         }
     }
 
     @Override
-    public List<Object> batchCreate(String project, List<User> users)
-    {
+    public List<Object> batchCreate(RequestContext context, List<User> users) {
         // may use transaction when we start to use Postgresql 9.5. Since we use insert or merge, it doesn't work right now.
         return users.stream()
                 .map(user -> {
-                    Object o = create(project, user.id, user.properties);
+                    Object o = create(context.project, user.id, user.properties);
                     if (user.api != null) {
                         throw new RakamException("api property in User object is not allowed in batch endpoint", BAD_REQUEST);
                     }
@@ -395,13 +373,11 @@ public abstract class AbstractPostgresqlUserStorage
                 .collect(Collectors.toList());
     }
 
-    private void createColumn(String project, Object id, String column, JsonNode value)
-    {
+    private void createColumn(String project, Object id, String column, JsonNode value) {
         createColumnInternal(project, id, column, value, true);
     }
 
-    private void createColumnInternal(String project, Object id, String column, JsonNode value, boolean retry)
-    {
+    private void createColumnInternal(String project, Object id, String column, JsonNode value, boolean retry) {
         // it must be called from a separated transaction, otherwise it may lock table and the other insert may cause deadlock.
         try (Connection conn = queryExecutor.getConnection()) {
             try {
@@ -413,14 +389,13 @@ public abstract class AbstractPostgresqlUserStorage
                         checkProject(userTable.project, '"'),
                         checkCollection(userTable.collection),
                         checkTableColumn(column), getPostgresqlType(value)));
-            }
-            catch (SQLException e) {
+            } catch (SQLException e) {
                 Map<String, FieldType> fields = loadColumns(project);
                 if (fields.containsKey(column)) {
                     return;
                 }
 
-                if (getMetadata(project).stream()
+                if (getMetadata(new RequestContext(project, null)).stream()
                         .anyMatch(col -> col.getName().equals(column))) {
                     // what if the type does not match?
                     return;
@@ -434,13 +409,11 @@ public abstract class AbstractPostgresqlUserStorage
                     createProjectIfNotExists(project, fieldType.isNumeric());
 
                     createColumnInternal(project, id, column, value, false);
-                }
-                else {
+                } else {
                     throw e;
                 }
             }
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
@@ -448,10 +421,9 @@ public abstract class AbstractPostgresqlUserStorage
     public abstract List<String> getEventFilterPredicate(String project, List<EventFilter> eventFilter);
 
     @Override
-    public CompletableFuture<QueryResult> searchUsers(String project, List<String> selectColumns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, String offset)
-    {
-        checkProject(project);
-        List<SchemaField> metadata = getMetadata(project);
+    public CompletableFuture<QueryResult> searchUsers(RequestContext context, List<String> selectColumns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, String offset) {
+        checkProject(context.project);
+        List<SchemaField> metadata = getMetadata(context);
 
         if (metadata.isEmpty()) {
             return CompletableFuture.completedFuture(QueryResult.empty());
@@ -470,7 +442,7 @@ public abstract class AbstractPostgresqlUserStorage
         }
 
         if (eventFilter != null && !eventFilter.isEmpty()) {
-            filters.addAll(getEventFilterPredicate(project, eventFilter));
+            filters.addAll(getEventFilterPredicate(context.project, eventFilter));
         }
 
         if (sortColumn != null && !metadata.stream().anyMatch(col -> col.getName().equals(sortColumn.column))) {
@@ -481,10 +453,10 @@ public abstract class AbstractPostgresqlUserStorage
 
         boolean isEventFilterActive = eventFilter != null && !eventFilter.isEmpty();
 
-        QueryExecution query = (isEventFilterActive ? getExecutorForWithEventFilter() : queryExecutorService)
-                .executeQuery(project, format("SELECT %s FROM _users %s %s LIMIT %s",
-                        columns, filters.isEmpty() ? "" : " WHERE "
-                                + Joiner.on(" AND ").join(filters), orderBy, limit, offset));
+        QueryExecutorService service = isEventFilterActive ? getExecutorForWithEventFilter() : this.queryExecutorService;
+        QueryExecution query = service.executeQuery(new RequestContext(context.project, null), format("SELECT %s FROM _users %s %s LIMIT %s",
+                columns, filters.isEmpty() ? "" : " WHERE "
+                        + Joiner.on(" AND ").join(filters), orderBy, limit, offset), ZoneOffset.UTC);
 
         CompletableFuture<QueryResult> dataResult = query.getResult();
 
@@ -495,7 +467,7 @@ public abstract class AbstractPostgresqlUserStorage
                 builder.append(" WHERE ").append(filters.get(0));
             }
 
-            QueryExecution totalResult = queryExecutorService.executeQuery(project, builder.toString());
+            QueryExecution totalResult = queryExecutorService.executeQuery(context.project, builder.toString(), ZoneOffset.UTC);
 
             CompletableFuture<QueryResult> result = new CompletableFuture<>();
             CompletableFuture.allOf(dataResult, totalResult.getResult()).whenComplete((__, ex) -> {
@@ -505,31 +477,27 @@ public abstract class AbstractPostgresqlUserStorage
                     Object v1 = totalResultData.getResult().get(0).get(0);
                     result.complete(new QueryResult(data.getMetadata(), data.getResult(),
                             ImmutableMap.of(TOTAL_RESULT, v1)));
-                }
-                else if (ex != null) {
+                } else if (ex != null) {
                     result.complete(QueryResult.errorResult(new QueryError(ex.getMessage(), null, 0, null, null)));
-                }
-                else {
+                } else {
                     result.complete(data);
                 }
             });
 
             return result;
-        }
-        else {
+        } else {
             return dataResult;
         }
     }
 
     @Override
-    public List<SchemaField> getMetadata(String project)
-    {
-        checkProject(project);
+    public List<SchemaField> getMetadata(RequestContext context) {
+        checkProject(context.project);
         LinkedList<SchemaField> columns = new LinkedList<>();
 
         try (Connection conn = queryExecutor.getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
-            ProjectCollection userTable = getUserTable(project, false);
+            ProjectCollection userTable = getUserTable(context.project, false);
 
             ResultSet indexInfo = metaData.getIndexInfo(null, userTable.project, userTable.collection, true, false);
             ResultSet dbColumns = metaData.getColumns(null, userTable.project, userTable.collection, null);
@@ -544,15 +512,13 @@ public abstract class AbstractPostgresqlUserStorage
                 FieldType fieldType;
                 try {
                     fieldType = fromSql(dbColumns.getInt("DATA_TYPE"), dbColumns.getString("TYPE_NAME"));
-                }
-                catch (IllegalStateException e) {
+                } catch (IllegalStateException e) {
                     continue;
                 }
                 columns.add(new SchemaField(columnName, fieldType, null, null, null));
             }
             return columns;
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             throw new RuntimeException("Couldn't get metadata from plugin.user.storage", e);
         }
     }
@@ -560,37 +526,32 @@ public abstract class AbstractPostgresqlUserStorage
     public abstract ProjectCollection getUserTable(String project, boolean isEventFilterActive);
 
     @Override
-    public CompletableFuture<User> getUser(String project, Object userId)
-    {
+    public CompletableFuture<User> getUser(RequestContext context, Object userId) {
         return CompletableFuture.supplyAsync(() -> {
             try (Connection conn = queryExecutor.getConnection()) {
-                ProjectCollection userTable = getUserTable(project, false);
+                ProjectCollection userTable = getUserTable(context.project, false);
                 String table = checkProject(userTable.project, '"') + "." + checkCollection(userTable.collection);
 
                 PreparedStatement ps = conn.prepareStatement(format("select * from %s where %s = ?", table, PRIMARY_KEY));
 
-                Optional<FieldType> unchecked = userTypeCache.getUnchecked(project);
+                Optional<FieldType> unchecked = userTypeCache.getUnchecked(context.project);
 
                 if (!unchecked.isPresent() || !unchecked.get().isNumeric()) {
                     ps.setString(1, userId.toString());
-                }
-                else if (unchecked.get() == FieldType.LONG) {
+                } else if (unchecked.get() == FieldType.LONG) {
                     long x;
                     try {
                         x = Long.parseLong(userId.toString());
-                    }
-                    catch (NumberFormatException e) {
+                    } catch (NumberFormatException e) {
                         throw new RakamException("User id is invalid", BAD_REQUEST);
                     }
 
                     ps.setLong(1, x);
-                }
-                else if (unchecked.get() == FieldType.INTEGER) {
+                } else if (unchecked.get() == FieldType.INTEGER) {
                     int x;
                     try {
                         x = Integer.parseInt(userId.toString());
-                    }
-                    catch (NumberFormatException e) {
+                    } catch (NumberFormatException e) {
                         throw new RakamException("User id is invalid", BAD_REQUEST);
                     }
 
@@ -616,69 +577,67 @@ public abstract class AbstractPostgresqlUserStorage
                     }
                 }
                 return new User(userId, null, properties);
-            }
-            catch (SQLException e) {
+            } catch (SQLException e) {
                 throw Throwables.propagate(e);
             }
         });
     }
 
     private JsonNode setValues(ResultSet resultSet, int i, FieldType fieldType)
-            throws SQLException
-    {
+            throws SQLException {
         JsonNode node;
         switch (fieldType) {
             case STRING:
                 String string = resultSet.getString(i);
-                if(resultSet.wasNull()) return NullNode.getInstance();
+                if (resultSet.wasNull()) return NullNode.getInstance();
                 node = JsonHelper.textNode(string);
                 break;
             case INTEGER:
                 int anInt = resultSet.getInt(i);
-                if(resultSet.wasNull()) return NullNode.getInstance();
+                if (resultSet.wasNull()) return NullNode.getInstance();
                 node = JsonHelper.numberNode(anInt);
                 break;
             case LONG:
                 long aLong = resultSet.getLong(i);
-                if(resultSet.wasNull()) return NullNode.getInstance();
+                if (resultSet.wasNull()) return NullNode.getInstance();
                 node = JsonHelper.numberNode(aLong);
                 break;
             case BOOLEAN:
                 boolean aBoolean = resultSet.getBoolean(i);
-                if(resultSet.wasNull()) return NullNode.getInstance();
+                if (resultSet.wasNull()) return NullNode.getInstance();
                 node = JsonHelper.booleanNode(aBoolean);
                 break;
             case DATE:
                 Date date = resultSet.getDate(i);
-                if(resultSet.wasNull()) return NullNode.getInstance();
+                if (resultSet.wasNull()) return NullNode.getInstance();
                 node = JsonHelper.textNode(date.toLocalDate().toString());
                 break;
             case TIMESTAMP:
                 Timestamp timestamp = resultSet.getTimestamp(i);
-                if(resultSet.wasNull()) return NullNode.getInstance();
+                if (resultSet.wasNull()) return NullNode.getInstance();
                 node = JsonHelper.textNode(timestamp.toInstant().toString());
                 break;
             case TIME:
                 Time time = resultSet.getTime(i);
-                if(resultSet.wasNull()) return NullNode.getInstance();
+                if (resultSet.wasNull()) return NullNode.getInstance();
                 node = JsonHelper.textNode(time.toInstant().toString());
                 break;
             case BINARY:
                 byte[] bytes = resultSet.getBytes(i);
-                if(resultSet.wasNull()) return NullNode.getInstance();
+                if (resultSet.wasNull()) return NullNode.getInstance();
                 node = JsonHelper.binaryNode(bytes);
                 break;
             case DOUBLE:
             case DECIMAL:
                 double aDouble = resultSet.getDouble(i);
-                if(resultSet.wasNull()) return NullNode.getInstance();
+                if (resultSet.wasNull()) return NullNode.getInstance();
                 node = JsonHelper.numberNode(aDouble);
                 break;
             default:
                 if (fieldType.isArray()) {
                     ArrayNode jsonNodes = JsonHelper.jsonArray();
                     Array array = resultSet.getArray(i);
-                    if(resultSet.wasNull()) return NullNode.getInstance();
+                    if (resultSet.wasNull()) return NullNode.getInstance();
 
                     ResultSet rs = array.getResultSet();
                     int arrIdx = 1;
@@ -687,14 +646,12 @@ public abstract class AbstractPostgresqlUserStorage
                     }
 
                     node = jsonNodes;
-                }
-                else if (fieldType.isMap()) {
+                } else if (fieldType.isMap()) {
                     PGobject pgObject = (PGobject) resultSet.getObject(i + 1);
-                    if(resultSet.wasNull()) return NullNode.getInstance();
+                    if (resultSet.wasNull()) return NullNode.getInstance();
 
                     node = JsonHelper.read(pgObject.getValue());
-                }
-                else {
+                } else {
                     throw new UnsupportedOperationException();
                 }
         }
@@ -703,30 +660,25 @@ public abstract class AbstractPostgresqlUserStorage
     }
 
     @Override
-    public void setUserProperties(String project, Object userId, ObjectNode properties)
-    {
+    public void setUserProperties(String project, Object userId, ObjectNode properties) {
         try (Connection conn = queryExecutor.getConnection()) {
             setUserProperties(conn, project, userId, () -> properties.fields(), false);
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
     }
 
     @Override
-    public void setUserPropertiesOnce(String project, Object userId, ObjectNode properties)
-    {
+    public void setUserPropertiesOnce(String project, Object userId, ObjectNode properties) {
         try (Connection conn = queryExecutor.getConnection()) {
             setUserProperties(conn, project, userId, () -> properties.fields(), true);
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
     public void setUserProperties(Connection connection, String project, Object userId, Iterable<Map.Entry<String, JsonNode>> _properties, boolean onlyOnce)
-            throws SQLException
-    {
+            throws SQLException {
         if (userId == null) {
             throw new RakamException("User id is not set.", BAD_REQUEST);
         }
@@ -754,8 +706,7 @@ public abstract class AbstractPostgresqlUserStorage
 
             if (!hasColumn) {
                 hasColumn = true;
-            }
-            else {
+            } else {
                 builder.append(", ");
             }
 
@@ -793,49 +744,43 @@ public abstract class AbstractPostgresqlUserStorage
     }
 
     public void setUserId(String project, PreparedStatement statement, Object userId, int position)
-            throws SQLException
-    {
+            throws SQLException {
         Optional<FieldType> fieldType = userTypeCache.getUnchecked(project);
         if (!fieldType.isPresent() || fieldType.get() == FieldType.STRING) {
             statement.setString(position, userId.toString());
-        }
-        else if (fieldType.get() == FieldType.INTEGER) {
+        } else if (fieldType.get() == FieldType.INTEGER) {
             statement.setInt(position, (userId instanceof Number) ? ((Number) userId).intValue() :
                     Integer.parseInt(userId.toString()));
-        }
-        else if (fieldType.get() == FieldType.LONG) {
+        } else if (fieldType.get() == FieldType.LONG) {
             statement.setLong(position, (userId instanceof Number) ? ((Number) userId).longValue() :
                     Integer.parseInt(userId.toString()));
-        }
-        else {
+        } else {
             throw new IllegalStateException();
         }
     }
 
     @Override
-    public void createProjectIfNotExists(String project, boolean userIdIsNumeric)
-    {
+    public void createProjectIfNotExists(String project, boolean userIdIsNumeric) {
         ProjectCollection userTable = getUserTable(project, false);
         String table = checkProject(userTable.project, '"') + "." + checkCollection(userTable.collection);
 
-        QueryResult join = queryExecutor.executeRawStatement(format("CREATE TABLE IF NOT EXISTS %s (" +
+        QueryResult join = queryExecutor.executeRawStatement(new RequestContext(null, null), format("CREATE TABLE IF NOT EXISTS %s (" +
                 "  %s " + (userIdIsNumeric ? "serial" : "text") + " NOT NULL,\n" +
                 "  created_at timestamp NOT NULL,\n" +
                 "  PRIMARY KEY (%s)" +
                 ")", table, PRIMARY_KEY, PRIMARY_KEY)).getResult().join();
-        if(join.isFailed()) {
+        if (join.isFailed()) {
             throw new RakamException(join.getError().toString(), INTERNAL_SERVER_ERROR);
         }
     }
 
     @Override
-    public void dropProjectIfExists(String project)
-    {
+    public void dropProjectIfExists(String project) {
         ProjectCollection userTable = getUserTable(project, false);
 
         String table = checkProject(userTable.project, '"') + "." + checkCollection(userTable.collection);
 
-        QueryResult result = queryExecutor.executeRawStatement(format("DROP TABLE IF EXISTS %s",
+        QueryResult result = queryExecutor.executeRawStatement(new RequestContext(null, null), format("DROP TABLE IF EXISTS %s",
                 table)).getResult().join();
         propertyCache.invalidateAll();
         userTypeCache.invalidateAll();
@@ -845,43 +790,35 @@ public abstract class AbstractPostgresqlUserStorage
     }
 
     @Override
-    public void unsetProperties(String project, Object user, List<String> properties)
-    {
+    public void unsetProperties(String project, Object user, List<String> properties) {
         try (Connection conn = queryExecutor.getConnection()) {
             unsetProperties(conn, project, user, properties);
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
     }
 
     @Override
-    public void incrementProperty(String project, Object userId, String property, double value)
-    {
+    public void incrementProperty(String project, Object userId, String property, double value) {
         try (Connection conn = queryExecutor.getConnection()) {
             incrementProperty(conn, project, userId, property, value);
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
     }
 
     public void unsetProperties(Connection connection, String project, Object user, List<String> properties)
-            throws SQLException
-    {
-        setUserProperties(connection, project, user, Iterables.transform(properties, new com.google.common.base.Function<String, Map.Entry<String, JsonNode>>()
-        {
+            throws SQLException {
+        setUserProperties(connection, project, user, Iterables.transform(properties, new com.google.common.base.Function<String, Map.Entry<String, JsonNode>>() {
             @Nullable
-            public Map.Entry<String, JsonNode> apply(@Nullable String input)
-            {
+            public Map.Entry<String, JsonNode> apply(@Nullable String input) {
                 return new SimpleImmutableEntry<>(input, NullNode.getInstance());
             }
         }), false);
     }
 
     public void incrementProperty(Connection conn, String project, Object userId, String property, double value)
-            throws SQLException
-    {
+            throws SQLException {
         Map<String, FieldType> columns = createMissingColumns(project, userId, ImmutableList.of(new SimpleImmutableEntry<>(property, new DoubleNode(value))), new CommitConnection(conn));
 
         FieldType fieldType = columns.get(property);
@@ -908,8 +845,7 @@ public abstract class AbstractPostgresqlUserStorage
     }
 
     @Override
-    public CompletableFuture<Void> batch(String project, List<? extends ISingleUserBatchOperation> operations)
-    {
+    public CompletableFuture<Void> batch(String project, List<? extends ISingleUserBatchOperation> operations) {
         try {
             return CompletableFuture.runAsync(() -> {
                 try (Connection conn = queryExecutor.getConnection()) {
@@ -939,81 +875,65 @@ public abstract class AbstractPostgresqlUserStorage
 
                     conn.commit();
                     conn.setAutoCommit(true);
-                }
-                catch (SQLException e) {
+                } catch (SQLException e) {
                     throw new RuntimeException(e);
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     throw e;
                 }
             }, executor);
-        }
-        catch (RejectedExecutionException e) {
+        } catch (RejectedExecutionException e) {
             throw new RakamException("Please slow down", BAD_REQUEST);
         }
     }
 
-    private String getPostgresqlType(JsonNode clazz)
-    {
+    private String getPostgresqlType(JsonNode clazz) {
         if (clazz.isTextual()) {
             try {
                 DateTimeUtils.parseDate(clazz.asText());
                 return "date";
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
 
             }
 
             try {
                 DateTimeUtils.parseTimestamp(clazz.asText());
                 return "timestamp";
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
 
             }
 
             return "text";
-        }
-        else if (clazz.isFloat() || clazz.isDouble()) {
+        } else if (clazz.isFloat() || clazz.isDouble()) {
             return "float8";
-        }
-        else if (clazz.isNumber()) {
+        } else if (clazz.isNumber()) {
             return "int8";
-        }
-        else if (clazz.isBoolean()) {
+        } else if (clazz.isBoolean()) {
             return "bool";
-        }
-        else if (clazz.isArray()) {
+        } else if (clazz.isArray()) {
             return getPostgresqlType(clazz.get(0)) + "[]";
-        }
-        else if (clazz.isObject()) {
+        } else if (clazz.isObject()) {
             return "jsonb";
-        }
-        else {
+        } else {
             throw new IllegalArgumentException();
         }
     }
 
     public static class CommitConnection
-            implements Runnable
-    {
+            implements Runnable {
 
         private final Connection connection;
 
-        public CommitConnection(Connection connection)
-        {
+        public CommitConnection(Connection connection) {
             this.connection = connection;
         }
 
         @Override
-        public void run()
-        {
+        public void run() {
             try {
                 if (!connection.getAutoCommit()) {
                     connection.commit();
                 }
-            }
-            catch (SQLException e) {
+            } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
         }

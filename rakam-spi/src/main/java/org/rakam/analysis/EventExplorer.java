@@ -35,11 +35,11 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 public interface EventExplorer
 {
 
-    CompletableFuture<AbstractEventExplorer.PrecalculatedTable> create(String project, OLAPTable table);
+    CompletableFuture<AbstractEventExplorer.PrecalculatedTable> create(RequestContext context, OLAPTable table);
 
-    QueryExecution analyze(String project, List<String> collections, Measure measureType, Reference grouping, Reference segment, String filterExpression, LocalDate startDate, LocalDate endDate, ZoneId timezone);
+    QueryExecution analyze(RequestContext context, List<String> collections, Measure measureType, Reference grouping, Reference segment, String filterExpression, LocalDate startDate, LocalDate endDate, ZoneId timezone);
 
-    CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate, ZoneId timezone);
+    CompletableFuture<QueryResult> getEventStatistics(RequestContext requestContext, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate, ZoneId timezone);
 
     Map<String, List<String>> getExtraDimensions(String project);
 
@@ -53,7 +53,7 @@ public interface EventExplorer
         throw new UnsupportedOperationException();
     }
 
-    QueryExecution export(String project, List<String> collections, Measure measure, Reference grouping, Reference segment, String filterExpression, LocalDate startDate, LocalDate endDate, ZoneId zoneId);
+    QueryExecution export(RequestContext context, List<String> collections, Measure measure, Reference grouping, Reference segment, String filterExpression, LocalDate startDate, LocalDate endDate, ZoneId zoneId);
 
     enum TimestampTransformation
     {

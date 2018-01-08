@@ -10,6 +10,7 @@ import io.airlift.log.Logger;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.EventExplorerListener;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.analysis.RequestContext;
 import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.report.DelegateQueryExecution;
@@ -70,7 +71,7 @@ public abstract class AbstractEventExplorer
         this.materializedViewService = materializedViewService;
     }
 
-    public CompletableFuture<PrecalculatedTable> create(String project, OLAPTable table) {
+    public CompletableFuture<PrecalculatedTable> create(RequestContext context, OLAPTable table) {
         String dimensions = table.dimensions.stream().map(d -> {
             if (d.type == null) {
                 return d.value;
@@ -118,7 +119,7 @@ public abstract class AbstractEventExplorer
                 subQuery,
                 dimensions.isEmpty() ? "" : "," + dimensions);
 
-        return materializedViewService.create(project, new MaterializedView(table.tableName, "Olap table", query,
+        return materializedViewService.create(context, new MaterializedView(table.tableName, "Olap table", query,
                 Duration.ofHours(1), null, null, ImmutableMap.of("olap_table", table)))
                 .thenApply(v -> new PrecalculatedTable(name, table.tableName));
     }
@@ -215,7 +216,7 @@ public abstract class AbstractEventExplorer
     }
 
     protected QueryExecution analyzeInternal(
-            String project,
+            RequestContext context,
             List<String> collections,
             Measure measure, Reference grouping,
             Reference segmentValue2,
@@ -256,7 +257,7 @@ public abstract class AbstractEventExplorer
             return false;
         };
 
-        Optional<Map.Entry<OLAPTable, String>> preComputedTable = materializedViewService.list(project).stream()
+        Optional<Map.Entry<OLAPTable, String>> preComputedTable = materializedViewService.list(context.project).stream()
                 .filter(view -> view.options != null && view.options.containsKey("olap_table"))
                 .map(view -> {
                     try {
@@ -396,7 +397,7 @@ public abstract class AbstractEventExplorer
 
         String table = preComputedTable.map(e -> e.getValue()).orElse(null);
 
-        return new DelegateQueryExecution(executor.executeQuery(project, query, timezone), result -> {
+        return new DelegateQueryExecution(executor.executeQuery(context.project, query, timezone), result -> {
             if (table != null) {
                 result.setProperty("olapTable", table);
             }
@@ -422,7 +423,7 @@ public abstract class AbstractEventExplorer
 
     @Override
     public QueryExecution analyze(
-            String project,
+            RequestContext context,
             List<String> collections,
             Measure measure, Reference grouping,
             Reference segmentValue2,
@@ -430,12 +431,12 @@ public abstract class AbstractEventExplorer
             LocalDate startDate,
             LocalDate endDate,
             ZoneId timezone) {
-        return analyzeInternal(project, collections, measure, grouping, segmentValue2, filterExpression, startDate, endDate, timezone, true);
+        return analyzeInternal(context, collections, measure, grouping, segmentValue2, filterExpression, startDate, endDate, timezone, true);
     }
 
     @Override
     public QueryExecution export(
-            String project,
+            RequestContext context,
             List<String> collections,
             Measure measure, Reference grouping,
             Reference segmentValue2,
@@ -443,7 +444,7 @@ public abstract class AbstractEventExplorer
             LocalDate startDate,
             LocalDate endDate,
             ZoneId timezone) {
-        return analyzeInternal(project, collections, measure, grouping, segmentValue2, filterExpression, startDate, endDate, timezone, false);
+        return analyzeInternal(context, collections, measure, grouping, segmentValue2, filterExpression, startDate, endDate, timezone, false);
     }
 
     protected String generateComputeQuery(Reference grouping, Reference segment, String collection) {
@@ -500,7 +501,7 @@ public abstract class AbstractEventExplorer
     }
 
     @Override
-    public CompletableFuture<QueryResult> getEventStatistics(String project,
+    public CompletableFuture<QueryResult> getEventStatistics(RequestContext context,
                                                              Optional<Set<String>> collections,
                                                              Optional<String> dimension,
                                                              LocalDate startDate,
@@ -536,15 +537,15 @@ public abstract class AbstractEventExplorer
                     " from (%s) data where %s group by 1", sourceTable(collections), timePredicate);
         }
 
-        QueryExecution collection;
+        QueryExecution execution;
         try {
-            collection = executor.executeQuery(project, query, Optional.empty(), null, timezone, 20000);
+            execution = executor.executeQuery(context, query, Optional.empty(), null, timezone, 20000);
         } catch (MaterializedViewNotExists e) {
-            new EventExplorerListener(projectConfig, materializedViewService).createTable(project);
-            collection = executor.executeQuery(project, query, Optional.empty(), null, timezone, 20000);
+            new EventExplorerListener(projectConfig, materializedViewService).createTable(context.project);
+            execution = executor.executeQuery(context, query, Optional.empty(), null, timezone, 20000);
         }
 
-        return collection.getResult().thenApply(result -> {
+        return execution.getResult().thenApply(result -> {
             if (result.isFailed()) {
                 LOGGER.error(new RuntimeException(result.getError().toString()),
                         "An error occurred while executing event explorer statistics query.");

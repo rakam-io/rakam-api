@@ -3,6 +3,7 @@ package org.rakam.plugin.user.mailbox;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.RequestContext;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.User;
@@ -58,7 +59,7 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
 
         Expression expression = parseExpression(filter);
 
-        CompletableFuture<QueryResult> future = userService.searchUsers(project, variables, expression, event_filter, null, 100000, null);
+        CompletableFuture<QueryResult> future = userService.searchUsers(new RequestContext(project, null), variables, expression, event_filter, null, 100000, null);
         return batch(project, future, config);
     }
 

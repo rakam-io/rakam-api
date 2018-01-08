@@ -11,15 +11,7 @@ import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.multibindings.OptionalBinder;
 import com.google.inject.name.Names;
-import org.rakam.analysis.ApiKeyService;
-import org.rakam.analysis.ConfigManager;
-import org.rakam.analysis.EscapeIdentifier;
-import org.rakam.analysis.EventExplorer;
-import org.rakam.analysis.FunnelQueryExecutor;
-import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.analysis.MaterializedViewService;
-import org.rakam.analysis.RetentionQueryExecutor;
-import org.rakam.analysis.TimestampToEpochFunction;
+import org.rakam.analysis.*;
 import org.rakam.analysis.metadata.JDBCQueryMetadata;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.QueryMetadataStore;
@@ -38,25 +30,13 @@ import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.postgresql.PostgresqlConfigManager;
 import org.rakam.postgresql.analysis.JDBCApiKeyService;
 import org.rakam.postgresql.plugin.user.AbstractPostgresqlUserStorage;
-import org.rakam.presto.analysis.MysqlConfigManager;
-import org.rakam.presto.analysis.PrestoAbstractMetastore;
-import org.rakam.presto.analysis.PrestoConfig;
-import org.rakam.presto.analysis.PrestoEventExplorer;
-import org.rakam.presto.analysis.PrestoEventStream;
-import org.rakam.presto.analysis.PrestoFunnelQueryExecutor;
-import org.rakam.presto.analysis.PrestoMaterializedViewService;
-import org.rakam.presto.analysis.PrestoMetastore;
-import org.rakam.presto.analysis.PrestoQueryExecutor;
-import org.rakam.presto.analysis.PrestoRakamRaptorMetastore;
-import org.rakam.presto.analysis.PrestoRetentionQueryExecutor;
-import org.rakam.presto.analysis.PrestoUserService;
+import org.rakam.presto.analysis.*;
 import org.rakam.presto.plugin.user.PrestoExternalUserStorageAdapter;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.eventexplorer.EventExplorerConfig;
 import org.rakam.util.ConditionalModule;
 
 import javax.inject.Inject;
-
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.util.Optional;
@@ -64,9 +44,7 @@ import java.util.Optional;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static java.lang.String.format;
-import static java.lang.annotation.ElementType.FIELD;
-import static java.lang.annotation.ElementType.METHOD;
-import static java.lang.annotation.ElementType.PARAMETER;
+import static java.lang.annotation.ElementType.*;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static org.rakam.presto.analysis.PrestoUserService.ANONYMOUS_ID_MAPPING;
 import static org.rakam.util.ValidationUtil.checkCollection;
@@ -85,6 +63,7 @@ public class PrestoModule
         OptionalBinder<JDBCConfig> userConfig = OptionalBinder.newOptionalBinder(binder, Key.get(JDBCConfig.class, UserConfig.class));
 
         binder.bind(QueryExecutor.class).to(PrestoQueryExecutor.class);
+        binder.bind(PrestoQueryExecutor.class).asEagerSingleton();
         binder.bind(char.class).annotatedWith(EscapeIdentifier.class).toInstance('"');
         binder.bind(MaterializedViewService.class).to(PrestoMaterializedViewService.class);
         binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class).toInstance("to_unixtime");
@@ -159,6 +138,7 @@ public class PrestoModule
 
         if (userPluginConfig.isFunnelAnalysisEnabled()) {
             binder.bind(FunnelQueryExecutor.class).to(PrestoFunnelQueryExecutor.class);
+            binder.bind(PrestoApproxFunnelQueryExecutor.class).asEagerSingleton();
         }
 
         if (userPluginConfig.isRetentionAnalysisEnabled()) {
