@@ -61,8 +61,9 @@ public class RetentionAnalyzerHttpService
     @GET
     @IgnoreApi
     @Path("/analyze")
-    public void analyzeRetention(RakamHttpRequest request) {
-        queryService.handleServerSentQueryExecution(request, RetentionQuery.class, (project, query) -> retentionQueryExecutor.query(new RequestContext(project, null),
+    public void analyzeRetention(RakamHttpRequest request, @QueryParam("read_key") String apiKey) {
+        queryService.handleServerSentQueryExecution(request, RetentionQuery.class,
+                (project, query) -> retentionQueryExecutor.query(new RequestContext(project, apiKey),
                 Optional.ofNullable(query.firstAction),
                 Optional.ofNullable(query.returningAction),
                 query.dateUnit,

@@ -156,9 +156,9 @@ public class QueryHttpService
             authorizations = @Authorization(value = "read_key")
     )
     @Path("/execute")
-    public void execute(RakamHttpRequest request) {
+    public void execute(RakamHttpRequest request, @QueryParam("master_key") String apiKey) {
         handleServerSentQueryExecution(request, QueryRequest.class, (project, query) ->
-                executorService.executeQuery(new RequestContext(project, null), query.query,
+                executorService.executeQuery(new RequestContext(project, apiKey), query.query,
                         query.sample,
                         query.defaultSchema,
                         query.timezone,

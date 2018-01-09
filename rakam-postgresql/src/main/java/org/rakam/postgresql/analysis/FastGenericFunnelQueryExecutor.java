@@ -147,7 +147,7 @@ public class FastGenericFunnelQueryExecutor
             query = format("SELECT %s FROM (%s) data", collect, query);
         }
 
-        QueryExecution queryExecution = executor.executeQuery(context.project, query, Optional.empty(), null, timezone, 1000);
+        QueryExecution queryExecution = executor.executeQuery(context, query, Optional.empty(), null, timezone, 1000);
 
         return new DelegateQueryExecution(queryExecution,
                 result -> {

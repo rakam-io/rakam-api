@@ -395,7 +395,7 @@ public abstract class AbstractEventExplorer
 
         String table = preComputedTable.map(e -> e.getValue()).orElse(null);
 
-        return new DelegateQueryExecution(executor.executeQuery(context.project, query, timezone), result -> {
+        return new DelegateQueryExecution(executor.executeQuery(context, query, timezone), result -> {
             if (table != null) {
                 result.setProperty("olapTable", table);
             }

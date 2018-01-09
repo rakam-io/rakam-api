@@ -116,7 +116,7 @@ public class KafkaStream implements EventStream {
             if (query.isEmpty())
                 return;
 
-            prestoExecutor.executeRawQuery(new RequestContext(null, null), query + " limit 1000").getResult()
+            prestoExecutor.executeRawQuery(new RequestContext(project, null), query + " limit 1000").getResult()
                     .thenAccept(r -> {
                         lastOffsets = offsets;
                         response.send("data", "[" + r.getResult().stream()

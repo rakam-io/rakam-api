@@ -90,7 +90,7 @@ public class ProjectHttpService
 
         List<MaterializedView> views = materializedViewService.list(context.project);
         for (MaterializedView view : views) {
-            materializedViewService.delete(new RequestContext(context.project, null), view.tableName);
+            materializedViewService.delete(context, view.tableName);
         }
 
         apiKeyService.revokeAllKeys(context.project);

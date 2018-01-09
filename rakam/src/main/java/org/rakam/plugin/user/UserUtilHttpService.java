@@ -140,7 +140,7 @@ public class UserUtilHttpService
             expression = null;
         }
 
-        final CompletableFuture<QueryResult> search = service.searchUsers(new RequestContext(project, null), null, expression,
+        final CompletableFuture<QueryResult> search = service.searchUsers(new RequestContext(project, readKey.get(0)), null, expression,
                 read.filterQuery.event_filter, read.filterQuery.sorting, 100000, null);
         final CompletableFuture<byte[]> stream;
         switch (read.exportFormat) {

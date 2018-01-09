@@ -138,7 +138,7 @@ public class PrestoRetentionQueryExecutor
                 range.map(v -> String.format("AND data.date + interval '%d' day >= returning_action.date", v)).orElse(""),
                 dimension.map(v -> "GROUP BY 1, 2").orElse(""));
 
-        return new DelegateQueryExecution(executor.executeQuery(context.project, query, timezone),
+        return new DelegateQueryExecution(executor.executeQuery(context, query, timezone),
                 result -> {
                     result.setProperty("calculatedUserSets", missingPreComputedTables);
                     if (!result.isFailed()) {

@@ -107,10 +107,10 @@ public class MaterializedViewHttpService
     @ApiOperation(value = "Update view", authorizations = @Authorization(value = "master_key"), notes = "Invalidate previous cached data, executes the materialized view query and caches it.\n" +
             "This feature is similar to UPDATE MATERIALIZED VIEWS in RDBMSs.")
     @IgnoreApi
-    public void update(RakamHttpRequest request) {
+    public void update(RakamHttpRequest request, @QueryParam("master_key") String apiKey) {
         queryService.handleServerSentQueryExecution(request, MaterializedViewRequest.class,
                 (project, query) -> {
-                    QueryExecution execution = service.lockAndUpdateView(new RequestContext(project, null), service.get(project, query.name)).queryExecution;
+                    QueryExecution execution = service.lockAndUpdateView(new RequestContext(project, apiKey), service.get(project, query.name)).queryExecution;
                     if (execution == null) {
                         QueryResult result = QueryResult.errorResult(new QueryError("There is another process that updates materialized view", null, null, null, null));
                         return QueryExecution.completedQueryExecution(null, result);

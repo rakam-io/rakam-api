@@ -68,7 +68,7 @@ public class QueryExecutorService {
         String query;
 
         try {
-            query = buildQuery(context.project, sqlQuery, sample, defaultSchema, limit, materializedViews, sessionParameters);
+            query = buildQuery(context, sqlQuery, sample, defaultSchema, limit, materializedViews, sessionParameters);
         } catch (ParsingException e) {
             QueryError error = new QueryError(e.getMessage(), null, null, e.getLineNumber(), e.getColumnNumber());
             LogUtil.logQueryError(sqlQuery, error, executor.getClass());
@@ -151,9 +151,9 @@ public class QueryExecutorService {
         return true;
     }
 
-    public String buildQuery(String project, String query, Optional<QuerySampling> sample, String defaultSchema, Integer maxLimit, Map<MaterializedView, MaterializedViewExecution> materializedViews, Map<String, String> sessionParameters) {
+    public String buildQuery(RequestContext context, String query, Optional<QuerySampling> sample, String defaultSchema, Integer maxLimit, Map<MaterializedView, MaterializedViewExecution> materializedViews, Map<String, String> sessionParameters) {
         Query statement;
-        Function<QualifiedName, String> tableNameMapper = tableNameMapper(project, materializedViews, sample, defaultSchema, sessionParameters);
+        Function<QualifiedName, String> tableNameMapper = tableNameMapper(context, materializedViews, sample, defaultSchema, sessionParameters);
         Statement queryStatement = SqlUtil.parseSql(query);
         if ((queryStatement instanceof Query)) {
             statement = (Query) queryStatement;
@@ -190,18 +190,18 @@ public class QueryExecutorService {
         return builder.toString();
     }
 
-    private Function<QualifiedName, String> tableNameMapper(String project, Map<MaterializedView, MaterializedViewExecution> materializedViews, Optional<QuerySampling> sample, String defaultSchema, Map<String, String> sessionParameters) {
+    private Function<QualifiedName, String> tableNameMapper(RequestContext context, Map<MaterializedView, MaterializedViewExecution> materializedViews, Optional<QuerySampling> sample, String defaultSchema, Map<String, String> sessionParameters) {
         return (node) -> {
             if (node.getPrefix().isPresent() && node.getPrefix().get().toString().equals("materialized")) {
                 MaterializedView materializedView;
                 try {
-                    materializedView = materializedViewService.get(project, node.getSuffix());
+                    materializedView = materializedViewService.get(context.project, node.getSuffix());
                 } catch (NotExistsException e) {
                     throw new MaterializedViewNotExists(node.getSuffix());
                 }
 
                 MaterializedViewExecution materializedViewExecution = materializedViews.computeIfAbsent(materializedView,
-                        (key) -> materializedViewService.lockAndUpdateView(new RequestContext(project, null), materializedView));
+                        (key) -> materializedViewService.lockAndUpdateView(context, materializedView));
 
                 if (materializedViewExecution == null) {
                     throw new IllegalStateException();
@@ -214,7 +214,7 @@ public class QueryExecutorService {
                 node = QualifiedName.of(defaultSchema, node.getSuffix());
             }
 
-            return executor.formatTableReference(project, node, sample, sessionParameters);
+            return executor.formatTableReference(context.project, node, sample, sessionParameters);
         };
     }
 

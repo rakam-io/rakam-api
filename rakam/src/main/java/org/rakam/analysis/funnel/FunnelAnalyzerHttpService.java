@@ -76,7 +76,7 @@ public class FunnelAnalyzerHttpService
     @GET
     @IgnoreApi
     @Path("/analyze")
-    public void analyzeFunnel(RakamHttpRequest request) {
+    public void analyzeFunnel(RakamHttpRequest request, @QueryParam("read_key") String apiKey) {
         queryService.handleServerSentQueryExecution(request, FunnelQuery.class, (project, query) -> {
                     if (query.dimension != null && query.segment == null) {
                         if (projectConfig.getTimeColumn().equals(query.dimension)) {
@@ -84,7 +84,7 @@ public class FunnelAnalyzerHttpService
                         }
                     }
 
-                    return funnelQueryExecutor.query(new RequestContext(project, null),
+                    return funnelQueryExecutor.query(new RequestContext(project, apiKey),
                             query.steps,
                             Optional.ofNullable(query.dimension),
                             Optional.ofNullable(query.segment),

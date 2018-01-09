@@ -88,7 +88,7 @@ public abstract class AbstractPostgresqlUserStorage
     }
 
     public Map<String, FieldType> loadColumns(String project) {
-        Map<String, FieldType> columns = getMetadata(new RequestContext(project, null)).stream()
+        Map<String, FieldType> columns = getMetadata(project).stream()
                 .collect(Collectors.toMap(col -> col.getName(), col -> col.getType()));
         return columns;
     }
@@ -454,7 +454,7 @@ public abstract class AbstractPostgresqlUserStorage
         boolean isEventFilterActive = eventFilter != null && !eventFilter.isEmpty();
 
         QueryExecutorService service = isEventFilterActive ? getExecutorForWithEventFilter() : this.queryExecutorService;
-        QueryExecution query = service.executeQuery(new RequestContext(context.project, null), format("SELECT %s FROM _users %s %s LIMIT %s",
+        QueryExecution query = service.executeQuery(context, format("SELECT %s FROM _users %s %s LIMIT %s",
                 columns, filters.isEmpty() ? "" : " WHERE "
                         + Joiner.on(" AND ").join(filters), orderBy, limit, offset), ZoneOffset.UTC);
 
@@ -467,7 +467,7 @@ public abstract class AbstractPostgresqlUserStorage
                 builder.append(" WHERE ").append(filters.get(0));
             }
 
-            QueryExecution totalResult = queryExecutorService.executeQuery(context.project, builder.toString(), ZoneOffset.UTC);
+            QueryExecution totalResult = queryExecutorService.executeQuery(context, builder.toString(), ZoneOffset.UTC);
 
             CompletableFuture<QueryResult> result = new CompletableFuture<>();
             CompletableFuture.allOf(dataResult, totalResult.getResult()).whenComplete((__, ex) -> {
@@ -492,12 +492,16 @@ public abstract class AbstractPostgresqlUserStorage
 
     @Override
     public List<SchemaField> getMetadata(RequestContext context) {
-        checkProject(context.project);
+        return getMetadata(context.project);
+    }
+
+    public List<SchemaField> getMetadata(String project) {
+        checkProject(project);
         LinkedList<SchemaField> columns = new LinkedList<>();
 
         try (Connection conn = queryExecutor.getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
-            ProjectCollection userTable = getUserTable(context.project, false);
+            ProjectCollection userTable = getUserTable(project, false);
 
             ResultSet indexInfo = metaData.getIndexInfo(null, userTable.project, userTable.collection, true, false);
             ResultSet dbColumns = metaData.getColumns(null, userTable.project, userTable.collection, null);
@@ -764,7 +768,7 @@ public abstract class AbstractPostgresqlUserStorage
         ProjectCollection userTable = getUserTable(project, false);
         String table = checkProject(userTable.project, '"') + "." + checkCollection(userTable.collection);
 
-        QueryResult join = queryExecutor.executeRawStatement(new RequestContext(null, null), format("CREATE TABLE IF NOT EXISTS %s (" +
+        QueryResult join = queryExecutor.executeRawStatement(new RequestContext(project, null), format("CREATE TABLE IF NOT EXISTS %s (" +
                 "  %s " + (userIdIsNumeric ? "serial" : "text") + " NOT NULL,\n" +
                 "  created_at timestamp NOT NULL,\n" +
                 "  PRIMARY KEY (%s)" +
@@ -780,7 +784,7 @@ public abstract class AbstractPostgresqlUserStorage
 
         String table = checkProject(userTable.project, '"') + "." + checkCollection(userTable.collection);
 
-        QueryResult result = queryExecutor.executeRawStatement(new RequestContext(null, null), format("DROP TABLE IF EXISTS %s",
+        QueryResult result = queryExecutor.executeRawStatement(new RequestContext(project, null), format("DROP TABLE IF EXISTS %s",
                 table)).getResult().join();
         propertyCache.invalidateAll();
         userTypeCache.invalidateAll();
