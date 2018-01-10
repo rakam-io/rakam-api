@@ -37,6 +37,7 @@ import java.util.stream.Collectors;
 
 import static com.maxmind.db.Reader.FileMode.MEMORY;
 import static org.rakam.collection.FieldType.STRING;
+import static org.rakam.util.AvroUtil.put;
 
 @Mapper(name = "Maxmind Event mapper", description = "Looks up geolocation data from _ip field using Maxmind and attaches geo-related attributed")
 public class MaxmindGeoIPEventMapper
@@ -189,7 +190,7 @@ public class MaxmindGeoIPEventMapper
                 // Cloudflare country code header (Only works when the request passed through CF servers)
                 String countryCode = extraProperties.headers().get("HTTP_CF_IPCOUNTRY");
                 if (countryCode != null) {
-                    event.properties().put("_country_code", countryCode);
+                    put(event.properties(),"_country_code", countryCode);
                 }
             }
 
@@ -201,7 +202,7 @@ public class MaxmindGeoIPEventMapper
         }
 
         if (attachIp) {
-            event.properties().put("__ip", addr.getHostAddress());
+            put(event.properties(),"__ip", addr.getHostAddress());
         }
 
         if (connectionTypeLookup != null) {
@@ -300,7 +301,7 @@ public class MaxmindGeoIPEventMapper
 
         ConnectionTypeResponse.ConnectionType connType = connectionType.getConnectionType();
         if (connType != null) {
-            properties.put("_connection_type", connType.name());
+            put(properties,"_connection_type", connType.name());
         }
     }
 
@@ -315,7 +316,7 @@ public class MaxmindGeoIPEventMapper
             return;
         }
 
-        properties.put("_isp", isp.getIsp());
+        put(properties,"_isp", isp.getIsp());
     }
 
     private void setGeoFields(InetAddress address, GenericRecord properties) {
@@ -333,22 +334,22 @@ public class MaxmindGeoIPEventMapper
         for (String attribute : attributes) {
             switch (attribute) {
                 case "country_code":
-                    properties.put("_country_code", city.getCountry().getIsoCode());
+                    put(properties,"_country_code", city.getCountry().getIsoCode());
                     break;
                 case "region":
-                    properties.put("_region", city.getContinent().getName());
+                    put(properties,"_region", city.getContinent().getName());
                     break;
                 case "city":
-                    properties.put("_city", city.getCity().getName());
+                    put(properties,"_city", city.getCity().getName());
                     break;
                 case "latitude":
-                    properties.put("_latitude", city.getLocation().getLatitude());
+                    put(properties,"_latitude", city.getLocation().getLatitude());
                     break;
                 case "longitude":
-                    properties.put("_longitude", city.getLocation().getLongitude());
+                    put(properties,"_longitude", city.getLocation().getLongitude());
                     break;
                 case "timezone":
-                    properties.put("_timezone", city.getLocation().getTimeZone());
+                    put(properties,"_timezone", city.getLocation().getTimeZone());
                     break;
             }
         }

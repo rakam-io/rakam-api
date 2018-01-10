@@ -611,7 +611,7 @@ public class CustomEventMapperHttpService
                     record.put(field.name(), event.getAttribute(field.name()));
                 }
 
-                record.put(attr, attrValue.value);
+                AvroUtil.put(event.properties(), attr, attrValue.value);
                 event.properties(record, fields);
             }
         }

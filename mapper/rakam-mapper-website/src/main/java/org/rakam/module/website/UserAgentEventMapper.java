@@ -25,6 +25,8 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.util.List;
 
+import static org.rakam.util.AvroUtil.put;
+
 @Mapper(name = "User Agent Event mapper",
         description = "Parses user agent string and attaches new field related with the user agent of the user")
 public class UserAgentEventMapper implements SyncEventMapper, UserPropertyMapper {
@@ -88,28 +90,28 @@ public class UserAgentEventMapper implements SyncEventMapper, UserPropertyMapper
             }
 
             if (properties.get("user_agent_family") == null) {
-                properties.put("_user_agent_family", parsed.userAgent.family);
+                put(properties,"_user_agent_family", parsed.userAgent.family);
             }
 
             if (trackSpiders && parsed.userAgent != null && properties.get("_user_agent_version") == null) {
                 try {
-                    properties.put("_user_agent_version", Long.parseLong(parsed.userAgent.major));
+                    put(properties,"_user_agent_version", parsed.userAgent.major);
                 } catch (NumberFormatException e) {
                 }
             }
 
             if (parsed.device != null && properties.get("_device_family") == null) {
-                properties.put("_device_family", parsed.device.family);
+                put(properties,"_device_family", parsed.device.family);
             }
 
             if (parsed.os != null) {
                 if (properties.get("_os") == null) {
-                    properties.put("_os", parsed.os.family);
+                    put(properties, "_os", parsed.os.family);
                 }
 
                 if (parsed.os.major != null && properties.get("_os_version") == null) {
                     try {
-                        properties.put("_os_version", Long.parseLong(parsed.os.major));
+                        put(properties,"_os_version", parsed.os.major);
                     } catch (Exception e) {
                     }
                 }
@@ -121,9 +123,9 @@ public class UserAgentEventMapper implements SyncEventMapper, UserPropertyMapper
     public void addFieldDependency(FieldDependencyBuilder builder) {
         builder.addFields("_user_agent", ImmutableList.of(
                 new SchemaField("_user_agent_family", FieldType.STRING),
-                new SchemaField("_user_agent_version", FieldType.LONG),
+                new SchemaField("_user_agent_version", FieldType.STRING),
                 new SchemaField("_os", FieldType.STRING),
-                new SchemaField("_os_version", FieldType.LONG),
+                new SchemaField("_os_version", FieldType.STRING),
                 new SchemaField("_device_family", FieldType.STRING)
         ));
     }

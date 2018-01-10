@@ -26,6 +26,7 @@ import java.net.URISyntaxException;
 import java.util.List;
 
 import static org.rakam.collection.FieldType.STRING;
+import static org.rakam.util.AvroUtil.put;
 
 @Mapper(name = "Website Referrer Event mapper", description = "Parses referrer string and attaches new field related with the referrer of the user")
 public class ReferrerEventMapper
@@ -87,23 +88,23 @@ public class ReferrerEventMapper
             }
 
             if (record.get("_referrer_medium") == null) {
-                record.put("_referrer_medium", parse.medium != null ? parse.medium.toString().toLowerCase() : null);
+                put(record, "_referrer_medium", parse.medium != null ? parse.medium.toString().toLowerCase() : null);
             }
             if (record.get("_referrer_source") == null) {
-                record.put("_referrer_source", parse.source);
+                put(record, "_referrer_source", parse.source);
             }
 
             if (record.get("_referrer_term") == null) {
-                record.put("_referrer_term", parse.term);
+                put(record, "_referrer_term", parse.term);
             }
 
             if (parse.medium != Medium.INTERNAL) {
                 if (record.get("_referrer_domain") == null) {
-                    record.put("_referrer_domain", referrerUri.getHost());
+                    put(record, "_referrer_domain", referrerUri.getHost());
                 }
 
                 if (record.get("_referrer_path") == null) {
-                    record.put("_referrer_path", referrerUri.getPath() +
+                    put(record, "_referrer_path", referrerUri.getPath() +
                             (referrerUri.getQuery() == null ? "" : ("?" + referrerUri.getQuery())));
                 }
             }

@@ -17,6 +17,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericRecord;
 import org.codehaus.jackson.node.NullNode;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
@@ -91,6 +92,93 @@ public final class AvroUtil {
 
     public static Schema generateAvroSchema(FieldType field) {
         return Schema.createUnion(Lists.newArrayList(Schema.create(NULL), getAvroSchema(field)));
+    }
+
+    public static void put(GenericRecord properties, String key, Object value) {
+        Schema.Type schema = properties.getSchema().getField(key).schema().getTypes().get(1).getType();
+        properties.put(key, AvroUtil.cast(schema, value));
+    }
+
+    public static Object cast(Schema.Type type, Object value) {
+        if (value == null) {
+            return null;
+        }
+        switch (type) {
+            case BYTES:
+                return value instanceof byte[] ? value : null;
+            case INT:
+                if (value instanceof Integer) {
+                    return value;
+                }
+                if (value instanceof Number) {
+                    return ((Number) value).intValue();
+                }
+                try {
+                    return Integer.parseInt(value.toString());
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+            case LONG:
+                if (value instanceof Long) {
+                    return value;
+                }
+                if (value instanceof Number) {
+                    return ((Number) value).longValue();
+                }
+                try {
+                    return Long.parseLong(value.toString());
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+            case FLOAT:
+                if (value instanceof Float) {
+                    return value;
+                }
+                if (value instanceof Number) {
+                    return ((Number) value).floatValue();
+                }
+                try {
+                    return Float.parseFloat(value.toString());
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+            case DOUBLE:
+                if (value instanceof Double) {
+                    return value;
+                }
+                if (value instanceof Number) {
+                    return ((Number) value).doubleValue();
+                }
+                try {
+                    return Double.parseDouble(value.toString());
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+            case BOOLEAN:
+                if (value instanceof Boolean) {
+                    return value;
+                }
+                if (value instanceof String) {
+                    return value.equals("true");
+                }
+            case STRING:
+                if (value instanceof String) {
+                    return value;
+                }
+                return value.toString();
+            case ARRAY:
+                if (value instanceof List) {
+                    return value;
+                }
+                return null;
+            case MAP:
+                if (value instanceof Map) {
+                    return value;
+                }
+                return null;
+            default:
+                throw new IllegalArgumentException();
+        }
     }
 
     public static Schema getAvroSchema(FieldType type) {

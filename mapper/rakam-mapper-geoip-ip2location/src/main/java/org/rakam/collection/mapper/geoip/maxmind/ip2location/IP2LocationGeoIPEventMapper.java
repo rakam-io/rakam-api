@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.collection.mapper.geoip.maxmind.ip2location.IP2LocationGeoIPModule.downloadOrGetFile;
+import static org.rakam.util.AvroUtil.put;
 
 @Mapper(name = "IP2Location Event mapper", description = "Looks up geolocation data from _ip field using IP2Location and attaches geo-related attributed")
 public class IP2LocationGeoIPEventMapper
@@ -88,14 +89,14 @@ public class IP2LocationGeoIPEventMapper
                 // Cloudflare country code header (Only works when the request passed through CF servers)
                 String countryCode = extraProperties.headers().get("HTTP_CF_IPCOUNTRY");
                 if (countryCode != null) {
-                    event.properties().put("_country_code", countryCode);
+                    put(event.properties(),"_country_code", countryCode);
                 }
             }
 
             return null;
         }
 
-        setGeoFields(addr, event.properties());
+        setGeoFields(event.properties(), addr);
         return null;
     }
 
@@ -130,7 +131,7 @@ public class IP2LocationGeoIPEventMapper
         }
 
         GenericRecord record = new MapProxyGenericRecord(data);
-        setGeoFields(sourceAddress, record);
+        setGeoFields(record, sourceAddress);
     }
 
     @Override
@@ -142,12 +143,12 @@ public class IP2LocationGeoIPEventMapper
         builder.addFields("_ip", fields);
     }
 
-    private void setGeoFields(InetAddress address, GenericRecord properties) {
+    private void setGeoFields(GenericRecord record, InetAddress address) {
         GeoLocation city = lookup.lookup(address);
-        properties.put("_country_code", city.country);
-        properties.put("_region", city.stateProv);
-        properties.put("_city", city.city);
-        properties.put("_latitude", city.coordination.latitude);
-        properties.put("_longitude", city.coordination.longitude);
+        put(record,"_country_code", city.country);
+        put(record,"_region", city.stateProv);
+        put(record,"_city", city.city);
+        put(record,"_latitude", city.coordination.latitude);
+        put(record,"_longitude", city.coordination.longitude);
     }
 }
