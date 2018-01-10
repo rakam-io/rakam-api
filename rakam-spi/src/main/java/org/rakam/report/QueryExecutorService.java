@@ -4,6 +4,7 @@ import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.ParsingException;
 import com.facebook.presto.sql.tree.*;
 import com.google.inject.Inject;
+import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.EscapeIdentifier;
 import org.rakam.analysis.MaterializedViewService;
@@ -28,6 +29,8 @@ import static java.lang.String.format;
 import static org.rakam.report.QueryResult.EXECUTION_TIME;
 
 public class QueryExecutorService {
+    private final static Logger LOGGER = Logger.get(QueryExecutorService.class);
+
     public static final int DEFAULT_QUERY_RESULT_COUNT = 50000;
     public static final int MAX_QUERY_RESULT_LIMIT = 1000000;
 
@@ -78,56 +81,41 @@ public class QueryExecutorService {
         long startTime = System.currentTimeMillis();
 
         List<MaterializedViewExecution> queryExecutions = materializedViews.values().stream()
-                .filter(m -> m.queryExecution != null)
+                .filter(e -> e.materializedViewUpdateQuery != null)
                 .collect(Collectors.toList());
 
         QueryExecution execution;
-        if (queryExecutions.isEmpty()) {
-            execution = executor.executeRawQuery(context, query, zoneId, sessionParameters);
-            if (materializedViews.isEmpty()) {
-                return execution;
-            } else {
-                Map<String, Long> collect = materializedViews.entrySet().stream().collect(Collectors.toMap(v -> v.getKey().tableName, v -> v.getKey().lastUpdate != null ? v.getKey().lastUpdate.toEpochMilli() : -1));
-                execution = new DelegateQueryExecution(execution, result -> {
-                    result.setProperty("materializedViews", collect);
-                    return result;
+
+        queryExecutions.stream()
+                .forEach(e -> {
+                    QueryExecution updateQuery = e.materializedViewUpdateQuery.get();
+                    updateQuery.getResult().whenComplete((queryResult, throwable) -> {
+                        if (throwable != null) {
+                            QueryError error = queryResult.getError();
+                            String message = format("An exception is thrown while updating materialized table '%s': %s", e.materializedViewUpdateQuery, error.message);
+                            LOGGER.error(throwable, message);
+                            LogUtil.logQueryError(query, error, executor.getClass());
+                        } else if (queryResult.isFailed()) {
+                            QueryError error = queryResult.getError();
+                            String message = format("Error while updating materialized table '%s': %s", e.materializedViewUpdateQuery, error.message);
+                            LOGGER.error(message);
+                            LogUtil.logQueryError(query, error, executor.getClass());
+                        }
+                    });
                 });
+
+        execution = new DelegateQueryExecution(executor.executeRawQuery(context, query, zoneId, sessionParameters), result -> {
+            if (!result.isFailed()) {
+                Map<String, Long> collect = materializedViews.entrySet().stream()
+                        .collect(Collectors.toMap(
+                                v -> v.getKey().tableName,
+                                v -> Optional.ofNullable(v.getKey().lastUpdate).map(Instant::toEpochMilli).orElse(0L)));
+                result.setProperty("materializedViews", collect);
+                result.setProperty(EXECUTION_TIME, System.currentTimeMillis() - startTime);
             }
-        } else {
-            List<QueryExecution> executions = queryExecutions.stream()
-                    .filter(e -> e.queryExecution != null)
-                    .map(e -> e.queryExecution)
-                    .collect(Collectors.toList());
 
-            execution = new DelegateQueryExecution(new ChainQueryExecution(executions, query, (results) -> {
-                for (MaterializedViewExecution queryExecution : queryExecutions) {
-                    QueryResult result = queryExecution.queryExecution.getResult().join();
-                    if (result.isFailed()) {
-                        return new DelegateQueryExecution(queryExecution.queryExecution,
-                                materializedQueryUpdateResult -> {
-                                    QueryError error = materializedQueryUpdateResult.getError();
-                                    String message = format("Error while updating materialized table '%s': %s", queryExecution.computeQuery, error.message);
-                                    QueryError error1 = new QueryError(message, error.sqlState, error.errorCode, error.errorLine, error.charPositionInLine);
-                                    LogUtil.logQueryError(query, error1, executor.getClass());
-                                    return QueryResult.errorResult(error1, query);
-                                });
-                    }
-                }
-
-                return executor.executeRawQuery(context, query, zoneId, sessionParameters);
-            }), result -> {
-                if (!result.isFailed()) {
-                    Map<String, Long> collect = materializedViews.entrySet().stream()
-                            .collect(Collectors.toMap(
-                                    v -> v.getKey().tableName,
-                                    v -> Optional.ofNullable(v.getKey().lastUpdate).map(Instant::toEpochMilli).orElse(0L)));
-                    result.setProperty("materializedViews", collect);
-                    result.setProperty(EXECUTION_TIME, System.currentTimeMillis() - startTime);
-                }
-
-                return result;
-            });
-        }
+            return result;
+        });
 
         return execution;
     }

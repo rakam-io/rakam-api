@@ -21,6 +21,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -150,9 +151,11 @@ public class PrestoMaterializedViewService
             new RakamSqlFormatter.Formatter(builder, name ->
                     queryExecutor.formatTableReference(context.project, name, Optional.empty(),
                             sessionProperties), '"').process(statement, 1);
-            QueryExecution execution = queryExecutor.executeRawStatement(context, format("INSERT INTO %s %s", tableName, builder.toString()), sessionProperties);
-            execution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? Instant.now() : null));
-            return new MaterializedViewExecution(execution, tableName);
+            return new MaterializedViewExecution(() -> {
+                QueryExecution execution = queryExecutor.executeRawStatement(context, format("INSERT INTO %s %s", tableName, builder.toString()), sessionProperties);
+                execution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? Instant.now() : null));
+                return execution;
+            }, tableName);
         } else {
             List<String> referencedCollections = new ArrayList<>();
 
@@ -168,7 +171,7 @@ public class PrestoMaterializedViewService
             Instant lastUpdated = materializedView.lastUpdate;
             Instant now = Instant.now();
 
-            QueryExecution queryExecution;
+            Supplier<QueryExecution> runnable;
             if (materializedView.needsUpdate(clock) && database.updateMaterializedView(context.project, materializedView, f)) {
                 String query = formatSql(statement,
                         name -> {
@@ -182,10 +185,13 @@ public class PrestoMaterializedViewService
                                     predicate);
                         }, '"');
 
-                queryExecution = queryExecutor.executeRawStatement(context, format("INSERT INTO %s %s", materializedTableReference, query), sessionProperties);
-                queryExecution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? now : null));
+                runnable = () -> {
+                    QueryExecution execution = queryExecutor.executeRawStatement(context, format("INSERT INTO %s %s", materializedTableReference, query), sessionProperties);
+                    execution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? now : null));
+                    return execution;
+                };
             } else {
-                queryExecution = QueryExecution.completedQueryExecution("", QueryResult.empty());
+                runnable = null;
                 f.complete(lastUpdated);
             }
 
@@ -206,7 +212,7 @@ public class PrestoMaterializedViewService
                 reference = format("(SELECT * from %s UNION ALL %s)", materializedTableReference, query);
             }
 
-            return new MaterializedViewExecution(queryExecution, reference);
+            return new MaterializedViewExecution(runnable, reference);
         }
     }
 }

@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 import static com.facebook.presto.sql.RakamSqlFormatter.formatSql;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -126,23 +127,22 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
         Map<String, String> sessionProperties = new HashMap<>();
         if (!materializedView.incremental) {
             if (!materializedView.needsUpdate(clock) || !database.updateMaterializedView(context.project, materializedView, f)) {
-                return new MaterializedViewExecution(null, tableName);
+                return null;
             }
 
             String collection = checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName);
             QueryExecution execution = queryExecutor.executeRawStatement(context, format("REFRESH MATERIALIZED VIEW %s.%s ",
                     context.project, collection));
-            DelegateQueryExecution delegateQueryExecution = new DelegateQueryExecution(execution, result -> {
+            return new MaterializedViewExecution(() -> new DelegateQueryExecution(execution, result -> {
                 f.complete(!result.isFailed() ? Instant.now() : null);
                 return result;
-            });
-            return new MaterializedViewExecution(delegateQueryExecution, tableName);
+            }), tableName);
         } else {
             String materializedTableReference = tableName;
 
             boolean willBeUpdated = materializedView.needsUpdate(clock) && database.updateMaterializedView(context.project, materializedView, f);
 
-            QueryExecution queryExecution;
+            Supplier<QueryExecution> queryExecution;
             Instant now = Instant.now();
             if (willBeUpdated) {
                 String query = formatSql(statement,
@@ -156,12 +156,15 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
                             return format("(SELECT * FROM %s WHERE \"$server_time\" %s) data", collection, predicate);
                         }, '"');
 
-                queryExecution = queryExecutor.executeRawStatement(context, format("INSERT INTO %s %s", materializedTableReference, query), sessionProperties);
-                queryExecution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? now : null));
-
+                queryExecution = () -> {
+                    QueryExecution execution = queryExecutor.executeRawStatement(
+                            context, format("INSERT INTO %s %s", materializedTableReference, query), sessionProperties);
+                    execution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? now : null));
+                    return execution;
+                };
             } else {
-                queryExecution = QueryExecution.completedQueryExecution("", QueryResult.empty());
                 f.complete(materializedView.lastUpdate);
+                queryExecution = null;
             }
 
             String reference;

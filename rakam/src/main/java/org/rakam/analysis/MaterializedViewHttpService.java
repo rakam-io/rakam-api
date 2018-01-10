@@ -1,9 +1,11 @@
 package org.rakam.analysis;
 
+import org.rakam.analysis.MaterializedViewService.MaterializedViewExecution;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
+import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -29,11 +31,13 @@ public class MaterializedViewHttpService
         extends HttpService {
     private final MaterializedViewService service;
     private final QueryHttpService queryService;
+    private final QueryExecutor executor;
 
     @Inject
-    public MaterializedViewHttpService(MaterializedViewService service, QueryHttpService queryService) {
+    public MaterializedViewHttpService(MaterializedViewService service, QueryExecutor executor, QueryHttpService queryService) {
         this.service = service;
         this.queryService = queryService;
+        this.executor = executor;
     }
 
     @JsonRequest
@@ -110,12 +114,13 @@ public class MaterializedViewHttpService
     public void update(RakamHttpRequest request, @QueryParam("master_key") String apiKey) {
         queryService.handleServerSentQueryExecution(request, MaterializedViewRequest.class,
                 (project, query) -> {
-                    QueryExecution execution = service.lockAndUpdateView(new RequestContext(project, apiKey), service.get(project, query.name)).queryExecution;
-                    if (execution == null) {
+                    RequestContext context = new RequestContext(project, apiKey);
+                    MaterializedViewExecution execution = service.lockAndUpdateView(context, service.get(project, query.name));
+                    if (execution.materializedViewUpdateQuery == null) {
                         QueryResult result = QueryResult.errorResult(new QueryError("There is another process that updates materialized view", null, null, null, null));
                         return QueryExecution.completedQueryExecution(null, result);
                     }
-                    return execution;
+                    return execution.materializedViewUpdateQuery.get();
                 });
     }
 

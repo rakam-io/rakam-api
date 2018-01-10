@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
@@ -116,11 +117,11 @@ public abstract class MaterializedViewService {
     }
 
     public static class MaterializedViewExecution {
-        public final QueryExecution queryExecution;
+        public final Supplier<QueryExecution> materializedViewUpdateQuery;
         public final String computeQuery;
 
-        public MaterializedViewExecution(QueryExecution queryExecution, String computeQuery) {
-            this.queryExecution = queryExecution;
+        public MaterializedViewExecution(Supplier<QueryExecution> materializedViewUpdateQuery, String computeQuery) {
+            this.materializedViewUpdateQuery = materializedViewUpdateQuery;
             this.computeQuery = computeQuery;
         }
     }
