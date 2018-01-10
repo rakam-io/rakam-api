@@ -59,7 +59,7 @@ public class TestUserAgentEventMapper {
 
         assertEquals("Chrome", event.getAttribute("_user_agent_family"));
         assertEquals("Mac OS X", event.getAttribute("_os"));
-        assertEquals(new Long(10), event.getAttribute("_os_version"));
+        assertEquals("10", event.getAttribute("_os_version"));
         assertEquals("Other", event.getAttribute("_device_family"));
         assertNull(resp);
         GenericData.get().validate(properties.getSchema(), properties);
