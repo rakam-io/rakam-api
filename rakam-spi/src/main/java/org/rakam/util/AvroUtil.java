@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.apache.avro.Schema.Type.NULL;
+import static org.apache.avro.Schema.Type.UNION;
 
 public final class AvroUtil {
     static {
@@ -95,8 +96,14 @@ public final class AvroUtil {
     }
 
     public static void put(GenericRecord properties, String key, Object value) {
-        Schema.Type schema = properties.getSchema().getField(key).schema().getTypes().get(1).getType();
-        properties.put(key, AvroUtil.cast(schema, value));
+        Schema union = properties.getSchema().getField(key).schema();
+        Schema.Type type;
+        if (union.getType().equals(UNION)) {
+            type = union.getTypes().get(1).getType();
+        } else {
+            type = union.getType();
+        }
+        properties.put(key, AvroUtil.cast(type, value));
     }
 
     public static Object cast(Schema.Type type, Object value) {

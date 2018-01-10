@@ -3,7 +3,6 @@ package org.rakam.module.website;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.Mapper;
@@ -25,6 +24,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.util.List;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static org.rakam.util.AvroUtil.put;
 
 @Mapper(name = "User Agent Event mapper",
@@ -86,7 +86,7 @@ public class UserAgentEventMapper implements SyncEventMapper, UserPropertyMapper
 
             if (parsed.device != null && "Spider".equals(parsed.device.family)) {
                 // A bit SEO wouldn't hurt.
-                throw new HttpRequestException("Spiders are not allowed in Rakam Analytics.", HttpResponseStatus.FORBIDDEN);
+                throw new HttpRequestException("Spiders are not allowed in Rakam Analytics.", FORBIDDEN);
             }
 
             if (properties.get("user_agent_family") == null) {
