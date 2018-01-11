@@ -235,6 +235,7 @@ public final class ServiceStarter {
             binder.bind(SchemaChecker.class).asEagerSingleton();
 
             binder.bind(JSLoggerService.class).to(JSCodeJDBCLoggerService.class);
+            binder.bind(JSCodeJDBCLoggerService.class);
 
             binder.bind(RAsyncHttpClient.class)
                     .annotatedWith(Names.named("rakam-client"))

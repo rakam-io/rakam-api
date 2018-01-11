@@ -43,7 +43,6 @@ import org.rakam.util.RakamException;
 import org.rakam.util.SuccessMessage;
 import org.rakam.util.javascript.JSCodeCompiler;
 import org.rakam.util.javascript.JSCodeJDBCLoggerService;
-import org.rakam.util.javascript.JSLoggerService;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.GeneratedKeys;
 import org.skife.jdbi.v2.Handle;
@@ -95,7 +94,7 @@ public class CustomEventMapperHttpService
             @Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
             Metastore metastore,
             JSCodeCompiler jsCodeCompiler,
-            JSLoggerService loggerService,
+            JSCodeJDBCLoggerService loggerService,
             QueryExecutorService queryExecutorService) {
         this.dbi = new DBI(dataSource);
         this.jsCodeCompiler = jsCodeCompiler;
