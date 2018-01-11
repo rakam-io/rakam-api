@@ -12,7 +12,7 @@ public class TestPostgresqlApiKeyService extends TestApiKeyService {
     private PostgresqlApiKeyService apiKeyService;
 
     @BeforeSuite
-    public void setupPG() {
+    public void setupPostgresql() {
         TestingEnvironmentPg9 testingEnvironment = new TestingEnvironmentPg9();
         JDBCPoolDataSource apiKeyServiceDataSource = JDBCPoolDataSource
                 .getOrCreateDataSource(testingEnvironment.getPostgresqlConfig());

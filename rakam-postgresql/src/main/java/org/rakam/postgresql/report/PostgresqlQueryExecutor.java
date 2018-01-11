@@ -69,7 +69,7 @@ public class PostgresqlQueryExecutor
             Metastore metastore,
             CustomDataSourceService customDataSource,
             @Named("user.storage.postgresql") boolean userServiceIsPostgresql) {
-        this(projectConfig, connectionPool, metastore, com.google.common.base.Optional.fromNullable(customDataSource), userServiceIsPostgresql, null);
+        this(projectConfig, connectionPool, metastore, com.google.common.base.Optional.fromNullable(customDataSource), userServiceIsPostgresql, com.google.common.base.Optional.absent());
     }
 
     @Inject
