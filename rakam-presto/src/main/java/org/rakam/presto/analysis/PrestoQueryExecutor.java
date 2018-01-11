@@ -69,7 +69,7 @@ public class PrestoQueryExecutor
             PrestoConfig prestoConfig,
             @Nullable @UserConfig com.google.common.base.Optional<JDBCConfig> userJdbcConfig,
             Metastore metastore) {
-        this(projectConfig, prestoConfig, userJdbcConfig, metastore, null, null);
+        this(projectConfig, prestoConfig, userJdbcConfig, metastore, com.google.common.base.Optional.absent(), com.google.common.base.Optional.absent());
     }
 
     @Inject
