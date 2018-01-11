@@ -1,6 +1,5 @@
 package org.rakam.pg10;
 
-import com.google.common.base.Throwables;
 import io.airlift.testing.postgresql10.TestingPostgreSqlServer;
 import org.rakam.config.JDBCConfig;
 
@@ -32,7 +31,7 @@ public class TestingEnvironmentPg10 {
                                 )
                         );
                     } catch (Exception e) {
-                        throw Throwables.propagate(e);
+                        throw new RuntimeException("Unable to start PG", e);
                     }
                 }
             }
