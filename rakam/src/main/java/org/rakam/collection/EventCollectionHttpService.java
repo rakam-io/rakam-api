@@ -19,13 +19,7 @@ import io.airlift.log.Logger;
 import io.airlift.slice.InputStreamSliceInput;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.DefaultHttpHeaders;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.ApiKeyService;
@@ -37,12 +31,7 @@ import org.rakam.server.http.HttpRequestException;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.ApiResponse;
-import org.rakam.server.http.annotations.ApiResponses;
-import org.rakam.server.http.annotations.IgnoreApi;
+import org.rakam.server.http.annotations.*;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.LogUtil;
 import org.rakam.util.RakamException;
@@ -52,51 +41,28 @@ import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static com.fasterxml.jackson.core.JsonToken.START_OBJECT;
 import static com.google.common.base.Charsets.UTF_8;
-import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_CREDENTIALS;
-import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN;
-import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_EXPOSE_HEADERS;
-import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH;
-import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
-import static io.netty.handler.codec.http.HttpHeaders.Names.ORIGIN;
-import static io.netty.handler.codec.http.HttpHeaders.Names.SET_COOKIE;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.CONFLICT;
-import static io.netty.handler.codec.http.HttpResponseStatus.INSUFFICIENT_STORAGE;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
-import static io.netty.handler.codec.http.HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE;
+import static io.netty.handler.codec.http.HttpHeaders.Names.*;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static io.netty.handler.codec.http.cookie.ServerCookieEncoder.STRICT;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.plugin.EventMapper.COMPLETED_EMPTY_FUTURE;
 import static org.rakam.plugin.EventStore.COMPLETED_FUTURE;
-import static org.rakam.plugin.EventStore.CopyType.AVRO;
-import static org.rakam.plugin.EventStore.CopyType.CSV;
-import static org.rakam.plugin.EventStore.CopyType.JSON;
+import static org.rakam.plugin.EventStore.CopyType.*;
 import static org.rakam.plugin.EventStore.SUCCESSFUL_BATCH;
 import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.encodeAsBytes;
@@ -108,11 +74,9 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 public class EventCollectionHttpService
         extends HttpService {
     private final static Logger LOGGER = Logger.get(EventCollectionHttpService.class);
-
+    private static final int[] FAILED_SINGLE_EVENT = new int[]{0};
     private final byte[] OK_MESSAGE = "1".getBytes(UTF_8);
     private final byte[] gif1x1 = Base64.getDecoder().decode("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7");
-    private static final int[] FAILED_SINGLE_EVENT = new int[]{0};
-
     private final ObjectMapper jsonMapper;
     private final ObjectMapper csvMapper;
     private final EventStore eventStore;
@@ -199,6 +163,28 @@ public class EventCollectionHttpService
         if (headerList != null) {
             response.headers().set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
         }
+    }
+
+    public static InetAddress getRemoteAddress(String socketAddress) {
+        try {
+            return InetAddress.getByName(socketAddress);
+        } catch (UnknownHostException e) {
+            return null;
+        }
+    }
+
+    public static String getHeaderList(Iterator<Map.Entry<String, String>> it) {
+        StringBuilder builder = new StringBuilder("cf-ray,server,status");
+        while (it.hasNext()) {
+            String key = it.next().getKey();
+            if (!key.equals(SET_COOKIE)) {
+                if (builder.length() != 0) {
+                    builder.append(',');
+                }
+                builder.append(key.toLowerCase(Locale.ENGLISH));
+            }
+        }
+        return builder == null ? null : builder.toString();
     }
 
     @POST
@@ -348,14 +334,6 @@ public class EventCollectionHttpService
         request.headers().add(CONTENT_LENGTH, "42");
 
         request.response(gif1x1).end();
-    }
-
-    public static InetAddress getRemoteAddress(String socketAddress) {
-        try {
-            return InetAddress.getByName(socketAddress);
-        } catch (UnknownHostException e) {
-            return null;
-        }
     }
 
     @POST
@@ -585,7 +563,13 @@ public class EventCollectionHttpService
                         try {
                             if (single) {
                                 errorIndexes = eventStore.storeAsync(events.get(0))
-                                        .handle((result, ex) -> (ex != null) ? FAILED_SINGLE_EVENT : SUCCESSFUL_BATCH);
+                                        .handle((aVoid, throwable) -> {
+                                            if (throwable != null) {
+                                                LOGGER.error(throwable, "Error while storing events");
+                                                return FAILED_SINGLE_EVENT;
+                                            }
+                                            return SUCCESSFUL_BATCH;
+                                        });
                             } else {
                                 errorIndexes = eventStore.storeBatchAsync(events);
                             }
@@ -686,8 +670,7 @@ public class EventCollectionHttpService
                     if (storeEx instanceof RakamException) {
                         LogUtil.logException(request, storeEx);
                         returnError(request, storeEx.getMessage(), ((RakamException) storeEx).getStatusCode());
-                    }
-                    else {
+                    } else {
                         LOGGER.error(storeEx, "Error while collecting events");
                         returnError(request, "An error occurred", INTERNAL_SERVER_ERROR);
                     }
@@ -708,65 +691,51 @@ public class EventCollectionHttpService
                     }
                 });
             });
-    });
-}
+        });
+    }
 
-    public static String getHeaderList(Iterator<Map.Entry<String, String>> it) {
-        StringBuilder builder = new StringBuilder("cf-ray,server,status");
-        while (it.hasNext()) {
-            String key = it.next().getKey();
-            if (!key.equals(SET_COOKIE)) {
-                if (builder.length() != 0) {
-                    builder.append(',');
-                }
-                builder.append(key.toLowerCase(Locale.ENGLISH));
-            }
+    interface ThrowableFunction {
+        EventList apply(InputStream buffer)
+                throws IOException;
+    }
+
+    public static class HttpRequestParams
+            implements EventMapper.RequestParams {
+        private final RakamHttpRequest request;
+
+        public HttpRequestParams(RakamHttpRequest request) {
+            this.request = request;
         }
-        return builder == null ? null : builder.toString();
+
+        @Override
+        public Collection<Cookie> cookies() {
+            return request.cookies();
+        }
+
+        @Override
+        public HttpHeaders headers() {
+            return request.headers();
+        }
     }
 
-interface ThrowableFunction {
-    EventList apply(InputStream buffer)
-            throws IOException;
-}
+    public static class BulkEventRemote {
+        public final String collection;
+        public final List<URL> urls;
+        public final CopyType type;
+        public final EventStore.CompressionType compression;
+        public final Map<String, String> options;
 
-public static class HttpRequestParams
-        implements EventMapper.RequestParams {
-    private final RakamHttpRequest request;
-
-    public HttpRequestParams(RakamHttpRequest request) {
-        this.request = request;
+        @JsonCreator
+        public BulkEventRemote(@ApiParam("collection") String collection,
+                               @ApiParam("urls") List<URL> urls,
+                               @ApiParam("type") CopyType type,
+                               @ApiParam(value = "compression", required = false) EventStore.CompressionType compression,
+                               @ApiParam(value = "options", required = false) Map<String, String> options) {
+            this.collection = collection;
+            this.urls = urls;
+            this.type = type;
+            this.compression = compression;
+            this.options = Optional.ofNullable(options).orElse(ImmutableMap.of());
+        }
     }
-
-    @Override
-    public Collection<Cookie> cookies() {
-        return request.cookies();
-    }
-
-    @Override
-    public HttpHeaders headers() {
-        return request.headers();
-    }
-}
-
-public static class BulkEventRemote {
-    public final String collection;
-    public final List<URL> urls;
-    public final CopyType type;
-    public final EventStore.CompressionType compression;
-    public final Map<String, String> options;
-
-    @JsonCreator
-    public BulkEventRemote(@ApiParam("collection") String collection,
-                           @ApiParam("urls") List<URL> urls,
-                           @ApiParam("type") CopyType type,
-                           @ApiParam(value = "compression", required = false) EventStore.CompressionType compression,
-                           @ApiParam(value = "options", required = false) Map<String, String> options) {
-        this.collection = collection;
-        this.urls = urls;
-        this.type = type;
-        this.compression = compression;
-        this.options = Optional.ofNullable(options).orElse(ImmutableMap.of());
-    }
-}
 }

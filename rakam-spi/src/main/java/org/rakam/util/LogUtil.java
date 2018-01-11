@@ -20,8 +20,7 @@ import java.util.Optional;
 import java.util.logging.LogManager;
 import java.util.stream.Collectors;
 
-public class LogUtil
-{
+public class LogUtil {
     private static final Raven RAVEN;
     private static final Map<String, String> TAGS;
     private static final String RELEASE;
@@ -41,8 +40,7 @@ public class LogUtil
         RAVEN = dsnInternal != null ? RavenFactory.ravenInstance(dsnInternal) : null;
     }
 
-    public static void logException(RakamHttpRequest request, RakamException e)
-    {
+    public static void logException(RakamHttpRequest request, RakamException e) {
         if (RAVEN == null) {
             return;
         }
@@ -66,8 +64,7 @@ public class LogUtil
         RAVEN.sendEvent(builder.build());
     }
 
-    public static void logException(RakamHttpRequest request, Throwable e)
-    {
+    public static void logException(RakamHttpRequest request, Throwable e) {
         if (RAVEN == null) {
             return;
         }
@@ -90,13 +87,11 @@ public class LogUtil
         RAVEN.sendEvent(builder.build());
     }
 
-    public static void logException(RakamHttpRequest request, IllegalArgumentException e)
-    {
+    public static void logException(RakamHttpRequest request, IllegalArgumentException e) {
         logException(request, new RakamException(e.getMessage(), HttpResponseStatus.BAD_REQUEST));
     }
 
-    public static void logQueryError(String query, QueryError e, Class<? extends QueryExecutor> queryExecutorClass)
-    {
+    public static void logQueryError(String query, QueryError e, Class<? extends QueryExecutor> queryExecutorClass) {
         EventBuilder builder = new EventBuilder()
                 .withMessage(e.message)
                 .withExtra("query", query)

@@ -18,7 +18,7 @@ public class ClientMessageAutomationAction
         StringTemplate template = new StringTemplate(data.template);
         return template.format((query) -> {
             Object val = user.get().properties.get(query);
-            if(val == null || !(val instanceof String)) {
+            if (val == null || !(val instanceof String)) {
                 return data.variables.get(query);
             }
             return val.toString();
@@ -31,7 +31,7 @@ public class ClientMessageAutomationAction
 
         @JsonCreator
         public Template(@JsonProperty("template") String template,
-                @JsonProperty(value = "variables", required = false) Map<String, String> variables) {
+                        @JsonProperty(value = "variables", required = false) Map<String, String> variables) {
             this.template = template;
             this.variables = Optional.ofNullable(variables).orElse(ImmutableMap.of());
         }

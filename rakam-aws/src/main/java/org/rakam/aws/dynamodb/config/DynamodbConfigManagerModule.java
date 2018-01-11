@@ -4,7 +4,6 @@ import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.aws.AWSConfig;
-import org.rakam.aws.dynamodb.user.DynamodbUserConfig;
 import org.rakam.plugin.RakamModule;
 import org.rakam.util.ConditionalModule;
 
@@ -12,12 +11,10 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "config-manager.adapter", value = "dynamodb")
-public class DynamodbConfigManagerModule extends RakamModule
-{
+public class DynamodbConfigManagerModule extends RakamModule {
 
     @Override
-    protected void setup(Binder binder)
-    {
+    protected void setup(Binder binder) {
         configBinder(binder).bindConfig(DynamodbConfigManagerConfig.class);
         configBinder(binder).bindConfig(AWSConfig.class);
 
@@ -25,14 +22,12 @@ public class DynamodbConfigManagerModule extends RakamModule
     }
 
     @Override
-    public String name()
-    {
+    public String name() {
         return "Dynamodb Config Manager";
     }
 
     @Override
-    public String description()
-    {
+    public String description() {
         return null;
     }
 }

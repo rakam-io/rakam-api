@@ -4,20 +4,17 @@ import io.airlift.configuration.Config;
 
 import java.util.List;
 
-public class GeoIPModuleConfig
-{
+public class GeoIPModuleConfig {
     private List<String> attributes;
     private String databaseUrl = null;
 
-    @Config("plugin.geoip.database.url")
-    public GeoIPModuleConfig setDatabaseUrl(String url)
-    {
-        this.databaseUrl = url;
-        return this;
+    public String getDatabaseUrl() {
+        return databaseUrl;
     }
 
-    public String getDatabaseUrl()
-    {
-        return databaseUrl;
+    @Config("plugin.geoip.database.url")
+    public GeoIPModuleConfig setDatabaseUrl(String url) {
+        this.databaseUrl = url;
+        return this;
     }
 }

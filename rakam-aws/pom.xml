@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
         <artifactId>rakam-root</artifactId>
         <groupId>org.rakam</groupId>
@@ -72,9 +73,9 @@
             <version>${project.version}</version>
         </dependency>
         <!--<dependency>-->
-            <!--<groupId>com.amazonaws</groupId>-->
-            <!--<artifactId>DynamoDBLocal</artifactId>-->
-            <!--<scope>test</scope>-->
+        <!--<groupId>com.amazonaws</groupId>-->
+        <!--<artifactId>DynamoDBLocal</artifactId>-->
+        <!--<scope>test</scope>-->
         <!--</dependency>-->
         <dependency>
             <groupId>org.rakam</groupId>
@@ -244,24 +245,24 @@
                 </configuration>
             </plugin>
             <!--<plugin>-->
-                <!--<groupId>com.googlecode.maven-download-plugin</groupId>-->
-                <!--<artifactId>download-maven-plugin</artifactId>-->
-                <!--<version>1.3.0</version>-->
-                <!--<executions>-->
-                    <!--<execution>-->
-                        <!--<id>download-dynamodb</id>-->
-                        <!--<phase>generate-test-resources</phase>-->
-                        <!--<goals>-->
-                            <!--<goal>wget</goal>-->
-                        <!--</goals>-->
-                        <!--<configuration>-->
-                            <!--<url>https://s3-us-west-2.amazonaws.com/dynamodb-local/dynamodb_local_latest.zip</url>-->
-                            <!--<unpack>true</unpack>-->
-                            <!--<skip>${skipTests}</skip>-->
-                            <!--<outputDirectory>${project.basedir}/.test/dynamodb</outputDirectory>-->
-                        <!--</configuration>-->
-                    <!--</execution>-->
-                <!--</executions>-->
+            <!--<groupId>com.googlecode.maven-download-plugin</groupId>-->
+            <!--<artifactId>download-maven-plugin</artifactId>-->
+            <!--<version>1.3.0</version>-->
+            <!--<executions>-->
+            <!--<execution>-->
+            <!--<id>download-dynamodb</id>-->
+            <!--<phase>generate-test-resources</phase>-->
+            <!--<goals>-->
+            <!--<goal>wget</goal>-->
+            <!--</goals>-->
+            <!--<configuration>-->
+            <!--<url>https://s3-us-west-2.amazonaws.com/dynamodb-local/dynamodb_local_latest.zip</url>-->
+            <!--<unpack>true</unpack>-->
+            <!--<skip>${skipTests}</skip>-->
+            <!--<outputDirectory>${project.basedir}/.test/dynamodb</outputDirectory>-->
+            <!--</configuration>-->
+            <!--</execution>-->
+            <!--</executions>-->
             <!--</plugin>-->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -280,13 +281,15 @@
                             <failOnWarning>true</failOnWarning>
 
                             <ignoredUnusedDeclaredDependencies>
-                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-parser</ignoredUnusedDeclaredDependency>
+                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-parser
+                                </ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>io.airlift:node</ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>joda-time:joda-time</ignoredUnusedDeclaredDependency>
                             </ignoredUnusedDeclaredDependencies>
 
                             <ignoredUsedUndeclaredDependencies>
-                                <ignoredUsedUndeclaredDependency>com.facebook.presto:presto-parser</ignoredUsedUndeclaredDependency>
+                                <ignoredUsedUndeclaredDependency>com.facebook.presto:presto-parser
+                                </ignoredUsedUndeclaredDependency>
                             </ignoredUsedUndeclaredDependencies>
                         </configuration>
                     </execution>

@@ -9,7 +9,6 @@ import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.config.JDBCConfig;
 import org.rakam.ui.AuthService;
 import org.rakam.ui.RakamUIConfig;
 import org.rakam.util.RakamException;
@@ -24,7 +23,6 @@ import javax.naming.directory.DirContext;
 import javax.naming.directory.InitialDirContext;
 import javax.naming.directory.SearchControls;
 import javax.naming.directory.SearchResult;
-
 import java.security.Principal;
 import java.util.Hashtable;
 import java.util.Map;
@@ -35,21 +33,14 @@ import java.util.concurrent.ExecutionException;
 import static com.google.common.base.CharMatcher.JAVA_ISO_CONTROL;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkState;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static javax.naming.Context.INITIAL_CONTEXT_FACTORY;
-import static javax.naming.Context.PROVIDER_URL;
-import static javax.naming.Context.SECURITY_AUTHENTICATION;
-import static javax.naming.Context.SECURITY_CREDENTIALS;
-import static javax.naming.Context.SECURITY_PRINCIPAL;
+import static javax.naming.Context.*;
 
 public class LdapAuthService
-        implements AuthService
-{
+        implements AuthService {
     private static final Logger log = Logger.get(LdapAuthService.class);
 
     private static final String LDAP_CONTEXT_FACTORY = "com.sun.jndi.ldap.LdapCtxFactory";
@@ -66,8 +57,7 @@ public class LdapAuthService
     public LdapAuthService(
             LdapConfig serverConfig,
             RakamUIConfig config,
-            @Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource)
-    {
+            @Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource) {
         this.dbi = new DBI(dataSource);
         this.ldapUrl = requireNonNull(serverConfig.getLdapUrl(), "ldapUrl is null");
         this.userBindSearchPattern = requireNonNull(serverConfig.getUserBindSearchPattern(), "userBindSearchPattern is null");
@@ -88,28 +78,33 @@ public class LdapAuthService
         this.basicEnvironment = environment;
         this.authenticationCache = CacheBuilder.newBuilder()
                 .expireAfterWrite(serverConfig.getLdapCacheTtl().toMillis(), MILLISECONDS)
-                .build(new CacheLoader<Credentials, Principal>()
-                {
+                .build(new CacheLoader<Credentials, Principal>() {
                     @Override
-                    public Principal load(@Nonnull Credentials key)
-                    {
+                    public Principal load(@Nonnull Credentials key) {
                         return authenticate(key.getUser(), key.getPassword());
                     }
                 });
     }
 
-    public boolean login(String username, String password)
-    {
+    public static InitialDirContext getInitialDirContext(Map<String, String> environment)
+            throws NamingException {
+        return new InitialDirContext(new Hashtable<>(environment));
+    }
+
+    private static InitialDirContext createDirContext(Map<String, String> environment)
+            throws NamingException {
+        return getInitialDirContext(environment);
+    }
+
+    public boolean login(String username, String password) {
         try {
             Credentials key = new Credentials(username, password);
 
             authenticationCache.refresh(key);
             authenticationCache.get(key);
-        }
-        catch (UncheckedExecutionException e) {
+        } catch (UncheckedExecutionException e) {
             throw Throwables.propagate(e.getCause());
-        }
-        catch (ExecutionException e) {
+        } catch (ExecutionException e) {
             return false;
         }
 
@@ -117,8 +112,7 @@ public class LdapAuthService
     }
 
     @Override
-    public void checkAccess(int userId)
-    {
+    public void checkAccess(int userId) {
         try (Handle handle = dbi.open()) {
             Boolean exists = handle.createQuery("select email, password from web_user where id = :id")
                     .bind("id", userId).map((index, r, ctx) -> {
@@ -129,11 +123,9 @@ public class LdapAuthService
                             if (principal == null) {
                                 throw new RakamException("LDAP user doesn't exist", FORBIDDEN);
                             }
-                        }
-                        catch (UncheckedExecutionException e) {
+                        } catch (UncheckedExecutionException e) {
                             throw Throwables.propagate(e.getCause());
-                        }
-                        catch (ExecutionException e) {
+                        } catch (ExecutionException e) {
                             throw new RakamException("LDAP user doesn't exist", FORBIDDEN);
                         }
                         return Boolean.TRUE;
@@ -145,21 +137,8 @@ public class LdapAuthService
         }
     }
 
-    public static InitialDirContext getInitialDirContext(Map<String, String> environment)
-            throws NamingException
-    {
-        return new InitialDirContext(new Hashtable<>(environment));
-    }
-
-    private static InitialDirContext createDirContext(Map<String, String> environment)
-            throws NamingException
-    {
-        return getInitialDirContext(environment);
-    }
-
     public Principal authenticate(String user, String password)
-            throws RakamException
-    {
+            throws RakamException {
         Map<String, String> environment = createEnvironment(user, password);
         InitialDirContext context;
         try {
@@ -168,20 +147,17 @@ public class LdapAuthService
 
             log.debug("Authentication successful for user %s", user);
             return new LdapPrincipal(user);
-        }
-        catch (javax.naming.AuthenticationException e) {
+        } catch (javax.naming.AuthenticationException e) {
             String formattedAsciiMessage = format("Invalid credentials: %s", JAVA_ISO_CONTROL.removeFrom(e.getMessage()));
             log.debug("Authentication failed for user [%s]. %s", user, e.getMessage());
             throw new RakamException(formattedAsciiMessage, UNAUTHORIZED);
-        }
-        catch (NamingException e) {
+        } catch (NamingException e) {
             log.debug("Authentication failed", e.getMessage());
             throw new RakamException("Authentication failed", INTERNAL_SERVER_ERROR);
         }
     }
 
-    private Map<String, String> createEnvironment(String user, String password)
-    {
+    private Map<String, String> createEnvironment(String user, String password) {
         return ImmutableMap.<String, String>builder()
                 .putAll(basicEnvironment)
                 .put(SECURITY_AUTHENTICATION, "simple")
@@ -190,18 +166,15 @@ public class LdapAuthService
                 .build();
     }
 
-    private String createPrincipal(String user)
-    {
+    private String createPrincipal(String user) {
         return replaceUser(userBindSearchPattern, user);
     }
 
-    private String replaceUser(String pattern, String user)
-    {
+    private String replaceUser(String pattern, String user) {
         return pattern.replaceAll("\\$\\{USER\\}", user);
     }
 
-    private void checkForGroupMembership(String user, DirContext context)
-    {
+    private void checkForGroupMembership(String user, DirContext context) {
         if (!groupAuthorizationSearchPattern.isPresent()) {
             return;
         }
@@ -215,17 +188,14 @@ public class LdapAuthService
         try {
             search = context.search(userBaseDistinguishedName.get(), searchFilter, searchControls);
             authorized = search.hasMoreElements();
-        }
-        catch (NamingException e) {
+        } catch (NamingException e) {
             log.debug("Authentication failed", e.getMessage());
             throw new RakamException("Authentication failed: " + e.getMessage(), INTERNAL_SERVER_ERROR);
-        }
-        finally {
+        } finally {
             if (search != null) {
                 try {
                     search.close();
-                }
-                catch (NamingException ignore) {
+                } catch (NamingException ignore) {
                 }
             }
         }
@@ -239,24 +209,20 @@ public class LdapAuthService
     }
 
     private static final class LdapPrincipal
-            implements Principal
-    {
+            implements Principal {
         private final String name;
 
-        private LdapPrincipal(String name)
-        {
+        private LdapPrincipal(String name) {
             this.name = requireNonNull(name, "name is null");
         }
 
         @Override
-        public String getName()
-        {
+        public String getName() {
             return name;
         }
 
         @Override
-        public boolean equals(Object o)
-        {
+        public boolean equals(Object o) {
             if (this == o) {
                 return true;
             }
@@ -268,42 +234,35 @@ public class LdapAuthService
         }
 
         @Override
-        public int hashCode()
-        {
+        public int hashCode() {
             return Objects.hash(name);
         }
 
         @Override
-        public String toString()
-        {
+        public String toString() {
             return name;
         }
     }
 
-    private static class Credentials
-    {
+    private static class Credentials {
         private final String user;
         private final String password;
 
-        private Credentials(String user, String password)
-        {
+        private Credentials(String user, String password) {
             this.user = requireNonNull(user);
             this.password = requireNonNull(password);
         }
 
-        public String getUser()
-        {
+        public String getUser() {
             return user;
         }
 
-        public String getPassword()
-        {
+        public String getPassword() {
             return password;
         }
 
         @Override
-        public boolean equals(Object o)
-        {
+        public boolean equals(Object o) {
             if (this == o) {
                 return true;
             }
@@ -318,14 +277,12 @@ public class LdapAuthService
         }
 
         @Override
-        public int hashCode()
-        {
+        public int hashCode() {
             return Objects.hash(user, password);
         }
 
         @Override
-        public String toString()
-        {
+        public String toString() {
             return toStringHelper(this)
                     .add("user", user)
                     .add("password", password)

@@ -29,7 +29,6 @@ import org.rakam.util.ConditionalModule;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
-
 import java.net.InetAddress;
 import java.util.List;
 import java.util.Map;
@@ -40,15 +39,13 @@ import static org.rakam.analysis.InternalConfig.USER_TYPE;
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "plugin.user.enabled", value = "true")
 public class UserModule
-        extends RakamModule
-{
+        extends RakamModule {
     private Map<String, Class<? extends UserActionService>> actionList = ImmutableMap.<String, Class<? extends UserActionService>>builder()
             .put("email", UserEmailActionService.class)
             .build();
 
     @Override
-    protected void setup(Binder binder)
-    {
+    protected void setup(Binder binder) {
         Multibinder.newSetBinder(binder, UserPropertyMapper.class);
 
         Multibinder<WebSocketService> webSocketServices = Multibinder.newSetBinder(binder, WebSocketService.class);
@@ -84,16 +81,6 @@ public class UserModule
             httpServices.addBinding().to(UserHttpService.class).in(Scopes.SINGLETON);
         }
 
-//        if (userPluginConfig.isMailboxEnabled()) {
-//            httpServices.addBinding().to(UserMailboxHttpService.class).in(Scopes.SINGLETON);
-//            httpServices.addBinding().to(UserMailboxActionService.class).in(Scopes.SINGLETON);
-//            userAction.addBinding().to(UserMailboxActionService.class);
-//
-//            tagMultibinder.addBinding()
-//                    .toInstance(new Tag().name("user-mailbox").description("")
-//                            .externalDocs(MetadataConfig.centralDocs));
-//        }
-
         if (!userPluginConfig.getEnableUserMapping()) {
             Multibinder<UserPropertyMapper> userPropertyMappers = Multibinder.newSetBinder(binder, UserPropertyMapper.class);
             Multibinder<EventMapper> eventMappers = Multibinder.newSetBinder(binder, EventMapper.class);
@@ -104,34 +91,29 @@ public class UserModule
     }
 
     @Override
-    public String name()
-    {
+    public String name() {
         return "Customer Analytics Module";
     }
 
     @Override
-    public String description()
-    {
+    public String description() {
         return "Analyze your users";
     }
 
-    public static class UserStorageListener
-    {
+    public static class UserStorageListener {
         private final Optional<UserStorage> storage;
         private final Optional<UserMailboxStorage> mailboxStorage;
         private final ConfigManager configManager;
 
         @Inject
-        public UserStorageListener(Optional<UserStorage> storage, ConfigManager configManager, Optional<UserMailboxStorage> mailboxStorage)
-        {
+        public UserStorageListener(Optional<UserStorage> storage, ConfigManager configManager, Optional<UserMailboxStorage> mailboxStorage) {
             this.storage = storage;
             this.mailboxStorage = mailboxStorage;
             this.configManager = configManager;
         }
 
         @Subscribe
-        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event)
-        {
+        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
             FieldType type = configManager.getConfig(event.project, USER_TYPE.name(), FieldType.class);
 
             if (type != null) {
@@ -145,55 +127,46 @@ public class UserModule
         }
     }
 
-    public static class UserPrecomputationListener
-    {
+    public static class UserPrecomputationListener {
         private final AbstractUserService service;
 
         @Inject
-        public UserPrecomputationListener(AbstractUserService service)
-        {
+        public UserPrecomputationListener(AbstractUserService service) {
             this.service = service;
         }
 
         @Subscribe
-        public void onCreateFields(SystemEvents.CollectionFieldCreatedEvent event)
-        {
+        public void onCreateFields(SystemEvents.CollectionFieldCreatedEvent event) {
             if (event.fields.stream().anyMatch(f -> f.getName().equals("_user"))) {
                 createInternal(event.project, event.collection);
             }
         }
 
         @Subscribe
-        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event)
-        {
+        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
             if (event.fields.stream().anyMatch(f -> f.getName().equals("_user"))) {
                 createInternal(event.project, event.collection);
             }
         }
 
-        private void createInternal(String project, String collection)
-        {
+        private void createInternal(String project, String collection) {
             if (collection != null) {
                 try {
 //                    continuousQueryService.get(project, "_users_daily_" + collection);
-                }
-                catch (RakamException e) {
+                } catch (RakamException e) {
                     try {
                         service.preCalculate(project, new AbstractUserService.PreCalculateQuery(collection, null));
-                    }
-                    catch (RakamException e1) {
+                    } catch (RakamException e1) {
                     }
                 }
             }
 
             try {
 //                continuousQueryService.get(project, "_users_daily");
-            }
-            catch (RakamException e) {
+            } catch (RakamException e) {
                 try {
                     service.preCalculate(project, new AbstractUserService.PreCalculateQuery(null, null));
-                }
-                catch (RakamException e1) {
+                } catch (RakamException e1) {
                 }
             }
         }
@@ -201,12 +174,10 @@ public class UserModule
 
     @Mapper(name = "User Id Checker Event mapper", description = "Checks whether the event has _user attribute or not.")
     public static class UserIdCheckEventMapper
-            implements SyncEventMapper, UserPropertyMapper
-    {
+            implements SyncEventMapper, UserPropertyMapper {
 
         @Override
-        public List<Cookie> map(Event event, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders)
-        {
+        public List<Cookie> map(Event event, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders) {
             if (event.properties().get("_user") == null) {
                 throw new RakamException("_user cannot be null", BAD_REQUEST);
             }
@@ -215,8 +186,7 @@ public class UserModule
         }
 
         @Override
-        public List<Cookie> map(String project, List<? extends ISingleUserBatchOperation> user, RequestParams requestParams, InetAddress sourceAddress)
-        {
+        public List<Cookie> map(String project, List<? extends ISingleUserBatchOperation> user, RequestParams requestParams, InetAddress sourceAddress) {
             for (ISingleUserBatchOperation operation : user) {
                 if (operation.getUser() == null) {
                     throw new RakamException("_user cannot be null", BAD_REQUEST);

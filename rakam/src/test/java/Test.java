@@ -1,6 +1,5 @@
 import com.fasterxml.jackson.databind.MappingIterator;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
-import com.fasterxml.jackson.dataformat.csv.CsvParser;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 import com.google.common.io.ByteStreams;
 import org.rakam.util.javascript.ILogger;
@@ -10,7 +9,8 @@ import org.rakam.util.javascript.JavascriptConfig;
 
 import javax.script.Invocable;
 import javax.script.ScriptException;
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 

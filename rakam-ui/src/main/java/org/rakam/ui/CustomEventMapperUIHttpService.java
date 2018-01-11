@@ -2,11 +2,9 @@ package org.rakam.ui;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Throwables;
-import com.google.common.io.ByteStreams;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
-import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.FieldType;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -16,21 +14,11 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
-import org.skife.jdbi.v2.DBI;
-import org.skife.jdbi.v2.Handle;
 
-import javax.annotation.PostConstruct;
-import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -39,10 +27,7 @@ import java.util.stream.Stream;
 import static com.google.common.io.ByteStreams.toByteArray;
 import static com.google.common.net.HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static com.google.common.net.HttpHeaders.CACHE_CONTROL;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
@@ -52,18 +37,15 @@ import static org.rakam.ui.ScheduledTaskUIHttpService.getResourceFiles;
 @Path("/ui/custom-event-mapper")
 @Api(value = "/ui/custom-event-mapper")
 public class CustomEventMapperUIHttpService
-        extends HttpService
-{
+        extends HttpService {
     @GET
     @ApiOperation(value = "List custom event mapper", response = Integer.class)
     @Path("/list")
-    public List<UIEventMapper> list()
-    {
+    public List<UIEventMapper> list() {
         List<String> resourceFiles;
         try {
             resourceFiles = getResourceFiles("custom-event-mapper");
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             throw new RakamException("Unable to read files", INTERNAL_SERVER_ERROR);
         }
 
@@ -75,8 +57,7 @@ public class CustomEventMapperUIHttpService
                 resource = JsonHelper.read(toByteArray(config.openStream()), UIEventMapper.class);
                 resource.script = new String(script, UTF_8);
                 resource.image = "/ui/custom-event-mapper/image/" + e;
-            }
-            catch (IOException ex) {
+            } catch (IOException ex) {
                 return Stream.of();
             }
 
@@ -87,8 +68,7 @@ public class CustomEventMapperUIHttpService
     @GET
     @ApiOperation(value = "List custom event mappers", response = Integer.class)
     @Path("/image/*")
-    public void image(RakamHttpRequest request)
-    {
+    public void image(RakamHttpRequest request) {
         String substring = request.path().substring("/ui/custom-event-mapper/image".length() + 1);
         if (!substring.matches("^[A-Za-z0-9-]+$")) {
             throw new RakamException(FORBIDDEN);
@@ -101,8 +81,7 @@ public class CustomEventMapperUIHttpService
         byte[] script;
         try {
             script = toByteArray(resource.openStream());
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             throw Throwables.propagate(e);
         }
         DefaultFullHttpResponse resp = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(script));
@@ -113,8 +92,7 @@ public class CustomEventMapperUIHttpService
         request.response(resp).end();
     }
 
-    public static class Parameter
-    {
+    public static class Parameter {
         public final FieldType type;
         public final String placeholder;
         public final String description;
@@ -125,8 +103,7 @@ public class CustomEventMapperUIHttpService
                 @ApiParam("type") FieldType type,
                 @ApiParam("placeholder") String placeholder,
                 @ApiParam("description") String description,
-                @ApiParam(value = "value", required = false) Object value)
-        {
+                @ApiParam(value = "value", required = false) Object value) {
             this.type = type;
             this.placeholder = placeholder;
             this.description = description;
@@ -134,21 +111,19 @@ public class CustomEventMapperUIHttpService
         }
     }
 
-    public static class UIEventMapper
-    {
+    public static class UIEventMapper {
         public final String name;
-        public String image;
         public final String description;
-        public String script;
         public final Map<String, Parameter> parameters;
+        public String image;
+        public String script;
 
         @JsonCreator
         public UIEventMapper(@ApiParam("name") String name,
-                @ApiParam(value = "image", required = false) String image,
-                @ApiParam(value = "description", required = false) String description,
-                @ApiParam(value = "code", required = false) String code,
-                @ApiParam("parameters") Map<String, Parameter> parameters)
-        {
+                             @ApiParam(value = "image", required = false) String image,
+                             @ApiParam(value = "description", required = false) String description,
+                             @ApiParam(value = "code", required = false) String code,
+                             @ApiParam("parameters") Map<String, Parameter> parameters) {
             this.name = name;
             this.image = image;
             this.description = description;

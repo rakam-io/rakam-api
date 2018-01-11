@@ -11,12 +11,7 @@ import org.rakam.event.TestingEnvironment;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.postgresql.analysis.FastGenericFunnelQueryExecutor;
-import org.rakam.presto.analysis.PrestoApproxFunnelQueryExecutor;
-import org.rakam.presto.analysis.PrestoConfig;
-import org.rakam.presto.analysis.PrestoFunnelQueryExecutor;
-import org.rakam.presto.analysis.PrestoMaterializedViewService;
-import org.rakam.presto.analysis.PrestoQueryExecutor;
-import org.rakam.presto.analysis.PrestoRakamRaptorMetastore;
+import org.rakam.presto.analysis.*;
 import org.rakam.report.QueryExecutorService;
 import org.testng.annotations.BeforeSuite;
 
@@ -44,7 +39,7 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
         metastore = new PrestoRakamRaptorMetastore(prestoMetastore, eventBus, new ProjectConfig(), prestoConfig);
         metastore.setup();
 
-        PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(new ProjectConfig(), prestoConfig, null, null, metastore);
+        PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(new ProjectConfig(), prestoConfig, null, metastore);
 
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(
                 new PrestoConfig(),
@@ -53,10 +48,10 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
                 materializedViewService, Clock.system(ZoneId.of("UTC")), '"');
 
         FastGenericFunnelQueryExecutor fastGenericFunnelQueryExecutor = new FastGenericFunnelQueryExecutor(queryExecutorService, new ProjectConfig(), metastore);
-        PrestoApproxFunnelQueryExecutor prestoApproxFunnelQueryExecutor = new PrestoApproxFunnelQueryExecutor( new ProjectConfig(), queryExecutorService, metastore);
+        PrestoApproxFunnelQueryExecutor prestoApproxFunnelQueryExecutor = new PrestoApproxFunnelQueryExecutor(new ProjectConfig(), queryExecutorService, metastore);
         funnelQueryExecutor = new PrestoFunnelQueryExecutor(new ProjectConfig(), new PrestoConfig(),
                 fastGenericFunnelQueryExecutor, prestoApproxFunnelQueryExecutor, metastore, prestoQueryExecutor,
-             new UserPluginConfig());
+                new UserPluginConfig());
         testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);
         super.setup();
     }

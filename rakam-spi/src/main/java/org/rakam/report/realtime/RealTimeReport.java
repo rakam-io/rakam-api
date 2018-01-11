@@ -1,7 +1,6 @@
 package org.rakam.report.realtime;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
@@ -15,8 +14,10 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 
 public class RealTimeReport {
-    @NotNull public final String name;
-    @NotNull public final String table_name;
+    @NotNull
+    public final String name;
+    @NotNull
+    public final String table_name;
     public final Set<String> collections;
     public final String filter;
     public final List<Measure> measures;
@@ -35,7 +36,7 @@ public class RealTimeReport {
         this.filter = filter;
         this.measures = checkNotNull(measures, "measures is required");
         this.dimensions = dimensions;
-        if(this.measures.isEmpty()) {
+        if (this.measures.isEmpty()) {
             throw new RakamException("There must be at least one measure", BAD_REQUEST);
         }
         for (Measure measure : measures) {
@@ -57,8 +58,7 @@ public class RealTimeReport {
         }
 
         @Override
-        public boolean equals(Object o)
-        {
+        public boolean equals(Object o) {
             if (this == o) {
                 return true;
             }
@@ -75,8 +75,7 @@ public class RealTimeReport {
         }
 
         @Override
-        public int hashCode()
-        {
+        public int hashCode() {
             int result = column.hashCode();
             result = 31 * result + aggregation.hashCode();
             return result;

@@ -15,14 +15,12 @@ import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
-
 import java.util.List;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
-public class UIRecipeHandler
-{
+public class UIRecipeHandler {
     private final Optional<ReportMetadata> reportMetadata;
     private final Optional<CustomReportMetadata> customReportMetadata;
     private final Optional<CustomPageDatabase> customPageDatabase;
@@ -33,24 +31,21 @@ public class UIRecipeHandler
             Optional<CustomReportMetadata> customReportMetadata,
             Optional<CustomPageDatabase> customPageDatabase,
             Optional<DashboardService> dashboardService,
-            Optional<ReportMetadata> reportMetadata)
-    {
+            Optional<ReportMetadata> reportMetadata) {
         this.customReportMetadata = customReportMetadata;
         this.customPageDatabase = customPageDatabase;
         this.reportMetadata = reportMetadata;
         this.dashboardService = dashboardService;
     }
 
-    public UIRecipe export(int userId, int project)
-    {
+    public UIRecipe export(int userId, int project) {
         final List<Report> reports;
         if (reportMetadata.isPresent()) {
             reports = reportMetadata.get()
                     .list(null, project).stream()
                     .map(r -> new Report(r.slug, r.category, r.name, r.query, r.options, r.queryOptions, r.shared))
                     .collect(Collectors.toList());
-        }
-        else {
+        } else {
             reports = ImmutableList.of();
         }
 
@@ -59,8 +54,7 @@ public class UIRecipeHandler
             customReports = customReportMetadata.get().list(project).entrySet().stream().flatMap(a -> a.getValue().stream())
                     .map(r -> new CustomReport(r.reportType, r.name, r.data))
                     .collect(Collectors.toList());
-        }
-        else {
+        } else {
             customReports = ImmutableList.of();
         }
 
@@ -70,8 +64,7 @@ public class UIRecipeHandler
                     .list(project).stream()
                     .map(r -> new CustomPageDatabase.Page(r.name, r.slug, r.category, customPageDatabase.get().get(project, r.slug)))
                     .collect(Collectors.toList());
-        }
-        else {
+        } else {
             customPages = ImmutableList.of();
         }
 
@@ -87,31 +80,26 @@ public class UIRecipeHandler
                         return new DashboardBuilder(a.name, items, a.options, a.refresh_interval);
                     })
                     .collect(Collectors.toList());
-        }
-        else {
+        } else {
             dashboards = ImmutableList.of();
         }
 
         return new UIRecipe(customReports, customPages, dashboards, reports);
     }
 
-    public RecipeResult install(UIRecipe recipe, int userId, int project, boolean overrideExisting)
-    {
+    public RecipeResult install(UIRecipe recipe, int userId, int project, boolean overrideExisting) {
         return installInternal(recipe, userId, project, overrideExisting);
     }
 
-    public RecipeResult installInternal(UIRecipe recipe, int userId, int project, boolean overrideExisting)
-    {
+    public RecipeResult installInternal(UIRecipe recipe, int userId, int project, boolean overrideExisting) {
         recipe.getReports().stream()
                 .forEach(report -> {
                     try {
                         reportMetadata.get().save(userId, project, report);
-                    }
-                    catch (AlreadyExistsException e) {
+                    } catch (AlreadyExistsException e) {
                         if (overrideExisting) {
                             reportMetadata.get().update(userId, project, report);
-                        }
-                        else {
+                        } else {
                             throw Throwables.propagate(e);
                         }
                     }
@@ -140,12 +128,10 @@ public class UIRecipeHandler
                 .forEach(customReport -> {
                     try {
                         customReportMetadata.get().save(userId, project, customReport);
-                    }
-                    catch (AlreadyExistsException e) {
+                    } catch (AlreadyExistsException e) {
                         if (overrideExisting) {
                             customReportMetadata.get().update(project, customReport);
-                        }
-                        else {
+                        } else {
                             throw Throwables.propagate(e);
                         }
                     }
@@ -156,19 +142,16 @@ public class UIRecipeHandler
                     .forEach(customReport -> {
                         try {
                             customPageDatabase.get().save(null, project, customReport);
-                        }
-                        catch (AlreadyExistsException e) {
+                        } catch (AlreadyExistsException e) {
                             if (overrideExisting) {
                                 customPageDatabase.get().delete(project, customReport.slug);
                                 customPageDatabase.get().save(userId, project, customReport);
-                            }
-                            else {
+                            } else {
                                 throw Throwables.propagate(e);
                             }
                         }
                     });
-        }
-        else if (recipe.getCustomPages().size() > 0) {
+        } else if (recipe.getCustomPages().size() > 0) {
             throw new RakamException("Custom page feature is not supported", BAD_REQUEST);
         }
 

@@ -65,19 +65,11 @@ import static java.lang.Boolean.TRUE;
 import static java.lang.String.format;
 import static java.time.temporal.ChronoUnit.HOURS;
 
-public class WebUserService
-{
+public class WebUserService {
     private final static Logger LOGGER = Logger.get(WebUserService.class);
-
-    private final DBI dbi;
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[_A-Za-z0-9-\\+]+(\\.[_A-Za-z0-9-]+)*@"
             + "[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$");
     private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z]).{8,}$");
-    private final RakamUIConfig config;
-    private final EncryptionConfig encryptionConfig;
-    private final EventBus eventBus;
-    private final EmailClientConfig mailConfig;
-
     private static final Mustache resetPasswordHtmlCompiler;
     private static final Mustache resetPasswordTxtCompiler;
     private static final Mustache welcomeHtmlCompiler;
@@ -90,6 +82,48 @@ public class WebUserService
     private static final Mustache userAccessHtmlCompiler;
     private static final Mustache userAccessTxtCompiler;
     private static final Mustache userAccessTitleCompiler;
+
+    static {
+        try {
+            MustacheFactory mf = new DefaultMustacheFactory();
+
+            resetPasswordHtmlCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/resetpassword/resetpassword.html"), UTF_8)), "resetpassword.html");
+            resetPasswordTxtCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/resetpassword/resetpassword.txt"), UTF_8)), "resetpassword.txt");
+            resetPasswordTitleCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/resetpassword/title.txt"), UTF_8)), "resetpassword_title.txt");
+
+            welcomeHtmlCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/welcome/welcome.html"), UTF_8)), "welcome.html");
+            welcomeTxtCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/welcome/welcome.txt"), UTF_8)), "welcome.txt");
+            welcomeTitleCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/welcome/title.txt"), UTF_8)), "welcome_title.txt");
+
+            userAccessNewMemberHtmlCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/teamaccess_newmember/teamaccess.html"), UTF_8)), "welcome.html");
+            userAccessNewMemberTxtCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/teamaccess_newmember/teamaccess.txt"), UTF_8)), "welcome.txt");
+            userAccessNewMemberTitleCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/teamaccess_newmember/title.txt"), UTF_8)), "welcome_title.txt");
+
+            userAccessHtmlCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/teamaccess/teamaccess.html"), UTF_8)), "welcome.html");
+            userAccessTxtCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/teamaccess/teamaccess.txt"), UTF_8)), "welcome.txt");
+            userAccessTitleCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/teamaccess/title.txt"), UTF_8)), "welcome_title.txt");
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    private final DBI dbi;
+    private final RakamUIConfig config;
+    private final EncryptionConfig encryptionConfig;
+    private final EventBus eventBus;
+    private final EmailClientConfig mailConfig;
     private final AuthService authService;
 
     @Inject
@@ -99,8 +133,7 @@ public class WebUserService
             com.google.common.base.Optional<AuthService> authService,
             RakamUIConfig config,
             EncryptionConfig encryptionConfig,
-            EmailClientConfig mailConfig)
-    {
+            EmailClientConfig mailConfig) {
         dbi = new DBI(dataSource);
         this.eventBus = eventBus;
         this.authService = authService.orNull();
@@ -109,8 +142,7 @@ public class WebUserService
         this.mailConfig = mailConfig;
     }
 
-    public ProjectConfiguration getProjectConfigurations(int project)
-    {
+    public ProjectConfiguration getProjectConfigurations(int project) {
         try (Connection conn = dbi.open().getConnection()) {
             PreparedStatement ps = conn.prepareStatement("SELECT project, timezone FROM web_user_project WHERE id = ?");
             ps.setInt(1, project);
@@ -119,20 +151,17 @@ public class WebUserService
                 throw new RakamException("API key is invalid", HttpResponseStatus.FORBIDDEN);
             }
             return new ProjectConfiguration(resultSet.getString(1), resultSet.getString(2));
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    public void updateProjectConfigurations(int project, ProjectConfiguration configuration)
-    {
+    public void updateProjectConfigurations(int project, ProjectConfiguration configuration) {
         try (Connection conn = dbi.open().getConnection()) {
             if (configuration.timezone != null) {
                 try {
                     ZoneId.of(configuration.timezone);
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     throw new RakamException("Timezone is invalid", BAD_REQUEST);
                 }
             }
@@ -140,14 +169,12 @@ public class WebUserService
             ps.setString(1, configuration.timezone);
             ps.setInt(2, project);
             ps.executeUpdate();
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public void setStripeId(int userId, String stripeId)
-    {
+    public void setStripeId(int userId, String stripeId) {
         try (Handle handle = dbi.open()) {
             int execute = handle
                     .createStatement("UPDATE web_user SET stripe_id = :stripeId WHERE id = :userId")
@@ -159,8 +186,7 @@ public class WebUserService
         }
     }
 
-    public List<ProjectKeyPermission> apiKeyOwners(int project, List<String> readKeys)
-    {
+    public List<ProjectKeyPermission> apiKeyOwners(int project, List<String> readKeys) {
         try (Handle handle = dbi.open()) {
             return handle.createQuery("select read_key, web_user.email, web_user_api_key.created_at from web_user_api_key \n" +
                     "join web_user_api_key_permission permission on (permission.api_key_id = web_user_api_key.id and permission.read_permission)\n" +
@@ -171,14 +197,12 @@ public class WebUserService
                     .map((index, r, ctx) -> {
                         return new ProjectKeyPermission(r.getString(1), r.getString(2), r.getTimestamp(3).toInstant());
                     }).list();
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public ProjectOwner getProjectOwner(int project)
-    {
+    public ProjectOwner getProjectOwner(int project) {
         try (Handle handle = dbi.open()) {
             return handle.createQuery("select web_user.id, web_user.email from web_user join web_user_project project on (project.user_id = web_user.id) where project.id = :id")
                     .bind("id", project)
@@ -188,52 +212,7 @@ public class WebUserService
         }
     }
 
-    public static class ProjectConfiguration
-    {
-        public final String name;
-        public final String timezone;
-
-        @JsonCreator
-        public ProjectConfiguration(@ApiParam(value = "timezone", required = false) String timezone)
-        {
-            this(null, timezone);
-        }
-
-        public ProjectConfiguration(String name, String timezone)
-        {
-            this.timezone = timezone;
-            this.name = name;
-        }
-    }
-
-    public static class ProjectKeyPermission
-    {
-        public final String readKey;
-        public final String email;
-        public final Instant createdAt;
-
-        public ProjectKeyPermission(String readKey, String email, Instant createdAt)
-        {
-            this.readKey = readKey;
-            this.email = email;
-            this.createdAt = createdAt;
-        }
-    }
-
-    public static class ProjectOwner
-    {
-        public final int id;
-        public final String email;
-
-        public ProjectOwner(int id, String email)
-        {
-            this.id = id;
-            this.email = email;
-        }
-    }
-
-    public WebUser createUser(String email, String password, String name, String gender, String locale, String googleId, boolean external)
-    {
+    public WebUser createUser(String email, String password, String name, String gender, String locale, String googleId, boolean external) {
         final String scrypt;
         if (password != null && !external) {
             if (!PASSWORD_PATTERN.matcher(password).matches()) {
@@ -244,11 +223,9 @@ public class WebUserService
                 password = CryptUtil.encryptWithHMacSHA1(password, encryptionConfig.getSecretKey());
             }
             scrypt = SCryptUtil.scrypt(password, 2 << 14, 8, 1);
-        }
-        else if (external) {
+        } else if (external) {
             scrypt = password;
-        }
-        else {
+        } else {
             if (googleId == null) {
                 throw new RakamException("Password id empty", BAD_REQUEST);
             }
@@ -274,14 +251,12 @@ public class WebUserService
                         .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
 
                 webuser = new WebUser(id, email, name, false, Instant.now(), generateIntercomHash(email), ImmutableList.of());
-            }
-            catch (UnableToExecuteStatementException e) {
+            } catch (UnableToExecuteStatementException e) {
                 Map<String, Object> existingUser = handle.createQuery("SELECT created_at FROM web_user WHERE lower(email) = lower(:email)").bind("email", email).first();
                 if (existingUser != null) {
                     if (existingUser.get("created_at") != null) {
                         throw new AlreadyExistsException("A user with same email address", EXPECTATION_FAILED);
-                    }
-                    else {
+                    } else {
                         // somebody gave access for a project to this email address
                         int id = handle.createStatement("UPDATE web_user SET password = :password, name = :name, created_at = now() WHERE lower(email) = lower(:email)")
                                 .bind("email", email)
@@ -302,8 +277,7 @@ public class WebUserService
         return webuser;
     }
 
-    public void updateUserInfo(int id, String name)
-    {
+    public void updateUserInfo(int id, String name) {
         try (Handle handle = dbi.open()) {
             handle.createStatement("UPDATE web_user SET name = :name WHERE id = :id")
                     .bind("id", id)
@@ -312,8 +286,7 @@ public class WebUserService
         }
     }
 
-    public String generateIntercomHash(String email)
-    {
+    public String generateIntercomHash(String email) {
         if (config.getIntercomSecretKey() == null) {
             return null;
         }
@@ -330,14 +303,12 @@ public class WebUserService
             }
 
             return result.toString();
-        }
-        catch (NoSuchAlgorithmException | InvalidKeyException e) {
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             throw new IllegalStateException(e);
         }
     }
 
-    public void updateUserPassword(int id, String oldPassword, String newPassword)
-    {
+    public void updateUserPassword(int id, String oldPassword, String newPassword) {
         final String scrypt = SCryptUtil.scrypt(newPassword, 2 << 14, 8, 1);
 
         if (!PASSWORD_PATTERN.matcher(newPassword).matches()) {
@@ -363,8 +334,7 @@ public class WebUserService
         }
     }
 
-    public String getLockKeyForAPI(int user, String apiUrl)
-    {
+    public String getLockKeyForAPI(int user, String apiUrl) {
         try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT lock_key FROM rakam_cluster WHERE user_id = :userId AND api_url = :apiUrl")
                     .bind("userId", user).bind("apiUrl", apiUrl)
@@ -372,8 +342,7 @@ public class WebUserService
         }
     }
 
-    public List<String> revokeUserAccess(int userId, int project, String email)
-    {
+    public List<String> revokeUserAccess(int userId, int project, String email) {
         try (Handle handle = dbi.open()) {
             if (!hasMasterAccess(handle, project, userId)) {
                 throw new RakamException("You do not have master key permission", UNAUTHORIZED);
@@ -398,8 +367,7 @@ public class WebUserService
         }
     }
 
-    public void performRecoverPassword(String key, String hash, String newPassword)
-    {
+    public void performRecoverPassword(String key, String hash, String newPassword) {
         if (!PASSWORD_PATTERN.matcher(newPassword).matches()) {
             throw new RakamException("Password is not valid. " +
                     "Your password must contain at least one lowercase character, uppercase character and digit and be at least 8 characters. ", BAD_REQUEST);
@@ -408,8 +376,7 @@ public class WebUserService
         String realKey;
         try {
             realKey = new String(Base64.getDecoder().decode(key.getBytes(UTF_8)), UTF_8);
-        }
-        catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
             throw new RakamException("Invalid token", UNAUTHORIZED);
         }
         if (!CryptUtil.encryptWithHMacSHA1(realKey, encryptionConfig.getSecretKey()).equals(hash)) {
@@ -424,8 +391,7 @@ public class WebUserService
             if (Instant.ofEpochSecond(Long.parseLong(split[0])).compareTo(Instant.now()) < 0) {
                 throw new RakamException("Token expired", UNAUTHORIZED);
             }
-        }
-        catch (NumberFormatException e) {
+        } catch (NumberFormatException e) {
             throw new RakamException("Invalid token", UNAUTHORIZED);
         }
 
@@ -441,8 +407,7 @@ public class WebUserService
         }
     }
 
-    public void prepareRecoverPassword(String email)
-    {
+    public void prepareRecoverPassword(String email) {
         if (!EMAIL_PATTERN.matcher(email).matches()) {
             throw new RakamException("Email is not valid", BAD_REQUEST);
         }
@@ -458,22 +423,19 @@ public class WebUserService
         sendMail(resetPasswordTitleCompiler, resetPasswordTxtCompiler, resetPasswordHtmlCompiler, email, scopes).join();
     }
 
-    private String getRecoverUrl(String email, int hours)
-    {
+    private String getRecoverUrl(String email, int hours) {
         long expiration = Instant.now().plus(hours, HOURS).getEpochSecond();
         String key = expiration + "|" + email;
         String hash = CryptUtil.encryptWithHMacSHA1(key, encryptionConfig.getSecretKey());
         String encoded = new String(Base64.getEncoder().encode(key.getBytes(UTF_8)), UTF_8);
         try {
             return format("key=%s&hash=%s", URLEncoder.encode(encoded, "UTF-8"), URLEncoder.encode(hash, "UTF-8"));
-        }
-        catch (UnsupportedEncodingException e) {
+        } catch (UnsupportedEncodingException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    private CompletableFuture sendMail(Mustache titleCompiler, Mustache contentCompiler, Mustache htmlCompiler, String email, Map<String, Object> data)
-    {
+    private CompletableFuture sendMail(Mustache titleCompiler, Mustache contentCompiler, Mustache htmlCompiler, String email, Map<String, Object> data) {
         StringWriter writer;
 
         writer = new StringWriter();
@@ -492,15 +454,13 @@ public class WebUserService
         return CompletableFuture.runAsync(() -> {
             try {
                 mailSender.sendMail(email, title, txtContent, Optional.of(htmlContent), Stream.empty());
-            }
-            catch (MessagingException e) {
+            } catch (MessagingException e) {
                 LOGGER.error(e, "Unable to send mail");
             }
         });
     }
 
-    public void deleteProject(int user, int projectId)
-    {
+    public void deleteProject(int user, int projectId) {
         try (Handle handle = dbi.open()) {
             handle.createStatement("DELETE FROM web_user_project WHERE id = :project and user_id = :userId")
                     .bind("userId", user)
@@ -509,8 +469,7 @@ public class WebUserService
         }
     }
 
-    public WebUser.UserApiKey registerProject(int user, String apiUrl, String project, String readKey, String writeKey, String masterKey)
-    {
+    public WebUser.UserApiKey registerProject(int user, String apiUrl, String project, String readKey, String writeKey, String masterKey) {
         int projectId;
         try (Handle handle = dbi.open()) {
             try {
@@ -521,8 +480,7 @@ public class WebUserService
                         .bind("project", project)
                         .bind("apiUrl", apiUrl)
                         .executeAndReturnGeneratedKeys().first().get("id");
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 if (e.getMessage().contains("project_check")) {
                     throw new RakamException("Project already exists.", BAD_REQUEST);
                 }
@@ -544,37 +502,7 @@ public class WebUserService
         return new WebUser.UserApiKey(projectId, readKey, writeKey, masterKey);
     }
 
-    public static class UserAccess
-    {
-        @JsonProperty("project")
-        public final int project;
-        @JsonProperty("id")
-        public final int id;
-        @JsonProperty("email")
-        public final String email;
-        @JsonProperty("scope_expression")
-        public final String scope_expression;
-        @JsonProperty("read_key")
-        public final boolean readKey;
-        @JsonProperty("write_key")
-        public final boolean writeKey;
-        @JsonProperty("master_key")
-        public final boolean masterKey;
-
-        public UserAccess(int project, int id, String email, String scope_expression, boolean readKey, boolean writeKey, boolean masterKey)
-        {
-            this.project = project;
-            this.id = id;
-            this.email = email;
-            this.scope_expression = scope_expression;
-            this.readKey = readKey;
-            this.writeKey = writeKey;
-            this.masterKey = masterKey;
-        }
-    }
-
-    public List<UserAccess> getUserAccessForProject(int user, int project)
-    {
+    public List<UserAccess> getUserAccessForProject(int user, int project) {
         try (Handle handle = dbi.open()) {
             if (!hasMasterAccess(handle, project, user)) {
                 throw new RakamException("You do not have master key permission", UNAUTHORIZED);
@@ -595,8 +523,7 @@ public class WebUserService
         }
     }
 
-    public void giveAccessToExistingUser(int projectId, int userId, String email, boolean readPermission, boolean writePermission, boolean masterPermisson)
-    {
+    public void giveAccessToExistingUser(int projectId, int userId, String email, boolean readPermission, boolean writePermission, boolean masterPermisson) {
         try (Handle handle = dbi.open()) {
             if (!hasMasterAccess(handle, projectId, userId)) {
                 throw new RakamException("You do not have master key permission", UNAUTHORIZED);
@@ -624,8 +551,7 @@ public class WebUserService
         }
     }
 
-    public void sendNewUserMail(String project, String email)
-    {
+    public void sendNewUserMail(String project, String email) {
         sendMail(userAccessNewMemberTitleCompiler, userAccessNewMemberTxtCompiler, userAccessNewMemberHtmlCompiler, email, ImmutableMap.of(
                 "product_name", "Rakam",
                 "project", project,
@@ -633,34 +559,9 @@ public class WebUserService
                         mailConfig.getSiteUrl(), getRecoverUrl(email, 24))));
     }
 
-    public static final class Access
-    {
-        public final List<TableAccess> tableAccessList;
-
-        @JsonCreator
-        public Access(@ApiParam("tableAccessList") List<TableAccess> tableAccessList)
-        {
-            this.tableAccessList = tableAccessList;
-        }
-
-        public static class TableAccess
-        {
-            public final String tableName;
-            public final String expression;
-
-            @JsonCreator
-            public TableAccess(@ApiParam("tableName") String tableName, @ApiParam("expression") String expression)
-            {
-                this.tableName = tableName;
-                this.expression = expression;
-            }
-        }
-    }
-
     public void giveAccessToUser(int projectId, int userId, String email, ProjectApiKeys keys, String scope_expression,
-            boolean readPermission, boolean writePermission, boolean masterPermission,
-            Optional<Access> access)
-    {
+                                 boolean readPermission, boolean writePermission, boolean masterPermission,
+                                 Optional<Access> access) {
         if (masterPermission && access.isPresent()) {
             throw new RakamException("Scoped keys cannot have access to master_key", BAD_REQUEST);
         }
@@ -680,8 +581,7 @@ public class WebUserService
                         .bind("email", email).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
 
                 sendNewUserMail(projectConfigurations.name, email);
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 Map.Entry<Integer, Boolean> element = handle.createQuery("SELECT id, password is null FROM web_user WHERE lower(email) = lower(:email)").bind("email", email)
                         .map((ResultSetMapper<Map.Entry<Integer, Boolean>>) (index, r, ctx) -> new AbstractMap.SimpleImmutableEntry<>(r.getInt(1), r.getBoolean(2))).first();
                 newUserId = element.getKey();
@@ -690,8 +590,7 @@ public class WebUserService
 
                 if (passwordIsNull) {
                     sendNewUserMail(projectConfigurations.name, email);
-                }
-                else {
+                } else {
                     sendMail(userAccessTitleCompiler, userAccessTxtCompiler, userAccessHtmlCompiler, email, ImmutableMap.of(
                             "product_name", "Rakam",
                             "project", projectConfigurations.name,
@@ -726,30 +625,26 @@ public class WebUserService
                             .bind("writePermission", writePermission)
                             .bind("masterPermission", masterPermission)
                             .bind("scope", scope_expression).execute();
-                }
-                else {
+                } else {
                     throw new RakamException("The user (" + email + ") already has access", BAD_REQUEST);
                 }
 
                 return null;
             });
-        }
-        catch (CallbackFailedException e) {
+        } catch (CallbackFailedException e) {
             if (e.getCause() instanceof RakamException) {
                 throw (RakamException) e.getCause();
             }
         }
     }
 
-    public Integer saveApiKeys(int user, int projectId, String readKey, String writeKey, String masterKey)
-    {
+    public Integer saveApiKeys(int user, int projectId, String readKey, String writeKey, String masterKey) {
         try (Handle handle = dbi.open()) {
             return saveApiKeys(handle, user, projectId, readKey, writeKey, masterKey);
         }
     }
 
-    public Integer saveApiKeys(Handle handle, int user, int projectId, String readKey, String writeKey, String masterKey)
-    {
+    public Integer saveApiKeys(Handle handle, int user, int projectId, String readKey, String writeKey, String masterKey) {
         if (!hasMasterAccess(handle, projectId, user)) {
             throw new RakamException("You do not have master key permission", UNAUTHORIZED);
         }
@@ -765,8 +660,7 @@ public class WebUserService
                 .executeAndReturnGeneratedKeys((index, r, ctx) -> r.getInt("id")).first();
     }
 
-    private boolean hasMasterAccess(Handle handle, int project, int user)
-    {
+    private boolean hasMasterAccess(Handle handle, int project, int user) {
         return TRUE.equals(handle.createQuery("select user_id = :user or (select bool_or(master_permission) from web_user_api_key_permission p " +
                 "join web_user_api_key a on (p.api_key_id = a.id) where p.user_id = :user and a.project_id = :project) from web_user_project where id = :project")
                 .bind("user", user)
@@ -774,15 +668,13 @@ public class WebUserService
                 .first());
     }
 
-    public boolean hasMasterAccess(int project, int user)
-    {
+    public boolean hasMasterAccess(int project, int user) {
         try (Handle handle = dbi.open()) {
             return hasMasterAccess(handle, project, user);
         }
     }
 
-    public Optional<WebUser> login(String email, String password)
-    {
+    public Optional<WebUser> login(String email, String password) {
         if (config.getHashPassword()) {
             password = CryptUtil.encryptWithHMacSHA1(password, encryptionConfig.getSecretKey());
         }
@@ -801,8 +693,7 @@ public class WebUserService
                 if (login && data == null) {
                     WebUser user = createUser(email, password, null, null, null, null, true);
                     return Optional.of(user);
-                }
-                else if (!login) {
+                } else if (!login) {
                     return Optional.empty();
                 }
             }
@@ -825,8 +716,7 @@ public class WebUserService
                     }
                 }
             }
-        }
-        else {
+        } else {
             if (passwordInDb == null) {
                 throw new RakamException("Your password is not set. Please reset your password in order to set it.",
                         PRECONDITION_REQUIRED);
@@ -847,8 +737,7 @@ public class WebUserService
         }
     }
 
-    public Optional<WebUser> getUserByEmail(String email)
-    {
+    public Optional<WebUser> getUserByEmail(String email) {
         List<WebUser.Project> projectDefinitions;
 
         try (Handle handle = dbi.open()) {
@@ -868,8 +757,7 @@ public class WebUserService
         }
     }
 
-    public Optional<WebUser> getUser(int id)
-    {
+    public Optional<WebUser> getUser(int id) {
         List<WebUser.Project> projectDefinitions;
 
         try (Handle handle = dbi.open()) {
@@ -890,8 +778,7 @@ public class WebUserService
         }
     }
 
-    public String getUserStripeId(int id)
-    {
+    public String getUserStripeId(int id) {
         try (Handle handle = dbi.open()) {
             return handle
                     .createQuery("SELECT stripe_id FROM web_user WHERE id = :id")
@@ -899,8 +786,7 @@ public class WebUserService
         }
     }
 
-    private List<WebUser.Project> getUserApiKeys(Handle handle, int userId)
-    {
+    private List<WebUser.Project> getUserApiKeys(Handle handle, int userId) {
         List<WebUser.Project> list = new ArrayList<>();
         ResultIterator<Object> user = handle.createQuery("SELECT project.id, project.project, project.api_url, project.timezone, :user, api_key.master_key, api_key.read_key, api_key.write_key " +
                 " FROM web_user_project project " +
@@ -923,8 +809,7 @@ public class WebUserService
                     ZoneId zoneId;
                     try {
                         zoneId = r.getString(4) != null ? ZoneId.of(r.getString(4)) : null;
-                    }
-                    catch (ZoneRulesException e) {
+                    } catch (ZoneRulesException e) {
                         zoneId = null;
                     }
 
@@ -948,8 +833,7 @@ public class WebUserService
         return list;
     }
 
-    public void revokeApiKeys(int user, int project, String masterKey)
-    {
+    public void revokeApiKeys(int user, int project, String masterKey) {
         try (Handle handle = dbi.open()) {
             if (!hasMasterAccess(handle, project, user)) {
                 throw new RakamException("You do not have master key permission", UNAUTHORIZED);
@@ -961,8 +845,7 @@ public class WebUserService
                         .bind("user_id", user)
                         .bind("project", project)
                         .bind("masterKey", masterKey).execute();
-            }
-            catch (Throwable e) {
+            } catch (Throwable e) {
                 if (e.getMessage().contains("web_user_api_key_permission")) {
                     List<String> list = handle.createQuery("SELECT web_user.email FROM web_user_api_key_permission permission " +
                             "JOIN web_user ON (web_user.id = permission.user_id) " +
@@ -980,50 +863,95 @@ public class WebUserService
         }
     }
 
-    static {
-        try {
-            MustacheFactory mf = new DefaultMustacheFactory();
+    public static class ProjectConfiguration {
+        public final String name;
+        public final String timezone;
 
-            resetPasswordHtmlCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/resetpassword/resetpassword.html"), UTF_8)), "resetpassword.html");
-            resetPasswordTxtCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/resetpassword/resetpassword.txt"), UTF_8)), "resetpassword.txt");
-            resetPasswordTitleCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/resetpassword/title.txt"), UTF_8)), "resetpassword_title.txt");
-
-            welcomeHtmlCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/welcome/welcome.html"), UTF_8)), "welcome.html");
-            welcomeTxtCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/welcome/welcome.txt"), UTF_8)), "welcome.txt");
-            welcomeTitleCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/welcome/title.txt"), UTF_8)), "welcome_title.txt");
-
-            userAccessNewMemberHtmlCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/teamaccess_newmember/teamaccess.html"), UTF_8)), "welcome.html");
-            userAccessNewMemberTxtCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/teamaccess_newmember/teamaccess.txt"), UTF_8)), "welcome.txt");
-            userAccessNewMemberTitleCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/teamaccess_newmember/title.txt"), UTF_8)), "welcome_title.txt");
-
-            userAccessHtmlCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/teamaccess/teamaccess.html"), UTF_8)), "welcome.html");
-            userAccessTxtCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/teamaccess/teamaccess.txt"), UTF_8)), "welcome.txt");
-            userAccessTitleCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/teamaccess/title.txt"), UTF_8)), "welcome_title.txt");
+        @JsonCreator
+        public ProjectConfiguration(@ApiParam(value = "timezone", required = false) String timezone) {
+            this(null, timezone);
         }
-        catch (IOException e) {
-            throw Throwables.propagate(e);
+
+        public ProjectConfiguration(String name, String timezone) {
+            this.timezone = timezone;
+            this.name = name;
         }
     }
 
-    public static final class Project
-    {
+    public static class ProjectKeyPermission {
+        public final String readKey;
+        public final String email;
+        public final Instant createdAt;
+
+        public ProjectKeyPermission(String readKey, String email, Instant createdAt) {
+            this.readKey = readKey;
+            this.email = email;
+            this.createdAt = createdAt;
+        }
+    }
+
+    public static class ProjectOwner {
+        public final int id;
+        public final String email;
+
+        public ProjectOwner(int id, String email) {
+            this.id = id;
+            this.email = email;
+        }
+    }
+
+    public static class UserAccess {
+        @JsonProperty("project")
+        public final int project;
+        @JsonProperty("id")
+        public final int id;
+        @JsonProperty("email")
+        public final String email;
+        @JsonProperty("scope_expression")
+        public final String scope_expression;
+        @JsonProperty("read_key")
+        public final boolean readKey;
+        @JsonProperty("write_key")
+        public final boolean writeKey;
+        @JsonProperty("master_key")
+        public final boolean masterKey;
+
+        public UserAccess(int project, int id, String email, String scope_expression, boolean readKey, boolean writeKey, boolean masterKey) {
+            this.project = project;
+            this.id = id;
+            this.email = email;
+            this.scope_expression = scope_expression;
+            this.readKey = readKey;
+            this.writeKey = writeKey;
+            this.masterKey = masterKey;
+        }
+    }
+
+    public static final class Access {
+        public final List<TableAccess> tableAccessList;
+
+        @JsonCreator
+        public Access(@ApiParam("tableAccessList") List<TableAccess> tableAccessList) {
+            this.tableAccessList = tableAccessList;
+        }
+
+        public static class TableAccess {
+            public final String tableName;
+            public final String expression;
+
+            @JsonCreator
+            public TableAccess(@ApiParam("tableName") String tableName, @ApiParam("expression") String expression) {
+                this.tableName = tableName;
+                this.expression = expression;
+            }
+        }
+    }
+
+    public static final class Project {
         public final String project;
         public final String apiUrl;
 
-        public Project(String project, String apiUrl)
-        {
+        public Project(String project, String apiUrl) {
             this.project = project;
             this.apiUrl = apiUrl;
         }

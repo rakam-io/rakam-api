@@ -26,7 +26,6 @@ import org.rakam.server.http.HttpService;
 import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
 
 import javax.inject.Inject;
-
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -44,11 +43,13 @@ public class RecipeModule extends RakamModule {
 
 
         Multibinder.newSetBinder(binder, Tag.class).addBinding()
-                .toInstance( new Tag().name("recipe").description("Recipe")
+                .toInstance(new Tag().name("recipe").description("Recipe")
                         .externalDocs(MetadataConfig.centralDocs));
 
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(RecipeHttpService.class).in(Scopes.SINGLETON);
+
+        binder.bind(RecipeHandler.class).in(Scopes.SINGLETON);
 
         if (recipes.getRecipes() == null) {
             return;
@@ -116,7 +117,6 @@ public class RecipeModule extends RakamModule {
                     }
                     binder.bind(Recipe.class).toInstance(recipe);
                     binder.bind(RecipeLoader.class).asEagerSingleton();
-                    binder.bind(RecipeHandler.class).in(Scopes.SINGLETON);
                     set_default = true;
                     break;
                 case SPECIFIC:
@@ -164,16 +164,16 @@ public class RecipeModule extends RakamModule {
 
         private List<String> recipes;
 
+        public List<String> getRecipes() {
+            return recipes;
+        }
+
         @Config("recipes")
         public RecipeConfig setRecipes(String recipes) {
             this.recipes = ImmutableList.copyOf(Splitter.on(',')
                     .omitEmptyStrings().trimResults()
                     .split(recipes));
             return this;
-        }
-
-        public List<String> getRecipes() {
-            return recipes;
         }
     }
 

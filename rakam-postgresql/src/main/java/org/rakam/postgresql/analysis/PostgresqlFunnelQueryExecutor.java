@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.AbstractFunnelQueryExecutor;
 import org.rakam.analysis.FunnelQueryExecutor;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.config.ProjectConfig;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
@@ -44,11 +45,7 @@ import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PostgresqlFunnelQueryExecutor
-        extends AbstractFunnelQueryExecutor
-{
-    private final PostgresqlQueryExecutor executor;
-    private final FastGenericFunnelQueryExecutor fastExecutor;
-
+        extends AbstractFunnelQueryExecutor {
     private static final Map<FunnelTimestampSegments, String> timeStampMapping = ImmutableMap.<FunnelQueryExecutor.FunnelTimestampSegments, String>builder()
             .put(HOUR_OF_DAY, "lpad(cast(extract(hour FROM %s) as text), 2, '0')||':00'")
             .put(DAY_OF_MONTH, "extract(day FROM %s)||'th day'")
@@ -61,10 +58,11 @@ public class PostgresqlFunnelQueryExecutor
             .put(MONTH, "cast(date_trunc('month', %s) as date)")
             .put(YEAR, "cast(date_trunc('year', %s) as date)")
             .build();
+    private final PostgresqlQueryExecutor executor;
+    private final FastGenericFunnelQueryExecutor fastExecutor;
 
     @Inject
-    public PostgresqlFunnelQueryExecutor(FastGenericFunnelQueryExecutor fastExecutor, ProjectConfig projectConfig, Metastore metastore, PostgresqlQueryExecutor executor)
-    {
+    public PostgresqlFunnelQueryExecutor(FastGenericFunnelQueryExecutor fastExecutor, ProjectConfig projectConfig, Metastore metastore, PostgresqlQueryExecutor executor) {
         super(projectConfig, metastore, executor);
         this.executor = executor;
         this.fastExecutor = fastExecutor;
@@ -73,8 +71,7 @@ public class PostgresqlFunnelQueryExecutor
     }
 
     @PostConstruct
-    public void setup()
-    {
+    public void setup() {
         try (Connection conn = executor.getConnection()) {
             conn.createStatement().execute("CREATE OR REPLACE FUNCTION get_funnel_step(arr int[]) RETURNS integer AS $$\n" +
                     "DECLARE next_step integer := 1; step integer;\n" +
@@ -88,37 +85,33 @@ public class PostgresqlFunnelQueryExecutor
                     "    return next_step - 1;\n" +
                     "        END;\n" +
                     "$$ LANGUAGE plpgsql;");
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, FunnelType funnelType)
-    {
+    public QueryExecution query(RequestContext context, List<FunnelStep> steps, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, FunnelType funnelType) {
         if (funnelType != FunnelType.ORDERED) {
-            return fastExecutor.query(project, steps, dimension, segment, startDate, endDate, window, zoneId, connectors, funnelType);
+            return fastExecutor.query(context, steps, dimension, segment, startDate, endDate, window, zoneId, connectors, funnelType);
         }
 
         if (dimension.isPresent() && projectConfig.getUserColumn().equals(dimension.get())) {
             throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
         }
 
-        return super.query(project, steps, dimension, segment, startDate, endDate, window, zoneId, connectors, funnelType);
+        return super.query(context, steps, dimension, segment, startDate, endDate, window, zoneId, connectors, funnelType);
     }
 
     @Override
-    public String getTemplate(List<FunnelStep> steps, Optional<String> dimension, Optional<FunnelWindow> window)
-    {
+    public String getTemplate(List<FunnelStep> steps, Optional<String> dimension, Optional<FunnelWindow> window) {
         return "select %s get_funnel_step(steps) step, count(*) total from (\n" +
                 "select %s array_agg(step order by " + checkTableColumn(projectConfig.getTimeColumn()) + ") as steps from (%s) t WHERE " + checkTableColumn(projectConfig.getTimeColumn()) + " between timestamp '%s' and timestamp '%s'\n" +
                 "group by %s %s\n" +
                 ") t group by 1 %s order by 1";
     }
 
-    public String convertFunnel(String project, String connectorField, int idx, FunnelStep funnelStep, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate)
-    {
+    public String convertFunnel(String project, String connectorField, int idx, FunnelStep funnelStep, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate) {
         String table = checkProject(project, '"') + "." + ValidationUtil.checkCollection(funnelStep.getCollection());
         Optional<String> filterExp = funnelStep.getExpression().map(value -> RakamSqlFormatter.formatExpression(value,
                 name -> name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
@@ -127,7 +120,7 @@ public class PostgresqlFunnelQueryExecutor
         String format = format("SELECT %s %s %s, %d as step, %s from %s %s %s",
                 segment.isPresent() ? "" : dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ",").orElse(""),
                 segment.isPresent() ? format(timeStampMapping.get(FunnelTimestampSegments.valueOf(segment.get().replace(" ", "_").toUpperCase())),
-                        dimension.get())+ " as "  + checkTableColumn(dimension.get()+"_segment") + ",":  "",
+                        dimension.get()) + " as " + checkTableColumn(dimension.get() + "_segment") + "," : "",
                 format(connectorField, "step" + idx),
                 idx + 1,
                 checkTableColumn(projectConfig.getTimeColumn()),

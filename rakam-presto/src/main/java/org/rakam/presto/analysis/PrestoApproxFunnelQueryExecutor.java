@@ -3,6 +3,7 @@ package org.rakam.presto.analysis;
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.google.common.collect.ImmutableList;
 import org.rakam.analysis.FunnelQueryExecutor;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
@@ -33,39 +34,36 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PrestoApproxFunnelQueryExecutor
-        implements FunnelQueryExecutor
-{
+        implements FunnelQueryExecutor {
     private final ProjectConfig projectConfig;
     private final QueryExecutorService executor;
-    private Map<FunnelTimestampSegments, String> timeStampMapping;
     private final Metastore metastore;
+    private Map<FunnelTimestampSegments, String> timeStampMapping;
 
     @Inject
-    public PrestoApproxFunnelQueryExecutor(ProjectConfig projectConfig, QueryExecutorService executor, Metastore metastore)
-    {
+    public PrestoApproxFunnelQueryExecutor(ProjectConfig projectConfig, QueryExecutorService executor, Metastore metastore) {
         this.projectConfig = projectConfig;
         this.executor = executor;
         this.metastore = metastore;
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, FunnelType funnelType)
-    {
+    public QueryExecution query(RequestContext context, List<FunnelStep> steps, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, FunnelType funnelType) {
 
-        if(dimension.isPresent()) {
-            if(dimension.get().equals(projectConfig.getTimeColumn())) {
-                if(!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
+        if (dimension.isPresent()) {
+            if (dimension.get().equals(projectConfig.getTimeColumn())) {
+                if (!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
                     throw new RakamException("When dimension is time, segmenting should be done on timestamp field.", BAD_REQUEST);
                 }
             }
-            if(metastore.getCollections(project).entrySet().stream()
+            if (metastore.getCollections(context.project).entrySet().stream()
                     .filter(c -> !c.getValue().contains(dimension.get())).findAny().get().getValue().stream()
                     .filter(d -> d.getName().equals(dimension.get())).findAny().get().getType().getPrettyName().equals("TIMESTAMP")) {
-                if(!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
+                if (!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
                     throw new RakamException("When dimension is of type TIMESTAMP, segmenting should be done on timestamp field.", BAD_REQUEST);
                 }
             }
-        } else if(segment.isPresent()) {
+        } else if (segment.isPresent()) {
             throw new RakamException("Dimension can't be null when segment is not.", BAD_REQUEST);
         }
 
@@ -90,8 +88,7 @@ public class PrestoApproxFunnelQueryExecutor
                     getFilterExp(steps.get(step)))).collect(Collectors.joining(" union all "));
 
             query = format("select step, dimension, cast(approx_funnel(user_sets) OVER (PARTITION BY dimension ORDER BY step) as bigint) as count from (select dimension, step, approx_set(_user) user_sets from (%s) where dimension is not null group by 1, 2)", queries);
-        }
-        else {
+        } else {
             String queries = steps.stream().map(step -> String.format("(select approx_set(%s) from %s where %s between timestamp '%s' and timestamp '%s' and %s )",
                     checkTableColumn(projectConfig.getUserColumn()),
                     checkCollection(step.getCollection()),
@@ -102,7 +99,7 @@ public class PrestoApproxFunnelQueryExecutor
             query = String.format("select funnel_steps(array[%s])", queries);
         }
 
-        QueryExecution queryExecution = executor.executeQuery(project, query, Optional.empty(), null, zoneId, 10000);
+        QueryExecution queryExecution = executor.executeQuery(context, query, Optional.empty(), null, zoneId, 10000);
 
         return new DelegateQueryExecution(queryExecution,
                 result -> {
@@ -118,10 +115,9 @@ public class PrestoApproxFunnelQueryExecutor
                         newResult = result.getResult();
 
                         for (List<Object> objects : result.getResult()) {
-                            objects.set(0, "Step "+ ((int) objects.get(0)+1));
+                            objects.set(0, "Step " + ((int) objects.get(0) + 1));
                         }
-                    }
-                    else {
+                    } else {
                         metadata = ImmutableList.of(
                                 new SchemaField("step", STRING),
                                 new SchemaField("count", LONG));
@@ -137,8 +133,7 @@ public class PrestoApproxFunnelQueryExecutor
                 });
     }
 
-    private String getFilterExp(FunnelStep step)
-    {
+    private String getFilterExp(FunnelStep step) {
         return step.getExpression().map(value -> RakamSqlFormatter.formatExpression(value,
                 name -> name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
                 ValidationUtil::checkTableColumn, '"')).orElse("true");

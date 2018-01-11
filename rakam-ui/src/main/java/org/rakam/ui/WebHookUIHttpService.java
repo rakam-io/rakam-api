@@ -18,7 +18,6 @@ import org.rakam.util.RakamException;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-
 import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -29,10 +28,7 @@ import java.util.stream.Stream;
 
 import static com.google.common.net.HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static com.google.common.net.HttpHeaders.CACHE_CONTROL;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
 import static org.rakam.ui.ScheduledTaskUIHttpService.getResourceFiles;
@@ -41,18 +37,15 @@ import static org.rakam.ui.ScheduledTaskUIHttpService.getResourceFiles;
 @Path("/ui/webhook")
 @Api(value = "/ui/webhook")
 public class WebHookUIHttpService
-        extends HttpService
-{
+        extends HttpService {
     @GET
     @ApiOperation(value = "List webhooks", response = Integer.class)
     @Path("/list")
-    public List<UIWebHook> list()
-    {
+    public List<UIWebHook> list() {
         List<String> resourceFiles;
         try {
             resourceFiles = getResourceFiles("webhook");
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             throw new RakamException("Unable to read files", INTERNAL_SERVER_ERROR);
         }
 
@@ -66,16 +59,14 @@ public class WebHookUIHttpService
                     test = new String(ByteStreams.toByteArray(getClass()
                             .getResource("/webhook/" + e + "/test.txt").openStream()),
                             StandardCharsets.UTF_8);
-                }
-                catch (Exception e1) {
+                } catch (Exception e1) {
                     test = null;
                 }
                 resource = JsonHelper.read(ByteStreams.toByteArray(config.openStream()), UIWebHook.class);
                 resource.script = new String(script, StandardCharsets.UTF_8);
                 resource.testCode = test;
                 resource.image = "/ui/webhook/image/" + e;
-            }
-            catch (IOException ex) {
+            } catch (IOException ex) {
                 return Stream.of();
             }
 
@@ -86,8 +77,7 @@ public class WebHookUIHttpService
     @GET
     @ApiOperation(value = "Show webhook images", response = Integer.class)
     @Path("/image/*")
-    public void image(RakamHttpRequest request)
-    {
+    public void image(RakamHttpRequest request) {
         String substring = request.path().substring("/ui/webhook/image".length() + 1);
         if (!substring.matches("^[A-Za-z0-9-]+$")) {
             throw new RakamException(FORBIDDEN);
@@ -100,8 +90,7 @@ public class WebHookUIHttpService
         byte[] script;
         try {
             script = ByteStreams.toByteArray(resource.openStream());
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             throw Throwables.propagate(e);
         }
         DefaultFullHttpResponse resp = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(script));
@@ -112,8 +101,7 @@ public class WebHookUIHttpService
         request.response(resp).end();
     }
 
-    public static class Parameter
-    {
+    public static class Parameter {
         public final FieldType type;
         public final String placeholder;
         public final String description;
@@ -128,8 +116,7 @@ public class WebHookUIHttpService
                 @ApiParam("description") String description,
                 @ApiParam(value = "value", required = false) Object value,
                 @ApiParam(value = "hidden", required = false) Boolean hidden,
-                @ApiParam(value = "required", required = false) Boolean required)
-        {
+                @ApiParam(value = "required", required = false) Boolean required) {
             this.type = type;
             this.placeholder = placeholder;
             this.description = description;
@@ -139,23 +126,21 @@ public class WebHookUIHttpService
         }
     }
 
-    public static class UIWebHook
-    {
+    public static class UIWebHook {
         public final String name;
-        public String image;
         public final String description;
-        public String script;
         public final Map<String, Parameter> parameters;
+        public String image;
+        public String script;
         public String testCode;
 
         @JsonCreator
         public UIWebHook(@ApiParam("name") String name,
-                @ApiParam(value = "image", required = false) String image,
-                @ApiParam("description") String description,
-                @ApiParam(value = "script", required = false) String script,
-                @ApiParam(value = "testCode", required = false) String testCode,
-                @ApiParam("parameters") Map<String, Parameter> parameters)
-        {
+                         @ApiParam(value = "image", required = false) String image,
+                         @ApiParam("description") String description,
+                         @ApiParam(value = "script", required = false) String script,
+                         @ApiParam(value = "testCode", required = false) String testCode,
+                         @ApiParam("parameters") Map<String, Parameter> parameters) {
             this.name = name;
             this.image = image;
             this.description = description;

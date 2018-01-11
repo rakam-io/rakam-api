@@ -2,7 +2,6 @@ package org.rakam.report;
 
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.server.http.annotations.ApiParam;
 
 public class QueryError {
@@ -18,8 +17,7 @@ public class QueryError {
             @ApiParam(value = "sqlState", required = false) String sqlState,
             @ApiParam(value = "errorCode", required = false) Integer errorCode,
             @ApiParam(value = "errorLine", required = false) Integer errorLine,
-            @ApiParam(value = "charPositionInLine", required = false) Integer charPositionInLine)
-    {
+            @ApiParam(value = "charPositionInLine", required = false) Integer charPositionInLine) {
         this.message = message;
         this.sqlState = sqlState;
         this.errorCode = errorCode;

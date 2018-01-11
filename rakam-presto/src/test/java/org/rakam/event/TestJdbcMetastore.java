@@ -8,8 +8,7 @@ import org.rakam.presto.analysis.PrestoRakamRaptorMetastore;
 import org.testng.annotations.BeforeMethod;
 
 public class TestJdbcMetastore
-        extends TestMetastore
-{
+        extends TestMetastore {
     private AbstractMetastore metastore;
 
     @BeforeMethod
@@ -20,8 +19,7 @@ public class TestJdbcMetastore
     }
 
     @Override
-    public AbstractMetastore getMetastore()
-    {
+    public AbstractMetastore getMetastore() {
         return metastore;
     }
 }

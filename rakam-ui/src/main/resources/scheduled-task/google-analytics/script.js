@@ -100,7 +100,7 @@ var fetch = function (parameters, startDate, endDate, nextToken, accessKey) {
 
     var data = JSON.parse(response.getResponseBody());
 
-    if(data.containsSampledData) {
+    if (data.containsSampledData) {
         logger.debug("The data is sampled");
     }
 
@@ -147,8 +147,7 @@ var fetch = function (parameters, startDate, endDate, nextToken, accessKey) {
 
             if (valid_time) {
                 events.push({collection: parameters.collection, properties: properties});
-            } else
-            if(!sampled) {
+            } else if (!sampled) {
                 sampled = true;
                 logger.debug("The data is sampled");
             }

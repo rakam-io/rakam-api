@@ -61,7 +61,7 @@ var fetch = function (parameters, events, index, startDate, endDate) {
         }
 
         for (var key in properties) {
-            if(key[0] == '$') {
+            if (key[0] == '$') {
                 var newKey = "_" + key.substring(1);
                 properties[newKey] = properties[key];
                 properties[key] = undefined;

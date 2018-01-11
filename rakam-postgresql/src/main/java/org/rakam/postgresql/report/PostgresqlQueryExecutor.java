@@ -11,6 +11,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
 import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.datasource.CustomDataSource;
 import org.rakam.analysis.datasource.CustomDataSourceService;
 import org.rakam.analysis.datasource.SupportedCustomDatabase;
@@ -20,10 +21,10 @@ import org.rakam.config.ProjectConfig;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QuerySampling;
+import org.rakam.ui.user.WebUserService;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
-import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -46,36 +47,45 @@ import static org.rakam.util.ValidationUtil.*;
 
 // forbid crosstab, dblink
 public class PostgresqlQueryExecutor
-        implements QueryExecutor
-{
-    private final static Logger LOGGER = Logger.get(PostgresqlQueryExecutor.class);
+        implements QueryExecutor {
     public final static String MATERIALIZED_VIEW_PREFIX = "$materialized_";
     public final static String CONTINUOUS_QUERY_PREFIX = "$view_";
-
-    private final JDBCPoolDataSource connectionPool;
     protected static final ExecutorService QUERY_EXECUTOR = new ThreadPoolExecutor(0, 1000,
             60L, TimeUnit.SECONDS,
             new SynchronousQueue<>(), new ThreadFactoryBuilder()
             .setNameFormat("jdbc-query-executor").build());
+    private final static Logger LOGGER = Logger.get(PostgresqlQueryExecutor.class);
+    private final JDBCPoolDataSource connectionPool;
     private final Metastore metastore;
     private final boolean userServiceIsPostgresql;
     private final CustomDataSourceService customDataSource;
     private final ProjectConfig projectConfig;
+    private final WebUserService webUserService;
     private SqlParser sqlParser = new SqlParser();
+
+    public PostgresqlQueryExecutor(
+            ProjectConfig projectConfig,
+            @Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool,
+            Metastore metastore,
+            CustomDataSourceService customDataSource,
+            @Named("user.storage.postgresql") boolean userServiceIsPostgresql) {
+        this(projectConfig, connectionPool, metastore, com.google.common.base.Optional.fromNullable(customDataSource), userServiceIsPostgresql, null);
+    }
 
     @Inject
     public PostgresqlQueryExecutor(
             ProjectConfig projectConfig,
             @Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool,
             Metastore metastore,
-            @Nullable CustomDataSourceService customDataSource,
-            @Named("user.storage.postgresql") boolean userServiceIsPostgresql)
-    {
+            com.google.common.base.Optional<CustomDataSourceService> customDataSource,
+            @Named("user.storage.postgresql") boolean userServiceIsPostgresql,
+            com.google.common.base.Optional<WebUserService> webUserService) {
         this.projectConfig = projectConfig;
         this.connectionPool = connectionPool;
-        this.customDataSource = customDataSource;
+        this.customDataSource = customDataSource.orNull();
         this.metastore = metastore;
         this.userServiceIsPostgresql = userServiceIsPostgresql;
+        this.webUserService = webUserService.orNull();
 
         try (Connection connection = connectionPool.getConnection()) {
             connection.createStatement().execute("CREATE OR REPLACE FUNCTION to_unixtime(timestamp) RETURNS double precision" +
@@ -83,37 +93,54 @@ public class PostgresqlQueryExecutor
                     "    LANGUAGE SQL" +
                     "    IMMUTABLE" +
                     "    RETURNS NULL ON NULL INPUT");
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             LOGGER.error(e, "Error while creating required Postgresql procedures.");
         }
     }
 
+    public static char dbSeparator(String externalType) {
+        switch (externalType) {
+            case "POSTGRESQL":
+                return '"';
+            case "MYSQL":
+                return '`';
+            default:
+                return '"';
+        }
+    }
+
     @Override
-    public QueryExecution executeRawQuery(String query, ZoneId zoneId, Map<String, String> sessionParameters, String apiKey)
-    {
+    public QueryExecution executeRawQuery(RequestContext context, String query, ZoneId zoneId, Map<String, String> sessionParameters) {
         String remotedb = sessionParameters.get("remotedb");
         if (remotedb != null) {
-            return getSingleQueryExecution(query, JsonHelper.read(remotedb, new TypeReference<List<CustomDataSource>>() {}));
+            return getSingleQueryExecution(query, JsonHelper.read(remotedb, new TypeReference<List<CustomDataSource>>() {
+            }));
         }
         return new JDBCQueryExecution(connectionPool::getConnection, query, false, Optional.ofNullable(zoneId), true);
     }
 
     @Override
-    public QueryExecution executeRawQuery(String query, Map<String, String> sessionParameters)
-    {
-        return executeRawQuery(query, null, sessionParameters, null);
+    public QueryExecution executeRawQuery(RequestContext context, String query, Map<String, String> sessionParameters) {
+        return executeRawQuery(context, query, null, sessionParameters);
     }
 
     @Override
-    public QueryExecution executeRawStatement(String query)
-    {
+    public QueryExecution executeRawStatement(RequestContext context, String query) {
         return new JDBCQueryExecution(connectionPool::getConnection, query, true, Optional.empty(), true);
     }
 
     @Override
-    public String formatTableReference(String project, QualifiedName name, Optional<QuerySampling> sample, Map<String, String> sessionParameters)
-    {
+    public QueryExecution executeRawStatement(RequestContext context, String sqlQuery, Map<String, String> sessionParameters) {
+        return new JDBCQueryExecution(connectionPool::getConnection, sqlQuery, true, Optional.empty(), true);
+    }
+
+    @Override
+    public QueryExecution executeRawStatement(String sqlQuery) {
+        return new JDBCQueryExecution(connectionPool::getConnection, sqlQuery, true, Optional.empty(), true);
+    }
+
+    @Override
+    public String formatTableReference(String project, QualifiedName name, Optional<QuerySampling> sample, Map<String, String> sessionParameters) {
         if (name.getPrefix().isPresent()) {
             String prefix = name.getPrefix().get().toString();
             switch (prefix) {
@@ -138,15 +165,15 @@ public class PostgresqlQueryExecutor
                     String remoteDb = sessionParameters.get("remotedb");
                     List<CustomDataSource> state;
                     if (remoteDb != null) {
-                        state = JsonHelper.read(remoteDb, new TypeReference<List<CustomDataSource>>() {});
+                        state = JsonHelper.read(remoteDb, new TypeReference<List<CustomDataSource>>() {
+                        });
                         if (!inSameDatabase(state.get(0), dataSource)) {
                             throw new RakamException("Cross database queries are not supported in Postgresql deployment type.", BAD_REQUEST);
                         }
                         if (!state.stream().anyMatch(e -> e.schemaName.equals(dataSource.schemaName))) {
                             state.add(dataSource);
                         }
-                    }
-                    else {
+                    } else {
                         state = ImmutableList.of(dataSource);
                     }
 
@@ -154,8 +181,7 @@ public class PostgresqlQueryExecutor
 
                     return checkProject(prefix, '"') + "." + checkCollection(name.getSuffix());
             }
-        }
-        else if (name.getSuffix().equals("users")) {
+        } else if (name.getSuffix().equals("users")) {
             if (userServiceIsPostgresql) {
                 return checkProject(project, '"') + "._users";
             }
@@ -177,19 +203,16 @@ public class PostgresqlQueryExecutor
                                 sharedColumns.isEmpty() ? "" : (", " + sharedColumns),
                                 checkProject(project, '"') + "." + checkCollection(collection)))
                         .collect(Collectors.joining(" union all \n")) + ") _all";
-            }
-            else {
+            } else {
                 return String.format("(select cast(null as text) as \"_collection\", now() as \"$server_time\", cast(null as text) as _user, cast(now() as timestamp) as %s limit 0) _all",
                         checkTableColumn(projectConfig.getTimeColumn()));
             }
-        }
-        else {
+        } else {
             return checkProject(project, '"') + "." + checkCollection(name.getSuffix());
         }
     }
 
-    private boolean inSameDatabase(CustomDataSource current, CustomDataSource dataSource)
-    {
+    private boolean inSameDatabase(CustomDataSource current, CustomDataSource dataSource) {
         if (current.schemaName.equals(dataSource)) {
             return true;
         }
@@ -203,25 +226,11 @@ public class PostgresqlQueryExecutor
     }
 
     public Connection getConnection()
-            throws SQLException
-    {
+            throws SQLException {
         return connectionPool.getConnection();
     }
 
-    public static char dbSeparator(String externalType)
-    {
-        switch (externalType) {
-            case "POSTGRESQL":
-                return '"';
-            case "MYSQL":
-                return '`';
-            default:
-                return '"';
-        }
-    }
-
-    private QueryExecution getSingleQueryExecution(String query, List<CustomDataSource> type)
-    {
+    private QueryExecution getSingleQueryExecution(String query, List<CustomDataSource> type) {
         char seperator = dbSeparator(type.get(0).type);
 
         StringBuilder builder = new StringBuilder();
@@ -237,9 +246,9 @@ public class PostgresqlQueryExecutor
                 return ofNullable(customDataSource1.options.getSchema())
                         .map(e -> e + "." + qualifiedName.getSuffix())
                         .orElse(qualifiedName.getSuffix());
-            }, seperator){}.process(statement, 1);
-        }
-        catch (UnsupportedOperationException e) {
+            }, seperator) {
+            }.process(statement, 1);
+        } catch (UnsupportedOperationException e) {
             return null;
         }
 

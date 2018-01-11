@@ -32,31 +32,27 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static org.rakam.report.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkCollection;
 
-public interface EventExplorer
-{
+public interface EventExplorer {
 
-    CompletableFuture<AbstractEventExplorer.PrecalculatedTable> create(String project, OLAPTable table);
+    CompletableFuture<AbstractEventExplorer.PrecalculatedTable> create(RequestContext context, OLAPTable table);
 
-    QueryExecution analyze(String project, List<String> collections, Measure measureType, Reference grouping, Reference segment, String filterExpression, LocalDate startDate, LocalDate endDate, ZoneId timezone);
+    QueryExecution analyze(RequestContext context, List<String> collections, Measure measureType, Reference grouping, Reference segment, String filterExpression, LocalDate startDate, LocalDate endDate, ZoneId timezone);
 
-    CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate, ZoneId timezone);
+    CompletableFuture<QueryResult> getEventStatistics(RequestContext requestContext, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate, ZoneId timezone);
 
     Map<String, List<String>> getExtraDimensions(String project);
 
-    default String getIntermediateForApproximateUniqueFunction()
-    {
+    default String getIntermediateForApproximateUniqueFunction() {
         throw new UnsupportedOperationException();
     }
 
-    default String getFinalForApproximateUniqueFunction()
-    {
+    default String getFinalForApproximateUniqueFunction() {
         throw new UnsupportedOperationException();
     }
 
-    QueryExecution export(String project, List<String> collections, Measure measure, Reference grouping, Reference segment, String filterExpression, LocalDate startDate, LocalDate endDate, ZoneId zoneId);
+    QueryExecution export(RequestContext context, List<String> collections, Measure measure, Reference grouping, Reference segment, String filterExpression, LocalDate startDate, LocalDate endDate, ZoneId zoneId);
 
-    enum TimestampTransformation
-    {
+    enum TimestampTransformation {
         HOUR_OF_DAY("Date category", "Hour of day"),
         DAY_OF_MONTH("Date category", "Day of month"),
         WEEK_OF_YEAR("Date category", "Week of year"),
@@ -72,35 +68,21 @@ public interface EventExplorer
         private final String prettyName;
         private final String category;
 
-        TimestampTransformation(String category, String name)
-        {
+        TimestampTransformation(String category, String name) {
             this.prettyName = name;
             this.category = category;
         }
 
         @JsonCreator
-        public static TimestampTransformation fromString(String key)
-        {
+        public static TimestampTransformation fromString(String key) {
             try {
                 return key == null ? null : valueOf(key.toUpperCase());
-            }
-            catch (IllegalArgumentException e) {
+            } catch (IllegalArgumentException e) {
                 throw new RakamException("Invalid date range value: " + key, BAD_REQUEST);
             }
         }
 
-        public String getPrettyName()
-        {
-            return prettyName;
-        }
-
-        public String getCategory()
-        {
-            return category;
-        }
-
-        public static Optional<TimestampTransformation> fromPrettyName(String name)
-        {
+        public static Optional<TimestampTransformation> fromPrettyName(String name) {
             for (TimestampTransformation transformation : values()) {
                 if (transformation.getPrettyName().equals(name)) {
                     return Optional.of(transformation);
@@ -108,17 +90,37 @@ public interface EventExplorer
             }
             return Optional.empty();
         }
+
+        public String getPrettyName() {
+            return prettyName;
+        }
+
+        public String getCategory() {
+            return category;
+        }
     }
 
-    class Measure
-    {
+    enum ReferenceType {
+        COLUMN, REFERENCE;
+
+        @JsonCreator
+        public static ReferenceType get(String name) {
+            return valueOf(name.toUpperCase());
+        }
+
+        @JsonProperty
+        public String value() {
+            return name();
+        }
+    }
+
+    class Measure {
         public final String column;
         public final AggregationType aggregation;
 
         @JsonCreator
         public Measure(@ApiParam(value = "column", required = false) String column,
-                @ApiParam("aggregation") AggregationType aggregation)
-        {
+                       @ApiParam("aggregation") AggregationType aggregation) {
             if (column == null && aggregation != COUNT) {
                 throw new IllegalArgumentException("measure column is required if aggregation is not COUNT");
             }
@@ -127,39 +129,19 @@ public interface EventExplorer
         }
     }
 
-    class Reference
-    {
+    class Reference {
         public final ReferenceType type;
         public final String value;
 
         @JsonCreator
         public Reference(@ApiParam("type") ReferenceType type,
-                @ApiParam("value") String value)
-        {
+                         @ApiParam("value") String value) {
             this.type = checkNotNull(type, "type is null");
             this.value = checkNotNull(value, "value is null");
         }
     }
 
-    enum ReferenceType
-    {
-        COLUMN, REFERENCE;
-
-        @JsonCreator
-        public static ReferenceType get(String name)
-        {
-            return valueOf(name.toUpperCase());
-        }
-
-        @JsonProperty
-        public String value()
-        {
-            return name();
-        }
-    }
-
-    class OLAPTable
-    {
+    class OLAPTable {
         public final Set<String> collections;
         public final Set<Dimension> dimensions;
         public final Set<AggregationType> aggregations;
@@ -172,8 +154,7 @@ public interface EventExplorer
                 @ApiParam("dimensions") Set<Dimension> dimensions,
                 @ApiParam("aggregations") Set<AggregationType> aggregations,
                 @ApiParam("measures") Set<String> measures,
-                @ApiParam("tableName") String tableName)
-        {
+                @ApiParam("tableName") String tableName) {
             checkCollection(tableName);
             this.collections = collections;
             this.dimensions = dimensions;

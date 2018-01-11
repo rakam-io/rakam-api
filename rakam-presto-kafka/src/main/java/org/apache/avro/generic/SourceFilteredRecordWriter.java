@@ -20,7 +20,7 @@ public class SourceFilteredRecordWriter extends GenericDatumWriter {
     public void writeRecord(Schema schema, Object datum, Encoder out) throws IOException {
         Object state = data.getRecordState(datum, schema);
         for (Schema.Field f : schema.getFields()) {
-            if(!sourceFields.contains(f.name())) {
+            if (!sourceFields.contains(f.name())) {
                 writeField(datum, f, out, state);
             }
         }

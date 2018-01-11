@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.AbstractFunnelQueryExecutor;
 import org.rakam.analysis.FunnelQueryExecutor;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.user.UserPluginConfig;
@@ -43,13 +44,7 @@ import static org.rakam.presto.analysis.PrestoUserService.ANONYMOUS_ID_MAPPING;
 import static org.rakam.util.ValidationUtil.*;
 
 public class PrestoFunnelQueryExecutor
-        extends AbstractFunnelQueryExecutor
-{
-    private final boolean userMappingEnabled;
-    private final FastGenericFunnelQueryExecutor fastPrestoFunnelQueryExecutor;
-    private final PrestoApproxFunnelQueryExecutor approxFunnelQueryExecutor;
-    private final PrestoConfig prestoConfig;
-
+        extends AbstractFunnelQueryExecutor {
     private static final Map<FunnelTimestampSegments, String> timeStampMapping = ImmutableMap.
             <FunnelQueryExecutor.FunnelTimestampSegments, String>builder()
             .put(HOUR_OF_DAY, "lpad(cast(hour(%s) as varchar), 2, '0')||':00'")
@@ -64,7 +59,11 @@ public class PrestoFunnelQueryExecutor
             .put(MONTH, "cast(date_trunc('month', %s) as date)")
             .put(YEAR, "cast(date_trunc('year', %s) as date)")
             .build();
-    
+    private final boolean userMappingEnabled;
+    private final FastGenericFunnelQueryExecutor fastPrestoFunnelQueryExecutor;
+    private final PrestoApproxFunnelQueryExecutor approxFunnelQueryExecutor;
+    private final PrestoConfig prestoConfig;
+
     @Inject
     public PrestoFunnelQueryExecutor(
             ProjectConfig projectConfig,
@@ -73,8 +72,7 @@ public class PrestoFunnelQueryExecutor
             PrestoApproxFunnelQueryExecutor approxFunnelQueryExecutor,
             Metastore metastore,
             QueryExecutor executor,
-            UserPluginConfig userPluginConfig)
-    {
+            UserPluginConfig userPluginConfig) {
         super(projectConfig, metastore, executor);
         this.prestoConfig = prestoConfig;
         this.fastPrestoFunnelQueryExecutor = fastPrestoFunnelQueryExecutor;
@@ -86,8 +84,7 @@ public class PrestoFunnelQueryExecutor
     }
 
     @Override
-    public String getTemplate(List<FunnelStep> steps, Optional<String> dimension, Optional<FunnelWindow> window)
-    {
+    public String getTemplate(List<FunnelStep> steps, Optional<String> dimension, Optional<FunnelWindow> window) {
         return "select %s step, count(*) total from (\n" +
                 "select %s funnel_step_time(array_agg(cast(step as tinyint)), array_agg(cast(to_unixtime(" + checkTableColumn(projectConfig.getTimeColumn()) + ") as integer))) as step from (select * from (%s) WHERE "
                 + checkTableColumn(projectConfig.getTimeColumn()) + " between timestamp '%s' and timestamp '%s'\n" +
@@ -96,31 +93,29 @@ public class PrestoFunnelQueryExecutor
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, FunnelType funnelType)
-    {
+    public QueryExecution query(RequestContext context, List<FunnelStep> steps, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, FunnelType funnelType) {
         if (funnelType == FunnelType.APPROXIMATE) {
-            return approxFunnelQueryExecutor.query(project, steps, dimension, segment, startDate, endDate, window, zoneId, connectors, funnelType);
+            return approxFunnelQueryExecutor.query(context, steps, dimension, segment, startDate, endDate, window, zoneId, connectors, funnelType);
         }
 
         if (funnelType != FunnelType.ORDERED) {
-            return fastPrestoFunnelQueryExecutor.query(project, steps, dimension, segment, startDate, endDate, window, zoneId, connectors, funnelType);
+            return fastPrestoFunnelQueryExecutor.query(context, steps, dimension, segment, startDate, endDate, window, zoneId, connectors, funnelType);
         }
 
         if (dimension.isPresent() && projectConfig.getUserColumn().equals(dimension.get())) {
             throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
         }
 
-        return super.query(project, steps, dimension, segment, startDate, endDate, window, zoneId, connectors, funnelType);
+        return super.query(context, steps, dimension, segment, startDate, endDate, window, zoneId, connectors, funnelType);
     }
 
-    public String convertFunnel(String project, String connectorField, int idx, FunnelStep funnelStep, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate)
-    {
+    public String convertFunnel(String project, String connectorField, int idx, FunnelStep funnelStep, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate) {
         Optional<String> filterExp = funnelStep.getExpression().map(value -> RakamSqlFormatter.formatExpression(value,
                 name -> name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
                 name -> formatIdentifier("step" + idx, '"') + "." + name, '"'));
 
         String format = format("SELECT %s %s, %d as step, %s.%s from %s.%s.%s %s %s %s",
-                dimension.map(ValidationUtil::checkTableColumn).map(v -> "step" + idx + "." + v).map(v -> segment.isPresent() ? applySegment(v, segment) + " as \""+dimension.orElse("")+"_segment\"" + "," : v  + "," ).orElse(""),
+                dimension.map(ValidationUtil::checkTableColumn).map(v -> "step" + idx + "." + v).map(v -> segment.isPresent() ? applySegment(v, segment) + " as \"" + dimension.orElse("") + "_segment\"" + "," : v + ",").orElse(""),
                 userMappingEnabled ? format("coalesce(mapping._user, %s._user, %s) as _user", "step" + idx, format(connectorField, "step" + idx)) : format(connectorField, "step" + idx),
                 idx + 1,
                 "step" + idx, checkTableColumn(projectConfig.getTimeColumn()),

@@ -6,9 +6,9 @@ import org.apache.avro.generic.GenericRecord;
 import org.rakam.server.http.annotations.ApiParam;
 
 import java.util.List;
+
 @JsonPropertyOrder({"project", "collection", "api", "properties"})
-public class Event
-{
+public class Event {
     @JsonIgnore
     private final String project;
     private final String collection;
@@ -20,18 +20,16 @@ public class Event
 
     @JsonCreator
     public Event(@ApiParam(value = "collection", description = "The collection of event (pageview, touch, click etc.)") String collection,
-            @ApiParam("api") EventContext api,
-            @ApiParam(value = "properties", description = "The properties of the event") GenericRecord properties)
-    {
+                 @ApiParam("api") EventContext api,
+                 @ApiParam(value = "properties", description = "The properties of the event") GenericRecord properties) {
         this(null, collection, api, null, properties);
     }
 
     public Event(String project,
-            String collection,
-            EventContext api,
-            List<SchemaField> schema,
-            GenericRecord properties)
-    {
+                 String collection,
+                 EventContext api,
+                 List<SchemaField> schema,
+                 GenericRecord properties) {
         this.project = project;
         this.collection = collection;
         this.properties = properties;
@@ -39,43 +37,36 @@ public class Event
         this.api = api;
     }
 
-    public String project()
-    {
+    public String project() {
         return project;
     }
 
     @JsonProperty
-    public String collection()
-    {
+    public String collection() {
         return collection;
     }
 
     @JsonProperty
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public EventContext api()
-    {
+    public EventContext api() {
         return api;
     }
 
     @JsonProperty
-    public GenericRecord properties()
-    {
+    public GenericRecord properties() {
         return properties;
     }
 
-    public List<SchemaField> schema()
-    {
+    public List<SchemaField> schema() {
         return schema;
     }
 
-    public <T> T getAttribute(String attr)
-    {
+    public <T> T getAttribute(String attr) {
         return (T) properties().get(attr);
     }
 
     @Override
-    public String toString()
-    {
+    public String toString() {
         return "Event{" +
                 "project='" + project + '\'' +
                 ", collection='" + collection + '\'' +
@@ -86,8 +77,7 @@ public class Event
     }
 
     @Override
-    public boolean equals(Object o)
-    {
+    public boolean equals(Object o) {
         if (this == o) {
             return true;
         }
@@ -113,8 +103,7 @@ public class Event
     }
 
     @Override
-    public int hashCode()
-    {
+    public int hashCode() {
         int result = project.hashCode();
         result = 31 * result + collection.hashCode();
         result = 31 * result + (schema != null ? schema.hashCode() : 0);
@@ -124,35 +113,37 @@ public class Event
     }
 
     // TODO: find a way to make this class immutable
-    public void properties(GenericData.Record record, List<SchemaField> fields)
-    {
+    public void properties(GenericData.Record record, List<SchemaField> fields) {
         properties = record;
         schema = fields;
     }
 
-    public static class Library
-    {
+    public static class Library {
         public final String name;
         public final String version;
 
         @JsonCreator
-        public Library(@ApiParam(value = "name", required = false) String name, @ApiParam(value = "version", required = false) String version)
-        {
+        public Library(@ApiParam(value = "name", required = false) String name, @ApiParam(value = "version", required = false) String version) {
             this.name = name;
             this.version = version;
         }
     }
 
-    public static class EventContext
-    {
+    public static class EventContext {
         private static final EventContext EMPTY_CONTEXT = new EventContext(null, null, null, null, null, null);
 
-        @JsonProperty("api_key") public final String apiKey;
-        @JsonProperty(value = "library") public final Library library;
-        @JsonProperty(value = "api_version") public final String apiVersion;
-        @JsonProperty(value = "upload_time") public final Long uploadTime;
-        @JsonProperty(value = "checksum") public final String checksum;
-        @JsonProperty(value = "uuid") public final String uuid;
+        @JsonProperty("api_key")
+        public final String apiKey;
+        @JsonProperty(value = "library")
+        public final Library library;
+        @JsonProperty(value = "api_version")
+        public final String apiVersion;
+        @JsonProperty(value = "upload_time")
+        public final Long uploadTime;
+        @JsonProperty(value = "checksum")
+        public final String checksum;
+        @JsonProperty(value = "uuid")
+        public final String uuid;
 
         @JsonCreator
         public EventContext(
@@ -161,8 +152,7 @@ public class Event
                 @ApiParam(value = "api_version", required = false, description = "Optional API version for versioning") String apiVersion,
                 @ApiParam(value = "upload_time", required = false, description = "Optional client upload time for clock synchronization") Long uploadTime,
                 @ApiParam(value = "uuid", required = false, description = "Optional UUID for deduplication") String uuid,
-                @ApiParam(value = "checksum", required = false, description = "Optional checksum for verify the body content") String checksum)
-        {
+                @ApiParam(value = "checksum", required = false, description = "Optional checksum for verify the body content") String checksum) {
             this.library = library;
             this.apiKey = apiKey;
             this.apiVersion = apiVersion;
@@ -171,19 +161,16 @@ public class Event
             this.checksum = checksum;
         }
 
-        public static EventContext apiKey(String apiKey)
-        {
+        public static EventContext apiKey(String apiKey) {
             return new EventContext(apiKey, null, null, null, null, null);
         }
 
-        public static EventContext empty()
-        {
+        public static EventContext empty() {
             return EMPTY_CONTEXT;
         }
 
         @Override
-        public String toString()
-        {
+        public String toString() {
             return "EventContext{" +
                     "apiKey='" + apiKey + '\'' +
                     ", apiVersion='" + apiVersion + '\'' +
@@ -193,8 +180,7 @@ public class Event
         }
 
         @Override
-        public boolean equals(Object o)
-        {
+        public boolean equals(Object o) {
             if (this == o) {
                 return true;
             }
@@ -217,8 +203,7 @@ public class Event
         }
 
         @Override
-        public int hashCode()
-        {
+        public int hashCode() {
             int result = apiKey != null ? apiKey.hashCode() : 0;
             result = 31 * result + (apiVersion != null ? apiVersion.hashCode() : 0);
             result = 31 * result + (uploadTime != null ? uploadTime.hashCode() : 0);

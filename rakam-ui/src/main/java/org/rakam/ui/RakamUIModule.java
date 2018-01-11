@@ -32,10 +32,11 @@ import org.rakam.ui.page.FileBackedCustomPageDatabase;
 import org.rakam.ui.page.JDBCCustomPageDatabase;
 import org.rakam.ui.report.Report;
 import org.rakam.ui.report.ReportHttpService;
+import org.rakam.ui.report.UIRecipeHandler;
 import org.rakam.ui.report.UIRecipeHttpService;
 import org.rakam.ui.user.UserSubscriptionHttpService;
 import org.rakam.ui.user.WebUserHttpService;
-import org.rakam.util.ConditionalModule;
+import org.rakam.ui.user.WebUserService;
 import org.rakam.util.NotFoundHandler;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
@@ -47,14 +48,22 @@ import java.util.Map;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 
-@ConditionalModule(config = "ui.enable", value = "true")
 @AutoService(RakamModule.class)
 public class RakamUIModule
-        extends RakamModule
-{
+        extends RakamModule {
     @Override
-    protected void setup(Binder binder)
-    {
+    protected void setup(Binder binder) {
+        RakamUIConfig rakamUIConfig = buildConfigObject(RakamUIConfig.class);
+        OptionalBinder.newOptionalBinder(binder, WebUserService.class);
+
+        if (!rakamUIConfig.getEnableUI()) {
+            return;
+        }
+
+        binder.bind(WebUserService.class).asEagerSingleton();
+        binder.bind(DashboardService.class).asEagerSingleton();
+        binder.bind(UserDefaultService.class).asEagerSingleton();
+
         configBinder(binder).bindConfig(EmailClientConfig.class);
         configBinder(binder).bindConfig(EncryptionConfig.class);
         configBinder(binder).bindConfig(UserPluginConfig.class);
@@ -64,11 +73,6 @@ public class RakamUIModule
         configBinder(binder).bindConfig(UserPluginConfig.class);
 
         OptionalBinder.newOptionalBinder(binder, AuthService.class);
-
-        RakamUIConfig rakamUIConfig = buildConfigObject(RakamUIConfig.class);
-
-        OptionalBinder.newOptionalBinder(binder, DashboardService.class);
-        OptionalBinder.newOptionalBinder(binder, ReportMetadata.class);
         OptionalBinder.newOptionalBinder(binder, CustomPageDatabase.class);
         OptionalBinder.newOptionalBinder(binder, CustomReportMetadata.class);
 
@@ -86,9 +90,10 @@ public class RakamUIModule
         Multibinder<CustomParameter> customParameters = Multibinder.newSetBinder(binder, CustomParameter.class);
         customParameters.addBinding().toProvider(UIPermissionParameterProvider.class);
 
+        JDBCPoolDataSource pool = JDBCPoolDataSource.getOrCreateDataSource(buildConfigObject(JDBCConfig.class, "ui.metadata.jdbc"));
         binder.bind(JDBCPoolDataSource.class)
                 .annotatedWith(Names.named("ui.metadata.jdbc"))
-                .toInstance(JDBCPoolDataSource.getOrCreateDataSource(buildConfigObject(JDBCConfig.class, "ui.metadata.jdbc")));
+                .toInstance(pool);
 
         binder.bind(FlywayExecutor.class).asEagerSingleton();
 
@@ -109,7 +114,9 @@ public class RakamUIModule
         httpServices.addBinding().to(CustomEventMapperUIHttpService.class);
         httpServices.addBinding().to(ClusterService.class);
         httpServices.addBinding().to(UIRecipeHttpService.class);
-        if(rakamUIConfig.getScreenCaptureService() != null) {
+        binder.bind(UIRecipeHandler.class).asEagerSingleton();
+
+        if (rakamUIConfig.getScreenCaptureService() != null) {
             httpServices.addBinding().to(ScheduledEmailService.class);
         }
         if (rakamUIConfig.getStripeKey() != null) {
@@ -123,38 +130,32 @@ public class RakamUIModule
     }
 
     @Override
-    public String name()
-    {
+    public String name() {
         return "Web Interface for Rakam APIs";
     }
 
     @Override
-    public String description()
-    {
+    public String description() {
         return "Can be used as a BI tool and a tool that allows you to create your customized analytics service frontend.";
     }
 
-    public enum CustomPageBackend
-    {
+    public enum CustomPageBackend {
         FILE, JDBC
     }
 
-    public static class DefaultDashboardCreator
-    {
+    public static class DefaultDashboardCreator {
 
         private final DashboardService service;
         private final DBI dbi;
 
         @Inject
-        public DefaultDashboardCreator(DashboardService service, @javax.inject.Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource)
-        {
+        public DefaultDashboardCreator(DashboardService service, @javax.inject.Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource) {
             this.service = service;
             this.dbi = new DBI(dataSource);
         }
 
         @Subscribe
-        public void onCreateProject(ProjectCreatedEvent event)
-        {
+        public void onCreateProject(ProjectCreatedEvent event) {
             Integer id;
             try (Handle handle = dbi.open()) {
                 id = handle.createQuery("select user_id from web_user_project where id = :id")
@@ -166,8 +167,7 @@ public class RakamUIModule
         }
     }
 
-    public static class ProjectDeleteEventListener
-    {
+    public static class ProjectDeleteEventListener {
         private final DashboardService dashboardService;
         private final CustomPageDatabase customPageDatabase;
         private final ReportMetadata reportMetadata;
@@ -175,10 +175,9 @@ public class RakamUIModule
 
         @Inject
         public ProjectDeleteEventListener(DashboardService dashboardService,
-                Optional<CustomPageDatabase> customPageDatabase,
-                ReportMetadata reportMetadata,
-                CustomReportMetadata customReportMetadata)
-        {
+                                          Optional<CustomPageDatabase> customPageDatabase,
+                                          ReportMetadata reportMetadata,
+                                          CustomReportMetadata customReportMetadata) {
             this.reportMetadata = reportMetadata;
             this.customReportMetadata = customReportMetadata;
             this.customPageDatabase = customPageDatabase.orNull();
@@ -186,8 +185,7 @@ public class RakamUIModule
         }
 
         @Subscribe
-        public void onDeleteProject(UIEvents.ProjectDeletedEvent event)
-        {
+        public void onDeleteProject(UIEvents.ProjectDeletedEvent event) {
             for (DashboardService.Dashboard dashboard : dashboardService.list(new Project(0, event.project)).dashboards) {
                 dashboardService.delete(new Project(event.project, 0), dashboard.id);
             }
@@ -207,11 +205,9 @@ public class RakamUIModule
         }
     }
 
-    public static class FlywayExecutor
-    {
+    public static class FlywayExecutor {
         @Inject
-        public FlywayExecutor(@Named("ui.metadata.jdbc") JDBCConfig config)
-        {
+        public FlywayExecutor(@Named("ui.metadata.jdbc") JDBCConfig config) {
             Flyway flyway = new Flyway();
             flyway.setBaselineOnMigrate(true);
             flyway.setLocations("db/migration/ui");
@@ -219,29 +215,25 @@ public class RakamUIModule
             flyway.setDataSource(config.getUrl(), config.getUsername(), config.getPassword());
             try {
                 flyway.migrate();
-            }
-            catch (FlywayException e) {
+            } catch (FlywayException e) {
                 flyway.repair();
             }
         }
     }
 
     public static class WebsiteRequestHandler
-            implements Provider<HttpRequestHandler>
-    {
+            implements Provider<HttpRequestHandler> {
 
         private final RakamUIWebService service;
 
         @Inject
-        public WebsiteRequestHandler(RakamUIConfig config)
-        {
+        public WebsiteRequestHandler(RakamUIConfig config) {
 
             service = new RakamUIWebService(config);
         }
 
         @Override
-        public HttpRequestHandler get()
-        {
+        public HttpRequestHandler get() {
             return service::main;
         }
     }

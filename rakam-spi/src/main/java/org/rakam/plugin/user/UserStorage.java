@@ -7,9 +7,10 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.RequestContext;
 import org.rakam.collection.SchemaField;
-import org.rakam.report.realtime.AggregationType;
 import org.rakam.report.QueryResult;
+import org.rakam.report.realtime.AggregationType;
 import org.rakam.util.RakamException;
 
 import java.time.Duration;
@@ -26,7 +27,7 @@ public interface UserStorage {
 
     Object create(String project, Object id, ObjectNode properties);
 
-    List<Object> batchCreate(String project, List<User> users);
+    List<Object> batchCreate(RequestContext context, List<User> users);
 
     default CompletableFuture<Void> batch(String project, List<? extends ISingleUserBatchOperation> operations) {
         for (ISingleUserBatchOperation operation : operations) {
@@ -48,20 +49,19 @@ public interface UserStorage {
         return CompletableFuture.completedFuture(null);
     }
 
-    CompletableFuture<QueryResult> searchUsers(String project, List<String> columns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, String offset);
+    CompletableFuture<QueryResult> searchUsers(RequestContext context, List<String> columns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, String offset);
 
-    void createSegment(String project, String name, String tableName, Expression filterExpression, List<EventFilter> eventFilter, Duration interval);
+    void createSegment(RequestContext context, String name, String tableName, Expression filterExpression, List<EventFilter> eventFilter, Duration interval);
 
-    List<SchemaField> getMetadata(String project);
+    List<SchemaField> getMetadata(RequestContext context);
 
-    CompletableFuture<User> getUser(String project, Object userId);
+    CompletableFuture<User> getUser(RequestContext context, Object userId);
 
     void setUserProperties(String project, Object user, ObjectNode properties);
 
     void setUserPropertiesOnce(String project, Object user, ObjectNode properties);
 
-    default void createProjectIfNotExists(String project, boolean isNumeric)
-    {
+    default void createProjectIfNotExists(String project, boolean isNumeric) {
 
     }
 
@@ -71,8 +71,7 @@ public interface UserStorage {
 
     void unsetProperties(String project, Object user, List<String> properties);
 
-    default void applyOperations(String project, List<? extends ISingleUserBatchOperation> req)
-    {
+    default void applyOperations(String project, List<? extends ISingleUserBatchOperation> req) {
         for (ISingleUserBatchOperation data : req) {
             if (data.getSetProperties() != null) {
                 setUserProperties(project, data.getUser(), data.getSetPropertiesOnce());
@@ -91,6 +90,10 @@ public interface UserStorage {
         }
     }
 
+    enum Ordering {
+        asc, desc
+    }
+
     class Sorting {
         public final String column;
         public final Ordering order;
@@ -101,10 +104,6 @@ public interface UserStorage {
             this.column = column;
             this.order = order;
         }
-    }
-
-    enum Ordering {
-        asc, desc
     }
 
     class EventFilterAggregation {
@@ -158,7 +157,7 @@ public interface UserStorage {
         @JsonIgnore
         public synchronized Expression getExpression() {
             try {
-                return filterExpression  != null ? SQL_PARSER.createExpression(filterExpression) : null;
+                return filterExpression != null ? SQL_PARSER.createExpression(filterExpression) : null;
             } catch (Exception e) {
                 throw new RakamException(format("filter expression '%s' couldn't parsed", filterExpression), HttpResponseStatus.BAD_REQUEST);
             }

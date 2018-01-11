@@ -44,14 +44,30 @@ public class FileBackedCustomPageDatabase implements CustomPageDatabase {
         directory.mkdirs();
     }
 
+    private static boolean deleteDirectory(File directory) {
+        if (directory.exists()) {
+            File[] files = directory.listFiles();
+            if (null != files) {
+                for (int i = 0; i < files.length; i++) {
+                    if (files[i].isDirectory()) {
+                        deleteDirectory(files[i]);
+                    } else {
+                        files[i].delete();
+                    }
+                }
+            }
+        }
+        return (directory.delete());
+    }
+
     @Override
-    public void save(Integer user, int project,  Page page) {
+    public void save(Integer user, int project, Page page) {
         File projectDirectory = new File(directory, Integer.toString(project));
         if (!projectDirectory.exists()) {
             projectDirectory.mkdir();
         }
         File pageDirectory = new File(projectDirectory, page.name);
-        if(!pageDirectory.exists()) {
+        if (!pageDirectory.exists()) {
             pageDirectory.mkdir();
         }
         for (Map.Entry<String, String> entry : page.files.entrySet()) {
@@ -68,7 +84,7 @@ public class FileBackedCustomPageDatabase implements CustomPageDatabase {
     public List<Page> list(int project) {
         File projectDir = new File(directory, Integer.toString(project));
         String[] list = projectDir.list();
-        if(list == null) {
+        if (list == null) {
             return ImmutableList.of();
         }
         return Arrays.stream(list).filter(file -> new File(projectDir, file).isDirectory())
@@ -78,8 +94,8 @@ public class FileBackedCustomPageDatabase implements CustomPageDatabase {
     @Override
     public Map<String, String> get(int project, String name) {
         File dir = new File(directory, project + File.separator + name);
-        if(!dir.isDirectory()) {
-           throw new IllegalArgumentException();
+        if (!dir.isDirectory()) {
+            throw new IllegalArgumentException();
         }
         return Arrays.stream(dir.listFiles())
                 .filter(File::isFile)
@@ -107,27 +123,10 @@ public class FileBackedCustomPageDatabase implements CustomPageDatabase {
     @Override
     public void delete(int project, String name) {
         File dir = new File(directory, project + File.separator + name);
-        if(!dir.exists() || !dir.isDirectory()) {
-           throw new IllegalArgumentException();
+        if (!dir.exists() || !dir.isDirectory()) {
+            throw new IllegalArgumentException();
         }
 
         deleteDirectory(dir);
-    }
-
-   private static boolean deleteDirectory(File directory) {
-        if(directory.exists()){
-            File[] files = directory.listFiles();
-            if(null!=files){
-                for(int i=0; i<files.length; i++) {
-                    if(files[i].isDirectory()) {
-                        deleteDirectory(files[i]);
-                    }
-                    else {
-                        files[i].delete();
-                    }
-                }
-            }
-        }
-        return(directory.delete());
     }
 }

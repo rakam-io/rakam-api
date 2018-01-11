@@ -3,8 +3,7 @@ package org.rakam.collection.mapper.geoip.maxmind.ip2location;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class CSV
-{
+public class CSV {
     private static final java.lang.String CSV_PATTERN = "\"([0-9]+)\",\"([0-9]+)\",\"([^\"]+)\",\"([^\"]+)\",\"([^\"]+)\",\"([^\"]+)\",\"([0-9.-]+)\",\"([0-9.-]+)\"";
 
     public final long ipStart;
@@ -16,9 +15,8 @@ public class CSV
     public final double longitude;
 
     private CSV(long ipStart, long ipEnd,
-            String country, String stateProv, String city,
-            double latitude, double longitude)
-    {
+                String country, String stateProv, String city,
+                double latitude, double longitude) {
         this.ipStart = ipStart;
         this.ipEnd = ipEnd;
         this.country = country;
@@ -28,8 +26,7 @@ public class CSV
         this.longitude = longitude;
     }
 
-    public static CSV parse(String csv)
-    {
+    public static CSV parse(String csv) {
         Pattern r = Pattern.compile(CSV_PATTERN);
         Matcher m = r.matcher(csv);
 

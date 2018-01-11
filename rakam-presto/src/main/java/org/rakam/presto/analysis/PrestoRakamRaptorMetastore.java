@@ -66,14 +66,13 @@ import static org.rakam.util.ValidationUtil.*;
 public class PrestoRakamRaptorMetastore
         extends PrestoAbstractMetastore {
     private static final Logger LOGGER = Logger.get(PrestoRakamRaptorMetastore.class);
-
+    private final static double SAMPLING_THRESHOLD = 1_000_000;
     private final DBI dbi;
     private final MetadataDao dao;
     private final PrestoConfig prestoConfig;
     private final ClientSession defaultSession;
     private final ProjectConfig projectConfig;
     private final Supplier<Integer> activeNodeCount;
-    private final static double SAMPLING_THRESHOLD = 1_000_000;
 
     @Inject
     public PrestoRakamRaptorMetastore(
@@ -109,6 +108,124 @@ public class PrestoRakamRaptorMetastore
 
             return Ints.checkedCast((long) queryResult.getResult().get(0).get(0));
         }, 5, MINUTES);
+    }
+
+    public static <T> void daoTransaction(IDBI dbi, Class<T> daoType, Consumer<T> callback) {
+        runTransaction(dbi, (handle, status) -> {
+            callback.accept(handle.attach(daoType));
+            return null;
+        });
+    }
+
+    public static <T> T runTransaction(IDBI dbi, TransactionCallback<T> callback) {
+        try {
+            return dbi.inTransaction(callback);
+        } catch (DBIException e) {
+            propagateIfInstanceOf(e.getCause(), PrestoException.class);
+            throw metadataError(e);
+        }
+    }
+
+    private static String sqlColumnType(FieldType type) {
+        JDBCType jdbcType = jdbcType(type);
+        if (jdbcType != null) {
+            switch (jdbcType) {
+                case BOOLEAN:
+                    return "boolean";
+                case BIGINT:
+                    return "bigint";
+                case DOUBLE:
+                    return "double";
+                case INTEGER:
+                    return "int";
+                case VARBINARY:
+                    return format("varbinary(%s)", MAX_BINARY_INDEX_SIZE);
+            }
+        }
+
+        return null;
+    }
+
+    public static JDBCType jdbcType(FieldType type) {
+        if (type.equals(FieldType.BOOLEAN)) {
+            return JDBCType.BOOLEAN;
+        }
+        if (type.equals(LONG) || type.equals(TIMESTAMP)) {
+            return JDBCType.BIGINT;
+        }
+        if (type.equals(FieldType.INTEGER)) {
+            return JDBCType.INTEGER;
+        }
+        if (type.equals(FieldType.DOUBLE)) {
+            return JDBCType.DOUBLE;
+        }
+        if (type.equals(FieldType.DATE)) {
+            return JDBCType.INTEGER;
+        }
+        if (type.equals(FieldType.STRING)) {
+            return VARBINARY;
+        }
+        return null;
+    }
+
+    public static String toSql(FieldType type) {
+        switch (type) {
+            case LONG:
+                return StandardTypes.BIGINT;
+            case STRING:
+                return StandardTypes.VARCHAR;
+            case BINARY:
+                return StandardTypes.VARBINARY;
+            case DECIMAL:
+            case INTEGER:
+            case BOOLEAN:
+            case DATE:
+            case TIME:
+            case DOUBLE:
+            case TIMESTAMP:
+                return type.name();
+            default:
+                if (type.isArray()) {
+                    return "ARRAY<" + toSql(type.getArrayElementType()) + ">";
+                }
+                if (type.isMap()) {
+                    return "MAP<VARCHAR, " + toSql(type.getMapValueType()) + ">";
+                }
+                throw new IllegalStateException("sql type couldn't converted to fieldtype");
+        }
+    }
+
+    public static Type toType(FieldType type) {
+        switch (type) {
+            case DOUBLE:
+                return DoubleType.DOUBLE;
+            case LONG:
+                return BigintType.BIGINT;
+            case BOOLEAN:
+                return BooleanType.BOOLEAN;
+            case STRING:
+                return VarcharType.VARCHAR;
+            case INTEGER:
+                return IntegerType.INTEGER;
+            case DECIMAL:
+                return DecimalType.createDecimalType();
+            case DATE:
+                return DateType.DATE;
+            case TIMESTAMP:
+                return TimestampType.TIMESTAMP;
+            case TIME:
+                return TimeType.TIME;
+            case BINARY:
+                return VarbinaryType.VARBINARY;
+            default:
+                if (type.isArray()) {
+                    return new ArrayType(toType(type.getArrayElementType()));
+                }
+                if (type.isMap()) {
+                    return new MapType(VarcharType.VARCHAR, toType(type.getMapValueType()), null, null, null);
+                }
+                throw new IllegalStateException();
+        }
     }
 
     @PostConstruct
@@ -229,22 +346,6 @@ public class PrestoRakamRaptorMetastore
         return lastFields;
     }
 
-    public static <T> void daoTransaction(IDBI dbi, Class<T> daoType, Consumer<T> callback) {
-        runTransaction(dbi, (handle, status) -> {
-            callback.accept(handle.attach(daoType));
-            return null;
-        });
-    }
-
-    public static <T> T runTransaction(IDBI dbi, TransactionCallback<T> callback) {
-        try {
-            return dbi.inTransaction(callback);
-        } catch (DBIException e) {
-            propagateIfInstanceOf(e.getCause(), PrestoException.class);
-            throw metadataError(e);
-        }
-    }
-
     private void addColumn(Table table, String schema, String tableName, String columnName, FieldType fieldType) {
         List<TableColumn> existingColumns = dao.listTableColumns(schema, tableName);
         TableColumn lastColumn = existingColumns.get(existingColumns.size() - 1);
@@ -273,48 +374,6 @@ public class PrestoRakamRaptorMetastore
         } catch (DBIException e) {
             throw metadataError(e);
         }
-    }
-
-    private static String sqlColumnType(FieldType type) {
-        JDBCType jdbcType = jdbcType(type);
-        if (jdbcType != null) {
-            switch (jdbcType) {
-                case BOOLEAN:
-                    return "boolean";
-                case BIGINT:
-                    return "bigint";
-                case DOUBLE:
-                    return "double";
-                case INTEGER:
-                    return "int";
-                case VARBINARY:
-                    return format("varbinary(%s)", MAX_BINARY_INDEX_SIZE);
-            }
-        }
-
-        return null;
-    }
-
-    public static JDBCType jdbcType(FieldType type) {
-        if (type.equals(FieldType.BOOLEAN)) {
-            return JDBCType.BOOLEAN;
-        }
-        if (type.equals(LONG) || type.equals(TIMESTAMP)) {
-            return JDBCType.BIGINT;
-        }
-        if (type.equals(FieldType.INTEGER)) {
-            return JDBCType.INTEGER;
-        }
-        if (type.equals(FieldType.DOUBLE)) {
-            return JDBCType.DOUBLE;
-        }
-        if (type.equals(FieldType.DATE)) {
-            return JDBCType.INTEGER;
-        }
-        if (type.equals(FieldType.STRING)) {
-            return VARBINARY;
-        }
-        return null;
     }
 
     @Override
@@ -596,66 +655,6 @@ public class PrestoRakamRaptorMetastore
         @Override
         public Optional<Type> getCommonSuperType(Type type, Type type1) {
             return null;
-        }
-    }
-
-    public static String toSql(FieldType type) {
-        switch (type) {
-            case LONG:
-                return StandardTypes.BIGINT;
-            case STRING:
-                return StandardTypes.VARCHAR;
-            case BINARY:
-                return StandardTypes.VARBINARY;
-            case DECIMAL:
-            case INTEGER:
-            case BOOLEAN:
-            case DATE:
-            case TIME:
-            case DOUBLE:
-            case TIMESTAMP:
-                return type.name();
-            default:
-                if (type.isArray()) {
-                    return "ARRAY<" + toSql(type.getArrayElementType()) + ">";
-                }
-                if (type.isMap()) {
-                    return "MAP<VARCHAR, " + toSql(type.getMapValueType()) + ">";
-                }
-                throw new IllegalStateException("sql type couldn't converted to fieldtype");
-        }
-    }
-
-    public static Type toType(FieldType type) {
-        switch (type) {
-            case DOUBLE:
-                return DoubleType.DOUBLE;
-            case LONG:
-                return BigintType.BIGINT;
-            case BOOLEAN:
-                return BooleanType.BOOLEAN;
-            case STRING:
-                return VarcharType.VARCHAR;
-            case INTEGER:
-                return IntegerType.INTEGER;
-            case DECIMAL:
-                return DecimalType.createDecimalType();
-            case DATE:
-                return DateType.DATE;
-            case TIMESTAMP:
-                return TimestampType.TIMESTAMP;
-            case TIME:
-                return TimeType.TIME;
-            case BINARY:
-                return VarbinaryType.VARBINARY;
-            default:
-                if (type.isArray()) {
-                    return new ArrayType(toType(type.getArrayElementType()));
-                }
-                if (type.isMap()) {
-                    return new MapType(VarcharType.VARCHAR, toType(type.getMapValueType()), null, null, null);
-                }
-                throw new IllegalStateException();
         }
     }
 }

@@ -16,7 +16,6 @@ import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.util.BooleanMapper;
 
 import javax.inject.Inject;
-
 import java.lang.reflect.Method;
 import java.util.Optional;
 
@@ -24,8 +23,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 
 public class UIPermissionParameterProvider
-        implements Provider<CustomParameter>
-{
+        implements Provider<CustomParameter> {
 
     private final DBI dbi;
     private final EncryptionConfig encryptionConfig;
@@ -33,38 +31,33 @@ public class UIPermissionParameterProvider
 
     @Inject
     public UIPermissionParameterProvider(@Named("ui.metadata.jdbc")
-            JDBCPoolDataSource dataSource,
-            com.google.common.base.Optional<AuthService> authService, EncryptionConfig encryptionConfig)
-    {
+                                                 JDBCPoolDataSource dataSource,
+                                         com.google.common.base.Optional<AuthService> authService, EncryptionConfig encryptionConfig) {
         this.dbi = new DBI(dataSource);
         this.encryptionConfig = encryptionConfig;
         this.authService = authService.orNull();
     }
 
     @Override
-    public CustomParameter get()
-    {
+    public CustomParameter get() {
         return new CustomParameter("user_id", new Factory(authService, encryptionConfig, dbi));
     }
 
     public static class Factory
-            implements HttpServerBuilder.IRequestParameterFactory
-    {
+            implements HttpServerBuilder.IRequestParameterFactory {
 
         private final EncryptionConfig encryptionConfig;
         private final DBI dbi;
         private final AuthService authService;
 
-        public Factory(AuthService authService, EncryptionConfig encryptionConfig, DBI dbi)
-        {
+        public Factory(AuthService authService, EncryptionConfig encryptionConfig, DBI dbi) {
             this.encryptionConfig = encryptionConfig;
             this.authService = authService;
             this.dbi = dbi;
         }
 
         @Override
-        public IRequestParameter<Project> create(Method method)
-        {
+        public IRequestParameter<Project> create(Method method) {
             boolean readOnly = !method.isAnnotationPresent(ProtectEndpoint.class) ||
                     !method.getAnnotation(ProtectEndpoint.class).writeOperation();
             boolean requiresProject = !method.isAnnotationPresent(ProtectEndpoint.class) ||
@@ -88,8 +81,7 @@ public class UIPermissionParameterProvider
                 if (projectString != null) {
                     try {
                         project = Integer.parseInt(projectString);
-                    }
-                    catch (NumberFormatException e) {
+                    } catch (NumberFormatException e) {
                         throw new RakamException("Project header must be numeric", BAD_REQUEST);
                     }
 
@@ -111,8 +103,7 @@ public class UIPermissionParameterProvider
                                 throw new RakamException(HttpResponseStatus.FORBIDDEN);
                             }
                         }
-                    }
-                    else {
+                    } else {
                         try (Handle handle = dbi.open()) {
                             Boolean readOnlyUser = handle.createQuery("SELECT web_user.read_only FROM web_user_api_key key " +
                                     "JOIN web_user_project project ON (key.project_id = project.id) " +
@@ -133,8 +124,7 @@ public class UIPermissionParameterProvider
                             }
                         }
                     }
-                }
-                else {
+                } else {
                     project = -1;
                 }
 
@@ -143,13 +133,11 @@ public class UIPermissionParameterProvider
         }
     }
 
-    public static class Project
-    {
+    public static class Project {
         public final int project;
         public final int userId;
 
-        public Project(int project, int userId)
-        {
+        public Project(int project, int userId) {
             this.project = project;
             this.userId = userId;
         }

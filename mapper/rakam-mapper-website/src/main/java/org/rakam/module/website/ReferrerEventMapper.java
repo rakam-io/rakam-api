@@ -26,48 +26,41 @@ import java.net.URISyntaxException;
 import java.util.List;
 
 import static org.rakam.collection.FieldType.STRING;
+import static org.rakam.util.AvroUtil.put;
 
 @Mapper(name = "Website Referrer Event mapper", description = "Parses referrer string and attaches new field related with the referrer of the user")
 public class ReferrerEventMapper
-        implements SyncEventMapper, UserPropertyMapper
-{
+        implements SyncEventMapper, UserPropertyMapper {
     private final static Logger LOGGER = Logger.get(ReferrerEventMapper.class);
 
     private final Parser parser;
 
-    public ReferrerEventMapper()
-    {
+    public ReferrerEventMapper() {
         try {
             parser = new Parser();
-        }
-        catch (IOException | CorruptYamlException e) {
+        } catch (IOException | CorruptYamlException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    private void mapInternal(RequestParams extraProperties, Object referrer, Object host, GenericRecord record)
-    {
+    private void mapInternal(RequestParams extraProperties, Object referrer, Object host, GenericRecord record) {
         String hostUrl, referrerUrl;
         if (referrer instanceof Boolean && ((Boolean) referrer).booleanValue()) {
             referrerUrl = extraProperties.headers().get("Referer");
-        }
-        else if (referrer instanceof String) {
+        } else if (referrer instanceof String) {
             referrerUrl = (String) referrer;
-        }
-        else {
+        } else {
             return;
         }
 
         if (host instanceof String) {
             hostUrl = host.toString();
-        }
-        else {
+        } else {
             hostUrl = extraProperties.headers().get("Origin");
             if (hostUrl != null) {
                 try {
                     hostUrl = new URI(hostUrl).getHost();
-                }
-                catch (URISyntaxException e) {
+                } catch (URISyntaxException e) {
                     //
                 }
             }
@@ -79,15 +72,13 @@ public class ReferrerEventMapper
         if (referrerUrl != null) {
             try {
                 referrerUri = new URI(referrerUrl);
-            }
-            catch (URISyntaxException e) {
+            } catch (URISyntaxException e) {
                 return;
             }
 
             try {
                 parse = parser.parse(referrerUri, hostUrl);
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 LOGGER.warn(e, "Error while parsing referrer");
                 return;
             }
@@ -97,23 +88,23 @@ public class ReferrerEventMapper
             }
 
             if (record.get("_referrer_medium") == null) {
-                record.put("_referrer_medium", parse.medium != null ? parse.medium.toString().toLowerCase() : null);
+                put(record, "_referrer_medium", parse.medium != null ? parse.medium.toString().toLowerCase() : null);
             }
             if (record.get("_referrer_source") == null) {
-                record.put("_referrer_source", parse.source);
+                put(record, "_referrer_source", parse.source);
             }
 
             if (record.get("_referrer_term") == null) {
-                record.put("_referrer_term", parse.term);
+                put(record, "_referrer_term", parse.term);
             }
 
             if (parse.medium != Medium.INTERNAL) {
                 if (record.get("_referrer_domain") == null) {
-                    record.put("_referrer_domain", referrerUri.getHost());
+                    put(record, "_referrer_domain", referrerUri.getHost());
                 }
 
                 if (record.get("_referrer_path") == null) {
-                    record.put("_referrer_path", referrerUri.getPath() +
+                    put(record, "_referrer_path", referrerUri.getPath() +
                             (referrerUri.getQuery() == null ? "" : ("?" + referrerUri.getQuery())));
                 }
             }
@@ -121,8 +112,7 @@ public class ReferrerEventMapper
     }
 
     @Override
-    public List<Cookie> map(Event event, RequestParams extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders)
-    {
+    public List<Cookie> map(Event event, RequestParams extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders) {
         Object referrer = event.properties().get("_referrer");
         Object host = event.properties().get("_host");
         mapInternal(extraProperties, referrer, host, event.properties());
@@ -130,8 +120,7 @@ public class ReferrerEventMapper
     }
 
     @Override
-    public List<Cookie> map(String project, List<? extends ISingleUserBatchOperation> user, RequestParams extraProperties, InetAddress sourceAddress)
-    {
+    public List<Cookie> map(String project, List<? extends ISingleUserBatchOperation> user, RequestParams extraProperties, InetAddress sourceAddress) {
         for (ISingleUserBatchOperation data : user) {
             if (data.getSetProperties() != null) {
                 mapInternal(extraProperties, data.getSetProperties().get("_referrer"),
@@ -149,8 +138,7 @@ public class ReferrerEventMapper
     }
 
     @Override
-    public void addFieldDependency(FieldDependencyBuilder builder)
-    {
+    public void addFieldDependency(FieldDependencyBuilder builder) {
         builder.addFields("_referrer", ImmutableList.of(
                 new SchemaField("_referrer_medium", STRING),
                 new SchemaField("_referrer_source", STRING),

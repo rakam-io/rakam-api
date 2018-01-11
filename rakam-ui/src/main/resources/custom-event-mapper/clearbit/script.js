@@ -2,16 +2,16 @@ var api_url = 'https://person-stream.clearbit.com/v2/combined/find?email=';
 
 var emailRegex = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
 
-var mapper = function(eventHandler, requestParams, sourceAddress, responseHeaders, parameters) {
+var mapper = function (eventHandler, requestParams, sourceAddress, responseHeaders, parameters) {
     var events = eventHandler.events();
-    while(events.hasNext()) {
+    while (events.hasNext()) {
         var event = events.next();
-        if(!emailRegex.test(event.get(parameters.email_field))) {
+        if (!emailRegex.test(event.get(parameters.email_field))) {
             continue;
         }
         var response = http.get(api_url + event.get(parameters.email_field))
-            .header('Authorization', 'Bearer '+parameters.api_key).send();
-        if(response.getStatusCode() != 200) {
+            .header('Authorization', 'Bearer ' + parameters.api_key).send();
+        if (response.getStatusCode() != 200) {
             return;
         }
 

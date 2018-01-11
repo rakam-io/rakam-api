@@ -1,11 +1,6 @@
 package org.rakam.ui.util;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
@@ -34,7 +29,7 @@ public class HttpDownloadHelper {
         long timestamp = 0;
 
         boolean hasTimestamp = false;
-        if (useTimestamp && Files.exists(dest) ) {
+        if (useTimestamp && Files.exists(dest)) {
             timestamp = Files.getLastModifiedTime(dest).toMillis();
             hasTimestamp = true;
         }
@@ -49,8 +44,7 @@ public class HttpDownloadHelper {
             if (getThread.isAlive()) {
                 throw new RuntimeException("The GET operation took longer than " + 50000 + ", stopping it.");
             }
-        }
-        catch (InterruptedException ie) {
+        } catch (InterruptedException ie) {
             return false;
         } finally {
             getThread.closeStreams();

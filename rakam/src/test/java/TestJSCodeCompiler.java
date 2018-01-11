@@ -1,17 +1,15 @@
 import okhttp3.OkHttpClient;
 import org.rakam.TestingConfigManager;
-import org.rakam.util.javascript.JSCodeCompiler;
 import org.rakam.util.RAsyncHttpClient;
+import org.rakam.util.javascript.JSCodeCompiler;
 import org.testng.annotations.Test;
 
 import javax.script.ScriptException;
 
-public class TestJSCodeCompiler
-{
+public class TestJSCodeCompiler {
     @Test
     public void testName()
-            throws ScriptException
-    {
+            throws ScriptException {
 
         JSCodeCompiler jsCodeCompiler = new JSCodeCompiler(new TestingConfigManager(),
                 new RAsyncHttpClient(new OkHttpClient()),

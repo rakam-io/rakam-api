@@ -6,8 +6,7 @@ import com.google.auto.value.AutoValue;
 
 import javax.annotation.Nullable;
 
-public interface ApiKeyService
-{
+public interface ApiKeyService {
     ProjectApiKeys createApiKeys(String project);
 
     String getProjectOfApiKey(String apiKey, AccessKeyType type);
@@ -16,13 +15,42 @@ public interface ApiKeyService
 
     void revokeAllKeys(String project);
 
-    default void setup()
-    {
+    default void setup() {
+    }
+
+    enum AccessKeyType {
+        MASTER_KEY("master_key"), READ_KEY("read_key"), WRITE_KEY("write_key");
+
+        private final String key;
+
+        AccessKeyType(String key) {
+            this.key = key;
+        }
+
+        public static AccessKeyType fromKey(String key) {
+            for (AccessKeyType accessKeyType : values()) {
+                if (accessKeyType.getKey().equals(key)) {
+                    return accessKeyType;
+                }
+            }
+            throw new IllegalArgumentException(key + " doesn't exist.");
+        }
+
+        public String getKey() {
+            return key;
+        }
     }
 
     @AutoValue
-    abstract class ProjectApiKeys
-    {
+    abstract class ProjectApiKeys {
+        @JsonCreator
+        public static ProjectApiKeys create(
+                @JsonProperty("master_key") String masterKey,
+                @JsonProperty("read_key") String readKey,
+                @JsonProperty("write_key") String writeKey) {
+            return new AutoValue_ApiKeyService_ProjectApiKeys(masterKey, readKey, writeKey);
+        }
+
         @Nullable
         @JsonProperty("master_key")
         public abstract String masterKey();
@@ -35,17 +63,7 @@ public interface ApiKeyService
         @JsonProperty("write_key")
         public abstract String writeKey();
 
-        @JsonCreator
-        public static ProjectApiKeys create(
-                @JsonProperty("master_key") String masterKey,
-                @JsonProperty("read_key") String readKey,
-                @JsonProperty("write_key") String writeKey)
-        {
-            return new AutoValue_ApiKeyService_ProjectApiKeys(masterKey, readKey, writeKey);
-        }
-
-        public String getKey(AccessKeyType accessKeyType)
-        {
+        public String getKey(AccessKeyType accessKeyType) {
             switch (accessKeyType) {
                 case WRITE_KEY:
                     return writeKey();
@@ -56,33 +74,6 @@ public interface ApiKeyService
                 default:
                     throw new IllegalStateException();
             }
-        }
-    }
-
-    enum AccessKeyType
-    {
-        MASTER_KEY("master_key"), READ_KEY("read_key"), WRITE_KEY("write_key");
-
-        private final String key;
-
-        AccessKeyType(String key)
-        {
-            this.key = key;
-        }
-
-        public String getKey()
-        {
-            return key;
-        }
-
-        public static AccessKeyType fromKey(String key)
-        {
-            for (AccessKeyType accessKeyType : values()) {
-                if (accessKeyType.getKey().equals(key)) {
-                    return accessKeyType;
-                }
-            }
-            throw new IllegalArgumentException(key + " doesn't exist.");
         }
     }
 }

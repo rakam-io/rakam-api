@@ -26,7 +26,7 @@ var fetch = function (parameters, events, index, startDate, endDate) {
     var endGap = new Date(endDate);
     endGap.setDate(endGap.getDate() - 1);
     var response = http.get("https://" + report_url)
-        .header('Authorization', 'Basic '+util.base64.encode(parameters.api_secret))
+        .header('Authorization', 'Basic ' + util.base64.encode(parameters.api_secret))
         .query('from_date', startDate)
         .query('to_date', endGap.toJSON().slice(0, 10))
         .send();
@@ -48,7 +48,7 @@ var fetch = function (parameters, events, index, startDate, endDate) {
     for (var i = 0; i < data.length; i++) {
         try {
             var row = JSON.parse(data[i]);
-        } catch(e) {
+        } catch (e) {
             logger.warn(data[i]);
             continue;
         }
@@ -67,7 +67,7 @@ var fetch = function (parameters, events, index, startDate, endDate) {
         }
 
         for (var key in properties) {
-            if(key[0] == '$') {
+            if (key[0] == '$') {
                 var newKey = "_" + key.substring(1);
                 properties[newKey] = properties[key];
                 properties[key] = undefined;

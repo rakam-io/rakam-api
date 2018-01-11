@@ -47,7 +47,7 @@ public class test {
             node.getLimit().ifPresent((limit -> reportRequest.pageSize = Integer.parseInt(limit)));
             node.getOrderBy().ifPresent((orderBy -> {
                 for (SortItem sortItem : orderBy.getSortItems()) {
-                    String expression = RakamSqlFormatter.formatExpression(sortItem.getSortKey(), qualifiedNameStringFunction, columnMappingFunction,' ');
+                    String expression = RakamSqlFormatter.formatExpression(sortItem.getSortKey(), qualifiedNameStringFunction, columnMappingFunction, ' ');
                     reportRequest.orderBys.add(new GARequest.ReportRequest.OrderBy(expression, sortItem.getOrdering()));
                 }
             }));
@@ -58,7 +58,7 @@ public class test {
             }
 
             for (SelectItem selectItem : node.getSelect().getSelectItems()) {
-                if(selectItem instanceof AllColumns) {
+                if (selectItem instanceof AllColumns) {
                     throw new RakamException("* is not supported in SELECT", BAD_REQUEST);
                 }
 
@@ -68,12 +68,12 @@ public class test {
                     throw new RakamException("Alias in SELECT is not supported", BAD_REQUEST);
                 }
 
-                if(singleColumn.getExpression() instanceof FunctionCall) {
+                if (singleColumn.getExpression() instanceof FunctionCall) {
                     throw new RakamException("Function call in SELECT is not supported", BAD_REQUEST);
                 }
 
                 String select = RakamSqlFormatter.formatExpression(singleColumn.getExpression(), qualifiedNameStringFunction, columnMappingFunction, ' ');
-                if(!reportRequest.dimensions.stream().anyMatch(e -> e.name.equals(select))) {
+                if (!reportRequest.dimensions.stream().anyMatch(e -> e.name.equals(select))) {
                     reportRequest.metrics.add(new GARequest.ReportRequest.Metric(select));
                 }
             }

@@ -11,41 +11,34 @@ import java.util.List;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_IMPLEMENTED;
 
 public class DummyEventStore
-        implements SyncEventStore
-{
+        implements SyncEventStore {
     @Override
-    public void store(Event event)
-    {
+    public void store(Event event) {
         throw new RakamException(NOT_IMPLEMENTED);
     }
 
     @Override
-    public int[] storeBatch(List<Event> events)
-    {
+    public int[] storeBatch(List<Event> events) {
         throw new RakamException(NOT_IMPLEMENTED);
     }
 
     @AutoService(RakamModule.class)
     @ConditionalModule(config = "event.store", value = "dummy")
     public static class DummyEventStoreModule
-            extends RakamModule
-    {
+            extends RakamModule {
 
         @Override
-        protected void setup(Binder binder)
-        {
+        protected void setup(Binder binder) {
             binder.bind(EventStore.class).to(DummyEventStore.class);
         }
 
         @Override
-        public String name()
-        {
+        public String name() {
             return "Dummy Event Store";
         }
 
         @Override
-        public String description()
-        {
+        public String description() {
             return "Used if no event store implementation exists";
         }
     }

@@ -58,7 +58,7 @@ public class InMemoryMetastore extends AbstractMetastore {
         ValidationUtil.checkCollectionValid(collection);
 
         Map<String, List<SchemaField>> list = collections.get(project);
-        if(list == null) {
+        if (list == null) {
             throw new NotExistsException("Project");
         }
         List<SchemaField> schemaFields = list.computeIfAbsent(collection, (key) -> new ArrayList<>());

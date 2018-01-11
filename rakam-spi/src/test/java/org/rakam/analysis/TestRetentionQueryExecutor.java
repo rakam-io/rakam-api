@@ -30,6 +30,7 @@ import static org.testng.Assert.assertFalse;
 public abstract class TestRetentionQueryExecutor {
     private static final int SCALE_FACTOR = 3;
     private static final String PROJECT_NAME = TestRetentionQueryExecutor.class.getName().replace(".", "_").toLowerCase();
+    private static final RequestContext CONTEXT = new RequestContext(PROJECT_NAME, null);
 
     @BeforeSuite
     public void setup() throws Exception {
@@ -63,7 +64,7 @@ public abstract class TestRetentionQueryExecutor {
 
     @Test
     public void testSimpleRetentionQuery() throws Exception {
-        QueryResult result = getRetentionQueryExecutor().query(PROJECT_NAME, Optional.empty(), Optional.empty(), DAY, Optional.empty(),
+        QueryResult result = getRetentionQueryExecutor().query(CONTEXT, Optional.empty(), Optional.empty(), DAY, Optional.empty(),
                 Optional.of(15), LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR), ZoneOffset.UTC, false)
                 .getResult().join();
 
@@ -78,7 +79,7 @@ public abstract class TestRetentionQueryExecutor {
 
     @Test
     public void testDifferentCollections() throws Exception {
-        QueryResult result = getRetentionQueryExecutor().query(PROJECT_NAME,
+        QueryResult result = getRetentionQueryExecutor().query(CONTEXT,
                 Optional.of(RetentionAction.create("test0", Optional.empty())),
                 Optional.of(RetentionAction.create("test1", Optional.empty())), DAY, Optional.empty(),
                 Optional.of(15), LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR), ZoneOffset.UTC, false)
@@ -94,7 +95,7 @@ public abstract class TestRetentionQueryExecutor {
 
     @Test
     public void testFilter() throws Exception {
-        QueryResult result = getRetentionQueryExecutor().query(PROJECT_NAME,
+        QueryResult result = getRetentionQueryExecutor().query(CONTEXT,
                 Optional.of(RetentionAction.create("test0", Optional.of("teststr = 'test0'"))),
                 Optional.of(RetentionAction.create("test1", Optional.of("teststr = 'test0'"))),
                 DAY, Optional.empty(),
@@ -110,7 +111,7 @@ public abstract class TestRetentionQueryExecutor {
 
     @Test
     public void testDimension() throws Exception {
-        QueryResult result = getRetentionQueryExecutor().query(PROJECT_NAME,
+        QueryResult result = getRetentionQueryExecutor().query(CONTEXT,
                 Optional.of(RetentionAction.create("test0", Optional.empty())),
                 Optional.of(RetentionAction.create("test1", Optional.empty())),
                 DAY, Optional.of("teststr"), Optional.of(15),
@@ -125,7 +126,7 @@ public abstract class TestRetentionQueryExecutor {
 
     @Test
     public void testTimeRange() throws Exception {
-        QueryResult result = getRetentionQueryExecutor().query(PROJECT_NAME,
+        QueryResult result = getRetentionQueryExecutor().query(CONTEXT,
                 Optional.empty(),
                 Optional.empty(),
                 DAY, Optional.of("teststr"),
@@ -138,7 +139,7 @@ public abstract class TestRetentionQueryExecutor {
 
     @Test
     public void testWeeklyRetention() throws Exception {
-        QueryResult result = getRetentionQueryExecutor().query(PROJECT_NAME,
+        QueryResult result = getRetentionQueryExecutor().query(CONTEXT,
                 Optional.empty(),
                 Optional.empty(),
                 WEEK, Optional.empty(),
@@ -152,7 +153,7 @@ public abstract class TestRetentionQueryExecutor {
 
     @Test
     public void testMonthlyRetention() throws Exception {
-        QueryResult result = getRetentionQueryExecutor().query(PROJECT_NAME,
+        QueryResult result = getRetentionQueryExecutor().query(CONTEXT,
                 Optional.empty(),
                 Optional.empty(),
                 MONTH, Optional.empty(),

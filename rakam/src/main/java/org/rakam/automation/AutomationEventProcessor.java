@@ -8,15 +8,14 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
 import org.rakam.Mapper;
+import org.rakam.analysis.RequestContext;
 import org.rakam.collection.Event;
 import org.rakam.config.EncryptionConfig;
-import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.SyncEventMapper;
 import org.rakam.plugin.user.User;
 import org.rakam.plugin.user.UserStorage;
 import org.rakam.util.CryptUtil;
 
-import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
@@ -27,18 +26,9 @@ import java.util.function.Supplier;
 
 @Singleton
 @Mapper(name = "Automation Event Processor", description = "Processes automation rules and take action if the user is completed the steps")
-public class AutomationEventProcessor implements SyncEventMapper
-{
+public class AutomationEventProcessor implements SyncEventMapper {
     private static final String PROPERTY_KEY = "_auto";
     private static final String PROPERTY_ACTION_KEY = "_auto_action";
-
-    private final Provider<UserStorage> userStorageProvider;
-    private final Provider<UserAutomationService> serviceProvider;
-
-    private UserAutomationService service;
-    private UserStorage userStorage;
-    private final EncryptionConfig encryptionConfig;
-
     private static final List<Cookie> clearData;
 
     static {
@@ -46,6 +36,12 @@ public class AutomationEventProcessor implements SyncEventMapper
         defaultCookie.setMaxAge(0);
         clearData = ImmutableList.of(defaultCookie);
     }
+
+    private final Provider<UserStorage> userStorageProvider;
+    private final Provider<UserAutomationService> serviceProvider;
+    private final EncryptionConfig encryptionConfig;
+    private UserAutomationService service;
+    private UserStorage userStorage;
 
     @Inject
     public AutomationEventProcessor(
@@ -58,8 +54,7 @@ public class AutomationEventProcessor implements SyncEventMapper
     }
 
     @Override
-    public void init()
-    {
+    public void init() {
         this.userStorage = userStorageProvider.get();
         this.service = serviceProvider.get();
     }
@@ -133,7 +128,7 @@ public class AutomationEventProcessor implements SyncEventMapper
                                 if (user == null) {
                                     String userAttr = event.getAttribute("_user");
                                     if (userAttr != null) {
-                                        user = userStorage.getUser(event.project(), userAttr).join();
+                                        user = userStorage.getUser(new RequestContext(event.project(), null), userAttr).join();
                                     }
                                 }
                                 return user;

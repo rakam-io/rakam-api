@@ -1,18 +1,14 @@
 package org.rakam.plugin.user;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.RequestContext;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.EmailClientConfig;
 import org.rakam.report.QueryResult;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.*;
 import org.rakam.util.MailSender;
 import org.rakam.util.RakamException;
 import org.rakam.util.StringTemplate;
@@ -22,7 +18,6 @@ import javax.inject.Named;
 import javax.mail.MessagingException;
 import javax.mail.internet.AddressException;
 import javax.ws.rs.Path;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +37,7 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
     public UserEmailActionService(UserHttpService httpService, EmailClientConfig mailConfig) {
         this.httpService = httpService;
 
-        if(mailConfig.getHost() == null || mailConfig.getUser() == null) {
+        if (mailConfig.getHost() == null || mailConfig.getUser() == null) {
             throw new IllegalStateException("SMTP configuration is required when mail action is active. See mail.smtp.* configurations.");
         }
 
@@ -53,36 +48,15 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
     @ApiOperation(value = "Apply batch operation", authorizations = @Authorization(value = "read_key"))
 
     @Path("/batch")
-    public CompletableFuture<Long> batch(@Named("project") String project,
+    public CompletableFuture<Long> batch(@Named("project") RequestContext context,
                                          @ApiParam(value = "filter", required = false) String filter,
                                          @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
                                          @ApiParam("config") EmailActionConfig config) {
         List<String> variables = new StringTemplate(config.content).getVariables();
         variables.add(config.columnName);
 
-        CompletableFuture<QueryResult> future = httpService.searchUsers(project, variables, filter, event_filter, null, null, 100000);
-        return batch(project, future, config);
-    }
-
-    public static class EmailActionConfig {
-        public final String columnName;
-        public final String title;
-        public final String content;
-        public final Map<String, String> defaultValues;
-        public final boolean richText;
-
-        @JsonCreator
-        public EmailActionConfig(@ApiParam("column_name") String columnName,
-                                 @ApiParam("title") String title,
-                                 @ApiParam("content") String content,
-                                 @ApiParam("variables") Map<String, String> defaultValues,
-                                 @ApiParam("rich_text") boolean richText) {
-            this.columnName = columnName;
-            this.title = title;
-            this.content = content;
-            this.defaultValues = defaultValues;
-            this.richText = richText;
-        }
+        CompletableFuture<QueryResult> future = httpService.searchUsers(context, variables, filter, event_filter, null, null, 100000);
+        return batch(context.project, future, config);
     }
 
     @Override
@@ -91,11 +65,11 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
 
         return queryResult.thenApply(result -> {
             Optional<SchemaField> any = result.getMetadata().stream().filter(f -> f.getName().equals(config.columnName)).findAny();
-            if(!any.isPresent()) {
+            if (!any.isPresent()) {
                 throw new RakamException(String.format("Column %s doesn't exist", config.columnName),
                         HttpResponseStatus.BAD_REQUEST);
             }
-            if(any.get().getType() != FieldType.STRING) {
+            if (any.get().getType() != FieldType.STRING) {
                 throw new RakamException("Type of column must be STRING", HttpResponseStatus.BAD_REQUEST);
             }
 
@@ -108,7 +82,7 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
                 final String toEmail = (String) objects.get(idx);
                 String format = template.format(name -> {
                     Integer index = colMap.get(name);
-                    if(index != null) {
+                    if (index != null) {
                         Object o = objects.get(index);
                         if (o != null && o instanceof String) {
                             return o.toString();
@@ -132,7 +106,7 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
 
         for (String var : variables) {
             for (int i = 0; i < metadata.size(); i++) {
-                if(metadata.get(i).getName().equals(var)) {
+                if (metadata.get(i).getName().equals(var)) {
                     colMap.put(variables.get(i), i);
                     break;
                 }
@@ -147,34 +121,33 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
         return "email";
     }
 
-
     @JsonRequest
     @ApiOperation(value = "Perform action for single user", authorizations = @Authorization(value = "read_key"))
 
     @Path("/single")
-    public CompletableFuture<Boolean> send(@Named("project") String project,
+    public CompletableFuture<Boolean> send(@Named("project") RequestContext context,
                                            @ApiParam("user") String userId,
                                            @ApiParam("config") EmailActionConfig config) {
-        return httpService.getUser(project, userId).thenApply(user -> send(project, user, config));
+        return httpService.getUser(context, userId).thenApply(user -> send(context.project, user, config));
     }
 
     @Override
     public boolean send(String project, User user, EmailActionConfig config) {
         Object email = user.properties.get(config.columnName);
 
-        if(email != null && email instanceof String) {
-                StringTemplate template = new StringTemplate(config.content);
+        if (email != null && email instanceof String) {
+            StringTemplate template = new StringTemplate(config.content);
 
-                String format = template.format(name -> {
-                    Object o = user.properties.get(name);
-                    if (o != null && o instanceof String) {
-                        return o.toString();
-                    } else {
-                        return config.defaultValues.get(name);
-                    }
-                });
+            String format = template.format(name -> {
+                Object o = user.properties.get(name);
+                if (o != null && o instanceof String) {
+                    return o.toString();
+                } else {
+                    return config.defaultValues.get(name);
+                }
+            });
 
-                return sendInternal((String) email, config, format);
+            return sendInternal((String) email, config, format);
         } else {
             return false;
         }
@@ -186,11 +159,32 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
                     config.richText ? Optional.of(content) : Optional.empty(), Stream.empty());
         } catch (AddressException e) {
             return false;
-        }  catch (MessagingException e) {
+        } catch (MessagingException e) {
             LOGGER.error(e);
             return false;
         }
 
         return true;
+    }
+
+    public static class EmailActionConfig {
+        public final String columnName;
+        public final String title;
+        public final String content;
+        public final Map<String, String> defaultValues;
+        public final boolean richText;
+
+        @JsonCreator
+        public EmailActionConfig(@ApiParam("column_name") String columnName,
+                                 @ApiParam("title") String title,
+                                 @ApiParam("content") String content,
+                                 @ApiParam("variables") Map<String, String> defaultValues,
+                                 @ApiParam("rich_text") boolean richText) {
+            this.columnName = columnName;
+            this.title = title;
+            this.content = content;
+            this.defaultValues = defaultValues;
+            this.richText = richText;
+        }
     }
 }

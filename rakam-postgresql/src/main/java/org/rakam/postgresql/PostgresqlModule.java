@@ -11,15 +11,7 @@ import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.name.Names;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import org.rakam.analysis.ApiKeyService;
-import org.rakam.analysis.ConfigManager;
-import org.rakam.analysis.EscapeIdentifier;
-import org.rakam.analysis.EventExplorer;
-import org.rakam.analysis.FunnelQueryExecutor;
-import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.analysis.MaterializedViewService;
-import org.rakam.analysis.RetentionQueryExecutor;
-import org.rakam.analysis.TimestampToEpochFunction;
+import org.rakam.analysis.*;
 import org.rakam.analysis.metadata.JDBCQueryMetadata;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.QueryMetadataStore;
@@ -33,12 +25,7 @@ import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
-import org.rakam.postgresql.analysis.PostgresqlConfig;
-import org.rakam.postgresql.analysis.PostgresqlEventStore;
-import org.rakam.postgresql.analysis.PostgresqlFunnelQueryExecutor;
-import org.rakam.postgresql.analysis.PostgresqlMaterializedViewService;
-import org.rakam.postgresql.analysis.PostgresqlMetastore;
-import org.rakam.postgresql.analysis.PostgresqlRetentionQueryExecutor;
+import org.rakam.postgresql.analysis.*;
 import org.rakam.postgresql.plugin.user.AbstractPostgresqlUserStorage;
 import org.rakam.postgresql.plugin.user.PostgresqlUserService;
 import org.rakam.postgresql.plugin.user.PostgresqlUserStorage;
@@ -51,7 +38,6 @@ import org.rakam.util.ConditionalModule;
 
 import javax.inject.Inject;
 import javax.inject.Named;
-
 import java.net.URISyntaxException;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -70,6 +56,35 @@ import static org.rakam.util.ValidationUtil.checkTableColumn;
 @ConditionalModule(config = "store.adapter", value = "postgresql")
 public class PostgresqlModule
         extends RakamModule {
+    public synchronized static Module getAsyncClientModule(JDBCConfig config) {
+        JDBCConfig asyncClientConfig;
+        try {
+            final String url = config.getUrl();
+
+            asyncClientConfig = new JDBCConfig()
+                    .setPassword(config.getPassword())
+                    .setTable(config.getTable())
+                    .setMaxConnection(4)
+                    .setConnectionMaxLifeTime(0L)
+                    .setConnectionIdleTimeout(0L)
+                    .setConnectionDisablePool(config.getConnectionDisablePool())
+                    .setUrl("jdbc:pgsql" + url.substring("jdbc:postgresql".length()))
+                    .setUsername(config.getUsername());
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
+
+        return new AbstractConfigurationAwareModule() {
+            @Override
+            protected void setup(Binder binder) {
+                binder.bind(JDBCPoolDataSource.class)
+                        .annotatedWith(Names.named("async-postgresql"))
+                        .toProvider(new JDBCPoolDataSourceProvider(asyncClientConfig))
+                        .in(Scopes.SINGLETON);
+            }
+        };
+    }
+
     @Override
     protected void setup(Binder binder) {
         JDBCConfig config = buildConfigObject(JDBCConfig.class, "store.adapter.postgresql");
@@ -85,6 +100,8 @@ public class PostgresqlModule
 
         binder.bind(Metastore.class).to(PostgresqlMetastore.class).asEagerSingleton();
         binder.bind(ApiKeyService.class).toInstance(new PostgresqlApiKeyService(orCreateDataSource));
+
+        binder.bind(PostgresqlVersion.class).asEagerSingleton();
 
         binder.bind(MaterializedViewService.class).to(PostgresqlMaterializedViewService.class).in(Scopes.SINGLETON);
         binder.bind(QueryExecutor.class).to(PostgresqlQueryExecutor.class).in(Scopes.SINGLETON);
@@ -149,35 +166,6 @@ public class PostgresqlModule
         return "Postgresql deployment type module";
     }
 
-    public synchronized static Module getAsyncClientModule(JDBCConfig config) {
-        JDBCConfig asyncClientConfig;
-        try {
-            final String url = config.getUrl();
-
-            asyncClientConfig = new JDBCConfig()
-                    .setPassword(config.getPassword())
-                    .setTable(config.getTable())
-                    .setMaxConnection(4)
-                    .setConnectionMaxLifeTime(0L)
-                    .setConnectionIdleTimeout(0L)
-                    .setConnectionDisablePool(config.getConnectionDisablePool())
-                    .setUrl("jdbc:pgsql" + url.substring("jdbc:postgresql".length()))
-                    .setUsername(config.getUsername());
-        } catch (URISyntaxException e) {
-            throw new RuntimeException(e);
-        }
-
-        return new AbstractConfigurationAwareModule() {
-            @Override
-            protected void setup(Binder binder) {
-                binder.bind(JDBCPoolDataSource.class)
-                        .annotatedWith(Names.named("async-postgresql"))
-                        .toProvider(new JDBCPoolDataSourceProvider(asyncClientConfig))
-                        .in(Scopes.SINGLETON);
-            }
-        };
-    }
-
     private static class JDBCPoolDataSourceProvider
             implements Provider<JDBCPoolDataSource> {
         private final JDBCConfig asyncClientConfig;
@@ -193,10 +181,6 @@ public class PostgresqlModule
     }
 
     public static class PostgresqlVersion {
-        public enum Version {
-            OLD, PG_MIN_9_5, PG10
-        }
-
         private Version version;
 
         @Inject
@@ -223,12 +207,19 @@ public class PostgresqlModule
         public Version getVersion() {
             return version;
         }
+
+        public enum Version {
+            OLD, PG_MIN_9_5, PG10
+        }
     }
 
     private static class CollectionFieldIndexerListener {
         private final PostgresqlQueryExecutor executor;
         private final ProjectConfig projectConfig;
         boolean postgresql9_5;
+        private Set<FieldType> brinSupportedTypes = ImmutableSet.of(FieldType.DATE, FieldType.DECIMAL,
+                FieldType.DOUBLE, FieldType.INTEGER, FieldType.LONG,
+                FieldType.STRING, FieldType.TIMESTAMP, FieldType.TIME);
 
         @Inject
         public CollectionFieldIndexerListener(ProjectConfig projectConfig, PostgresqlQueryExecutor executor, PostgresqlVersion version) {
@@ -266,10 +257,6 @@ public class PostgresqlModule
                 }
             }
         }
-
-        private Set<FieldType> brinSupportedTypes = ImmutableSet.of(FieldType.DATE, FieldType.DECIMAL,
-                FieldType.DOUBLE, FieldType.INTEGER, FieldType.LONG,
-                FieldType.STRING, FieldType.TIMESTAMP, FieldType.TIME);
     }
 
     public static class UserMergeTableHook {

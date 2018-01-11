@@ -49,18 +49,16 @@ import static org.rakam.util.ValidationUtil.checkLiteral;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 public class PrestoMetastore
-        extends PrestoAbstractMetastore
-{
-    private final DBI dbi;
+        extends PrestoAbstractMetastore {
     protected final LoadingCache<ProjectCollection, List<SchemaField>> schemaCache;
     protected final LoadingCache<String, Set<String>> collectionCache;
     protected final ConnectionFactory prestoConnectionFactory;
     protected final PrestoConfig config;
+    private final DBI dbi;
     private final ProjectConfig projectConfig;
 
     @Inject
-    public PrestoMetastore(ProjectConfig projectConfig, @Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource, PrestoConfig config, EventBus eventBus)
-    {
+    public PrestoMetastore(ProjectConfig projectConfig, @Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource, PrestoConfig config, EventBus eventBus) {
         super(eventBus);
         dbi = new DBI(dataSource);
 
@@ -75,12 +73,10 @@ public class PrestoMetastore
         };
 
         schemaCache = CacheBuilder.newBuilder().expireAfterWrite(20, TimeUnit.MINUTES)
-                .build(new CacheLoader<ProjectCollection, List<SchemaField>>()
-                {
+                .build(new CacheLoader<ProjectCollection, List<SchemaField>>() {
                     @Override
                     public List<SchemaField> load(ProjectCollection key)
-                            throws Exception
-                    {
+                            throws Exception {
                         try (Connection conn = prestoConnectionFactory.openConnection()) {
                             ResultSet dbColumns = conn.getMetaData().getColumns(config.getColdStorageConnector(),
                                     key.project, key.collection, null);
@@ -94,16 +90,14 @@ public class PrestoMetastore
                     }
                 });
 
-        collectionCache = CacheBuilder.newBuilder().expireAfterWrite(20, TimeUnit.MINUTES).build(new CacheLoader<String, Set<String>>()
-        {
+        collectionCache = CacheBuilder.newBuilder().expireAfterWrite(20, TimeUnit.MINUTES).build(new CacheLoader<String, Set<String>>() {
             @Override
             public Set<String> load(String project)
-                    throws Exception
-            {
+                    throws Exception {
                 try (Connection conn = prestoConnectionFactory.openConnection()) {
                     HashSet<String> tables = new HashSet<>();
 
-                    ResultSet tableRs = conn.getMetaData().getTables(config.getColdStorageConnector(), project, null, new String[] {"TABLE"});
+                    ResultSet tableRs = conn.getMetaData().getTables(config.getColdStorageConnector(), project, null, new String[]{"TABLE"});
                     while (tableRs.next()) {
                         String tableName = tableRs.getString("table_name");
 
@@ -119,8 +113,7 @@ public class PrestoMetastore
     }
 
     @PostConstruct
-    public void setup()
-    {
+    public void setup() {
         dbi.inTransaction((Handle handle, TransactionStatus transactionStatus) -> {
             handle.createStatement("CREATE TABLE IF NOT EXISTS project (" +
                     "  name TEXT NOT NULL,\n" +
@@ -131,8 +124,7 @@ public class PrestoMetastore
     }
 
     @Override
-    public void createProject(String project)
-    {
+    public void createProject(String project) {
         if (config.getExistingProjects().contains(project)) {
             checkProject(project);
 
@@ -140,8 +132,7 @@ public class PrestoMetastore
                 handle.createStatement("INSERT INTO project (name) VALUES(:name)")
                         .bind("name", project)
                         .execute();
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 if (getProjects().contains(project)) {
                     throw new RakamException("The project already exists", BAD_REQUEST);
                 }
@@ -155,8 +146,7 @@ public class PrestoMetastore
     }
 
     @Override
-    public Set<String> getProjects()
-    {
+    public Set<String> getProjects() {
         try (Handle handle = dbi.open()) {
             return ImmutableSet.copyOf(
                     handle.createQuery("select name from project")
@@ -165,8 +155,7 @@ public class PrestoMetastore
     }
 
     @Override
-    public void deleteProject(String project)
-    {
+    public void deleteProject(String project) {
         try (Handle handle = dbi.open()) {
             handle.createStatement("delete from project where name = :project")
                     .bind("project", project).execute();
@@ -174,8 +163,7 @@ public class PrestoMetastore
     }
 
     @Override
-    public Map<String, List<SchemaField>> getSchemas(String project, Predicate<String> filter)
-    {
+    public Map<String, List<SchemaField>> getSchemas(String project, Predicate<String> filter) {
         Map<String, List<SchemaField>> map = new HashMap<>();
 
         collectionCache.getUnchecked(project).stream()
@@ -186,43 +174,36 @@ public class PrestoMetastore
     }
 
     @Override
-    public Map<String, List<SchemaField>> getCollections(String project)
-    {
+    public Map<String, List<SchemaField>> getCollections(String project) {
         try {
             return collectionCache.get(project).stream()
                     .collect(Collectors.toMap(c -> c, collection ->
                             getCollection(project, collection)));
-        }
-        catch (ExecutionException e) {
+        } catch (ExecutionException e) {
             throw Throwables.propagate(e);
         }
     }
 
     @Override
-    public Set<String> getCollectionNames(String project)
-    {
+    public Set<String> getCollectionNames(String project) {
         try {
             return collectionCache.get(project);
-        }
-        catch (ExecutionException e) {
+        } catch (ExecutionException e) {
             throw Throwables.propagate(e);
         }
     }
 
     @Override
-    public List<SchemaField> getCollection(String project, String collection)
-    {
+    public List<SchemaField> getCollection(String project, String collection) {
         try {
             return schemaCache.get(new ProjectCollection(project, collection));
-        }
-        catch (ExecutionException e) {
+        } catch (ExecutionException e) {
             throw Throwables.propagate(e);
         }
     }
 
     public List<SchemaField> convertToSchema(ResultSet dbColumns)
-            throws SQLException
-    {
+            throws SQLException {
         List<SchemaField> schemaFields = Lists.newArrayList();
 
         while (dbColumns.next()) {
@@ -233,8 +214,7 @@ public class PrestoMetastore
         return schemaFields.isEmpty() ? null : schemaFields;
     }
 
-    public FieldType fromPrestoType(String name)
-    {
+    public FieldType fromPrestoType(String name) {
         TypeSignature typeSignature = TypeSignature.parseTypeSignature(name);
 
         return PrestoQueryExecution.fromPrestoType(typeSignature.getBase(),
@@ -245,8 +225,7 @@ public class PrestoMetastore
 
     @Override
     public synchronized List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields)
-            throws NotExistsException
-    {
+            throws NotExistsException {
         ValidationUtil.checkCollectionValid(collection);
 
         if (!collection.matches("^[a-zA-Z0-9_]*$")) {
@@ -284,8 +263,7 @@ public class PrestoMetastore
                 connection.createStatement().execute(query);
 
                 task = () -> super.onCreateCollection(project, collection, schemaFields);
-            }
-            else {
+            } else {
                 schemaFields.stream()
                         .map(f -> {
                             currentFields.add(f);
@@ -297,8 +275,7 @@ public class PrestoMetastore
                         .forEach(q -> {
                             try {
                                 connection.createStatement().execute(q);
-                            }
-                            catch (SQLException e) {
+                            } catch (SQLException e) {
                                 throw Throwables.propagate(e);
                             }
                         });
@@ -309,14 +286,12 @@ public class PrestoMetastore
             task.run();
             schemaCache.put(new ProjectCollection(project, collection), currentFields);
             return currentFields;
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             // column or table already exists
             if (e.getMessage().contains("exists")) {
                 // TODO: should we try again until this operation is done successfully, what about infinite loops?
                 return getOrCreateCollectionFields(project, collection, fields);
-            }
-            else {
+            } else {
                 throw new IllegalStateException(e.getMessage());
             }
         }
@@ -329,8 +304,7 @@ public class PrestoMetastore
     }
 
     @VisibleForTesting
-    public void clearCache()
-    {
+    public void clearCache() {
         collectionCache.cleanUp();
         schemaCache.cleanUp();
     }

@@ -13,19 +13,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.rakam.collection.FieldType.LONG;
-import static org.rakam.collection.FieldType.STRING;
-import static org.rakam.collection.FieldType.TIMESTAMP;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
+import static org.rakam.collection.FieldType.*;
+import static org.testng.Assert.*;
 
-public abstract class TestMetastore
-{
+public abstract class TestMetastore {
     private static final String PROJECT_NAME = TestMetastore.class.getName().replace(".", "_").toLowerCase();
 
     public abstract AbstractMetastore getMetastore();
-    
+
     @AfterMethod
     public void tearDownMethod() throws Exception {
         getMetastore().deleteProject(PROJECT_NAME);
@@ -172,7 +167,7 @@ public abstract class TestMetastore
 
         ImmutableSet<SchemaField> schema = ImmutableSet.of(new SchemaField("test", STRING));
         getMetastore().getOrCreateCollectionFields(PROJECT_NAME, "test", schema);
-        
+
         assertEquals(getMetastore().getAttributes(PROJECT_NAME, "test", "test", Optional.empty(), Optional.empty(), Optional.empty()).join().size(), 0);
     }
 

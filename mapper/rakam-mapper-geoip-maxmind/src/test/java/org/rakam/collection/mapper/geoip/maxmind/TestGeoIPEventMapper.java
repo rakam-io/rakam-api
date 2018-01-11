@@ -27,13 +27,16 @@ import static org.apache.avro.Schema.Type.NULL;
 import static org.apache.avro.Schema.Type.STRING;
 import static org.testng.Assert.*;
 
-public class TestGeoIPEventMapper
-{
+public class TestGeoIPEventMapper {
+    private static Set<String> list = ImmutableSet.of(
+            "city", "region", "_ip",
+            "country_code", "latitude",
+            "longitude", "timezone");
+
     @DataProvider(name = "google-ips")
     public static Object[][] hashEnabledValuesProvider()
-            throws UnknownHostException
-    {
-        return new Object[][] {
+            throws UnknownHostException {
+        return new Object[][]{
                 // even if these are Google's ip Maxmind demo database may not identify so don't rely on their popularity.
                 {ImmutableMap.of("_ip", "8.8.8.8"), InetAddress.getLocalHost()},
                 {ImmutableMap.of("_ip", true), InetAddress.getByName("8.8.8.8")},
@@ -43,8 +46,7 @@ public class TestGeoIPEventMapper
 
     @Test(dataProvider = "google-ips")
     public void testIspEventMapper(Map<String, Object> props, InetAddress address)
-            throws Exception
-    {
+            throws Exception {
         MaxmindGeoIPEventMapper mapper = new MaxmindGeoIPEventMapper(new MaxmindGeoIPModuleConfig()
                 .setAttributes("")
                 .setIspDatabaseUrl(new URL("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-ISP-Test.mmdb")));
@@ -69,8 +71,7 @@ public class TestGeoIPEventMapper
 
     @Test(dataProvider = "google-ips")
     public void testConnectionTypeEventMapper(Map<String, Object> props, InetAddress address)
-            throws Exception
-    {
+            throws Exception {
         MaxmindGeoIPEventMapper mapper = new MaxmindGeoIPEventMapper(new MaxmindGeoIPModuleConfig()
                 .setAttributes("")
                 .setConnectionTypeDatabaseUrl(new URL("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-Connection-Type-Test.mmdb")));
@@ -96,8 +97,7 @@ public class TestGeoIPEventMapper
 
     @Test(dataProvider = "google-ips")
     public void testEventMapper(Map<String, Object> props, InetAddress address)
-            throws Exception
-    {
+            throws Exception {
         MaxmindGeoIPEventMapper mapper = new MaxmindGeoIPEventMapper(new MaxmindGeoIPModuleConfig());
         FieldDependencyBuilder builder = new FieldDependencyBuilder();
         mapper.addFieldDependency(builder);
@@ -128,8 +128,7 @@ public class TestGeoIPEventMapper
 
     @Test
     public void testNotFoundIpEventMapper()
-            throws Exception
-    {
+            throws Exception {
         MaxmindGeoIPEventMapper mapper = new MaxmindGeoIPEventMapper(new MaxmindGeoIPModuleConfig()
                 .setConnectionTypeDatabaseUrl(new URL("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-Connection-Type-Test.mmdb"))
                 .setIspDatabaseUrl(new URL("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-ISP-Test.mmdb")));
@@ -159,8 +158,7 @@ public class TestGeoIPEventMapper
 
     @Test
     public void testNotTrackFlagIpEventMapper()
-            throws Exception
-    {
+            throws Exception {
         MaxmindGeoIPEventMapper mapper = new MaxmindGeoIPEventMapper(new MaxmindGeoIPModuleConfig()
                 .setConnectionTypeDatabaseUrl(new URL("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-Connection-Type-Test.mmdb"))
                 .setIspDatabaseUrl(new URL("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-ISP-Test.mmdb")));
@@ -188,8 +186,7 @@ public class TestGeoIPEventMapper
 
     @Test
     public void testFieldDependency()
-            throws Exception
-    {
+            throws Exception {
         MaxmindGeoIPModuleConfig config = new MaxmindGeoIPModuleConfig().setAttributes(list.stream().collect(Collectors.joining(",")));
         MaxmindGeoIPEventMapper mapper = new MaxmindGeoIPEventMapper(config);
         FieldDependencyBuilder builder = new FieldDependencyBuilder();
@@ -204,15 +201,9 @@ public class TestGeoIPEventMapper
                         .collect(Collectors.toSet()));
     }
 
-    private static Set<String> list = ImmutableSet.of(
-            "city", "region", "_ip",
-            "country_code", "latitude",
-            "longitude", "timezone");
-
     @Test
     public void testFieldDependencyWithAll()
-            throws Exception
-    {
+            throws Exception {
         MaxmindGeoIPModuleConfig config = new MaxmindGeoIPModuleConfig()
                 .setAttributes(list.stream().collect(Collectors.joining(",")))
                 .setConnectionTypeDatabaseUrl(new URL("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-Connection-Type-Test.mmdb"))

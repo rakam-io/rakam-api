@@ -3,11 +3,8 @@ package org.rakam.util.javascript;
 import com.google.common.base.Throwables;
 import io.airlift.log.Level;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.analysis.RequestContext;
+import org.rakam.server.http.annotations.*;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.Query;
@@ -16,7 +13,6 @@ import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.ws.rs.Path;
-
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -56,7 +52,7 @@ public class JSCodeJDBCLoggerService implements JSLoggerService {
     @JsonRequest
     @ApiOperation(value = "Get logs", authorizations = @Authorization(value = "master_key"))
     @Path("/get_logs")
-    public List<LogEntry> getLogs(@Named("project") String project, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end, @ApiParam(value = "prefix") String prefix) {
+    public List<LogEntry> getLogs(@Named("project") RequestContext context, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end, @ApiParam(value = "prefix") String prefix) {
         String sql = "SELECT id, type, error, created FROM javascript_logs WHERE project = :project AND prefix = :prefix";
         if (start != null) {
             sql += " AND created > :start";
@@ -69,7 +65,7 @@ public class JSCodeJDBCLoggerService implements JSLoggerService {
 
         try (Handle handle = dbi.open()) {
             Query<Map<String, Object>> query = handle.createQuery(sql + " LIMIT 100");
-            query.bind("project", project);
+            query.bind("project", context.project);
             query.bind("prefix", prefix);
 
             if (start != null) {

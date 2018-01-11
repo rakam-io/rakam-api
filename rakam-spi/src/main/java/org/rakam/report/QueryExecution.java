@@ -5,11 +5,6 @@ import java.util.concurrent.CompletableFuture;
 
 
 public interface QueryExecution {
-    QueryStats currentStats();
-    boolean isFinished();
-    CompletableFuture<QueryResult> getResult();
-    void kill();
-
     static QueryExecution completedQueryExecution(String query, QueryResult result) {
         return new QueryExecution() {
             @Override
@@ -32,4 +27,12 @@ public interface QueryExecution {
             }
         };
     }
+
+    QueryStats currentStats();
+
+    boolean isFinished();
+
+    CompletableFuture<QueryResult> getResult();
+
+    void kill();
 }

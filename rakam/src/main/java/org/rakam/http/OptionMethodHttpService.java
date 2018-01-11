@@ -9,15 +9,12 @@ import org.rakam.server.http.annotations.IgnoreApi;
 import javax.ws.rs.OPTIONS;
 import javax.ws.rs.Path;
 
-import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_HEADERS;
-import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_METHODS;
-import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_EXPOSE_HEADERS;
+import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 @Path("/")
 @IgnoreApi
-public class OptionMethodHttpService extends HttpService
-{
+public class OptionMethodHttpService extends HttpService {
     @OPTIONS
     @Path("/*")
     public static void handle(RakamHttpRequest request) {

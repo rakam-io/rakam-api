@@ -1,17 +1,11 @@
 package org.rakam.analysis.realtime;
 
 import com.google.inject.Singleton;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.realtime.RealtimeService.RealTimeQueryResult;
 import org.rakam.report.realtime.RealTimeReport;
 import org.rakam.server.http.HttpService;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.ApiResponse;
-import org.rakam.server.http.annotations.ApiResponses;
-import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.BodyParam;
-import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.*;
 import org.rakam.util.RakamException;
 import org.rakam.util.SuccessMessage;
 
@@ -19,7 +13,6 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -31,13 +24,11 @@ import static java.util.Objects.requireNonNull;
 @Api(value = "/realtime", nickname = "realtime", description = "Realtime module", tags = "realtime")
 @Path("/realtime")
 public class RealTimeHttpService
-        extends HttpService
-{
+        extends HttpService {
     private final RealtimeService realtimeService;
 
     @Inject
-    public RealTimeHttpService(RealtimeService realtimeService)
-    {
+    public RealTimeHttpService(RealtimeService realtimeService) {
         this.realtimeService = requireNonNull(realtimeService, "realtimeService is null");
     }
 
@@ -55,10 +46,9 @@ public class RealTimeHttpService
     @JsonRequest
     @ApiOperation(value = "Create report", authorizations = @Authorization(value = "master_key"))
     @Path("/create")
-    public CompletableFuture<SuccessMessage> createTable(@Named("project") String project, @BodyParam RealTimeReport report)
-    {
-        return  realtimeService.create(project, report).thenApply(error -> {
-            if(error == null) {
+    public CompletableFuture<SuccessMessage> createTable(@Named("project") RequestContext context, @BodyParam RealTimeReport report) {
+        return realtimeService.create(context.project, report).thenApply(error -> {
+            if (error == null) {
                 return SuccessMessage.success();
             }
 
@@ -70,9 +60,8 @@ public class RealTimeHttpService
     @ApiOperation(value = "List queries", authorizations = @Authorization(value = "read_key"))
 
     @Path("/list")
-    public List<RealTimeReport> listTables(@Named("project") String project)
-    {
-        return realtimeService.list(project);
+    public List<RealTimeReport> listTables(@Named("project") RequestContext context) {
+        return realtimeService.list(context.project);
     }
 
     @JsonRequest
@@ -81,29 +70,26 @@ public class RealTimeHttpService
     @ApiResponses(value = {@ApiResponse(code = 400, message = "Report does not exist.")})
     @Path("/get")
     public CompletableFuture<RealTimeQueryResult> queryTable(
-            @Named("project") String project,
+            @Named("project") RequestContext context,
             @ApiParam("table_name") String tableName,
             @ApiParam(value = "filter", required = false) String filter,
             @ApiParam("measure") RealTimeReport.Measure measure,
             @ApiParam(value = "dimensions", required = false) List<String> dimensions,
             @ApiParam(value = "aggregate", required = false) Boolean aggregate,
             @ApiParam(value = "date_start", required = false) Instant dateStart,
-            @ApiParam(value = "date_end", required = false) Instant dateEnd)
-    {
-        return realtimeService.query(project, tableName, filter, measure, dimensions, aggregate, dateStart, dateEnd);
+            @ApiParam(value = "date_end", required = false) Instant dateEnd) {
+        return realtimeService.query(context.project, tableName, filter, measure, dimensions, aggregate, dateStart, dateEnd);
     }
 
     @JsonRequest
     @ApiOperation(value = "Delete report", authorizations = @Authorization(value = "master_key"))
     @Path("/delete")
-    public CompletableFuture<SuccessMessage> deleteTable(@Named("project") String project,
-            @ApiParam("table_name") String tableName)
-    {
-        return realtimeService.delete(project, tableName).thenApply(result -> {
+    public CompletableFuture<SuccessMessage> deleteTable(@Named("project") RequestContext context,
+                                                         @ApiParam("table_name") String tableName) {
+        return realtimeService.delete(context.project, tableName).thenApply(result -> {
             if (result == null) {
                 return SuccessMessage.success();
-            }
-            else {
+            } else {
                 throw new RakamException(result.message, BAD_REQUEST);
             }
         });

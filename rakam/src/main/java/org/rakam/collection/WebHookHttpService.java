@@ -25,26 +25,20 @@ import io.netty.util.concurrent.FutureListener;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.util.javascript.JSCodeCompiler;
-import org.rakam.util.javascript.JSCodeJDBCLoggerService;
+import org.rakam.analysis.RequestContext;
 import org.rakam.plugin.EventStore;
 import org.rakam.server.http.HttpRequestException;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.BodyParam;
-import org.rakam.server.http.annotations.HeaderParam;
-import org.rakam.server.http.annotations.IgnoreApi;
-import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.*;
 import org.rakam.ui.WebHookUIHttpService.Parameter;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.LogUtil;
 import org.rakam.util.RakamException;
 import org.rakam.util.SuccessMessage;
+import org.rakam.util.javascript.JSCodeCompiler;
+import org.rakam.util.javascript.JSCodeJDBCLoggerService;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.StatementContext;
@@ -59,25 +53,16 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
-
 import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
-import static io.netty.handler.codec.http.HttpResponseStatus.NO_CONTENT;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
 import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.server.http.HttpServer.returnError;
@@ -85,8 +70,7 @@ import static org.rakam.server.http.HttpServer.returnError;
 @Path("/event/hook")
 @Api(value = "/event/hook", nickname = "webhook", description = "Webhook for event collection", tags = "webhook")
 public class WebHookHttpService
-        extends HttpService
-{
+        extends HttpService {
     private final static Logger LOGGER = Logger.get(WebHookHttpService.class);
 
     private final DBI dbi;
@@ -109,20 +93,17 @@ public class WebHookHttpService
             ApiKeyService apiKeyService,
             JSCodeCompiler jsCodeCompiler,
             JSCodeJDBCLoggerService loggerService,
-            EventStore eventStore)
-    {
+            EventStore eventStore) {
         this.apiKeyService = apiKeyService;
         this.jsCodeCompiler = jsCodeCompiler;
         this.loggerService = loggerService;
         functions = CacheBuilder.newBuilder()
                 .expireAfterWrite(5, TimeUnit.MINUTES)
-                .build(new CacheLoader<WebHookIdentifier, Invocable>()
-                {
+                .build(new CacheLoader<WebHookIdentifier, Invocable>() {
 
                     @Override
                     public Invocable load(WebHookIdentifier key)
-                            throws Exception
-                    {
+                            throws Exception {
                         WebHook webHook = get(key.project, key.identifier);
                         String prefix = "webhook." + key.project + "." + key.identifier;
                         return jsCodeCompiler.createEngine(
@@ -137,8 +118,7 @@ public class WebHookHttpService
                                     bindings.put("$$params", map);
                                     try {
                                         engine.eval("var $$module = function(queryParams, body, headers) { return module(queryParams, body, $$params, headers)}");
-                                    }
-                                    catch (ScriptException e) {
+                                    } catch (ScriptException e) {
                                         throw Throwables.propagate(e);
                                     }
                                 });
@@ -150,19 +130,16 @@ public class WebHookHttpService
         SimpleModule module = new SimpleModule();
         module.addDeserializer(Event.class, deserializer);
         jsonMapper.registerModule(module);
-        jsonMapper.registerModule(new SimpleModule("swagger", Version.unknownVersion())
-        {
+        jsonMapper.registerModule(new SimpleModule("swagger", Version.unknownVersion()) {
             @Override
-            public void setupModule(SetupContext context)
-            {
+            public void setupModule(SetupContext context) {
                 context.insertAnnotationIntrospector(new SwaggerJacksonAnnotationIntrospector());
             }
         });
     }
 
     @PostConstruct
-    public void setup()
-    {
+    public void setup() {
         try (Handle handle = dbi.open()) {
             handle.createStatement("CREATE TABLE IF NOT EXISTS webhook (" +
                     "  project VARCHAR(255) NOT NULL," +
@@ -181,8 +158,7 @@ public class WebHookHttpService
     @IgnoreApi
     @ApiOperation(value = "Collect event", response = Integer.class)
     @Path("/collect/*")
-    public void collectPost(RakamHttpRequest request)
-    {
+    public void collectPost(RakamHttpRequest request) {
         String identifier = request.path().substring(20);
         List<String> writeKeyList = request.params().get("write_key");
         if (writeKeyList == null || writeKeyList.isEmpty()) {
@@ -195,8 +171,7 @@ public class WebHookHttpService
             String data;
             try {
                 data = new String(ByteStreams.toByteArray(inputStream), CharsetUtil.UTF_8);
-            }
-            catch (IOException e) {
+            } catch (IOException e) {
                 throw new RakamException("Unable to parse data: " + e.getMessage(), INTERNAL_SERVER_ERROR);
             }
 
@@ -204,33 +179,28 @@ public class WebHookHttpService
         });
     }
 
-    private void call(RakamHttpRequest request, String project, String identifier, Map<String, List<String>> queryParams, HttpHeaders headers, String data)
-    {
+    private void call(RakamHttpRequest request, String project, String identifier, Map<String, List<String>> queryParams, HttpHeaders headers, String data) {
         WebHookIdentifier key = new WebHookIdentifier(project, identifier, UUID.randomUUID().toString());
         Invocable function;
         try {
             function = functions.getUnchecked(key);
-        }
-        catch (UncheckedExecutionException e) {
+        } catch (UncheckedExecutionException e) {
             throw Throwables.propagate(e.getCause());
         }
 
         Future<Object> f = executor.submit(() ->
                 function.invokeFunction("$$module", queryParams, data, headers));
 
-        f.addListener(new FutureListener<Object>()
-        {
+        f.addListener(new FutureListener<Object>() {
 
             @Override
             public void operationComplete(Future<Object> future)
-                    throws Exception
-            {
+                    throws Exception {
                 if (future.await(3, TimeUnit.SECONDS)) {
                     Object body;
                     try {
                         body = future.get();
-                    }
-                    catch (Throwable e) {
+                    } catch (Throwable e) {
                         returnError(request, "Error executing callback code", INTERNAL_SERVER_ERROR);
                         LOGGER.warn(e, "Error executing webhook callback");
                         String prefix = "webhook." + key.project + "." + key.identifier;
@@ -247,8 +217,7 @@ public class WebHookHttpService
 
                     if (body == null || body.equals("null")) {
                         saved = false;
-                    }
-                    else {
+                    } else {
                         if (!(body instanceof ScriptObjectMirror)) {
                             returnError(request, "The script must return an object {collection: '', properties: {}}", BAD_REQUEST);
                         }
@@ -265,31 +234,25 @@ public class WebHookHttpService
                                 saved = true;
                                 eventStore.store(event);
                             }
-                        }
-                        catch (JsonMappingException e) {
+                        } catch (JsonMappingException e) {
                             String message = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
                             returnError(request, "JSON couldn't parsed: " + message, BAD_REQUEST);
                             return;
-                        }
-                        catch (IOException e) {
+                        } catch (IOException e) {
                             returnError(request, "JSON couldn't parsed: " + e.getMessage(), BAD_REQUEST);
                             return;
-                        }
-                        catch (RakamException e) {
+                        } catch (RakamException e) {
                             LogUtil.logException(request, e);
                             returnError(request, e.getMessage(), e.getStatusCode());
                             return;
-                        }
-                        catch (HttpRequestException e) {
+                        } catch (HttpRequestException e) {
                             returnError(request, e.getMessage(), e.getStatusCode());
                             return;
-                        }
-                        catch (IllegalArgumentException e) {
+                        } catch (IllegalArgumentException e) {
                             LogUtil.logException(request, e);
                             returnError(request, e.getMessage(), BAD_REQUEST);
                             return;
-                        }
-                        catch (Exception e) {
+                        } catch (Exception e) {
                             LOGGER.error(e, "Error while collecting event");
 
                             returnError(request, "An error occurred", INTERNAL_SERVER_ERROR);
@@ -298,8 +261,7 @@ public class WebHookHttpService
                     }
 
                     request.response(saved ? "1" : "0").end();
-                }
-                else {
+                } else {
                     byte[] bytes = JsonHelper.encodeAsBytes(errorMessage("Webhook code timeouts.",
                             INTERNAL_SERVER_ERROR));
 
@@ -313,8 +275,7 @@ public class WebHookHttpService
     @IgnoreApi
     @ApiOperation(value = "Collect event", response = Integer.class)
     @Path("/collect/*")
-    public void collectGet(RakamHttpRequest request)
-    {
+    public void collectGet(RakamHttpRequest request) {
         String identifier = request.path().substring(20);
         List<String> writeKeyList = request.params().get("write_key");
         if (writeKeyList == null || writeKeyList.isEmpty()) {
@@ -330,31 +291,28 @@ public class WebHookHttpService
     @ApiOperation(value = "Collect event", response = Integer.class)
     @Path("/collect/*")
     @IgnoreApi
-    public void collectPut(RakamHttpRequest request)
-    {
+    public void collectPut(RakamHttpRequest request) {
         collectPost(request);
     }
 
     @ApiOperation(value = "Set hook", authorizations = @Authorization(value = "master_key"))
     @Path("/activate")
     @JsonRequest
-    public SuccessMessage activate(@Named("project") String project, @BodyParam WebHook hook)
-    {
+    public SuccessMessage activate(@Named("project") RequestContext context, @BodyParam WebHook hook) {
         try (Handle handle = dbi.open()) {
             try {
                 handle.createStatement("INSERT INTO webhook (project, identifier, code, active, parameters) VALUES (:project, :identifier, :code, true, :parameters)")
-                        .bind("project", project)
+                        .bind("project", context.project)
                         .bind("identifier", hook.identifier)
                         .bind("code", hook.script)
                         .bind("image", hook.image)
                         .bind("parameters", JsonHelper.encode(hook.parameters))
                         .execute();
                 return SuccessMessage.success();
-            }
-            catch (Exception e) {
-                if (get(project, hook.identifier) != null) {
+            } catch (Exception e) {
+                if (get(context, hook.identifier) != null) {
                     handle.createStatement("UPDATE webhook SET code = :code WHERE project = :project AND identifier = :identifier")
-                            .bind("project", project)
+                            .bind("project", context.project)
                             .bind("identifier", hook.identifier)
                             .bind("code", hook.script)
                             .bind("image", hook.image)
@@ -370,11 +328,10 @@ public class WebHookHttpService
     @ApiOperation(value = "Delete hook", authorizations = @Authorization(value = "master_key"))
     @Path("/delete")
     @JsonRequest
-    public SuccessMessage delete(@Named("project") String project, @ApiParam("identifier") String identifier)
-    {
+    public SuccessMessage delete(@Named("project") RequestContext context, @ApiParam("identifier") String identifier) {
         try (Handle handle = dbi.open()) {
             int execute = handle.createStatement("DELETE FROM webhook WHERE project = :project AND identifier = :identifier")
-                    .bind("project", project)
+                    .bind("project", context.project)
                     .bind("identifier", identifier).execute();
             if (execute == 0) {
                 throw new RakamException(NOT_FOUND);
@@ -386,21 +343,23 @@ public class WebHookHttpService
     @ApiOperation(value = "Get hook", authorizations = @Authorization(value = "master_key"))
     @Path("/get")
     @JsonRequest
-    public WebHook get(@Named("project") String project, @ApiParam("identifier") String identifier)
-    {
+    public WebHook get(@Named("project") RequestContext context, @ApiParam("identifier") String identifier) {
+        return get(context.project, identifier);
+    }
+
+    private WebHook get(String project, String identifier) {
         try (Handle handle = dbi.open()) {
             WebHook first = handle.createQuery("SELECT code, image, active, parameters FROM webhook WHERE project = :project AND identifier = :identifier")
                     .bind("project", project)
                     .bind("identifier", identifier)
-                    .map(new ResultSetMapper<WebHook>()
-                    {
+                    .map(new ResultSetMapper<WebHook>() {
                         @Override
                         public WebHook map(int index, ResultSet r, StatementContext ctx)
-                                throws SQLException
-                        {
+                                throws SQLException {
                             return new WebHook(identifier, r.getString(1),
                                     r.getString(2), r.getBoolean(3),
-                                    JsonHelper.read(r.getString(4), new TypeReference<Map<String, Parameter>>() {}));
+                                    JsonHelper.read(r.getString(4), new TypeReference<Map<String, Parameter>>() {
+                                    }));
                         }
                     }).first();
             if (first == null) {
@@ -413,17 +372,14 @@ public class WebHookHttpService
     @ApiOperation(value = "Get hook", authorizations = @Authorization(value = "master_key"))
     @Path("/list")
     @GET
-    public List<WebHook> list(@Named("project") String project)
-    {
+    public List<WebHook> list(@Named("project") RequestContext context) {
         try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT identifier, code, image, active, parameters FROM webhook WHERE project = :project")
-                    .bind("project", project)
-                    .map(new ResultSetMapper<WebHook>()
-                    {
+                    .bind("project", context.project)
+                    .map(new ResultSetMapper<WebHook>() {
                         @Override
                         public WebHook map(int index, ResultSet r, StatementContext ctx)
-                                throws SQLException
-                        {
+                                throws SQLException {
                             return new WebHook(r.getString(1), r.getString(2), r.getString(3), r.getBoolean(4), JsonHelper.read(r.getString(5), Map.class));
                         }
                     }).list();
@@ -433,9 +389,8 @@ public class WebHookHttpService
     @ApiOperation(value = "Get logs", authorizations = @Authorization(value = "master_key"))
     @JsonRequest
     @Path("/get_logs")
-    public List<JSCodeJDBCLoggerService.LogEntry> getLogs(@Named("project") String project, @ApiParam("identifier") String identifier, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end)
-    {
-        return loggerService.getLogs(project, start, end, "webhook." + project + "." + identifier);
+    public List<JSCodeJDBCLoggerService.LogEntry> getLogs(@Named("project") RequestContext context, @ApiParam("identifier") String identifier, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end) {
+        return loggerService.getLogs(context, start, end, "webhook." + context.project + "." + identifier);
     }
 
     @ApiOperation(value = "Test a webhook", authorizations = @Authorization(value = "master_key"))
@@ -444,11 +399,10 @@ public class WebHookHttpService
     public void test(
             RakamHttpRequest request,
             @HeaderParam(CONTENT_TYPE) String contentType,
-            @Named("project") String project,
+            @Named("project") RequestContext context,
             @ApiParam("script") String script,
             @ApiParam(value = "parameters", required = false) Map<String, Object> params,
-            @ApiParam(value = "body", required = false) Object body)
-    {
+            @ApiParam(value = "body", required = false) Object body) {
         JSCodeCompiler.TestLogger testLogger = new JSCodeCompiler.TestLogger();
         JSCodeCompiler.MemoryConfigManager configManager = new JSCodeCompiler.MemoryConfigManager();
         Invocable engine;
@@ -458,13 +412,11 @@ public class WebHookHttpService
                 try {
                     e.eval("var $$module = function(queryParams, body, headers) " +
                             "{ return module(queryParams, body, $$params, headers)}");
-                }
-                catch (ScriptException ex) {
+                } catch (ScriptException ex) {
                     throw Throwables.propagate(ex);
                 }
             });
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             throw new RakamException("Unable to compile Javascript code: " + e.getMessage(), INTERNAL_SERVER_ERROR);
         }
 
@@ -476,13 +428,11 @@ public class WebHookHttpService
                     request.response(script, NO_CONTENT).end();
                 }
                 return scoped;
-            }
-            catch (ScriptException e) {
+            } catch (ScriptException e) {
                 LOGGER.warn("Error while processing webhook script: " + e.getMessage());
                 String message = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
                 returnError(request, "Error while executing webhook script: " + message, BAD_REQUEST);
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 LOGGER.error(e);
                 returnError(request, "An error occurred.", INTERNAL_SERVER_ERROR);
             }
@@ -490,13 +440,11 @@ public class WebHookHttpService
             return null;
         });
 
-        f.addListener(new FutureListener<Object>()
-        {
+        f.addListener(new FutureListener<Object>() {
 
             @Override
             public void operationComplete(Future<Object> future)
-                    throws Exception
-            {
+                    throws Exception {
                 if (future.await(1, TimeUnit.SECONDS)) {
                     Object body = future.getNow();
                     if (body == null) {
@@ -510,8 +458,7 @@ public class WebHookHttpService
                     Object stringify = json.callMember("stringify", body);
 
                     request.response(stringify.toString()).end();
-                }
-                else {
+                } else {
                     byte[] bytes = JsonHelper.encodeAsBytes(errorMessage("Webhook code timeouts.",
                             INTERNAL_SERVER_ERROR));
 
@@ -521,22 +468,19 @@ public class WebHookHttpService
         });
     }
 
-    public static class WebHookIdentifier
-    {
+    public static class WebHookIdentifier {
         public final String project;
         public final String identifier;
         public final String requestId;
 
-        public WebHookIdentifier(String project, String identifier, String requestId)
-        {
+        public WebHookIdentifier(String project, String identifier, String requestId) {
             this.identifier = identifier;
             this.project = project;
             this.requestId = requestId;
         }
 
         @Override
-        public boolean equals(Object o)
-        {
+        public boolean equals(Object o) {
             if (this == o) {
                 return true;
             }
@@ -553,16 +497,14 @@ public class WebHookHttpService
         }
 
         @Override
-        public int hashCode()
-        {
+        public int hashCode() {
             int result = project.hashCode();
             result = 31 * result + identifier.hashCode();
             return result;
         }
     }
 
-    public static class WebHook
-    {
+    public static class WebHook {
         public final String identifier;
         public final boolean active;
         public final String script;
@@ -575,8 +517,7 @@ public class WebHookHttpService
                 @ApiParam(value = "script") String script,
                 @ApiParam(value = "image", required = false) String image,
                 @ApiParam(value = "active", required = false) Boolean active,
-                @ApiParam(value = "parameters", required = false) Map<String, Parameter> parameters)
-        {
+                @ApiParam(value = "parameters", required = false) Map<String, Parameter> parameters) {
             this.identifier = identifier;
             this.active = !Boolean.FALSE.equals(active);
             this.script = script;

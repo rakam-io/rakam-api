@@ -21,6 +21,7 @@ import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.rakam.analysis.ApiKeyService;
+import org.rakam.analysis.RequestContext;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryResult;
@@ -35,7 +36,6 @@ import org.rakam.util.RakamException;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
@@ -43,12 +43,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TRANSFER_ENCODING;
-import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
-import static io.netty.handler.codec.http.HttpHeaders.Names.EXPIRES;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static io.netty.handler.codec.http.HttpHeaders.Names.*;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static java.lang.String.format;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY;
@@ -56,40 +52,56 @@ import static org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY;
 @Path("/user/export")
 @IgnoreApi
 public class UserUtilHttpService
-        extends HttpService
-{
+        extends HttpService {
     private final SqlParser sqlParser = new SqlParser();
     private final AbstractUserService service;
     private final ApiKeyService apiKeyService;
 
     @Inject
-    public UserUtilHttpService(ApiKeyService apiKeyService, AbstractUserService service)
-    {
+    public UserUtilHttpService(ApiKeyService apiKeyService, AbstractUserService service) {
         this.service = service;
         this.apiKeyService = apiKeyService;
     }
 
-    public static class FilterQuery
-    {
-        public final String filter;
-        public final List<UserStorage.EventFilter> event_filter;
-        public final UserStorage.Sorting sorting;
+    private static void writeExcelValue(Cell cell, Object field, FieldType type) {
+        if (field == null) {
+            return;
+        }
 
-        @JsonCreator
-        public FilterQuery(@ApiParam(value = "filter", required = false) String filter,
-                @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
-                @ApiParam(value = "sorting", required = false) UserStorage.Sorting sorting)
-        {
-            this.filter = filter;
-            this.event_filter = event_filter;
-            this.sorting = sorting;
+        switch (type) {
+            case STRING:
+            case TIMESTAMP:
+            case TIME:
+                cell.setCellValue(field.toString());
+                break;
+            case LONG:
+            case INTEGER:
+            case DOUBLE:
+                cell.setCellValue(((Number) field).doubleValue());
+                break;
+            default:
+                throw new IllegalArgumentException("field type is not supported");
+        }
+    }
+
+    private static int getExcelType(FieldType type) {
+        switch (type) {
+            case STRING:
+                return Cell.CELL_TYPE_STRING;
+            case LONG:
+            case INTEGER:
+            case DOUBLE:
+                return Cell.CELL_TYPE_NUMERIC;
+            case BOOLEAN:
+                return Cell.CELL_TYPE_BOOLEAN;
+            default:
+                return Cell.CELL_TYPE_BLANK;
         }
     }
 
     @GET
     @Path("/")
-    public void export(RakamHttpRequest request)
-    {
+    public void export(RakamHttpRequest request) {
         final Map<String, List<String>> params = request.params();
         final List<String> query = params.get("query");
         if (query.isEmpty()) {
@@ -107,8 +119,7 @@ public class UserUtilHttpService
         final ExportQuery read;
         try {
             read = JsonHelper.readSafe(body, ExportQuery.class);
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             HttpServer.returnError(request, "Couldn't parse body: " + e.getMessage(), BAD_REQUEST);
             return;
         }
@@ -121,17 +132,15 @@ public class UserUtilHttpService
                 synchronized (sqlParser) {
                     expression = sqlParser.createExpression(read.filterQuery.filter);
                 }
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 throw new RakamException(format("filter expression '%s' couldn't parsed", read.filterQuery.filter),
                         HttpResponseStatus.BAD_REQUEST);
             }
-        }
-        else {
+        } else {
             expression = null;
         }
 
-        final CompletableFuture<QueryResult> search = service.searchUsers(project, null, expression,
+        final CompletableFuture<QueryResult> search = service.searchUsers(new RequestContext(project, readKey.get(0)), null, expression,
                 read.filterQuery.event_filter, read.filterQuery.sorting, 100000, null);
         final CompletableFuture<byte[]> stream;
         switch (read.exportFormat) {
@@ -166,33 +175,7 @@ public class UserUtilHttpService
         });
     }
 
-    private static class ExportQuery
-    {
-        public final FilterQuery filterQuery;
-        public final ExportFormat exportFormat;
-
-        @JsonCreator
-        public ExportQuery(@ApiParam("filter") FilterQuery filterQuery,
-                @ApiParam("export_format") ExportFormat exportFormat)
-        {
-            this.filterQuery = filterQuery;
-            this.exportFormat = exportFormat;
-        }
-    }
-
-    public enum ExportFormat
-    {
-        XLS, CSV;
-
-        @JsonCreator
-        public static ExportFormat fromString(String str)
-        {
-            return valueOf(str.toUpperCase(Locale.ENGLISH));
-        }
-    }
-
-    private CompletableFuture<byte[]> exportAsExcel(CompletableFuture<QueryResult> queryResult)
-    {
+    private CompletableFuture<byte[]> exportAsExcel(CompletableFuture<QueryResult> queryResult) {
         return queryResult.thenApply(result -> {
             HSSFWorkbook workbook = new HSSFWorkbook();
             HSSFSheet sheet = workbook.createSheet("Users generated by Rakam");
@@ -233,48 +216,45 @@ public class UserUtilHttpService
                 workbook.write(output);
                 output.close();
                 return output.toByteArray();
-            }
-            catch (IOException e) {
+            } catch (IOException e) {
                 throw Throwables.propagate(e);
             }
         });
     }
 
-    private static void writeExcelValue(Cell cell, Object field, FieldType type)
-    {
-        if (field == null) {
-            return;
-        }
+    public enum ExportFormat {
+        XLS, CSV;
 
-        switch (type) {
-            case STRING:
-            case TIMESTAMP:
-            case TIME:
-                cell.setCellValue(field.toString());
-                break;
-            case LONG:
-            case INTEGER:
-            case DOUBLE:
-                cell.setCellValue(((Number) field).doubleValue());
-                break;
-            default:
-                throw new IllegalArgumentException("field type is not supported");
+        @JsonCreator
+        public static ExportFormat fromString(String str) {
+            return valueOf(str.toUpperCase(Locale.ENGLISH));
         }
     }
 
-    private static int getExcelType(FieldType type)
-    {
-        switch (type) {
-            case STRING:
-                return Cell.CELL_TYPE_STRING;
-            case LONG:
-            case INTEGER:
-            case DOUBLE:
-                return Cell.CELL_TYPE_NUMERIC;
-            case BOOLEAN:
-                return Cell.CELL_TYPE_BOOLEAN;
-            default:
-                return Cell.CELL_TYPE_BLANK;
+    public static class FilterQuery {
+        public final String filter;
+        public final List<UserStorage.EventFilter> event_filter;
+        public final UserStorage.Sorting sorting;
+
+        @JsonCreator
+        public FilterQuery(@ApiParam(value = "filter", required = false) String filter,
+                           @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
+                           @ApiParam(value = "sorting", required = false) UserStorage.Sorting sorting) {
+            this.filter = filter;
+            this.event_filter = event_filter;
+            this.sorting = sorting;
+        }
+    }
+
+    private static class ExportQuery {
+        public final FilterQuery filterQuery;
+        public final ExportFormat exportFormat;
+
+        @JsonCreator
+        public ExportQuery(@ApiParam("filter") FilterQuery filterQuery,
+                           @ApiParam("export_format") ExportFormat exportFormat) {
+            this.filterQuery = filterQuery;
+            this.exportFormat = exportFormat;
         }
     }
 }

@@ -26,16 +26,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * A utility for outputting columnar text
  */
-class ColumnPrinter
-{
+class ColumnPrinter {
+    private static final int DEFAULT_MARGIN = 2;
     private final List<List<String>> data = Lists.newArrayList();
     private final List<String> columnNames = Lists.newArrayList();
     private int margin;
 
-    private static final int DEFAULT_MARGIN = 2;
-
-    ColumnPrinter()
-    {
+    ColumnPrinter() {
         margin = DEFAULT_MARGIN;
     }
 
@@ -44,8 +41,7 @@ class ColumnPrinter
      *
      * @param columnName name of the column
      */
-    void addColumn(String columnName)
-    {
+    void addColumn(String columnName) {
         data.add(new ArrayList<String>());
         columnNames.add(columnName);
     }
@@ -54,10 +50,9 @@ class ColumnPrinter
      * Add a value to the first column with the given name
      *
      * @param columnName name of the column to add to
-     * @param value value to add
+     * @param value      value to add
      */
-    void addValue(String columnName, String value)
-    {
+    void addValue(String columnName, String value) {
         addValue(columnNames.indexOf(columnName), value);
     }
 
@@ -65,10 +60,9 @@ class ColumnPrinter
      * Add a value to the nth column
      *
      * @param columnIndex n
-     * @param value value to add
+     * @param value       value to add
      */
-    void addValue(int columnIndex, String value)
-    {
+    void addValue(int columnIndex, String value) {
         if ((columnIndex < 0) || (columnIndex >= data.size())) {
             throw new IllegalArgumentException();
         }
@@ -82,8 +76,7 @@ class ColumnPrinter
      *
      * @param margin new margin between columns
      */
-    void setMargin(int margin)
-    {
+    void setMargin(int margin) {
         this.margin = margin;
     }
 
@@ -92,8 +85,7 @@ class ColumnPrinter
      *
      * @param out stream
      */
-    void print(PrintWriter out)
-    {
+    void print(PrintWriter out) {
         for (String s : generate()) {
             out.println(s.trim());
         }
@@ -104,8 +96,7 @@ class ColumnPrinter
      *
      * @return lines
      */
-    private List<String> generate()
-    {
+    private List<String> generate() {
         List<String> lines = Lists.newArrayList();
         StringBuilder workStr = new StringBuilder();
 
@@ -130,8 +121,7 @@ class ColumnPrinter
 
                     String value = thisDataIterator.next();
                     printValue(workStr, value, width.intValue());
-                }
-                else {
+                } else {
                     printValue(workStr, "", width.intValue());
                 }
             }
@@ -145,24 +135,20 @@ class ColumnPrinter
         return lines;
     }
 
-    private void pushLine(List<String> lines, StringBuilder workStr)
-    {
+    private void pushLine(List<String> lines, StringBuilder workStr) {
         lines.add(workStr.toString());
         workStr.setLength(0);
     }
 
-    private void printValue(StringBuilder str, String value, int thisWidth)
-    {
+    private void printValue(StringBuilder str, String value, int thisWidth) {
         str.append(String.format(widthSpec(thisWidth), value));
     }
 
-    private String widthSpec(int thisWidth)
-    {
+    private String widthSpec(int thisWidth) {
         return "%-" + (thisWidth + margin) + "s";
     }
 
-    private List<Iterator<String>> getDataIterators()
-    {
+    private List<Iterator<String>> getDataIterators() {
         List<Iterator<String>> dataIterators = Lists.newArrayList();
         for (List<String> valueList : data) {
             dataIterators.add(valueList.iterator());
@@ -170,8 +156,7 @@ class ColumnPrinter
         return dataIterators;
     }
 
-    private List<AtomicInteger> getColumnWidths()
-    {
+    private List<AtomicInteger> getColumnWidths() {
         List<AtomicInteger> columnWidths = Lists.newArrayList();
         for (String columnName : columnNames) {
             columnWidths.add(new AtomicInteger(columnName.length()));

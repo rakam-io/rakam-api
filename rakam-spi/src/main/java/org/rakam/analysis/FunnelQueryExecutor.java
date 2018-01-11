@@ -16,17 +16,16 @@ import java.util.Optional;
 
 import static org.rakam.util.ValidationUtil.checkCollection;
 
-public interface FunnelQueryExecutor
-{
-    QueryExecution query(String project,
-            List<FunnelStep> steps,
-            Optional<String> dimension,
-            Optional<String> segment,
-            LocalDate startDate,
-            LocalDate endDate,
-            Optional<FunnelWindow> window, ZoneId zoneId,
-            Optional<List<String>> connectors,
-            FunnelType type);
+public interface FunnelQueryExecutor {
+    QueryExecution query(RequestContext context,
+                         List<FunnelStep> steps,
+                         Optional<String> dimension,
+                         Optional<String> segment,
+                         LocalDate startDate,
+                         LocalDate endDate,
+                         Optional<FunnelWindow> window, ZoneId zoneId,
+                         Optional<List<String>> connectors,
+                         FunnelType type);
 
     enum FunnelTimestampSegments {
         HOUR_OF_DAY("Hour of day"),
@@ -41,9 +40,11 @@ public interface FunnelQueryExecutor
         MONTH("Month"),
         YEAR("Year");
         private final String displayName;
+
         FunnelTimestampSegments(String displayName) {
             this.displayName = displayName;
         }
+
         public String getDisplayName() {
             return displayName;
         }
@@ -60,50 +61,42 @@ public interface FunnelQueryExecutor
 
     }
 
-    enum FunnelType
-    {
+    enum FunnelType {
         NORMAL, APPROXIMATE, ORDERED;
 
         @JsonCreator
-        public static FunnelType get(String name)
-        {
+        public static FunnelType get(String name) {
             return valueOf(name.toUpperCase());
         }
 
         @JsonProperty
-        public String value()
-        {
+        public String value() {
             return name();
         }
     }
 
 
-    enum WindowType
-    {
+    enum WindowType {
         DAY, WEEK, MONTH;
 
         @JsonCreator
-        public static WindowType get(String name)
-        {
+        public static WindowType get(String name) {
             return valueOf(name.toUpperCase());
         }
 
         @JsonProperty
-        public String value()
-        {
+        public String value() {
             return name();
         }
     }
 
-    class FunnelWindow
-    {
+    class FunnelWindow {
         public final int value;
         public final WindowType type;
 
         @JsonCreator
         public FunnelWindow(@JsonProperty("value") int value,
-                @JsonProperty("type") WindowType type)
-        {
+                            @JsonProperty("type") WindowType type) {
             this.value = value;
             this.type = type;
         }
@@ -117,7 +110,7 @@ public interface FunnelQueryExecutor
 
         @JsonCreator
         public FunnelStep(@JsonProperty("collection") String collection,
-                @JsonProperty("filterExpression") Optional<String> filterExpression) {
+                          @JsonProperty("filterExpression") Optional<String> filterExpression) {
             checkCollection(collection);
             this.collection = collection;
             this.filterExpression = filterExpression == null ? Optional.empty() : filterExpression;
@@ -131,8 +124,7 @@ public interface FunnelQueryExecutor
         public synchronized Optional<Expression> getExpression() {
             try {
                 return filterExpression.map(value -> parser.createExpression(value));
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 throw new RakamException("Unable to parse filter expression: " + filterExpression.get(),
                         HttpResponseStatus.BAD_REQUEST);
             }

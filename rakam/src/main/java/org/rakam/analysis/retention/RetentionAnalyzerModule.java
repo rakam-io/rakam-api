@@ -25,11 +25,9 @@ import org.rakam.util.ConditionalModule;
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "user.retention-analysis.enabled", value = "true")
 public class RetentionAnalyzerModule
-        extends RakamModule
-{
+        extends RakamModule {
     @Override
-    protected void setup(Binder binder)
-    {
+    protected void setup(Binder binder) {
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(RetentionAnalyzerHttpService.class);
 
@@ -41,14 +39,12 @@ public class RetentionAnalyzerModule
     }
 
     @Override
-    public String name()
-    {
+    public String name() {
         return "Retention Analyzer Module";
     }
 
     @Override
-    public String description()
-    {
+    public String description() {
         return "Analyzes events of each user and allows you to improve your user acquisition and retention activities.";
     }
 }

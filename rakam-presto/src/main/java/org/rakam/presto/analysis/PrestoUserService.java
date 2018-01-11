@@ -3,6 +3,7 @@ package org.rakam.presto.analysis;
 import com.google.common.collect.ImmutableList;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
@@ -35,8 +36,7 @@ import static org.rakam.collection.FieldType.BINARY;
 import static org.rakam.util.ValidationUtil.*;
 
 public class PrestoUserService
-        extends AbstractUserService
-{
+        extends AbstractUserService {
     public static final String ANONYMOUS_ID_MAPPING = "$anonymous_id_mapping";
     protected static final Schema ANONYMOUS_USER_MAPPING_SCHEMA = Schema.createRecord(of(
             new Schema.Field("id", Schema.createUnion(of(Schema.create(NULL), Schema.create(STRING))), null, null),
@@ -59,8 +59,7 @@ public class PrestoUserService
             EventStore eventStore, Metastore metastore,
             UserPluginConfig config,
             PrestoConfig prestoConfig,
-            PrestoQueryExecutor executor)
-    {
+            PrestoQueryExecutor executor) {
         super(storage);
         this.metastore = metastore;
         this.prestoConfig = prestoConfig;
@@ -71,14 +70,13 @@ public class PrestoUserService
     }
 
     @Override
-    public CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, Optional<List<String>> properties, int limit, Instant beforeThisTime)
-    {
-        checkProject(project);
+    public CompletableFuture<List<CollectionEvent>> getEvents(RequestContext context, String user, Optional<List<String>> properties, int limit, Instant beforeThisTime) {
+        checkProject(context.project);
         checkNotNull(user);
         checkArgument(limit <= 1000, "Maximum 1000 events can be fetched at once.");
 
         AtomicReference<FieldType> userType = new AtomicReference<>();
-        String sqlQuery = metastore.getCollections(project).entrySet().stream()
+        String sqlQuery = metastore.getCollections(context.project).entrySet().stream()
                 .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals(projectConfig.getUserColumn())))
                 .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals(projectConfig.getTimeColumn())))
                 .map(entry ->
@@ -105,7 +103,7 @@ public class PrestoUserService
                                 .collect(Collectors.joining(", ")) +
                                 format(" }' as json, %s from %s where %s = %s %s",
                                         checkTableColumn(projectConfig.getTimeColumn()),
-                                        "\"" + prestoConfig.getColdStorageConnector() + "\"" + ".\"" + project + "\"." + checkCollection(entry.getKey()),
+                                        "\"" + prestoConfig.getColdStorageConnector() + "\"" + ".\"" + context.project + "\"." + checkCollection(entry.getKey()),
                                         checkTableColumn(projectConfig.getUserColumn()),
                                         userType.get().isNumeric() ? user : "'" + user + "'",
                                         beforeThisTime == null ? "" : format("and %s < from_iso8601_timestamp('%s')", checkTableColumn(projectConfig.getTimeColumn()), beforeThisTime.toString())))
@@ -115,7 +113,7 @@ public class PrestoUserService
             return CompletableFuture.completedFuture(ImmutableList.of());
         }
 
-        return executor.executeRawQuery(format("select collection, json from (%s) order by %s desc limit %d", sqlQuery, checkTableColumn(projectConfig.getTimeColumn()), limit))
+        return executor.executeRawQuery(context, format("select collection, json from (%s) order by %s desc limit %d", sqlQuery, checkTableColumn(projectConfig.getTimeColumn()), limit))
                 .getResult()
                 .thenApply(result -> {
                     if (result.isFailed()) {
@@ -129,8 +127,7 @@ public class PrestoUserService
     }
 
     @Override
-    public QueryExecution preCalculate(String project, PreCalculateQuery query)
-    {
+    public QueryExecution preCalculate(String project, PreCalculateQuery query) {
         String tableName = "_users_daily" +
                 Optional.ofNullable(query.collection).map(value -> "_" + value).orElse("") +
                 Optional.ofNullable(query.dimension).map(value -> "_by_" + value).orElse("");
@@ -145,8 +142,7 @@ public class PrestoUserService
                     checkCollection(projectConfig.getTimeColumn()),
                     Optional.ofNullable(query.dimension).map(v -> v + ",").orElse(""), checkTableColumn(projectConfig.getUserColumn()));
             dateColumn = "date";
-        }
-        else {
+        } else {
             table = "\"" + query.collection + "\"";
             dateColumn = String.format("cast(%s as date)", checkCollection(projectConfig.getTimeColumn()));
         }
@@ -168,8 +164,7 @@ public class PrestoUserService
         return null;
     }
 
-    public void merge(String project, Object user, Object anonymousId, Instant createdAt, Instant mergedAt)
-    {
+    public void merge(String project, Object user, Object anonymousId, Instant createdAt, Instant mergedAt) {
         if (!config.getEnableUserMapping()) {
             throw new RakamException(NOT_IMPLEMENTED);
         }

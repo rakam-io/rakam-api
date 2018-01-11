@@ -4,13 +4,13 @@ import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.name.Names;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.util.ConditionalModule;
 import org.rakam.config.JDBCConfig;
 import org.rakam.plugin.RakamModule;
+import org.rakam.util.ConditionalModule;
 
 
 @AutoService(RakamModule.class)
-@ConditionalModule(config="report.metadata.store", value="jdbc")
+@ConditionalModule(config = "report.metadata.store", value = "jdbc")
 public class JDBCReportMetastoreModule extends RakamModule {
 
     @Override

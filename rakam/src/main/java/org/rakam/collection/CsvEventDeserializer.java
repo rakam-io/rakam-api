@@ -22,19 +22,10 @@ import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
-
 import java.io.IOException;
 import java.time.LocalTime;
 import java.time.temporal.ChronoField;
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -48,8 +39,7 @@ import static org.rakam.util.AvroUtil.convertAvroSchema;
 import static org.rakam.util.AvroUtil.generateAvroSchema;
 
 public class CsvEventDeserializer
-        extends JsonDeserializer<EventList>
-{
+        extends JsonDeserializer<EventList> {
 
     private final Metastore metastore;
     private final Set<SchemaField> constantFields;
@@ -65,8 +55,7 @@ public class CsvEventDeserializer
             ProjectConfig projectConfig,
             ConfigManager configManager,
             SchemaChecker schemaChecker,
-            FieldDependency fieldDependency)
-    {
+            FieldDependency fieldDependency) {
         this.metastore = metastore;
         this.configManager = configManager;
         this.projectConfig = projectConfig;
@@ -77,8 +66,7 @@ public class CsvEventDeserializer
 
     @Override
     public EventList deserialize(JsonParser jp, DeserializationContext ctxt)
-            throws IOException
-    {
+            throws IOException {
         String project = (String) ctxt.getAttribute("project");
         String collection = (String) ctxt.getAttribute("collection");
         String apiKey = (String) ctxt.getAttribute("apiKey");
@@ -88,8 +76,7 @@ public class CsvEventDeserializer
         Map.Entry<List<SchemaField>, int[]> header;
         if (useheader) {
             header = readHeader((CsvParser) jp, project, collection);
-        }
-        else {
+        } else {
             List<SchemaField> vall = metastore.getCollection(project, collection);
             header = new AbstractMap.SimpleImmutableEntry<>(vall, IntStream.range(0, vall.size()).toArray());
         }
@@ -133,8 +120,7 @@ public class CsvEventDeserializer
     }
 
     public Map.Entry<List<SchemaField>, int[]> readHeader(CsvParser jp, String project, String collection)
-            throws IOException
-    {
+            throws IOException {
         List<SchemaField> fields = metastore.getCollection(project, collection);
         if (fields.isEmpty()) {
             fields = ImmutableList.copyOf(constantFields);
@@ -177,8 +163,7 @@ public class CsvEventDeserializer
     }
 
     public Object getValue(FieldType type, JsonParser jp)
-            throws IOException
-    {
+            throws IOException {
         if (type == null) {
             return getValueOfMagicField(jp);
         }
@@ -208,15 +193,13 @@ public class CsvEventDeserializer
                 }
                 try {
                     return DateTimeUtils.parseTimestamp(jp.getValueAsString());
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     return null;
                 }
             case DATE:
                 try {
                     return DateTimeUtils.parseDate(jp.getValueAsString());
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     return null;
                 }
             default:
@@ -231,8 +214,7 @@ public class CsvEventDeserializer
     }
 
     private GenericData.Array getArray(FieldType arrayElementType, String valueAsString)
-            throws IOException
-    {
+            throws IOException {
         JsonParser parser = jsonFactory.createParser(valueAsString);
 
         List<Object> objects = new ArrayList<>();
@@ -240,8 +222,7 @@ public class CsvEventDeserializer
         JsonToken t = parser.getCurrentToken();
         if (t != JsonToken.START_ARRAY) {
             return null;
-        }
-        else {
+        } else {
             t = parser.nextToken();
         }
 
@@ -256,16 +237,14 @@ public class CsvEventDeserializer
     }
 
     private Map<String, Object> getMap(FieldType mapValueType, String valueAsString)
-            throws IOException
-    {
+            throws IOException {
         Map<String, Object> map = new HashMap<>();
         JsonParser parser = jsonFactory.createParser(valueAsString);
 
         JsonToken t = parser.getCurrentToken();
         if (t != JsonToken.START_OBJECT) {
             return null;
-        }
-        else {
+        } else {
             t = parser.nextToken();
         }
 

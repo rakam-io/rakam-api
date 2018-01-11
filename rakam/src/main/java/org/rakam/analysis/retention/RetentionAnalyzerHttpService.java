@@ -17,6 +17,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.QueryHttpService;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.RetentionQueryExecutor.DateUnit;
 import org.rakam.analysis.RetentionQueryExecutor.RetentionAction;
@@ -42,9 +43,9 @@ import java.util.concurrent.CompletableFuture;
 @Api(value = "/retention", nickname = "retentionAnalyzer", tags = "retention")
 public class RetentionAnalyzerHttpService
         extends HttpService {
+    private final static Logger LOGGER = Logger.get(RetentionAnalyzerHttpService.class);
     private final RetentionQueryExecutor retentionQueryExecutor;
     private final QueryHttpService queryService;
-    private final static Logger LOGGER = Logger.get(RetentionAnalyzerHttpService.class);
 
     @Inject
     public RetentionAnalyzerHttpService(RetentionQueryExecutor retentionQueryExecutor, QueryHttpService queryService) {
@@ -60,8 +61,9 @@ public class RetentionAnalyzerHttpService
     @GET
     @IgnoreApi
     @Path("/analyze")
-    public void analyzeRetention(RakamHttpRequest request) {
-        queryService.handleServerSentQueryExecution(request, RetentionQuery.class, (project, query) -> retentionQueryExecutor.query(project,
+    public void analyzeRetention(RakamHttpRequest request, @QueryParam("read_key") String apiKey) {
+        queryService.handleServerSentQueryExecution(request, RetentionQuery.class,
+                (project, query) -> retentionQueryExecutor.query(new RequestContext(project, apiKey),
                 Optional.ofNullable(query.firstAction),
                 Optional.ofNullable(query.returningAction),
                 query.dateUnit,
@@ -81,8 +83,8 @@ public class RetentionAnalyzerHttpService
     @POST
     @JsonRequest
     @Path("/analyze")
-    public CompletableFuture<QueryResult> analyzeRetention(@Named("project") String project, @BodyParam RetentionQuery query) {
-        CompletableFuture<QueryResult> result = retentionQueryExecutor.query(project,
+    public CompletableFuture<QueryResult> analyzeRetention(@Named("project") RequestContext context, @BodyParam RetentionQuery query) {
+        CompletableFuture<QueryResult> result = retentionQueryExecutor.query(context,
                 Optional.ofNullable(query.firstAction),
                 Optional.ofNullable(query.returningAction),
                 query.dateUnit,
@@ -102,6 +104,7 @@ public class RetentionAnalyzerHttpService
     }
 
     private static class RetentionQuery {
+        public final boolean approximate;
         private final RetentionAction firstAction;
         private final RetentionAction returningAction;
         private final DateUnit dateUnit;
@@ -110,7 +113,6 @@ public class RetentionAnalyzerHttpService
         private final LocalDate startDate;
         private final LocalDate endDate;
         private final ZoneId timezone;
-        public final boolean approximate;
 
         @JsonCreator
         public RetentionQuery(@ApiParam("first_action") RetentionAction firstAction,

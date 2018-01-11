@@ -27,30 +27,22 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericArray;
 import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.metadata.Metastore;
-import org.rakam.collection.Event;
-import org.rakam.collection.EventCollectionHttpService;
-import org.rakam.collection.EventList;
-import org.rakam.collection.FieldType;
+import org.rakam.collection.*;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
-import org.rakam.util.javascript.JSCodeJDBCLoggerService;
-import org.rakam.collection.SchemaField;
-import org.rakam.util.javascript.JSCodeCompiler;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.BodyParam;
-import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.*;
 import org.rakam.ui.CustomEventMapperUIHttpService.Parameter;
 import org.rakam.util.AvroUtil;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 import org.rakam.util.SuccessMessage;
+import org.rakam.util.javascript.JSCodeCompiler;
+import org.rakam.util.javascript.JSCodeJDBCLoggerService;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.GeneratedKeys;
 import org.skife.jdbi.v2.Handle;
@@ -63,7 +55,6 @@ import javax.script.Invocable;
 import javax.script.ScriptException;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-
 import java.net.InetAddress;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -80,9 +71,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static java.lang.String.format;
 import static java.util.Optional.ofNullable;
-import static java.util.concurrent.TimeUnit.HOURS;
-import static java.util.concurrent.TimeUnit.MINUTES;
-import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.concurrent.TimeUnit.*;
 import static org.rakam.report.QueryExecutorService.DEFAULT_QUERY_RESULT_COUNT;
 import static org.rakam.util.AvroUtil.generateAvroSchema;
 
@@ -90,8 +79,7 @@ import static org.rakam.util.AvroUtil.generateAvroSchema;
 @Api(value = "/custom-event-mapper", nickname = "collection", description = "Custom event mapper", tags = "event-mapper")
 public class CustomEventMapperHttpService
         extends HttpService
-        implements EventMapper
-{
+        implements EventMapper {
     private final DBI dbi;
     private final Logger logger = Logger.get(CustomEventMapperHttpService.class);
     private final LoadingCache<String, List<JSEventMapperCompiledCode>> scripts;
@@ -101,48 +89,13 @@ public class CustomEventMapperHttpService
     private final JSCodeJDBCLoggerService loggerService;
     private final QueryExecutorService queryExecutorService;
 
-    public class JSSQLExecutor {
-
-        private final String project;
-
-        public JSSQLExecutor(String project){
-            this.project = project;
-        }
-
-        public Object getOne(String queryString) throws SQLException {
-            List<List<Object>> result = execute(queryString);
-            return null == result ? null :
-                    result.stream().findFirst().orElse(Collections.EMPTY_LIST)
-                    .stream().findFirst().orElse(null);
-        }
-
-        public List<List<Object>> execute(String queryString) throws SQLException {
-            QueryExecution queryExecution =
-                    queryExecutorService.executeQuery(
-                            project, queryString,
-                    null, null, ZoneOffset.UTC, DEFAULT_QUERY_RESULT_COUNT);
-            try {
-                QueryResult queryResult =  queryExecution.getResult().get();
-                if (queryResult.isFailed()){
-                    throw new SQLException(queryResult.getError().message);
-                }
-                return queryResult.getResult();
-            } catch (InterruptedException e) {
-                throw new SQLException(e.getCause());
-            } catch (ExecutionException e) {
-                throw new SQLException(e.getCause());
-            }
-        }
-    }
-
     @Inject
     public CustomEventMapperHttpService(
             @Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
             Metastore metastore,
             JSCodeCompiler jsCodeCompiler,
             JSCodeJDBCLoggerService loggerService,
-            QueryExecutorService queryExecutorService)
-    {
+            QueryExecutorService queryExecutorService) {
         this.dbi = new DBI(dataSource);
         this.jsCodeCompiler = jsCodeCompiler;
         this.loggerService = loggerService;
@@ -161,8 +114,7 @@ public class CustomEventMapperHttpService
     }
 
     @PostConstruct
-    public void setup()
-    {
+    public void setup() {
         try (Handle handle = dbi.open()) {
             handle.createStatement("CREATE TABLE IF NOT EXISTS custom_event_mappers (" +
                     "  id SERIAL PRIMARY KEY," +
@@ -182,14 +134,17 @@ public class CustomEventMapperHttpService
     @GET
     @Path("/list")
     @JsonRequest
-    public List<JSEventMapperCode> list(@Named("project") String project)
-    {
+    public List<JSEventMapperCode> list(@Named("project") RequestContext context) {
+        return list(context.project);
+    }
+
+    private List<JSEventMapperCode> list(String project) {
         try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT id, name, script, image, parameters " +
                     "FROM custom_event_mappers WHERE project = :project")
-                    .bind("project", project).map((index, r, ctx) -> {
-                        return new JSEventMapperCode(r.getInt(1), r.getString(2), r.getString(3), r.getString(4), JsonHelper.read(r.getString(5), new TypeReference<Map<String, Parameter>>() {}));
-                    }).list();
+                    .bind("project", project).map((index, r, ctx) ->
+                            new JSEventMapperCode(r.getInt(1), r.getString(2), r.getString(3), r.getString(4), JsonHelper.read(r.getString(5), new TypeReference<Map<String, Parameter>>() {
+                            }))).list();
         }
     }
 
@@ -198,12 +153,11 @@ public class CustomEventMapperHttpService
     )
     @Path("/update")
     @JsonRequest
-    public SuccessMessage update(@Named("project") String project, @BodyParam JSEventMapperCode mapper)
-    {
+    public SuccessMessage update(@Named("project") RequestContext context, @BodyParam JSEventMapperCode mapper) {
         try (Handle handle = dbi.open()) {
             int execute = handle.createStatement("UPDATE custom_event_mappers SET script = :script, parameters = :parameters, image = :image " +
                     "WHERE id = :id AND project = :project")
-                    .bind("project", project)
+                    .bind("project", context.project)
                     .bind("id", mapper.id)
                     .bind("image", mapper.image)
                     .bind("parameters", JsonHelper.encode(mapper.parameters))
@@ -220,12 +174,11 @@ public class CustomEventMapperHttpService
     )
     @Path("/create")
     @JsonRequest
-    public long create(@Named("project") String project, @ApiParam("name") String name, @ApiParam("script") String script, @ApiParam(value = "image", required = false) String image, @ApiParam(value = "parameters", required = false) Map<String, Parameter> parameters)
-    {
+    public long create(@Named("project") RequestContext context, @ApiParam("name") String name, @ApiParam("script") String script, @ApiParam(value = "image", required = false) String image, @ApiParam(value = "parameters", required = false) Map<String, Parameter> parameters) {
         try (Handle handle = dbi.open()) {
             GeneratedKeys<Long> longs = handle.createStatement("INSERT INTO custom_event_mappers (project, name, script, parameters, image) " +
                     "VALUES (:project, :name, :script, :parameters, :image)")
-                    .bind("project", project)
+                    .bind("project", context.project)
                     .bind("script", script)
                     .bind("name", name)
                     .bind("image", image)
@@ -240,11 +193,10 @@ public class CustomEventMapperHttpService
     )
     @Path("/delete")
     @JsonRequest
-    public SuccessMessage delete(@Named("project") String project, @ApiParam("id") int id)
-    {
+    public SuccessMessage delete(@Named("project") RequestContext context, @ApiParam("id") int id) {
         try (Handle handle = dbi.open()) {
             handle.createStatement("DELETE FROM custom_event_mappers WHERE project = :project AND id = :id")
-                    .bind("project", project)
+                    .bind("project", context.project)
                     .bind("id", id)
                     .execute();
             return SuccessMessage.success();
@@ -254,21 +206,8 @@ public class CustomEventMapperHttpService
     @ApiOperation(value = "Get logs", authorizations = @Authorization(value = "master_key"))
     @JsonRequest
     @Path("/get_logs")
-    public List<JSCodeJDBCLoggerService.LogEntry> getLogs(@Named("project") String project, @ApiParam("id") int id, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end)
-    {
-        return loggerService.getLogs(project, start, end, "custom-event-mapper." + id);
-    }
-
-    public static class TestEventMapperResult
-    {
-        public final TestEventsProxy event;
-        public final Map<String, Object> cookies;
-
-        public TestEventMapperResult(TestEventsProxy event, Map<String, Object> cookies)
-        {
-            this.event = event;
-            this.cookies = cookies;
-        }
+    public List<JSCodeJDBCLoggerService.LogEntry> getLogs(@Named("project") RequestContext context, @ApiParam("id") int id, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end) {
+        return loggerService.getLogs(context, start, end, "custom-event-mapper." + id);
     }
 
     @ApiOperation(value = "Test custom event mapper",
@@ -278,25 +217,24 @@ public class CustomEventMapperHttpService
     @JsonRequest
     public CompletableFuture<TestEventMapperResult> test(
             RakamHttpRequest request,
-            @Named("project") String project,
+            @Named("project") RequestContext context,
             @ApiParam("script") String script,
             @ApiParam("body") String requestBody,
-            @ApiParam(value = "parameters", required = false) Map<String, Object> parameters)
-    {
+            @ApiParam(value = "parameters", required = false) Map<String, Object> parameters) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                Invocable engine = jsCodeCompiler.createEngine(project, script, null);
+                Invocable engine = jsCodeCompiler.createEngine(context.project, script, null);
 
                 DefaultHttpHeaders responseHeaders = new DefaultHttpHeaders();
 
                 Map<String, Object> read = JsonHelper.read(requestBody, Map.class);
-                TestEventsProxy testEventsProxy = new TestEventsProxy(read, project);
+                TestEventsProxy testEventsProxy = new TestEventsProxy(read, context.project);
                 Object mapper = engine.invokeFunction("mapper",
                         testEventsProxy,
                         new EventCollectionHttpService.HttpRequestParams(request),
                         EventCollectionHttpService.getRemoteAddress(request.getRemoteAddress()),
                         responseHeaders,
-                        new JSSQLExecutor(project),
+                        new JSSQLExecutor(context.project),
                         parameters);
 
                 if (mapper == null) {
@@ -311,32 +249,26 @@ public class CustomEventMapperHttpService
 
                 throw new RakamException("The function didn't return a list that contains the cookie values: "
                         + JsonHelper.encode(mapper), BAD_REQUEST);
-            }
-            catch (ScriptException e) {
+            } catch (ScriptException e) {
                 throw new RakamException("Error executing script: " + e.getMessage(), BAD_REQUEST);
-            }
-            catch (NoSuchMethodException e) {
+            } catch (NoSuchMethodException e) {
                 throw new RakamException("There must be a function called 'mapper'.", BAD_REQUEST);
-            }
-            catch (Exception e){
+            } catch (Exception e) {
                 throw new RakamException("Error executing JavaScript: " + e.getMessage(), BAD_REQUEST);
             }
         }, executor);
     }
 
-    private Object getValue(Object o)
-    {
+    private Object getValue(Object o) {
         if (o instanceof ScriptObjectMirror) {
             ScriptObjectMirror mirror = (ScriptObjectMirror) o;
             if (mirror.isFunction()) {
                 return o.toString();
-            }
-            else if (mirror.isArray()) {
+            } else if (mirror.isArray()) {
                 return mirror.values().stream()
                         .map(e -> getValue(e))
                         .collect(Collectors.toList());
-            }
-            else {
+            } else {
                 return mirror.entrySet().stream()
                         .collect(Collectors.toMap(e -> e.getKey().toString(), e -> getValue(e.getValue())));
             }
@@ -346,56 +278,44 @@ public class CustomEventMapperHttpService
     }
 
     @Override
-    public CompletableFuture<List<Cookie>> mapAsync(Event event, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders)
-    {
-        return mapInternal(event.project(), new EventsProxy()
-        {
+    public CompletableFuture<List<Cookie>> mapAsync(Event event, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders) {
+        return mapInternal(event.project(), new EventsProxy() {
             @Override
-            public Event.EventContext api()
-            {
+            public Event.EventContext api() {
                 return event.api();
             }
 
             @Override
-            public String project()
-            {
+            public String project() {
                 return event.project();
             }
 
             @Override
-            public Iterator<EventProxy> events()
-            {
+            public Iterator<EventProxy> events() {
                 return Iterators.singletonIterator(new ListEventProxy(event));
             }
         }, requestParams, sourceAddress, responseHeaders);
     }
 
     @Override
-    public CompletableFuture<List<Cookie>> mapAsync(EventList events, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders)
-    {
-        EventsProxy eventsProxy = new EventsProxy()
-        {
+    public CompletableFuture<List<Cookie>> mapAsync(EventList events, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders) {
+        EventsProxy eventsProxy = new EventsProxy() {
             @Override
-            public Event.EventContext api()
-            {
+            public Event.EventContext api() {
                 return events.api;
             }
 
             @Override
-            public String project()
-            {
+            public String project() {
                 return events.project;
             }
 
             @Override
-            public Iterator<EventProxy> events()
-            {
-                return Iterators.transform(events.events.iterator(), new Function<Event, EventProxy>()
-                {
+            public Iterator<EventProxy> events() {
+                return Iterators.transform(events.events.iterator(), new Function<Event, EventProxy>() {
                     @Nullable
                     @Override
-                    public EventProxy apply(@Nullable Event f)
-                    {
+                    public EventProxy apply(@Nullable Event f) {
                         return new ListEventProxy(f);
                     }
                 });
@@ -404,46 +324,7 @@ public class CustomEventMapperHttpService
         return mapInternal(events.project, eventsProxy, requestParams, sourceAddress, responseHeaders);
     }
 
-    private static class NewField
-    {
-        public final Object value;
-        public final FieldType fieldType;
-
-        private NewField(Object value, FieldType fieldType)
-        {
-            this.value = value;
-            this.fieldType = fieldType;
-        }
-    }
-
-    public interface EventsProxy
-    {
-        Event.EventContext api();
-
-        String project();
-
-        Iterator<EventProxy> events();
-    }
-
-    public interface EventProxy
-    {
-        String collection();
-
-        Object get(String attr);
-
-        void set(String attr, Object value);
-
-        default void setOnce(String attr, Object value)
-        {
-            Object o = get(attr);
-            if (o == null) {
-                set(attr, value);
-            }
-        }
-    }
-
-    public CompletableFuture<List<Cookie>> mapInternal(String project, EventsProxy events, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders)
-    {
+    public CompletableFuture<List<Cookie>> mapInternal(String project, EventsProxy events, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders) {
         List<JSEventMapperCompiledCode> unchecked = scripts.getUnchecked(project);
         CompletableFuture<Object>[] futures = new CompletableFuture[unchecked.size()];
         for (int i = 0; i < unchecked.size(); i++) {
@@ -458,14 +339,11 @@ public class CustomEventMapperHttpService
                             responseHeaders,
                             new JSSQLExecutor(project),
                             compiledCode.parameters);
-                }
-                catch (ScriptException e) {
+                } catch (ScriptException e) {
                     logger.warn(e, "Error executing event mapper function.");
-                }
-                catch (NoSuchMethodException e) {
+                } catch (NoSuchMethodException e) {
                     logger.warn(e, "'mapper' function does not exist in event mapper function.");
-                }
-                catch (Throwable e) {
+                } catch (Throwable e) {
                     logger.warn(e, "Unknown error executing the js mapper.");
                 }
 
@@ -483,8 +361,7 @@ public class CustomEventMapperHttpService
                             if (join instanceof Map) {
                                 ((Map) join).forEach((o, o2) ->
                                         list.add(new DefaultCookie(o.toString(), o2.toString())));
-                            }
-                            else {
+                            } else {
                                 logger.warn(format("Event mapper didn't return a map, it returned %s", join.getClass().getName()));
                             }
                         }
@@ -494,8 +371,50 @@ public class CustomEventMapperHttpService
                 });
     }
 
-    public static class JSEventMapperCode
-    {
+    public interface EventsProxy {
+        Event.EventContext api();
+
+        String project();
+
+        Iterator<EventProxy> events();
+    }
+
+    public interface EventProxy {
+        String collection();
+
+        Object get(String attr);
+
+        void set(String attr, Object value);
+
+        default void setOnce(String attr, Object value) {
+            Object o = get(attr);
+            if (o == null) {
+                set(attr, value);
+            }
+        }
+    }
+
+    public static class TestEventMapperResult {
+        public final TestEventsProxy event;
+        public final Map<String, Object> cookies;
+
+        public TestEventMapperResult(TestEventsProxy event, Map<String, Object> cookies) {
+            this.event = event;
+            this.cookies = cookies;
+        }
+    }
+
+    private static class NewField {
+        public final Object value;
+        public final FieldType fieldType;
+
+        private NewField(Object value, FieldType fieldType) {
+            this.value = value;
+            this.fieldType = fieldType;
+        }
+    }
+
+    public static class JSEventMapperCode {
         public final int id;
         public final String script;
         public final String image;
@@ -508,8 +427,7 @@ public class CustomEventMapperHttpService
                 @ApiParam("name") String name,
                 @ApiParam("script") String script,
                 @ApiParam("image") String image,
-                @ApiParam("parameters") Map<String, Parameter> parameters)
-        {
+                @ApiParam("parameters") Map<String, Parameter> parameters) {
             this.id = id;
             this.name = name;
             this.script = script;
@@ -518,15 +436,13 @@ public class CustomEventMapperHttpService
         }
     }
 
-    public static class JSEventMapperCompiledCode
-    {
+    public static class JSEventMapperCompiledCode {
         public final int id;
         public final Invocable code;
         public final Map<String, Object> parameters;
         public int codeHashCode;
 
-        public JSEventMapperCompiledCode(int id, Invocable code, Map<String, Object> parameters, int codeHashCode)
-        {
+        public JSEventMapperCompiledCode(int id, Invocable code, Map<String, Object> parameters, int codeHashCode) {
             this.id = id;
             this.code = code;
             this.parameters = parameters;
@@ -535,36 +451,31 @@ public class CustomEventMapperHttpService
     }
 
     private static class TestEventsProxy
-            implements EventsProxy
-    {
+            implements EventsProxy {
         private final Map<String, Object> data;
         private final String project;
 
-        public TestEventsProxy(Map<String, Object> data, String project)
-        {
+        public TestEventsProxy(Map<String, Object> data, String project) {
             this.data = data;
             this.project = project;
         }
 
         @Override
         @JsonProperty
-        public Event.EventContext api()
-        {
+        public Event.EventContext api() {
             return JsonHelper.convert(data.get("api"),
                     Event.EventContext.class);
         }
 
         @Override
         @JsonProperty
-        public String project()
-        {
+        public String project() {
             return project;
         }
 
         @Override
         @JsonProperty
-        public Iterator<EventProxy> events()
-        {
+        public Iterator<EventProxy> events() {
             Map<String, Object> properties = JsonHelper.convert(data.get("properties"), Map.class);
             String collection = data.get("collection").toString();
             EventProxy value = new SingleEventProxy(collection, properties);
@@ -572,73 +483,95 @@ public class CustomEventMapperHttpService
         }
 
         private static class SingleEventProxy
-                implements EventProxy
-        {
+                implements EventProxy {
             private final String collection;
             private final Map<String, Object> properties;
 
-            public SingleEventProxy(String collection, Map<String, Object> properties)
-            {
+            public SingleEventProxy(String collection, Map<String, Object> properties) {
                 this.collection = collection;
                 this.properties = properties;
             }
 
             @Override
             @JsonProperty
-            public String collection()
-            {
+            public String collection() {
                 return collection;
             }
 
             @JsonProperty
-            public Map<String, Object> properties()
-            {
+            public Map<String, Object> properties() {
                 return properties;
             }
 
             @Override
-            public Object get(String attr)
-            {
+            public Object get(String attr) {
                 return properties.get(attr);
             }
 
             @Override
-            public void set(String attr, Object value)
-            {
+            public void set(String attr, Object value) {
                 properties.put(attr, value);
             }
         }
     }
 
+    public class JSSQLExecutor {
+
+        private final String project;
+
+        public JSSQLExecutor(String project) {
+            this.project = project;
+        }
+
+        public Object getOne(String queryString) throws SQLException {
+            List<List<Object>> result = execute(queryString);
+            return null == result ? null :
+                    result.stream().findFirst().orElse(Collections.EMPTY_LIST)
+                            .stream().findFirst().orElse(null);
+        }
+
+        public List<List<Object>> execute(String queryString) throws SQLException {
+            QueryExecution queryExecution =
+                    queryExecutorService.executeQuery(
+                            project, queryString,
+                            null, null, ZoneOffset.UTC, DEFAULT_QUERY_RESULT_COUNT);
+            try {
+                QueryResult queryResult = queryExecution.getResult().get();
+                if (queryResult.isFailed()) {
+                    throw new SQLException(queryResult.getError().message);
+                }
+                return queryResult.getResult();
+            } catch (InterruptedException e) {
+                throw new SQLException(e.getCause());
+            } catch (ExecutionException e) {
+                throw new SQLException(e.getCause());
+            }
+        }
+    }
+
     private class ListEventProxy
-            implements EventProxy
-    {
+            implements EventProxy {
         private final Event event;
 
-        public ListEventProxy(Event event)
-        {
+        public ListEventProxy(Event event) {
             this.event = event;
         }
 
         @Override
-        public String collection()
-        {
+        public String collection() {
             return event.collection();
         }
 
         @Override
-        public Object get(String attr)
-        {
+        public Object get(String attr) {
             return event.getAttribute(attr);
         }
 
         @Override
-        public void set(String attr, Object value)
-        {
+        public void set(String attr, Object value) {
             try {
                 event.properties().put(attr, value);
-            }
-            catch (AvroRuntimeException e) {
+            } catch (AvroRuntimeException e) {
                 // field not exists, create it
                 NewField attrValue = getValue(value);
 
@@ -678,13 +611,12 @@ public class CustomEventMapperHttpService
                     record.put(field.name(), event.getAttribute(field.name()));
                 }
 
-                record.put(attr, attrValue.value);
+                AvroUtil.put(event.properties(), attr, attrValue.value);
                 event.properties(record, fields);
             }
         }
 
-        private NewField getValue(Object value)
-        {
+        private NewField getValue(Object value) {
             if (value instanceof Undefined) {
                 return null;
             }
@@ -731,8 +663,7 @@ public class CustomEventMapperHttpService
                         }
                         objects.add(next.value);
                     }
-                }
-                else {
+                } else {
                     HashMap<Object, Object> map = new HashMap<>(mirror.size());
                     FieldType type = null;
 
@@ -757,25 +688,21 @@ public class CustomEventMapperHttpService
     }
 
     private class MapperCodeCacheLoader
-            extends CacheLoader<String, List<JSEventMapperCompiledCode>>
-    {
+            extends CacheLoader<String, List<JSEventMapperCompiledCode>> {
         @Override
         public List<JSEventMapperCompiledCode> load(String project)
-                throws Exception
-        {
+                throws Exception {
             return list(project).stream()
                     .flatMap(item -> get(project, item))
                     .collect(Collectors.toList());
         }
 
-        private Stream<JSEventMapperCompiledCode> get(String project, JSEventMapperCode item)
-        {
+        private Stream<JSEventMapperCompiledCode> get(String project, JSEventMapperCode item) {
             Invocable unchecked;
             try {
                 unchecked = jsCodeCompiler.createEngine(project,
                         item.script, "event-mapper." + item.id);
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 return Stream.of();
             }
 
@@ -788,12 +715,10 @@ public class CustomEventMapperHttpService
 
         @Override
         public ListenableFuture<List<JSEventMapperCompiledCode>> reload(String key, List<JSEventMapperCompiledCode> oldValue)
-                throws Exception
-        {
+                throws Exception {
             if (oldValue == null) {
                 return Futures.immediateFuture(load(key));
-            }
-            else {
+            } else {
                 return Futures.immediateFuture(list(key).stream().flatMap(item -> {
                     for (JSEventMapperCompiledCode oldItem : oldValue) {
                         // TODO :what if the new code has same hashcode?

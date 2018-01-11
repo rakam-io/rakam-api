@@ -2,11 +2,7 @@ package org.rakam.analysis;
 
 import com.google.common.collect.ImmutableList;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class InMemoryApiKeyService implements ApiKeyService {
@@ -28,7 +24,7 @@ public class InMemoryApiKeyService implements ApiKeyService {
                 .filter(e -> e.getValue().stream()
                         .anyMatch(a -> a.getKey(type).equals(apiKey)))
                 .findAny().map(e -> e.getKey());
-        if(!project.isPresent()) {
+        if (!project.isPresent()) {
             throw new IllegalStateException();
         }
         return project.get();

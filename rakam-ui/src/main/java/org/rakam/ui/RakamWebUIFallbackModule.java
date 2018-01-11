@@ -23,7 +23,7 @@ public class RakamWebUIFallbackModule extends RakamModule {
         OptionalBinder.newOptionalBinder(binder, ReportMetadata.class);
         OptionalBinder.newOptionalBinder(binder, DashboardService.class);
 
-        if(!"true".equals(getConfig("ui.enable"))) {
+        if (!"true".equals(getConfig("ui.enable"))) {
             Multibinder.newSetBinder(binder, HttpService.class).addBinding()
                     .to(RootAPIInformationService.class).in(Scopes.SINGLETON);
         }

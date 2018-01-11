@@ -27,20 +27,16 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.ImmutableList.of;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
-import static org.apache.avro.Schema.Type.INT;
-import static org.apache.avro.Schema.Type.NULL;
-import static org.apache.avro.Schema.Type.STRING;
+import static org.apache.avro.Schema.Type.*;
 import static org.rakam.collection.FieldType.BINARY;
 import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
-public class ClickHouseUserService extends AbstractUserService
-{
+public class ClickHouseUserService extends AbstractUserService {
     public static final String ANONYMOUS_ID_MAPPING = "$anonymous_id_mapping";
     protected static final Schema ANONYMOUS_USER_MAPPING_SCHEMA = Schema.createRecord(of(
             new Schema.Field("id", Schema.createUnion(of(Schema.create(NULL), Schema.create(STRING))), null, null),
@@ -56,8 +52,7 @@ public class ClickHouseUserService extends AbstractUserService
     private final ProjectConfig projectConfig;
 
     @Inject
-    public ClickHouseUserService(ProjectConfig projectConfig, UserStorage storage, EventStore eventStore, UserPluginConfig config, QueryExecutor executor, Metastore metastore)
-    {
+    public ClickHouseUserService(ProjectConfig projectConfig, UserStorage storage, EventStore eventStore, UserPluginConfig config, QueryExecutor executor, Metastore metastore) {
         super(storage);
         this.metastore = metastore;
         this.executor = executor;
@@ -67,8 +62,7 @@ public class ClickHouseUserService extends AbstractUserService
     }
 
     @Override
-    public CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, Optional<List<String>> properties, int limit, Instant beforeThisTime)
-    {
+    public CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, Optional<List<String>> properties, int limit, Instant beforeThisTime) {
 
         checkProject(project);
         checkNotNull(user);
@@ -106,7 +100,7 @@ public class ClickHouseUserService extends AbstractUserService
                                         beforeThisTime == null ? "" : format("and %s < toDateTime('%s')", checkTableColumn(projectConfig.getTimeColumn()), beforeThisTime.toString())))
                 .collect(Collectors.joining(" union all "));
 
-        if(sqlQuery.isEmpty()) {
+        if (sqlQuery.isEmpty()) {
             return CompletableFuture.completedFuture(ImmutableList.of());
         }
 
@@ -137,8 +131,7 @@ public class ClickHouseUserService extends AbstractUserService
     }
 
     @Override
-    public QueryExecution preCalculate(String project, PreCalculateQuery query)
-    {
+    public QueryExecution preCalculate(String project, PreCalculateQuery query) {
         return null;
     }
 }

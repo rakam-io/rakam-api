@@ -24,12 +24,12 @@ import org.rakam.analysis.*;
 import org.rakam.analysis.datasource.CustomDataSourceConfig;
 import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.bootstrap.ProxyBootstrap;
-import org.rakam.collection.EventCollectionHttpService;
-import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.collection.*;
 import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.config.MetadataConfig;
 import org.rakam.config.ProjectConfig;
+import org.rakam.config.TaskConfig;
 import org.rakam.http.ForHttpServer;
 import org.rakam.http.HttpServerConfig;
 import org.rakam.http.OptionMethodHttpService;
@@ -38,12 +38,17 @@ import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.InjectionHook;
 import org.rakam.plugin.LockServiceProvider;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.stream.EventStreamConfig;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserStorage;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
+import org.rakam.postgresql.analysis.FastGenericFunnelQueryExecutor;
+import org.rakam.report.QueryExecutorService;
+import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.server.http.HttpRequestHandler;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
+import org.rakam.ui.ActiveModuleListBuilder;
 import org.rakam.util.NotFoundHandler;
 import org.rakam.util.RAsyncHttpClient;
 import org.rakam.util.javascript.JSCodeJDBCLoggerService;
@@ -62,10 +67,9 @@ import java.util.Set;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static java.lang.String.format;
 
-public final class ServiceStarter
-{
-    public static String RAKAM_VERSION;
+public final class ServiceStarter {
     private final static Logger LOGGER = Logger.get(ServiceStarter.class);
+    public static String RAKAM_VERSION;
 
     static {
         Properties properties = new Properties();
@@ -74,42 +78,38 @@ public final class ServiceStarter
             URL resource = ServiceStarter.class.getResource("/git.properties");
             if (resource == null) {
                 LOGGER.warn("git.properties doesn't exist.");
-            }
-            else {
+            } else {
                 inputStream = resource.openStream();
                 properties.load(inputStream);
             }
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             LOGGER.warn(e, "Error while reading git.properties");
         }
         try {
             RAKAM_VERSION = properties.get("git.commit.id.describe-short").toString().split("-", 2)[0];
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             LOGGER.warn(e, "Error while parsing git.properties");
         }
     }
 
     private ServiceStarter()
-            throws InstantiationException
-    {
+            throws InstantiationException {
         throw new InstantiationException("The class is not created for instantiation");
     }
 
     public static void main(String[] args)
-            throws Throwable
-    {
+            throws Throwable {
         if (args.length > 0) {
             System.setProperty("config", args[0]);
         }
 
         ProxyBootstrap app = new ProxyBootstrap(getModules());
-        app.requireExplicitBindings(false);
+        app.requireExplicitBindings(true);
         Injector injector = app.strictConfig().initialize();
 
         Set<InjectionHook> hooks = injector.getInstance(
-                Key.get(new TypeLiteral<Set<InjectionHook>>() {}));
+                Key.get(new TypeLiteral<Set<InjectionHook>>() {
+                }));
         hooks.forEach(InjectionHook::call);
 
         HttpServerConfig httpConfig = injector.getInstance(HttpServerConfig.class);
@@ -122,8 +122,7 @@ public final class ServiceStarter
         LOGGER.info("======== SERVER STARTED ========");
     }
 
-    public static Set<Module> getModules()
-    {
+    public static Set<Module> getModules() {
         ImmutableSet.Builder<Module> builder = ImmutableSet.builder();
 
         ServiceLoader<RakamModule> modules = ServiceLoader.load(RakamModule.class);
@@ -141,20 +140,17 @@ public final class ServiceStarter
     }
 
     public static class FieldDependencyProvider
-            implements Provider<FieldDependency>
-    {
+            implements Provider<FieldDependency> {
 
         private final Set<EventMapper> eventMappers;
 
         @Inject
-        public FieldDependencyProvider(Set<EventMapper> eventMappers)
-        {
+        public FieldDependencyProvider(Set<EventMapper> eventMappers) {
             this.eventMappers = eventMappers;
         }
 
         @Override
-        public FieldDependency get()
-        {
+        public FieldDependency get() {
             FieldDependencyBuilder builder = new FieldDependencyBuilder();
             eventMappers.stream().forEach(mapper -> mapper.addFieldDependency(builder));
             return builder.build();
@@ -162,11 +158,9 @@ public final class ServiceStarter
     }
 
     public static class ServiceRecipe
-            extends AbstractConfigurationAwareModule
-    {
+            extends AbstractConfigurationAwareModule {
         @Override
-        protected void setup(Binder binder)
-        {
+        protected void setup(Binder binder) {
             binder.bind(Clock.class).toInstance(Clock.systemUTC());
 //            binder.bind(FlywayExecutor.class).asEagerSingleton();
             binder.bind(LockService.class).toProvider(LockServiceProvider.class);
@@ -178,23 +172,19 @@ public final class ServiceStarter
             OptionalBinder.newOptionalBinder(binder, UserStorage.class);
             OptionalBinder.newOptionalBinder(binder, UserMailboxStorage.class);
 
-            EventBus eventBus = new EventBus(new SubscriberExceptionHandler()
-            {
+            EventBus eventBus = new EventBus(new SubscriberExceptionHandler() {
                 Logger logger = Logger.get("System Event Listener");
 
                 @Override
-                public void handleException(Throwable exception, SubscriberExceptionContext context)
-                {
+                public void handleException(Throwable exception, SubscriberExceptionContext context) {
                     logger.error(exception, "Could not dispatch event: " +
                             context.getSubscriber() + " to " + context.getSubscriberMethod(), exception.getCause());
                 }
             });
             binder.bind(EventBus.class).toInstance(eventBus);
 
-            binder.bindListener(Matchers.any(), new TypeListener()
-            {
-                public void hear(TypeLiteral typeLiteral, TypeEncounter typeEncounter)
-                {
+            binder.bindListener(Matchers.any(), new TypeListener() {
+                public void hear(TypeLiteral typeLiteral, TypeEncounter typeEncounter) {
                     typeEncounter.register((InjectionListener) i -> eventBus.register(i));
                 }
             });
@@ -213,6 +203,13 @@ public final class ServiceStarter
             Multibinder<CustomParameter> customParameters = Multibinder.newSetBinder(binder, CustomParameter.class);
             customParameters.addBinding().toProvider(ProjectPermissionParameterProvider.class);
 
+            binder.bind(QueryHttpService.class).asEagerSingleton();
+            binder.bind(QueryExecutorService.class).asEagerSingleton();
+            configBinder(binder).bindConfig(TaskConfig.class);
+            configBinder(binder).bindConfig(EventStreamConfig.class);
+            configBinder(binder).bindConfig(RealTimeConfig.class);
+            binder.bind(ActiveModuleListBuilder.class).asEagerSingleton();
+
             Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
             httpServices.addBinding().to(AdminHttpService.class);
             httpServices.addBinding().to(ProjectHttpService.class);
@@ -222,6 +219,13 @@ public final class ServiceStarter
             httpServices.addBinding().to(OptionMethodHttpService.class);
 
             Multibinder.newSetBinder(binder, WebSocketService.class);
+
+            binder.bind(AvroEventDeserializer.class);
+            binder.bind(CsvEventDeserializer.class);
+            binder.bind(EventListDeserializer.class);
+            binder.bind(JsonEventDeserializer.class);
+
+            binder.bind(FastGenericFunnelQueryExecutor.class);
 
             configBinder(binder).bindConfig(HttpServerConfig.class);
             configBinder(binder).bindConfig(ProjectConfig.class);
@@ -250,30 +254,25 @@ public final class ServiceStarter
     }
 
     public static class ProjectPermissionParameterProvider
-            implements Provider<CustomParameter>
-    {
+            implements Provider<CustomParameter> {
 
         private final ApiKeyService apiKeyService;
 
         @Inject
-        public ProjectPermissionParameterProvider(ApiKeyService apiKeyService)
-        {
+        public ProjectPermissionParameterProvider(ApiKeyService apiKeyService) {
             this.apiKeyService = apiKeyService;
         }
 
         @Override
-        public CustomParameter get()
-        {
+        public CustomParameter get() {
             return new CustomParameter("project",
                     method -> new WebServiceModule.ProjectPermissionIRequestParameter(apiKeyService, method));
         }
     }
 
-    public static class FlywayExecutor
-    {
+    public static class FlywayExecutor {
         @Inject
-        public FlywayExecutor(@Named("report.metadata.store.jdbc") JDBCPoolDataSource config)
-        {
+        public FlywayExecutor(@Named("report.metadata.store.jdbc") JDBCPoolDataSource config) {
             Flyway flyway = new Flyway();
             flyway.setBaselineOnMigrate(true);
             flyway.setDataSource(config);
@@ -281,8 +280,7 @@ public final class ServiceStarter
             flyway.setTable("schema_version_report");
             try {
                 flyway.migrate();
-            }
-            catch (FlywayException e) {
+            } catch (FlywayException e) {
                 flyway.repair();
             }
         }

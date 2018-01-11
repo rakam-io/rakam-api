@@ -28,9 +28,12 @@ public class WebUser {
 
     public static class UserApiKey {
         public final int project;
-        @JsonProperty("read_key") public final String readKey;
-        @JsonProperty("write_key") public final String writeKey;
-        @JsonProperty("master_key") public final String masterKey;
+        @JsonProperty("read_key")
+        public final String readKey;
+        @JsonProperty("write_key")
+        public final String writeKey;
+        @JsonProperty("master_key")
+        public final String masterKey;
 
         public UserApiKey(int project, String readKey, String writeKey, String masterKey) {
             this.project = project;
@@ -58,8 +61,7 @@ public class WebUser {
         }
 
         @Override
-        public String toString()
-        {
+        public String toString() {
             return "Project{" +
                     "id=" + id +
                     ", name='" + name + '\'' +

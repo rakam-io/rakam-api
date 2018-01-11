@@ -1,7 +1,6 @@
 package org.rakam.util.lock;
 
-public interface LockService
-{
+public interface LockService {
     Lock tryLock(String name);
 
     @FunctionalInterface

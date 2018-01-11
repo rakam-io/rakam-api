@@ -5,7 +5,8 @@ import com.google.common.annotations.VisibleForTesting;
 import javax.validation.constraints.NotNull;
 
 public interface ConfigManager {
-    default void setup() {}
+    default void setup() {
+    }
 
     <T> T getConfig(String project, String configName, Class<T> clazz);
 

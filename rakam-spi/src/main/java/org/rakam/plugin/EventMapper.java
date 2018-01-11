@@ -13,14 +13,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-public interface EventMapper
-{
+public interface EventMapper {
     CompletableFuture<List<Cookie>> COMPLETED_EMPTY_FUTURE = CompletableFuture.completedFuture(null);
 
     CompletableFuture<List<Cookie>> mapAsync(Event event, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders);
 
-    default CompletableFuture<List<Cookie>> mapAsync(EventList events, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders)
-    {
+    default CompletableFuture<List<Cookie>> mapAsync(EventList events, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders) {
         List<Cookie> cookies = new ArrayList<>();
         CompletableFuture[] futures = null;
         int futureIndex = 0;
@@ -32,7 +30,7 @@ public interface EventMapper
             }
 
             CompletableFuture<List<Cookie>> future = map.thenApply(value -> {
-                if(value != null) {
+                if (value != null) {
                     cookies.addAll(value);
                 }
                 return cookies;
@@ -47,37 +45,31 @@ public interface EventMapper
 
         if (futures == null) {
             return COMPLETED_EMPTY_FUTURE;
-        }
-        else {
+        } else {
             return CompletableFuture.allOf(futures).thenApply(val -> cookies);
         }
     }
 
-    default void addFieldDependency(FieldDependencyBuilder builder)
-    {
+    default void addFieldDependency(FieldDependencyBuilder builder) {
     }
 
-    default void init() {}
+    default void init() {
+    }
 
-    interface RequestParams
-    {
-        RequestParams EMPTY_PARAMS = new RequestParams()
-        {
+    interface RequestParams {
+        RequestParams EMPTY_PARAMS = new RequestParams() {
             @Override
-            public Collection<Cookie> cookies()
-            {
+            public Collection<Cookie> cookies() {
                 return ImmutableList.of();
             }
 
             @Override
-            public HttpHeaders headers()
-            {
+            public HttpHeaders headers() {
                 return HttpHeaders.EMPTY_HEADERS;
             }
         };
 
-        default Collection<Cookie> cookies()
-        {
+        default Collection<Cookie> cookies() {
             return ImmutableList.of();
         }
 

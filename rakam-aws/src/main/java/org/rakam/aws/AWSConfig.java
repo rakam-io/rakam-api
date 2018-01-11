@@ -29,14 +29,18 @@ public class AWSConfig {
         return this;
     }
 
+    public String getEventStoreBulkS3Bucket() {
+        return eventStoreBulkS3Bucket;
+    }
+
     @Config("event.store.bulk.s3-bucket")
     public AWSConfig setEventStoreBulkS3Bucket(String eventStoreBulkS3Bucket) {
         this.eventStoreBulkS3Bucket = eventStoreBulkS3Bucket;
         return this;
     }
 
-    public String getEventStoreBulkS3Bucket() {
-        return eventStoreBulkS3Bucket;
+    public String getAccessKey() {
+        return accessKey;
     }
 
     @Config("aws.access-key")
@@ -45,14 +49,8 @@ public class AWSConfig {
         return this;
     }
 
-    public String getAccessKey() {
-        return accessKey;
-    }
-
-    @Config("aws.secret-access-key")
-    public AWSConfig setSecretAccessKey(String secretAccessKey) {
-        this.secretAccessKey = secretAccessKey;
-        return this;
+    public String getRegion() {
+        return region;
     }
 
     @Config("aws.region")
@@ -61,44 +59,34 @@ public class AWSConfig {
         return this;
     }
 
-    public String getRegion() {
-        return region;
+    public String getS3Endpoint() {
+        return s3Endpoint;
     }
 
     @Config("aws.s3-endpoint")
-    public AWSConfig setS3Endpoint(String s3Endpoint)
-    {
+    public AWSConfig setS3Endpoint(String s3Endpoint) {
         this.s3Endpoint = s3Endpoint;
         return this;
     }
 
-    public String getS3Endpoint()
-    {
-        return s3Endpoint;
+    public String getKinesisEndpoint() {
+        return kinesisEndpoint;
     }
 
     @Config("aws.kinesis-endpoint")
-    public AWSConfig setKinesisEndpoint(String kinesisEndpoint)
-    {
+    public AWSConfig setKinesisEndpoint(String kinesisEndpoint) {
         this.kinesisEndpoint = kinesisEndpoint;
         return this;
     }
 
-    public String getKinesisEndpoint()
-    {
-        return kinesisEndpoint;
+    public String getLambdaEndpoint() {
+        return lambdaEndpoint;
     }
 
     @Config("aws.lambda-endpoint")
-    public AWSConfig setLambdaEndpoint(String lambdaEndpoint)
-    {
+    public AWSConfig setLambdaEndpoint(String lambdaEndpoint) {
         this.lambdaEndpoint = lambdaEndpoint;
         return this;
-    }
-
-    public String getLambdaEndpoint()
-    {
-        return lambdaEndpoint;
     }
 
     public Region getAWSRegion() {
@@ -109,24 +97,28 @@ public class AWSConfig {
         return secretAccessKey;
     }
 
+    @Config("aws.secret-access-key")
+    public AWSConfig setSecretAccessKey(String secretAccessKey) {
+        this.secretAccessKey = secretAccessKey;
+        return this;
+    }
+
     public AWSCredentialsProvider getCredentials() {
         // TODO: add an extra option the allow these values to be NULL.
-        if(accessKey == null || secretAccessKey == null) {
+        if (accessKey == null || secretAccessKey == null) {
             return new DefaultAWSCredentialsProviderChain();
         }
 
         return new StaticCredentialsProvider(new BasicAWSCredentials(getAccessKey(), getSecretAccessKey()));
     }
 
-    @Config("aws.dynamodb-endpoint")
-    public AWSConfig setDynamodbEndpoint(String dynamodbEndpoint)
-    {
-        this.dynamodbEndpoint = dynamodbEndpoint;
-        return this;
+    public String getDynamodbEndpoint() {
+        return dynamodbEndpoint;
     }
 
-    public String getDynamodbEndpoint()
-    {
-        return dynamodbEndpoint;
+    @Config("aws.dynamodb-endpoint")
+    public AWSConfig setDynamodbEndpoint(String dynamodbEndpoint) {
+        this.dynamodbEndpoint = dynamodbEndpoint;
+        return this;
     }
 }

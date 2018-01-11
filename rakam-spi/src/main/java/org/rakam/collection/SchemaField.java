@@ -10,8 +10,7 @@ import org.rakam.util.ValidationUtil;
 
 import static org.rakam.util.ValidationUtil.stripName;
 
-public class SchemaField
-{
+public class SchemaField {
     private final String name;
     private final FieldType type;
     @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
@@ -23,11 +22,10 @@ public class SchemaField
 
     @JsonCreator
     public SchemaField(@ApiParam("name") String name,
-            @ApiParam("type") FieldType type,
-            @ApiParam(value = "descriptiveName", required = false) String descriptiveName,
-            @ApiParam(value = "description", required = false) String description,
-            @ApiParam(value = "category", required = false) String category)
-    {
+                       @ApiParam("type") FieldType type,
+                       @ApiParam(value = "descriptiveName", required = false) String descriptiveName,
+                       @ApiParam(value = "description", required = false) String description,
+                       @ApiParam(value = "category", required = false) String category) {
         this.name = stripName(ValidationUtil.checkNotNull(name, "name"), "field name");
         this.type = ValidationUtil.checkNotNull(type, "type");
         this.descriptiveName = descriptiveName;
@@ -39,31 +37,26 @@ public class SchemaField
         }
     }
 
-    public SchemaField(String name, FieldType type)
-    {
+    public SchemaField(String name, FieldType type) {
         this(name, type, null, null, null);
     }
 
     @JsonProperty
-    public String getName()
-    {
+    public String getName() {
         return name;
     }
 
     @JsonProperty
-    public FieldType getType()
-    {
+    public FieldType getType() {
         return type;
     }
 
-    public String getCategory()
-    {
+    public String getCategory() {
         return category;
     }
 
     @JsonProperty
-    public String getDescriptiveName()
-    {
+    public String getDescriptiveName() {
         if (descriptiveName == null) {
             String replace = name.replace("_", " ").trim();
             return Character.toUpperCase(replace.charAt(0)) + replace.substring(1);
@@ -73,14 +66,12 @@ public class SchemaField
 
     @JsonProperty
     @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
-    public String getDescription()
-    {
+    public String getDescription() {
         return description;
     }
 
     @Override
-    public String toString()
-    {
+    public String toString() {
         return "SchemaField{" +
                 "name='" + name + '\'' +
                 ", type=" + type +
@@ -88,8 +79,7 @@ public class SchemaField
     }
 
     @Override
-    public boolean equals(Object o)
-    {
+    public boolean equals(Object o) {
         if (this == o) {
             return true;
         }
@@ -110,8 +100,7 @@ public class SchemaField
     }
 
     @Override
-    public int hashCode()
-    {
+    public int hashCode() {
         int result = name.hashCode();
         result = 31 * result + type.hashCode();
         return result;

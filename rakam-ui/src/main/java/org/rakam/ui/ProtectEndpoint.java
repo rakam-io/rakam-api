@@ -7,8 +7,7 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface ProtectEndpoint
-{
+public @interface ProtectEndpoint {
     boolean writeOperation() default false;
 
     boolean requiresProject() default true;

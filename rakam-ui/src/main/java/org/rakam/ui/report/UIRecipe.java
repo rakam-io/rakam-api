@@ -1,24 +1,15 @@
 package org.rakam.ui.report;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import org.rakam.collection.FieldType;
-import org.rakam.collection.SchemaField;
-import org.rakam.plugin.MaterializedView;
-import org.rakam.ui.DashboardService;
 import org.rakam.ui.DashboardService.DashboardItem;
 import org.rakam.ui.customreport.CustomReport;
 import org.rakam.ui.page.CustomPageDatabase.Page;
-import org.rakam.ui.report.Report;
 
-import javax.inject.Inject;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class UIRecipe {
     private final List<Report> reports;

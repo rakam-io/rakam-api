@@ -6,11 +6,9 @@ import io.airlift.units.Duration;
 
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
-
 import java.util.concurrent.TimeUnit;
 
-public class LdapConfig
-{
+public class LdapConfig {
     private String ldapUrl;
     private String userBindSearchPattern;
     private String groupAuthorizationSearchPattern;
@@ -19,68 +17,58 @@ public class LdapConfig
 
     @NotNull
     @Pattern(regexp = "^ldap(s)?://.*", message = "The URL is invalid. Expected ldaps:// or ldap://")
-    public String getLdapUrl()
-    {
+    public String getLdapUrl() {
         return ldapUrl;
     }
 
     @Config("ui.authentication.ldap.url")
     @ConfigDescription("URL of the LDAP server")
-    public LdapConfig setLdapUrl(String url)
-    {
+    public LdapConfig setLdapUrl(String url) {
         this.ldapUrl = url;
         return this;
     }
 
     @NotNull
-    public String getUserBindSearchPattern()
-    {
+    public String getUserBindSearchPattern() {
         return userBindSearchPattern;
     }
 
     @Config("ui.authentication.ldap.user-bind-pattern")
     @ConfigDescription("Custom user bind pattern. Example: ${USER}@example.com")
-    public LdapConfig setUserBindSearchPattern(String userBindSearchPattern)
-    {
+    public LdapConfig setUserBindSearchPattern(String userBindSearchPattern) {
         this.userBindSearchPattern = userBindSearchPattern;
         return this;
     }
 
-    public String getGroupAuthorizationSearchPattern()
-    {
+    public String getGroupAuthorizationSearchPattern() {
         return groupAuthorizationSearchPattern;
     }
 
     @Config("ui.authentication.ldap.group-auth-pattern")
     @ConfigDescription("Custom group authorization check query. Example: &(objectClass=user)(memberOf=cn=group)(user=username)")
-    public LdapConfig setGroupAuthorizationSearchPattern(String groupAuthorizationSearchPattern)
-    {
+    public LdapConfig setGroupAuthorizationSearchPattern(String groupAuthorizationSearchPattern) {
         this.groupAuthorizationSearchPattern = groupAuthorizationSearchPattern;
         return this;
     }
 
-    public String getUserBaseDistinguishedName()
-    {
+    public String getUserBaseDistinguishedName() {
         return userBaseDistinguishedName;
     }
 
     @Config("ui.authentication.ldap.user-base-dn")
     @ConfigDescription("Base distinguished name of the user. Example: dc=example,dc=com")
-    public LdapConfig setUserBaseDistinguishedName(String userBaseDistinguishedName)
-    {
+    public LdapConfig setUserBaseDistinguishedName(String userBaseDistinguishedName) {
         this.userBaseDistinguishedName = userBaseDistinguishedName;
         return this;
     }
 
     @NotNull
-    public Duration getLdapCacheTtl()
-    {
+    public Duration getLdapCacheTtl() {
         return ldapCacheTtl;
     }
 
     @Config("ui.authentication.ldap.cache-ttl")
-    public LdapConfig setLdapCacheTtl(Duration ldapCacheTtl)
-    {
+    public LdapConfig setLdapCacheTtl(Duration ldapCacheTtl) {
         this.ldapCacheTtl = ldapCacheTtl;
         return this;
     }

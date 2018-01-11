@@ -34,22 +34,19 @@ public abstract class TestApiKeyService {
         try {
             getApiKeyService().getProjectOfApiKey("invalidKey", AccessKeyType.READ_KEY);
             fail();
-        }
-        catch (RakamException e) {
+        } catch (RakamException e) {
         }
 
         try {
             getApiKeyService().getProjectOfApiKey("invalidKey", AccessKeyType.WRITE_KEY);
             fail();
-        }
-        catch (RakamException e) {
+        } catch (RakamException e) {
         }
 
         try {
             getApiKeyService().getProjectOfApiKey("invalidKey", AccessKeyType.MASTER_KEY);
             fail();
-        }
-        catch (RakamException e) {
+        } catch (RakamException e) {
         }
     }
 
@@ -62,21 +59,19 @@ public abstract class TestApiKeyService {
         try {
             getApiKeyService().getProjectOfApiKey(apiKeys.readKey(), AccessKeyType.READ_KEY);
             fail();
-        }
-        catch (RakamException e) {
+        } catch (RakamException e) {
         }
 
         try {
             getApiKeyService().getProjectOfApiKey(apiKeys.writeKey(), AccessKeyType.WRITE_KEY);
             fail();
-        }
-        catch (RakamException e) {
+        } catch (RakamException e) {
         }
 
         try {
             getApiKeyService().getProjectOfApiKey(apiKeys.masterKey(), AccessKeyType.MASTER_KEY);
             fail();
+        } catch (RakamException e) {
         }
-        catch (RakamException e) {
-        }    }
+    }
 }

@@ -9,22 +9,16 @@ import org.rakam.util.NotExistsException;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public class InMemoryQueryMetadataStore
-        implements QueryMetadataStore
-{
+        implements QueryMetadataStore {
     private final Map<String, Set<MaterializedView>> materializedViews = new HashMap<>();
 
     @Override
-    public void createMaterializedView(String project, MaterializedView materializedView)
-    {
+    public void createMaterializedView(String project, MaterializedView materializedView) {
         Set<MaterializedView> materializedViews = this.materializedViews.computeIfAbsent(project, (key) -> new HashSet<>());
 
         if (materializedViews.contains(materializedView)) {
@@ -34,30 +28,26 @@ public class InMemoryQueryMetadataStore
     }
 
     @Override
-    public void deleteMaterializedView(String project, String name)
-    {
+    public void deleteMaterializedView(String project, String name) {
         materializedViews.remove(getMaterializedView(project, name));
     }
 
     @Override
-    public MaterializedView getMaterializedView(String project, String name)
-    {
+    public MaterializedView getMaterializedView(String project, String name) {
         return materializedViews.computeIfAbsent(project, (key) -> new HashSet<>()).stream()
                 .filter(view -> view.tableName.equals(name))
                 .findAny().orElseThrow(() -> new MaterializedViewNotExists(name));
     }
 
     @Override
-    public List<MaterializedView> getMaterializedViews(String project)
-    {
+    public List<MaterializedView> getMaterializedViews(String project) {
         return materializedViews.computeIfAbsent(project, (key) -> new HashSet<>()).stream()
                 .filter(view -> project.equals(project))
                 .collect(Collectors.toList());
     }
 
     @Override
-    public boolean updateMaterializedView(String project, MaterializedView userView, CompletableFuture<Instant> releaseLock)
-    {
+    public boolean updateMaterializedView(String project, MaterializedView userView, CompletableFuture<Instant> releaseLock) {
         MaterializedView view = materializedViews.get(project).stream()
                 .filter(e -> e.tableName.equals(userView.tableName)).findFirst().get();
 
@@ -75,14 +65,13 @@ public class InMemoryQueryMetadataStore
     }
 
     @Override
-    public synchronized void changeMaterializedView(String project, String tableName, boolean realTime)
-    {
+    public synchronized void changeMaterializedView(String project, String tableName, boolean realTime) {
         Set<MaterializedView> materializedViews = this.materializedViews.get(project);
         MaterializedView materializedView = materializedViews.stream().filter(e -> e.tableName.equals(tableName))
                 .findAny().orElseThrow(() -> new NotExistsException("Materialized view"));
         materializedViews.remove(materializedView);
         materializedViews.add(new MaterializedView(materializedView.tableName,
-                materializedView.name, materializedView.query, materializedView.updateInterval,materializedView.incremental,
+                materializedView.name, materializedView.query, materializedView.updateInterval, materializedView.incremental,
                 realTime, materializedView.options));
     }
 

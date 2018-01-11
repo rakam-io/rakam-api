@@ -20,6 +20,7 @@ import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.FunnelQueryExecutor.FunnelStep;
 import org.rakam.analysis.FunnelQueryExecutor.FunnelWindow;
 import org.rakam.analysis.QueryHttpService;
+import org.rakam.analysis.RequestContext;
 import org.rakam.collection.FieldType;
 import org.rakam.config.ProjectConfig;
 import org.rakam.report.QueryResult;
@@ -53,9 +54,9 @@ import static org.rakam.analysis.FunnelQueryExecutor.FunnelType.*;
 @Api(value = "/funnel", nickname = "funnelAnalyzer", tags = "funnel")
 public class FunnelAnalyzerHttpService
         extends HttpService {
+    private final static Logger LOGGER = Logger.get(FunnelAnalyzerHttpService.class);
     private final FunnelQueryExecutor funnelQueryExecutor;
     private final QueryHttpService queryService;
-    private final static Logger LOGGER = Logger.get(FunnelAnalyzerHttpService.class);
     private final ProjectConfig projectConfig;
 
     @Inject
@@ -75,7 +76,7 @@ public class FunnelAnalyzerHttpService
     @GET
     @IgnoreApi
     @Path("/analyze")
-    public void analyzeFunnel(RakamHttpRequest request) {
+    public void analyzeFunnel(RakamHttpRequest request, @QueryParam("read_key") String apiKey) {
         queryService.handleServerSentQueryExecution(request, FunnelQuery.class, (project, query) -> {
                     if (query.dimension != null && query.segment == null) {
                         if (projectConfig.getTimeColumn().equals(query.dimension)) {
@@ -83,7 +84,7 @@ public class FunnelAnalyzerHttpService
                         }
                     }
 
-                    return funnelQueryExecutor.query(project,
+                    return funnelQueryExecutor.query(new RequestContext(project, apiKey),
                             query.steps,
                             Optional.ofNullable(query.dimension),
                             Optional.ofNullable(query.segment),
@@ -120,8 +121,8 @@ public class FunnelAnalyzerHttpService
     @POST
     @JsonRequest
     @Path("/analyze")
-    public CompletableFuture<QueryResult> analyzeFunnel(@Named("project") String project, @BodyParam FunnelQuery query) {
-        CompletableFuture<QueryResult> result = funnelQueryExecutor.query(project,
+    public CompletableFuture<QueryResult> analyzeFunnel(@Named("project") RequestContext context, @BodyParam FunnelQuery query) {
+        CompletableFuture<QueryResult> result = funnelQueryExecutor.query(context,
                 query.steps,
                 Optional.ofNullable(query.dimension),
                 Optional.ofNullable(query.segment),

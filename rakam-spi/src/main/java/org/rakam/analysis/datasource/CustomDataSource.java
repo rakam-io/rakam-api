@@ -5,8 +5,7 @@ import org.rakam.server.http.annotations.ApiParam;
 
 import java.util.Locale;
 
-public class CustomDataSource
-{
+public class CustomDataSource {
     public final String schemaName;
     public final String type;
     public final JDBCSchemaConfig options;
@@ -15,8 +14,7 @@ public class CustomDataSource
     public CustomDataSource(
             @ApiParam("type") String type,
             @ApiParam(value = "schemaName") String schemaName,
-            @ApiParam(value = "options") JDBCSchemaConfig options)
-    {
+            @ApiParam(value = "options") JDBCSchemaConfig options) {
         this.schemaName = schemaName.toLowerCase(Locale.ENGLISH);
         this.options = options;
         this.type = type;

@@ -3,6 +3,7 @@ package org.rakam.postgresql.analysis;
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.google.common.collect.ImmutableList;
 import org.rakam.analysis.FunnelQueryExecutor;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
@@ -46,14 +47,14 @@ public class FastGenericFunnelQueryExecutor
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId timezone, Optional<List<String>> connectors, FunnelType funnelType) {
+    public QueryExecution query(RequestContext context, List<FunnelStep> steps, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId timezone, Optional<List<String>> connectors, FunnelType funnelType) {
         if (dimension.map(v -> projectConfig.getUserColumn().equals(v)).orElse(false)) {
             throw new RakamException("user column can't be used as dimension", BAD_REQUEST);
         }
 
         if (segment.isPresent()) {
-            if(dimension.isPresent()) {
-                SchemaField column = metastore.getCollection(project, steps.get(0).getCollection()).stream()
+            if (dimension.isPresent()) {
+                SchemaField column = metastore.getCollection(context.project, steps.get(0).getCollection()).stream()
                         .filter(c -> c.getName().equals(dimension.get()))
                         .findAny().orElseThrow(() -> new RakamException("Dimension is not exist.", BAD_REQUEST));
                 if (column.getType() != TIMESTAMP) {
@@ -146,7 +147,7 @@ public class FastGenericFunnelQueryExecutor
             query = format("SELECT %s FROM (%s) data", collect, query);
         }
 
-        QueryExecution queryExecution = executor.executeQuery(project, query, Optional.empty(), null, timezone, 1000);
+        QueryExecution queryExecution = executor.executeQuery(context, query, Optional.empty(), null, timezone, 1000);
 
         return new DelegateQueryExecution(queryExecution,
                 result -> {

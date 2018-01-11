@@ -1,36 +1,15 @@
 package org.rakam.aws.dynamodb.user;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
-import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.amazonaws.services.dynamodbv2.model.BatchWriteItemRequest;
-import com.amazonaws.services.dynamodbv2.model.ComparisonOperator;
-import com.amazonaws.services.dynamodbv2.model.Condition;
-import com.amazonaws.services.dynamodbv2.model.CreateTableRequest;
-import com.amazonaws.services.dynamodbv2.model.DeleteItemRequest;
-import com.amazonaws.services.dynamodbv2.model.DescribeTableResult;
-import com.amazonaws.services.dynamodbv2.model.GetItemResult;
-import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
-import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
-import com.amazonaws.services.dynamodbv2.model.PutItemRequest;
-import com.amazonaws.services.dynamodbv2.model.PutRequest;
-import com.amazonaws.services.dynamodbv2.model.QueryRequest;
-import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
-import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
-import com.amazonaws.services.dynamodbv2.model.UpdateItemRequest;
-import com.amazonaws.services.dynamodbv2.model.WriteRequest;
+import com.amazonaws.services.dynamodbv2.model.*;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.BooleanNode;
-import com.fasterxml.jackson.databind.node.DoubleNode;
-import com.fasterxml.jackson.databind.node.NullNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
+import com.fasterxml.jackson.databind.node.*;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.RequestContext;
 import org.rakam.aws.AWSConfig;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
@@ -44,16 +23,9 @@ import org.rakam.util.RakamException;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -63,9 +35,7 @@ import static com.amazonaws.services.dynamodbv2.model.KeyType.RANGE;
 import static org.rakam.collection.FieldType.STRING;
 
 public class DynamodbUserStorage
-        implements UserStorage
-{
-    private final AmazonDynamoDBClient dynamoDBClient;
+        implements UserStorage {
     private static final List<KeySchemaElement> PROJECT_KEYSCHEMA = ImmutableList.of(
             new KeySchemaElement().withKeyType(HASH).withAttributeName("project"),
             new KeySchemaElement().withKeyType(RANGE).withAttributeName("id")
@@ -74,11 +44,11 @@ public class DynamodbUserStorage
             new AttributeDefinition().withAttributeName("project").withAttributeType(ScalarAttributeType.S),
             new AttributeDefinition().withAttributeName("id").withAttributeType(ScalarAttributeType.S)
     );
+    private final AmazonDynamoDBClient dynamoDBClient;
     private final DynamodbUserConfig tableConfig;
 
     @Inject
-    public DynamodbUserStorage(AWSConfig config, DynamodbUserConfig tableConfig)
-    {
+    public DynamodbUserStorage(AWSConfig config, DynamodbUserConfig tableConfig) {
         dynamoDBClient = new AmazonDynamoDBClient(config.getCredentials());
         dynamoDBClient.setRegion(config.getAWSRegion());
 
@@ -89,8 +59,7 @@ public class DynamodbUserStorage
     }
 
     @PostConstruct
-    public void setup()
-    {
+    public void setup() {
         try {
             DescribeTableResult result = dynamoDBClient.describeTable(tableConfig.getTableName());
 
@@ -98,8 +67,7 @@ public class DynamodbUserStorage
                 throw new IllegalStateException("Invalid schema for user storage dynamodb table. " +
                         "Please remove existing table or change dynamodb table.");
             }
-        }
-        catch (ResourceNotFoundException e) {
+        } catch (ResourceNotFoundException e) {
             dynamoDBClient.createTable(new CreateTableRequest().withTableName(tableConfig.getTableName())
                     .withKeySchema(PROJECT_KEYSCHEMA)
                     .withAttributeDefinitions(ATTRIBUTES)
@@ -110,15 +78,13 @@ public class DynamodbUserStorage
     }
 
     @Override
-    public Object create(String project, Object id, ObjectNode properties)
-    {
+    public Object create(String project, Object id, ObjectNode properties) {
         dynamoDBClient.putItem(new PutItemRequest().withTableName(tableConfig.getTableName())
                 .withItem(generatePutRequest(project, id, properties)));
         return id;
     }
 
-    private Map<String, AttributeValue> generatePutRequest(String project, Object id, ObjectNode properties)
-    {
+    private Map<String, AttributeValue> generatePutRequest(String project, Object id, ObjectNode properties) {
         Map<String, AttributeValue> builder = new HashMap<>();
         builder.put("project", new AttributeValue(project));
         builder.put("id", new AttributeValue(id.toString()));
@@ -136,24 +102,19 @@ public class DynamodbUserStorage
         return builder;
     }
 
-    private AttributeValue convertAttributeValue(JsonNode value)
-    {
+    private AttributeValue convertAttributeValue(JsonNode value) {
         AttributeValue attr = new AttributeValue();
         if (value.isTextual()) {
             attr.setS(value.textValue());
-        }
-        else if (value.isNumber()) {
+        } else if (value.isNumber()) {
             attr.setN(value.asText());
-        }
-        else if (value.isBoolean()) {
+        } else if (value.isBoolean()) {
             attr.setBOOL(value.asBoolean());
-        }
-        else if (value.isArray()) {
+        } else if (value.isArray()) {
             attr.setSS(IntStream.range(0,
                     value.size()).mapToObj(i -> value.get(i).asText())
                     .collect(Collectors.toList()));
-        }
-        else if (value.isObject()) {
+        } else if (value.isObject()) {
             Map<String, AttributeValue> map = new HashMap<>(value.size());
             Iterator<Entry<String, JsonNode>> fields = value.fields();
             while (fields.hasNext()) {
@@ -161,8 +122,7 @@ public class DynamodbUserStorage
                 map.put(next.getKey(), convertAttributeValue(next.getValue()));
             }
             attr.setM(map);
-        }
-        else if (!value.isNull()) {
+        } else if (!value.isNull()) {
             throw new IllegalStateException();
         }
 
@@ -170,18 +130,16 @@ public class DynamodbUserStorage
     }
 
     @Override
-    public List<Object> batchCreate(String project, List<User> users)
-    {
+    public List<Object> batchCreate(RequestContext context, List<User> users) {
         List<WriteRequest> collect = users.stream()
-                .map(user -> new WriteRequest(new PutRequest(generatePutRequest(project, user.id, user.properties))))
+                .map(user -> new WriteRequest(new PutRequest(generatePutRequest(context.project, user.id, user.properties))))
                 .collect(Collectors.toList());
-        dynamoDBClient.batchWriteItem(new BatchWriteItemRequest().withRequestItems(ImmutableMap.of(project, collect)));
+        dynamoDBClient.batchWriteItem(new BatchWriteItemRequest().withRequestItems(ImmutableMap.of(context.project, collect)));
         return null;
     }
 
     @Override
-    public CompletableFuture<QueryResult> searchUsers(String project, List<String> columns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, String offset)
-    {
+    public CompletableFuture<QueryResult> searchUsers(RequestContext context, List<String> columns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, String offset) {
         QueryRequest scanRequest = new QueryRequest()
                 .withTableName(tableConfig.getTableName());
         if (columns != null && !columns.isEmpty()) {
@@ -189,7 +147,7 @@ public class DynamodbUserStorage
         }
         scanRequest.withKeyConditions(ImmutableMap.of("project", new Condition()
                 .withComparisonOperator(ComparisonOperator.EQ)
-                .withAttributeValueList(new AttributeValue(project))));
+                .withAttributeValueList(new AttributeValue(context.project))));
 
         final ImmutableMap.Builder<String, String> nameBuilder = ImmutableMap.builder();
         final ImmutableMap.Builder<String, AttributeValue> valueBuilder = ImmutableMap.builder();
@@ -241,23 +199,20 @@ public class DynamodbUserStorage
     }
 
     @Override
-    public void createSegment(String project, String name, String tableName, Expression filterExpression, List<EventFilter> eventFilter, Duration interval)
-    {
+    public void createSegment(RequestContext context, String name, String tableName, Expression filterExpression, List<EventFilter> eventFilter, Duration interval) {
         throw new RakamException("Unsupported", HttpResponseStatus.BAD_REQUEST);
     }
 
     @Override
-    public List<SchemaField> getMetadata(String project)
-    {
+    public List<SchemaField> getMetadata(RequestContext context) {
         return ImmutableList.of(new SchemaField("id", STRING));
     }
 
     @Override
-    public CompletableFuture<User> getUser(String project, Object userId)
-    {
+    public CompletableFuture<User> getUser(RequestContext context, Object userId) {
         return CompletableFuture.supplyAsync(() -> {
             GetItemResult item = dynamoDBClient.getItem("users", ImmutableMap.of(
-                    "project", new AttributeValue(project),
+                    "project", new AttributeValue(context.project),
                     "id", new AttributeValue(userId.toString())
             ));
             Map<String, AttributeValue> attrs = item.getItem().get("properties").getM();
@@ -269,89 +224,72 @@ public class DynamodbUserStorage
         });
     }
 
-    private JsonNode getJsonValue(AttributeValue value)
-    {
+    private JsonNode getJsonValue(AttributeValue value) {
         if (value == null) {
             return NullNode.getInstance();
         }
         if (value.getBOOL() != null) {
             return value.getBOOL() ? BooleanNode.TRUE : BooleanNode.FALSE;
-        }
-        else if (value.getS() != null) {
+        } else if (value.getS() != null) {
             return TextNode.valueOf(value.getS());
-        }
-        else if (value.getN() != null) {
+        } else if (value.getN() != null) {
             double v = Double.parseDouble(value.getN());
             return DoubleNode.valueOf(v);
-        }
-        else if (value.getL() != null) {
+        } else if (value.getL() != null) {
             ArrayNode arr = JsonHelper.jsonArray();
             for (AttributeValue attributeValue : value.getL()) {
                 arr.add(getJsonValue(attributeValue));
             }
             return arr;
-        }
-        else if (value.getM() != null) {
+        } else if (value.getM() != null) {
             ObjectNode obj = JsonHelper.jsonObject();
             for (Entry<String, AttributeValue> attributeValue : value.getM().entrySet()) {
                 obj.set(attributeValue.getKey(), getJsonValue(attributeValue.getValue()));
             }
 
             return obj;
-        }
-        else {
+        } else {
             if (!value.isNULL()) {
                 throw new IllegalStateException();
-            }
-            else {
+            } else {
                 return NullNode.getInstance();
             }
         }
     }
 
-    private FieldType getType(AttributeValue value)
-    {
+    private FieldType getType(AttributeValue value) {
         if (value.isBOOL()) {
             return FieldType.BOOLEAN;
-        }
-        else if (value.getS() != null) {
+        } else if (value.getS() != null) {
             return STRING;
-        }
-        else if (value.getN() != null) {
+        } else if (value.getN() != null) {
             return FieldType.DOUBLE;
-        }
-        else if (value.getL() != null) {
+        } else if (value.getL() != null) {
             return FieldType.ARRAY_STRING;
-        }
-        else if (value.getM() != null) {
+        } else if (value.getM() != null) {
             return FieldType.MAP_STRING;
-        }
-        else {
+        } else {
             if (!value.isNULL()) {
                 throw new IllegalStateException();
-            }
-            else {
+            } else {
                 return STRING;
             }
         }
     }
 
     @Override
-    public void setUserProperties(String project, Object user, ObjectNode properties)
-    {
+    public void setUserProperties(String project, Object user, ObjectNode properties) {
         create(project, user, properties);
     }
 
     @Override
-    public void setUserPropertiesOnce(String project, Object user, ObjectNode properties)
-    {
+    public void setUserPropertiesOnce(String project, Object user, ObjectNode properties) {
         applyOperations(project,
                 ImmutableList.of(new BatchUserOperations(user, null, properties, null, null, null)));
     }
 
     @Override
-    public void applyOperations(String project, List<? extends ISingleUserBatchOperation> operations)
-    {
+    public void applyOperations(String project, List<? extends ISingleUserBatchOperation> operations) {
         Map<String, String> nameMap = new HashMap<>();
         Map<String, AttributeValue> valueMap = new HashMap<>();
         StringBuilder setBuilder = null;
@@ -364,13 +302,12 @@ public class DynamodbUserStorage
             for (Entry<String, Double> entry : operation.getIncrementProperties().entrySet()) {
                 if (addBuilder == null) {
                     addBuilder = new StringBuilder();
-                }
-                else {
+                } else {
                     addBuilder.append(", ");
                 }
 
-                String name = new String(new char[] {'#', nameCur++});
-                String value = new String(new char[] {':', valueCur++});
+                String name = new String(new char[]{'#', nameCur++});
+                String value = new String(new char[]{':', valueCur++});
                 addBuilder.append("properties." + name + " " + value);
 
                 nameMap.put(name, entry.getKey());
@@ -382,13 +319,12 @@ public class DynamodbUserStorage
                 Entry<String, JsonNode> next = fields.next();
                 if (setBuilder == null) {
                     setBuilder = new StringBuilder();
-                }
-                else {
+                } else {
                     setBuilder.append(", ");
                 }
 
-                String name = new String(new char[] {'#', nameCur++});
-                String value = new String(new char[] {':', valueCur++});
+                String name = new String(new char[]{'#', nameCur++});
+                String value = new String(new char[]{':', valueCur++});
                 addBuilder.append("properties." + name + " = " + value);
 
                 nameMap.put(name, next.getKey());
@@ -416,12 +352,11 @@ public class DynamodbUserStorage
             for (String unsetProperty : operation.getUnsetProperties()) {
                 if (unsetBuilder == null) {
                     unsetBuilder = new StringBuilder();
-                }
-                else {
+                } else {
                     unsetBuilder.append(" , ");
                 }
 
-                String name = new String(new char[] {'#', nameCur++});
+                String name = new String(new char[]{'#', nameCur++});
                 unsetBuilder.append("properties." + name);
 
                 nameMap.put(name, unsetProperty);
@@ -451,23 +386,20 @@ public class DynamodbUserStorage
     }
 
     @Override
-    public void incrementProperty(String project, Object user, String property, double value)
-    {
+    public void incrementProperty(String project, Object user, String property, double value) {
 
         applyOperations(project, ImmutableList.of(new BatchUserOperations(user,
                 null, null, ImmutableMap.of(property, value), null, null)));
     }
 
     @Override
-    public void dropProjectIfExists(String project)
-    {
+    public void dropProjectIfExists(String project) {
         dynamoDBClient.deleteItem(new DeleteItemRequest()
                 .withKey(ImmutableMap.of("project", new AttributeValue(project))));
     }
 
     @Override
-    public void unsetProperties(String project, Object user, List<String> properties)
-    {
+    public void unsetProperties(String project, Object user, List<String> properties) {
         applyOperations(project, ImmutableList.of(
                 new BatchUserOperations(user, null, null, null, properties, null)));
     }

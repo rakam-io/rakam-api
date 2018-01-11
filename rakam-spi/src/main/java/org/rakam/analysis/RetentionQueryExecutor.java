@@ -30,7 +30,8 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 
 
 public interface RetentionQueryExecutor {
-    QueryExecution query(String project,
+    QueryExecution query(
+            RequestContext context,
             Optional<RetentionAction> firstAction,
             Optional<RetentionAction> returningAction,
             DateUnit dateUnit,
@@ -40,34 +41,6 @@ public interface RetentionQueryExecutor {
             LocalDate endDate,
             ZoneId timezone,
             boolean approximate);
-
-    @AutoValue
-    abstract class RetentionAction {
-        private static SqlParser parser = new SqlParser();
-
-        @JsonProperty
-        public abstract String collection();
-
-        @JsonIgnore
-        public abstract Optional<Expression> filter();
-
-        @JsonCreator
-        public static RetentionAction create(@JsonProperty("collection") String collection,
-                                        @JsonProperty("filter") Optional<String> filterExpression) {
-            checkCollection(collection);
-            return new AutoValue_RetentionQueryExecutor_RetentionAction(collection,
-                    filterExpression.map(RetentionAction::parseExpression));
-        }
-
-        @JsonProperty
-        public static String getFilter() {
-            return getFilter().toString();
-        }
-
-        private static synchronized Expression parseExpression(String filterExpression) {
-            return parser.createExpression(filterExpression);
-        }
-    }
 
     enum DateUnit {
         DAY(ChronoUnit.DAYS), WEEK(ChronoUnit.WEEKS), MONTH(ChronoUnit.MONTHS);
@@ -86,5 +59,33 @@ public interface RetentionQueryExecutor {
         public ChronoUnit getTemporalUnit() {
             return temporalUnit;
         }
+    }
+
+    @AutoValue
+    abstract class RetentionAction {
+        private static SqlParser parser = new SqlParser();
+
+        @JsonCreator
+        public static RetentionAction create(@JsonProperty("collection") String collection,
+                                             @JsonProperty("filter") Optional<String> filterExpression) {
+            checkCollection(collection);
+            return new AutoValue_RetentionQueryExecutor_RetentionAction(collection,
+                    filterExpression.map(RetentionAction::parseExpression));
+        }
+
+        @JsonProperty
+        public static String getFilter() {
+            return getFilter().toString();
+        }
+
+        private static synchronized Expression parseExpression(String filterExpression) {
+            return parser.createExpression(filterExpression);
+        }
+
+        @JsonProperty
+        public abstract String collection();
+
+        @JsonIgnore
+        public abstract Optional<Expression> filter();
     }
 }

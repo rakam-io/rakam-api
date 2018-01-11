@@ -2,15 +2,13 @@ package org.rakam.util;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.annotations.ApiParam;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
 
-public class SuccessMessage
-{
+public class SuccessMessage {
     private static final SuccessMessage SUCCESS = new SuccessMessage(null);
 
     public final boolean success = true;
@@ -30,6 +28,14 @@ public class SuccessMessage
         return new SuccessMessage(message);
     }
 
+    public static SuccessMessage map(QueryResult queryResult) {
+        if (queryResult.isFailed()) {
+            throw new RakamException(queryResult.getError().message, INTERNAL_SERVER_ERROR);
+        } else {
+            return SuccessMessage.success();
+        }
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -45,13 +51,5 @@ public class SuccessMessage
     @Override
     public int hashCode() {
         return message == null ? 1 : message.hashCode();
-    }
-
-    public static SuccessMessage map(QueryResult queryResult) {
-        if(queryResult.isFailed()) {
-            throw new RakamException(queryResult.getError().message, INTERNAL_SERVER_ERROR);
-        } else {
-            return SuccessMessage.success();
-        }
     }
 }

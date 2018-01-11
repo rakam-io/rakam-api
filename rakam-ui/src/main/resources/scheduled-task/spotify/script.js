@@ -27,8 +27,12 @@ var fetchItems = function (arr, access_token, before, collection) {
         song.track_name = item.track.name;
         song.popularity = item.track.popularity;
         song.track_number = item.track.track_number;
-        song.artist_names = item.track.artists.map(function (artist) { return artist.name; });
-        song.artist_ids = item.track.artists.map(function (artist) { return artist.id; });
+        song.artist_names = item.track.artists.map(function (artist) {
+            return artist.name;
+        });
+        song.artist_ids = item.track.artists.map(function (artist) {
+            return artist.id;
+        });
 
         if (item.track.external_ids) {
             Object.keys(item.track.external_ids).forEach(function (key) {

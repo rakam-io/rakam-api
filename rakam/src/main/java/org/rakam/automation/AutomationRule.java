@@ -13,12 +13,12 @@ import java.util.function.Predicate;
 
 public class AutomationRule {
     public final int id;
-    @JsonProperty("is_active")
-    public boolean isActive;
     public final List<ScenarioStep> scenarios;
     public final List<SerializableAction> actions;
     @JsonProperty("custom_data")
     public final String customData;
+    @JsonProperty("is_active")
+    public boolean isActive;
 
     @JsonCreator
     public AutomationRule(@ApiParam(value = "is_active", required = false) Boolean isActive,
@@ -71,13 +71,13 @@ public class AutomationRule {
             this.value = value;
         }
 
-        public synchronized void setAction(AutomationAction action) {
-            this.action = action;
-        }
-
         @JsonIgnore
         public AutomationAction getAction() {
             return action;
+        }
+
+        public synchronized void setAction(AutomationAction action) {
+            this.action = action;
         }
     }
 
@@ -113,7 +113,7 @@ public class AutomationRule {
             this.filter = filterExpression;
             this.threshold = threshold == null ? DEFAULT_THRESHOLD : threshold;
 
-            if(filterExpression == null || filterExpression.isEmpty()) {
+            if (filterExpression == null || filterExpression.isEmpty()) {
                 filterPredicate = (event) -> true;
             } else {
                 try {

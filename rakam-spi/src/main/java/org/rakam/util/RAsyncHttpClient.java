@@ -1,6 +1,5 @@
 package org.rakam.util;
 
-import com.google.common.base.Throwables;
 import com.google.common.io.ByteStreams;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -75,8 +74,8 @@ public class RAsyncHttpClient {
 
     public class NashornHttpRequest {
         private final Request.Builder requestBuilder;
-        private HttpUrl url;
         private final String method;
+        private HttpUrl url;
         private FormBody.Builder formParams;
 
         public NashornHttpRequest(Request.Builder requestBuilder, String method, String url) {

@@ -11,13 +11,7 @@ import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.InMemoryApiKeyService;
 import org.rakam.analysis.InMemoryMetastore;
 import org.rakam.analysis.metadata.SchemaChecker;
-import org.rakam.collection.Event;
-import org.rakam.collection.EventList;
-import org.rakam.collection.EventListDeserializer;
-import org.rakam.collection.FieldDependencyBuilder;
-import org.rakam.collection.FieldType;
-import org.rakam.collection.JsonEventDeserializer;
-import org.rakam.collection.SchemaField;
+import org.rakam.collection.*;
 import org.rakam.config.ProjectConfig;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
@@ -35,8 +29,7 @@ import java.util.Map;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 
-public class TestEventJsonParser
-{
+public class TestEventJsonParser {
     private ObjectMapper mapper;
     private ApiKeyService.ProjectApiKeys apiKeys;
     private EventBuilder eventBuilder;
@@ -46,8 +39,7 @@ public class TestEventJsonParser
 
     @BeforeSuite
     public void setUp()
-            throws Exception
-    {
+            throws Exception {
         FieldDependencyBuilder.FieldDependency fieldDependency = new FieldDependencyBuilder().build();
         apiKeyService = new InMemoryApiKeyService();
         metastore = new InMemoryMetastore(apiKeyService);
@@ -65,8 +57,7 @@ public class TestEventJsonParser
 
     @AfterMethod
     public void tearDownMethod()
-            throws Exception
-    {
+            throws Exception {
         metastore.deleteProject("test");
         eventDeserializer.cleanCache();
         eventBuilder.cleanCache();
@@ -74,16 +65,14 @@ public class TestEventJsonParser
 
     @BeforeMethod
     public void setupMethod()
-            throws Exception
-    {
+            throws Exception {
         metastore.createProject("test");
         apiKeys = apiKeyService.createApiKeys("test");
     }
 
     @Test
     public void testSimple()
-            throws Exception
-    {
+            throws Exception {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
@@ -101,8 +90,7 @@ public class TestEventJsonParser
 
     @Test
     public void testSimpleWithoutProject()
-            throws Exception
-    {
+            throws Exception {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
@@ -120,8 +108,7 @@ public class TestEventJsonParser
 
     @Test
     public void testPrimitiveTypes()
-            throws Exception
-    {
+            throws Exception {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         ImmutableMap<String, Object> properties = ImmutableMap.of(
                 "test", 1L,
@@ -154,8 +141,7 @@ public class TestEventJsonParser
 
     @Test
     public void testMapType()
-            throws Exception
-    {
+            throws Exception {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         ImmutableMap<String, Object> properties = ImmutableMap.of("test0", "test",
                 "test1", ImmutableMap.of("a", 4.0, "b", 5.0, "c", 6.0, "d", 7.0),
@@ -176,8 +162,7 @@ public class TestEventJsonParser
 
     @Test
     public void testArrayType()
-            throws Exception
-    {
+            throws Exception {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         ImmutableMap<String, Object> properties = ImmutableMap.of("test0", "test",
                 "test1", ImmutableList.of("test", "test"),
@@ -197,8 +182,7 @@ public class TestEventJsonParser
     }
 
     public void testInvalidOrder()
-            throws Exception
-    {
+            throws Exception {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "properties", ImmutableMap.of("test0", "test",
@@ -212,8 +196,7 @@ public class TestEventJsonParser
 
     @Test(expectedExceptions = RakamException.class)
     public void testInvalidField()
-            throws Exception
-    {
+            throws Exception {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
@@ -236,8 +219,7 @@ public class TestEventJsonParser
 
     @Test()
     public void testInvalidArrayRecursiveType()
-            throws Exception
-    {
+            throws Exception {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
@@ -254,8 +236,7 @@ public class TestEventJsonParser
 
     @Test
     public void testInvalidMapRecursiveType()
-            throws Exception
-    {
+            throws Exception {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
@@ -271,8 +252,7 @@ public class TestEventJsonParser
 
     @Test
     public void testInvalidArray()
-            throws Exception
-    {
+            throws Exception {
 
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
@@ -291,8 +271,7 @@ public class TestEventJsonParser
 
     @Test
     public void testInvalidMap()
-            throws Exception
-    {
+            throws Exception {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
@@ -311,8 +290,7 @@ public class TestEventJsonParser
 
     @Test
     public void testEmptyArray()
-            throws Exception
-    {
+            throws Exception {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
@@ -332,15 +310,13 @@ public class TestEventJsonParser
 
     @Test
     public void testEmptyMap()
-            throws Exception
-    {
+            throws Exception {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
                 "api", api,
                 "properties", ImmutableMap.of("test", 1, "test2",
-                        new HashMap<String, String>()
-                        {
+                        new HashMap<String, String>() {
                             {
                                 put("a", null);
                             }
@@ -359,8 +335,7 @@ public class TestEventJsonParser
 
     @Test
     public void testBatch()
-            throws Exception
-    {
+            throws Exception {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         ImmutableMap<String, Object> props = ImmutableMap.of(
                 "test0", "test",
@@ -386,8 +361,7 @@ public class TestEventJsonParser
 
     @Test
     public void testBatchWithoutProject()
-            throws Exception
-    {
+            throws Exception {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         ImmutableMap<String, Object> props = ImmutableMap.of(
                 "test0", "test",
@@ -413,8 +387,7 @@ public class TestEventJsonParser
 
     @Test
     public void testObjectSentToScalarValue()
-            throws Exception
-    {
+            throws Exception {
         metastore.getOrCreateCollectionFields("test", "test",
                 ImmutableSet.of(new SchemaField("test", FieldType.STRING)));
 
@@ -430,11 +403,10 @@ public class TestEventJsonParser
         assertEquals(events.properties().get("test"), "[\"test\"]");
     }
 
-//    @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "Cannot cast object to INTEGER for 'test' field.*")
+    //    @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "Cannot cast object to INTEGER for 'test' field.*")
     @Test()
     public void testObjectSentToInvalidScalarValue()
-            throws Exception
-    {
+            throws Exception {
         metastore.getOrCreateCollectionFields("test", "test",
                 ImmutableSet.of(new SchemaField("test", FieldType.INTEGER)));
 
@@ -452,8 +424,7 @@ public class TestEventJsonParser
 
     @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "Scalar value 'test' cannot be cast to ARRAY_BOOLEAN type for 'test' field.*")
     public void testScalarSentToObjectValue()
-            throws Exception
-    {
+            throws Exception {
         metastore.getOrCreateCollectionFields("test", "test",
                 ImmutableSet.of(new SchemaField("test", FieldType.ARRAY_BOOLEAN)));
 
@@ -470,8 +441,7 @@ public class TestEventJsonParser
 
     @Test
     public void testNullSentToObjectValue()
-            throws Exception
-    {
+            throws Exception {
         metastore.getOrCreateCollectionFields("test", "test",
                 ImmutableSet.of(new SchemaField("test", FieldType.ARRAY_BOOLEAN)));
 

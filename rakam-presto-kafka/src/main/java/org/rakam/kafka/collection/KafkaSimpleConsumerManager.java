@@ -11,7 +11,6 @@ import kafka.javaapi.consumer.SimpleConsumer;
 
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
-
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 

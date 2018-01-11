@@ -3,54 +3,39 @@ package org.rakam.util;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 
-import javax.mail.Message;
-import javax.mail.MessagingException;
-import javax.mail.Multipart;
-import javax.mail.Session;
-import javax.mail.Transport;
-import javax.mail.internet.AddressException;
-import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeBodyPart;
-import javax.mail.internet.MimeMessage;
-import javax.mail.internet.MimeMultipart;
-
+import javax.mail.*;
+import javax.mail.internet.*;
 import java.io.UnsupportedEncodingException;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-public class MailSender
-{
+public class MailSender {
     private final Session session;
     private final InternetAddress fromAddress;
 
-    public MailSender(Session session, String fromAddress, String fromName)
-    {
+    public MailSender(Session session, String fromAddress, String fromName) {
         this.session = session;
         try {
             this.fromAddress = new InternetAddress(fromAddress, fromName);
-        }
-        catch (UnsupportedEncodingException e) {
+        } catch (UnsupportedEncodingException e) {
             throw Throwables.propagate(e);
         }
     }
 
     public void sendMail(String toEmail, String title, String textContent, Optional<String> richText, Stream<MimeBodyPart> parts)
-            throws MessagingException
-    {
+            throws MessagingException {
         sendMail(ImmutableList.of(toEmail), title, textContent, richText, parts);
     }
 
     public void sendMail(List<String> toEmail, String title, String textContent, Optional<String> richText, Stream<MimeBodyPart> parts)
-            throws MessagingException
-    {
+            throws MessagingException {
         Message msg = new MimeMessage(session);
         msg.setFrom(fromAddress);
         msg.addRecipients(MimeMessage.RecipientType.TO, toEmail.stream().map(e -> {
             try {
                 return new InternetAddress(e);
-            }
-            catch (AddressException e1) {
+            } catch (AddressException e1) {
                 throw Throwables.propagate(e1);
             }
         }).toArray(InternetAddress[]::new));
@@ -67,8 +52,7 @@ public class MailSender
             parts.forEach(part -> {
                 try {
                     mp.addBodyPart(part);
-                }
-                catch (MessagingException e) {
+                } catch (MessagingException e) {
                     throw Throwables.propagate(e);
                 }
             });

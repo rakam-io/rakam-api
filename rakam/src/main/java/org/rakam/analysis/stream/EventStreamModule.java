@@ -23,7 +23,7 @@ import org.rakam.server.http.HttpService;
 import org.rakam.util.ConditionalModule;
 
 @AutoService(RakamModule.class)
-@ConditionalModule(config="event.stream.enabled", value = "true")
+@ConditionalModule(config = "event.stream.enabled", value = "true")
 public class EventStreamModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {

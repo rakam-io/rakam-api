@@ -1,17 +1,12 @@
 package bloom;
 
-import org.testng.annotations.Test;
-
-import java.nio.ByteBuffer;
 import java.util.UUID;
 
-public class TestFilter
-{
+public class TestFilter {
 
-//    @Test
+    //    @Test
     public void testName()
-            throws Exception
-    {
+            throws Exception {
         OoaBFilter byteArrayFilter = new OoaBFilter(1000000);
 
         while (true) {

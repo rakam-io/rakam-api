@@ -10,17 +10,12 @@ import io.netty.handler.codec.http.HttpHeaders;
 import org.rakam.plugin.Parameter;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.IgnoreApi;
-import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.*;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -39,10 +34,7 @@ import java.util.stream.Stream;
 
 import static com.google.common.net.HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static com.google.common.net.HttpHeaders.CACHE_CONTROL;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
 
@@ -50,18 +42,50 @@ import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
 @Path("/ui/scheduled-task")
 @Api(value = "/ui/scheduled-task")
 public class ScheduledTaskUIHttpService
-        extends HttpService
-{
+        extends HttpService {
+    public synchronized static final List<String> getResourceFiles(String path)
+            throws IOException {
+        FileSystem fileSystem = null;
+
+        try {
+            URI uri = ScheduledTaskUIHttpService.class.getResource("/" + path).toURI();
+
+            java.nio.file.Path myPath;
+            try {
+                if (uri.getScheme().equals("jar")) {
+                    fileSystem = FileSystems.newFileSystem(uri, Collections.emptyMap());
+                    myPath = fileSystem.getPath("/" + path);
+                } else {
+                    myPath = Paths.get(uri);
+                }
+                return Files.walk(myPath, 1).flatMap(next -> {
+                    if (next.equals(myPath)) {
+                        return Stream.of();
+                    }
+                    return Stream.of(CharMatcher.is('/').trimFrom(next.getFileName().toString()));
+                }).collect(Collectors.toList());
+            } finally {
+                if (fileSystem != null) {
+                    fileSystem.close();
+                }
+            }
+        } catch (URISyntaxException e) {
+            throw Throwables.propagate(e);
+        } finally {
+            if (fileSystem != null) {
+                fileSystem.close();
+            }
+        }
+    }
+
     @GET
     @ApiOperation(value = "List scheduled job")
     @Path("/list")
-    public List<ScheduledTask> list()
-    {
+    public List<ScheduledTask> list() {
         List<String> resourceFiles;
         try {
             resourceFiles = getResourceFiles("scheduled-task");
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             throw new RakamException("Unable to read files", INTERNAL_SERVER_ERROR);
         }
 
@@ -74,8 +98,7 @@ public class ScheduledTaskUIHttpService
                 resource.script = new String(script, StandardCharsets.UTF_8);
                 resource.image = "/ui/scheduled-task/image/" + e;
                 resource.slug = e;
-            }
-            catch (IOException ex) {
+            } catch (IOException ex) {
                 return Stream.of();
             }
 
@@ -86,13 +109,11 @@ public class ScheduledTaskUIHttpService
     @ApiOperation(value = "Get scheduled job")
     @JsonRequest
     @Path("/get")
-    public ScheduledTask get(@ApiParam("name") String name)
-    {
+    public ScheduledTask get(@ApiParam("name") String name) {
         List<String> resourceFiles;
         try {
             resourceFiles = getResourceFiles("scheduled-task");
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             throw new RakamException("Unable to read files", INTERNAL_SERVER_ERROR);
         }
 
@@ -109,8 +130,7 @@ public class ScheduledTaskUIHttpService
             resource.image = "/ui/scheduled-task/image/" + name;
             resource.slug = name;
             return resource;
-        }
-        catch (IOException ex) {
+        } catch (IOException ex) {
             throw new RakamException(NOT_FOUND);
         }
     }
@@ -118,8 +138,7 @@ public class ScheduledTaskUIHttpService
     @GET
     @ApiOperation(value = "List scheduled job", response = byte[].class)
     @Path("/image/*")
-    public void image(RakamHttpRequest request)
-    {
+    public void image(RakamHttpRequest request) {
         String substring = request.path().substring(25);
         if (!substring.matches("^[A-Za-z0-9-]+$")) {
             throw new RakamException(FORBIDDEN);
@@ -132,8 +151,7 @@ public class ScheduledTaskUIHttpService
         byte[] script;
         try {
             script = ByteStreams.toByteArray(resource.openStream());
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             throw Throwables.propagate(e);
         }
         DefaultFullHttpResponse resp = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(script));
@@ -144,57 +162,16 @@ public class ScheduledTaskUIHttpService
         request.response(resp).end();
     }
 
-    public synchronized static final List<String> getResourceFiles(String path)
-            throws IOException
-    {
-        FileSystem fileSystem = null;
-
-        try {
-            URI uri = ScheduledTaskUIHttpService.class.getResource("/" + path).toURI();
-
-            java.nio.file.Path myPath;
-            try {
-                if (uri.getScheme().equals("jar")) {
-                    fileSystem = FileSystems.newFileSystem(uri, Collections.emptyMap());
-                    myPath = fileSystem.getPath("/" + path);
-                }
-                else {
-                    myPath = Paths.get(uri);
-                }
-                return Files.walk(myPath, 1).flatMap(next -> {
-                    if (next.equals(myPath)) {
-                        return Stream.of();
-                    }
-                    return Stream.of(CharMatcher.is('/').trimFrom(next.getFileName().toString()));
-                }).collect(Collectors.toList());
-            }
-            finally {
-                if(fileSystem != null) {
-                    fileSystem.close();
-                }
-            }
-        }
-        catch (URISyntaxException e) {
-            throw Throwables.propagate(e);
-        }
-        finally {
-            if (fileSystem != null) {
-                fileSystem.close();
-            }
-        }
-    }
-
-    public static class ScheduledTask
-    {
-        public String slug;
+    public static class ScheduledTask {
         public final String name;
-        public External external;
         public final String recipe;
-        public String image;
         public final String description;
+        public final Map<String, Parameter> parameters;
+        public String slug;
+        public External external;
+        public String image;
         public String script;
         public Duration defaultDuration;
-        public final Map<String, Parameter> parameters;
 
         @JsonCreator
         public ScheduledTask(
@@ -206,8 +183,7 @@ public class ScheduledTaskUIHttpService
                 @ApiParam(value = "defaultDuration", required = false) Duration defaultDuration,
                 @ApiParam(value = "description", required = false) String description,
                 @ApiParam(value = "script", required = false) String script,
-                @ApiParam(value = "parameters", required = false) Map<String, Parameter> parameters)
-        {
+                @ApiParam(value = "parameters", required = false) Map<String, Parameter> parameters) {
             this.slug = slug;
             this.name = name;
             this.image = image;
@@ -219,14 +195,12 @@ public class ScheduledTaskUIHttpService
             this.parameters = parameters;
         }
 
-        public static class External
-        {
+        public static class External {
             public final URL url;
             public final String name;
 
             @JsonCreator
-            public External(@ApiParam("url") URL url, @ApiParam("name") String name)
-            {
+            public External(@ApiParam("url") URL url, @ApiParam("name") String name) {
                 this.url = url;
                 this.name = name;
             }

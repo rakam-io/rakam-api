@@ -18,13 +18,13 @@ public final class SystemRegistryGenerator {
 
     public static void main(String[] args) throws IOException {
         try {
-            if(args.length != 1 || !args[0].equals("json") && !args[0].equals("properties")) {
+            if (args.length != 1 || !args[0].equals("json") && !args[0].equals("properties")) {
                 System.err.println("Usage: [json] or [properties]");
                 System.exit(1);
             }
             Set<Module> allModules = ServiceStarter.getModules();
             SystemRegistry systemRegistry = new SystemRegistry(allModules, allModules);
-            if(args[0].equals("json")) {
+            if (args[0].equals("json")) {
                 System.out.print(JsonHelper.encode(systemRegistry));
             } else {
 
@@ -32,14 +32,14 @@ public final class SystemRegistryGenerator {
 
                 for (SystemRegistry.ModuleDescriptor moduleDescriptor : systemRegistry.getModules()) {
                     String name;
-                    if(moduleDescriptor.name == null) {
+                    if (moduleDescriptor.name == null) {
                         name = moduleDescriptor.className;
                     } else {
                         name = moduleDescriptor.name;
                     }
 
                     printWriter.println("#------------------------------------------------------------------------------");
-                    printWriter.println("#"+name.toUpperCase(Locale.ENGLISH));
+                    printWriter.println("#" + name.toUpperCase(Locale.ENGLISH));
                     if (moduleDescriptor.description != null) {
                         printWriter.println("#" + moduleDescriptor.description);
                     }
@@ -69,8 +69,7 @@ public final class SystemRegistryGenerator {
                 }
                 printWriter.flush();
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

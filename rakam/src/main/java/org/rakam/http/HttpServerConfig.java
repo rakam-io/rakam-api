@@ -12,17 +12,21 @@ public class HttpServerConfig {
     private boolean proxyProtocol;
     private boolean debug;
 
+    public HostAndPort getAddress() {
+        return address;
+    }
+
     @Config("http.server.address")
     public HttpServerConfig setAddress(String address) {
-        if(address == null)
+        if (address == null)
             this.address = HostAndPort.fromParts(RAKAM_DEFAULT_HOST, RAKAM_DEFAULT_PORT);
         else
             this.address = HostAndPort.fromString(address).withDefaultPort(RAKAM_DEFAULT_PORT);
         return this;
     }
 
-    public HostAndPort getAddress() {
-        return address;
+    public boolean getDisabled() {
+        return disabled;
     }
 
     @Config("http.server.disabled")
@@ -31,8 +35,8 @@ public class HttpServerConfig {
         return this;
     }
 
-    public boolean getDisabled() {
-        return disabled;
+    public boolean getProxyProtocol() {
+        return proxyProtocol;
     }
 
     @Config("http.server.proxy-protocol")
@@ -41,17 +45,13 @@ public class HttpServerConfig {
         return this;
     }
 
-    public boolean getProxyProtocol() {
-        return proxyProtocol;
+    public boolean getDebug() {
+        return debug;
     }
 
     @Config("http.server.debug")
     public HttpServerConfig setDebug(boolean debug) {
         this.debug = debug;
         return this;
-    }
-
-    public boolean getDebug() {
-        return debug;
     }
 }

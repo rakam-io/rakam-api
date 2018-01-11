@@ -49,8 +49,7 @@ import static org.rakam.util.ValidationUtil.checkCollectionValid;
 import static org.rakam.util.ValidationUtil.stripName;
 
 public class JsonEventDeserializer
-        extends JsonDeserializer<Event>
-{
+        extends JsonDeserializer<Event> {
     private final Map<String, List<SchemaField>> conditionalMagicFields;
     private final Metastore metastore;
     private final Cache<ProjectCollection, Map.Entry<List<SchemaField>, Schema>> schemaCache =
@@ -66,12 +65,11 @@ public class JsonEventDeserializer
 
     @Inject
     public JsonEventDeserializer(Metastore metastore,
-            ApiKeyService apiKeyService,
-            ConfigManager configManager,
-            SchemaChecker schemaChecker,
-            ProjectConfig projectConfig,
-            FieldDependency fieldDependency)
-    {
+                                 ApiKeyService apiKeyService,
+                                 ConfigManager configManager,
+                                 SchemaChecker schemaChecker,
+                                 ProjectConfig projectConfig,
+                                 FieldDependency fieldDependency) {
         this.metastore = metastore;
         this.conditionalMagicFields = fieldDependency.dependentFields;
         this.apiKeyService = apiKeyService;
@@ -83,10 +81,126 @@ public class JsonEventDeserializer
                 .flatMap(e -> e.stream()).collect(toImmutableMap(e -> e.getName(), e -> e.getType()));
     }
 
+    public static Object getValueOfMagicField(JsonParser jp)
+            throws IOException {
+        switch (jp.getCurrentToken()) {
+            case VALUE_TRUE:
+                return TRUE;
+            case VALUE_FALSE:
+                return Boolean.FALSE;
+            case VALUE_NUMBER_FLOAT:
+                return jp.getValueAsDouble();
+            case VALUE_NUMBER_INT:
+                return jp.getValueAsLong();
+            case VALUE_STRING:
+                return jp.getValueAsString();
+            case VALUE_NULL:
+                return null;
+            default:
+                throw new RakamException("The value of magic field is unknown", BAD_REQUEST);
+        }
+    }
+
+    private static FieldType getTypeForUnknown(JsonParser jp)
+            throws IOException {
+        switch (jp.getCurrentToken()) {
+            case VALUE_NULL:
+                return null;
+            case VALUE_STRING:
+                String value = jp.getValueAsString();
+
+                try {
+                    DateTimeUtils.parseDate(value);
+                    return FieldType.DATE;
+                } catch (Exception e) {
+
+                }
+
+                try {
+                    DateTimeUtils.parseTimestamp(value);
+                    return FieldType.TIMESTAMP;
+                } catch (Exception e) {
+
+                }
+
+                return STRING;
+            case VALUE_FALSE:
+                return FieldType.BOOLEAN;
+            case VALUE_NUMBER_FLOAT:
+            case VALUE_NUMBER_INT:
+                return FieldType.DOUBLE;
+            case VALUE_TRUE:
+                return FieldType.BOOLEAN;
+            case START_ARRAY:
+                JsonToken t = jp.nextToken();
+                if (t == JsonToken.END_ARRAY) {
+                    // if the array is null, return null as value.
+                    // TODO: if the key already has a type, return that type instead of null.
+                    return null;
+                }
+
+                FieldType type;
+                if (t.isScalarValue()) {
+                    type = getTypeForUnknown(jp);
+                } else {
+                    type = MAP_STRING;
+                }
+                if (type == null) {
+                    // TODO: what if the other values are not null?
+                    while (t != END_ARRAY) {
+                        if (!t.isScalarValue()) {
+                            return ARRAY_STRING;
+                        } else {
+                            t = jp.nextToken();
+                        }
+                    }
+                    return null;
+                }
+                if (type.isArray() || type.isMap()) {
+                    return ARRAY_STRING;
+                }
+                return type.convertToArrayType();
+            case START_OBJECT:
+                t = jp.nextToken();
+                if (t == JsonToken.END_OBJECT) {
+                    // if the map is null, return null as value.
+                    // TODO: if the key already has a type, return that type instead of null.
+                    return null;
+                }
+                if (t != JsonToken.FIELD_NAME) {
+                    throw new IllegalArgumentException();
+                }
+                t = jp.nextToken();
+                if (!t.isScalarValue()) {
+                    return MAP_STRING;
+                }
+                type = getTypeForUnknown(jp);
+                if (type == null) {
+                    // TODO: what if the other values are not null?
+                    while (t != END_OBJECT) {
+                        if (!t.isScalarValue()) {
+                            return MAP_STRING;
+                        } else {
+                            t = jp.nextToken();
+                        }
+                    }
+                    jp.nextToken();
+
+                    return null;
+                }
+
+                if (type.isArray() || type.isMap()) {
+                    return MAP_STRING;
+                }
+                return type.convertToMapValueType();
+            default:
+                throw new JsonMappingException(jp, format("The type is not supported: %s", jp.getValueAsString()));
+        }
+    }
+
     @Override
     public Event deserialize(JsonParser jp, DeserializationContext ctx)
-            throws IOException
-    {
+            throws IOException {
         Object project = ctx.getAttribute("project");
         Object masterKey = ctx.getAttribute("master_key");
         return deserializeWithProject(
@@ -97,8 +211,7 @@ public class JsonEventDeserializer
     }
 
     public Event deserializeWithProject(JsonParser jp, String project, EventContext mainApi, boolean masterKey)
-            throws IOException, RakamException
-    {
+            throws IOException, RakamException {
         Map.Entry<List<SchemaField>, GenericData.Record> properties = null;
         String collection = null;
 
@@ -140,20 +253,17 @@ public class JsonEventDeserializer
 
                     if (collection == null || api == null) {
                         propertiesBuffer = jp.readValueAs(TokenBuffer.class);
-                    }
-                    else {
+                    } else {
                         if (project == null) {
                             if (api.apiKey == null) {
                                 throw new RakamException("api.api_key is required", BAD_REQUEST);
                             }
                             try {
                                 project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
-                            }
-                            catch (RakamException e) {
+                            } catch (RakamException e) {
                                 try {
                                     project = apiKeyService.getProjectOfApiKey(api.apiKey, MASTER_KEY);
-                                }
-                                catch (Exception e1) {
+                                } catch (Exception e1) {
                                     if (e.getStatusCode() == FORBIDDEN) {
                                         throw new RakamException("api_key is invalid", FORBIDDEN);
                                     }
@@ -175,8 +285,7 @@ public class JsonEventDeserializer
                         if (t != END_OBJECT) {
                             if (t == JsonToken.START_OBJECT) {
                                 throw new RakamException("Nested properties are not supported.", BAD_REQUEST);
-                            }
-                            else {
+                            } else {
                                 throw new RakamException("Error while de-serializing event", INTERNAL_SERVER_ERROR);
                             }
                         }
@@ -191,13 +300,11 @@ public class JsonEventDeserializer
                 if (project == null) {
                     try {
                         project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
-                    }
-                    catch (RakamException e) {
+                    } catch (RakamException e) {
                         try {
                             project = apiKeyService.getProjectOfApiKey(api.apiKey, MASTER_KEY);
-                        }
-                        catch (RakamException e1) {
-                            if(e1.getStatusCode() == FORBIDDEN) {
+                        } catch (RakamException e1) {
+                            if (e1.getStatusCode() == FORBIDDEN) {
                                 throw new RakamException("write_key or master_key is invalid.", FORBIDDEN);
                             }
                         }
@@ -208,8 +315,7 @@ public class JsonEventDeserializer
                 // pass START_OBJECT
                 fakeJp.nextToken();
                 properties = parseProperties(project, collection, fakeJp, masterKey);
-            }
-            else {
+            } else {
                 throw new JsonMappingException(jp, "properties is null");
             }
         }
@@ -217,17 +323,15 @@ public class JsonEventDeserializer
     }
 
     public Map.Entry<List<SchemaField>, GenericData.Record> parseProperties(String project, String collection, JsonParser jp, boolean masterKey)
-            throws IOException, NotExistsException
-    {
+            throws IOException, NotExistsException {
         ProjectCollection key = new ProjectCollection(project, collection);
         Map.Entry<List<SchemaField>, Schema> schema = schemaCache.getIfPresent(key);
         boolean isNew = schema == null;
         if (schema == null) {
             List<SchemaField> rakamSchema = metastore.getCollection(project, collection);
-
-            schema = new SimpleImmutableEntry<>(rakamSchema, convertAvroSchema(
-                    rakamSchema == null ? ImmutableList.copyOf(constantFields) : rakamSchema,
-                    conditionalMagicFields));
+            isNew = rakamSchema == null || rakamSchema.isEmpty();
+            rakamSchema = isNew ? ImmutableList.copyOf(constantFields) : rakamSchema;
+            schema = new SimpleImmutableEntry<>(rakamSchema, convertAvroSchema(rakamSchema, conditionalMagicFields));
             schemaCache.put(key, schema);
         }
 
@@ -251,7 +355,7 @@ public class JsonEventDeserializer
                 if (field == null) {
 
                     FieldType type = conditionalFieldMapping.get(fieldName);
-                    if(type == null) {
+                    if (type == null) {
                         type = getTypeForUnknown(jp);
                     }
                     if (type != null) {
@@ -284,20 +388,17 @@ public class JsonEventDeserializer
                             // if the type of new field is ARRAY, we already switched to next token
                             // so current token is not START_ARRAY.
                             record.put(field.pos(), getValue(jp, type, field, true));
-                        }
-                        else {
+                        } else {
                             record.put(field.pos(), getValue(jp, type, field, false));
                         }
                         continue;
-                    }
-                    else {
+                    } else {
                         // the type is null or an empty array
                         t = jp.getCurrentToken();
                         continue;
                     }
                 }
-            }
-            else {
+            } else {
                 if (field.schema().getType() == NULL) {
                     // TODO: get rid of this loop.
                     for (SchemaField schemaField : conditionalMagicFields.get(fieldName)) {
@@ -316,6 +417,10 @@ public class JsonEventDeserializer
                             newFields.get(field.pos() - rakamSchema.size()) : rakamSchema.get(field.pos())).getType();
             Object value = getValue(jp, type, field, false);
             record.put(field.pos(), value);
+        }
+
+        if (isNew && newFields == null) {
+            newFields = new ArrayList<>();
         }
 
         if (newFields != null) {
@@ -346,16 +451,14 @@ public class JsonEventDeserializer
         return new SimpleImmutableEntry<>(rakamSchema, record);
     }
 
-    private Schema createNewSchema(Schema currentSchema, SchemaField newField)
-    {
+    private Schema createNewSchema(Schema currentSchema, SchemaField newField) {
         List<Schema.Field> avroFields = currentSchema.getFields().stream()
                 .filter(field -> field.schema().getType() != Schema.Type.NULL)
                 .map(field -> new Schema.Field(field.name(), field.schema(), field.doc(), field.defaultValue()))
                 .collect(toList());
         try {
             avroFields.add(AvroUtil.generateAvroField(newField));
-        }
-        catch (SchemaParseException e) {
+        } catch (SchemaParseException e) {
             throw new RakamException("Couldn't create new column: " + e.getMessage(), BAD_REQUEST);
         }
 
@@ -370,30 +473,8 @@ public class JsonEventDeserializer
         return avroSchema;
     }
 
-    public static Object getValueOfMagicField(JsonParser jp)
-            throws IOException
-    {
-        switch (jp.getCurrentToken()) {
-            case VALUE_TRUE:
-                return TRUE;
-            case VALUE_FALSE:
-                return Boolean.FALSE;
-            case VALUE_NUMBER_FLOAT:
-                return jp.getValueAsDouble();
-            case VALUE_NUMBER_INT:
-                return jp.getValueAsLong();
-            case VALUE_STRING:
-                return jp.getValueAsString();
-            case VALUE_NULL:
-                return null;
-            default:
-                throw new RakamException("The value of magic field is unknown", BAD_REQUEST);
-        }
-    }
-
     private Object getValue(JsonParser jp, FieldType type, Schema.Field field, boolean passInitialToken)
-            throws IOException
-    {
+            throws IOException {
         if (type == null) {
             return getValueOfMagicField(jp);
         }
@@ -421,8 +502,7 @@ public class JsonEventDeserializer
                     try {
                         return (long) LocalTime.parse(jp.getValueAsString())
                                 .get(ChronoField.MILLI_OF_DAY);
-                    }
-                    catch (Exception e) {
+                    } catch (Exception e) {
                         return null;
 //                        throw new RakamException(String.format("Unable to parse TIME value '%s'", jp.getValueAsString()),
 //                                BAD_REQUEST);
@@ -438,8 +518,7 @@ public class JsonEventDeserializer
                     }
                     try {
                         return DateTimeUtils.parseTimestamp(jp.getValueAsString());
-                    }
-                    catch (Exception e) {
+                    } catch (Exception e) {
                         if (field.name().equals(projectConfig.getTimeColumn())) {
                             throw new RakamException(String.format("Unable to parse TIMESTAMP value '%s' in time column", jp.getValueAsString()),
                                     BAD_REQUEST);
@@ -452,8 +531,7 @@ public class JsonEventDeserializer
                     }
                     try {
                         return DateTimeUtils.parseDate(jp.getValueAsString());
-                    }
-                    catch (Exception e) {
+                    } catch (Exception e) {
                         if (field.name().equals(projectConfig.getTimeColumn())) {
                             throw new RakamException(String.format("Unable to parse DATE value '%s' in time column", jp.getValueAsString()),
                                     BAD_REQUEST);
@@ -464,8 +542,7 @@ public class JsonEventDeserializer
                     throw new JsonMappingException(jp, format("Scalar value '%s' cannot be cast to %s type for '%s' field.",
                             jp.getValueAsString(), type.name(), field.name()));
             }
-        }
-        else {
+        } else {
             Schema actualSchema = field.schema().getTypes().get(1);
             if (type.isMap()) {
                 JsonToken t = jp.getCurrentToken();
@@ -476,20 +553,17 @@ public class JsonEventDeserializer
                     if (t != JsonToken.START_OBJECT) {
                         jp.skipChildren();
                         return null;
-                    }
-                    else {
+                    } else {
                         t = jp.nextToken();
                     }
-                }
-                else {
+                } else {
                     // In order to determine the value type of map, getTypeForUnknown method performed an extra
                     // jp.nextToken() so the cursor should be at VALUE_STRING token.
                     String key = jp.getCurrentName();
                     Object value;
                     if (t.isScalarValue()) {
                         value = getValue(jp, type.getMapValueType(), null, false);
-                    }
-                    else {
+                    } else {
                         value = JsonHelper.encode(jp.readValueAsTree());
                     }
                     map.put(key, value);
@@ -505,24 +579,21 @@ public class JsonEventDeserializer
                             throw new JsonMappingException(jp, String.format("Nested properties are not supported if the type is not MAP_STRING. ('%s' field)", field.name()));
                         }
                         value = JsonHelper.encode(jp.readValueAsTree());
-                    }
-                    else {
+                    } else {
                         value = getValue(jp, type.getMapValueType(), null, false);
                     }
 
                     map.put(key, value);
                 }
                 return map;
-            }
-            else if (type.isArray()) {
+            } else if (type.isArray()) {
                 JsonToken t = jp.getCurrentToken();
                 // if the passStartArrayToken is true, we already performed jp.nextToken
                 // so there is no need to check if the current token is START_ARRAY
                 if (!passInitialToken) {
                     if (t != JsonToken.START_ARRAY) {
                         return null;
-                    }
-                    else {
+                    } else {
                         t = jp.nextToken();
                     }
                 }
@@ -535,18 +606,15 @@ public class JsonEventDeserializer
                         }
 
                         objects.add(JsonHelper.encode(jp.readValueAsTree()));
-                    }
-                    else {
+                    } else {
                         objects.add(getValue(jp, type.getArrayElementType(), null, false));
                     }
                 }
                 return new GenericData.Array(actualSchema, objects);
-            }
-            else {
+            } else {
                 if (type == STRING) {
                     return JsonHelper.encode(jp.readValueAs(TokenBuffer.class));
-                }
-                else {
+                } else {
                     jp.skipChildren();
                     return null;
 //                    throw new JsonMappingException(jp, String.format("Cannot cast object to %s for '%s' field", type.name(), field.name()));
@@ -555,112 +623,8 @@ public class JsonEventDeserializer
         }
     }
 
-    private static FieldType getTypeForUnknown(JsonParser jp)
-            throws IOException
-    {
-        switch (jp.getCurrentToken()) {
-            case VALUE_NULL:
-                return null;
-            case VALUE_STRING:
-                String value = jp.getValueAsString();
-
-                try {
-                    DateTimeUtils.parseDate(value);
-                    return FieldType.DATE;
-                }
-                catch (Exception e) {
-
-                }
-
-                try {
-                    DateTimeUtils.parseTimestamp(value);
-                    return FieldType.TIMESTAMP;
-                }
-                catch (Exception e) {
-
-                }
-
-                return STRING;
-            case VALUE_FALSE:
-                return FieldType.BOOLEAN;
-            case VALUE_NUMBER_FLOAT:
-            case VALUE_NUMBER_INT:
-                return FieldType.DOUBLE;
-            case VALUE_TRUE:
-                return FieldType.BOOLEAN;
-            case START_ARRAY:
-                JsonToken t = jp.nextToken();
-                if (t == JsonToken.END_ARRAY) {
-                    // if the array is null, return null as value.
-                    // TODO: if the key already has a type, return that type instead of null.
-                    return null;
-                }
-
-                FieldType type;
-                if (t.isScalarValue()) {
-                    type = getTypeForUnknown(jp);
-                }
-                else {
-                    type = MAP_STRING;
-                }
-                if (type == null) {
-                    // TODO: what if the other values are not null?
-                    while (t != END_ARRAY) {
-                        if (!t.isScalarValue()) {
-                            return ARRAY_STRING;
-                        }
-                        else {
-                            t = jp.nextToken();
-                        }
-                    }
-                    return null;
-                }
-                if (type.isArray() || type.isMap()) {
-                    return ARRAY_STRING;
-                }
-                return type.convertToArrayType();
-            case START_OBJECT:
-                t = jp.nextToken();
-                if (t == JsonToken.END_OBJECT) {
-                    // if the map is null, return null as value.
-                    // TODO: if the key already has a type, return that type instead of null.
-                    return null;
-                }
-                if (t != JsonToken.FIELD_NAME) {
-                    throw new IllegalArgumentException();
-                }
-                t = jp.nextToken();
-                if (!t.isScalarValue()) {
-                    return MAP_STRING;
-                }
-                type = getTypeForUnknown(jp);
-                if (type == null) {
-                    // TODO: what if the other values are not null?
-                    while (t != END_OBJECT) {
-                        if (!t.isScalarValue()) {
-                            return MAP_STRING;
-                        }
-                        else {
-                            t = jp.nextToken();
-                        }
-                    }
-                    jp.nextToken();
-
-                    return null;
-                }
-
-                if (type.isArray() || type.isMap()) {
-                    return MAP_STRING;
-                }
-                return type.convertToMapValueType();
-            default:
-                throw new JsonMappingException(jp, format("The type is not supported: %s", jp.getValueAsString()));
-        }
-    }
-
     @VisibleForTesting
-    public void cleanCache()
-    {
+    public void cleanCache() {
         schemaCache.invalidateAll();
     }
 }

@@ -3,7 +3,6 @@ package org.rakam.util;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.common.hash.Hashing;
-import io.netty.handler.codec.http.HttpResponseStatus;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -12,29 +11,23 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import javax.xml.bind.DatatypeConverter;
-
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
-import java.security.AlgorithmParameters;
-import java.security.InvalidKeyException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
+import java.security.*;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Random;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
-public final class CryptUtil
-{
+public final class CryptUtil {
     private static final Random random = new SecureRandom();
 
-    private CryptUtil() {}
+    private CryptUtil() {
+    }
 
-    public static String generateRandomKey(int length)
-    {
+    public static String generateRandomKey(int length) {
         String key;
         while ((key = new BigInteger(length * 5/*base 32,2^5*/, random).toString(32)).length() < length) {
             ;
@@ -42,20 +35,17 @@ public final class CryptUtil
         return key;
     }
 
-    public static String sha1(String value)
-    {
+    public static String sha1(String value) {
         MessageDigest md;
         try {
             md = MessageDigest.getInstance("SHA-1");
-        }
-        catch (NoSuchAlgorithmException e) {
+        } catch (NoSuchAlgorithmException e) {
             throw Throwables.propagate(e);
         }
         return new String(md.digest(value.getBytes(StandardCharsets.UTF_8)));
     }
 
-    public static String encryptWithHMacSHA1(String data, String secret)
-    {
+    public static String encryptWithHMacSHA1(String data, String secret) {
         try {
             SecretKeySpec signingKey = new SecretKeySpec(secret.getBytes("UTF-8"), "HmacSHA1");
 
@@ -65,16 +55,14 @@ public final class CryptUtil
             byte[] rawHmac = mac.doFinal(data.getBytes("UTF-8"));
 
             return DatatypeConverter.printBase64Binary(rawHmac);
-        }
-        catch (NoSuchAlgorithmException | InvalidKeyException | UnsupportedEncodingException e) {
+        } catch (NoSuchAlgorithmException | InvalidKeyException | UnsupportedEncodingException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    public static String encryptToHex(String data, String secret, String hashType)
-    {
+    public static String encryptToHex(String data, String secret, String hashType) {
         try {
-            if(secret == null || secret.isEmpty()) {
+            if (secret == null || secret.isEmpty()) {
                 throw new RakamException("Secret is is empty", INTERNAL_SERVER_ERROR);
             }
             SecretKeySpec signingKey = new SecretKeySpec(secret.getBytes("UTF-8"), hashType);
@@ -85,14 +73,12 @@ public final class CryptUtil
             byte[] rawHmac = mac.doFinal(data.getBytes("UTF-8"));
 
             return DatatypeConverter.printHexBinary(rawHmac).toLowerCase(Locale.ENGLISH);
-        }
-        catch (NoSuchAlgorithmException | InvalidKeyException | UnsupportedEncodingException e) {
+        } catch (NoSuchAlgorithmException | InvalidKeyException | UnsupportedEncodingException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    public static String encryptAES(String data, String secretKey)
-    {
+    public static String encryptAES(String data, String secretKey) {
         try {
             byte[] secretKeys = Arrays.copyOfRange(Hashing.sha256().hashString(secretKey, Charsets.UTF_8)
                     .asBytes(), 0, 16);
@@ -108,14 +94,12 @@ public final class CryptUtil
             final byte[] cipherText = cipher.doFinal(data.getBytes(Charsets.UTF_8));
 
             return DatatypeConverter.printHexBinary(iv) + DatatypeConverter.printHexBinary(cipherText);
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             throw Throwables.propagate(e);
         }
     }
 
-    public static String decryptAES(String data, String secretKey)
-    {
+    public static String decryptAES(String data, String secretKey) {
         try {
             byte[] secretKeys = Arrays.copyOfRange(Hashing.sha256().hashString(secretKey, Charsets.UTF_8)
                     .asBytes(), 0, 16);
@@ -134,11 +118,9 @@ public final class CryptUtil
             cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(secretKeys, "AES"), new IvParameterSpec(iv));
 
             return new String(cipher.doFinal(cipherText), Charsets.UTF_8);
-        }
-        catch (BadPaddingException e) {
+        } catch (BadPaddingException e) {
             throw new IllegalArgumentException("Secret key is invalid");
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             throw Throwables.propagate(e);
         }
     }

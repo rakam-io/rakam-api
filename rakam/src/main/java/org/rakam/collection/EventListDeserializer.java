@@ -11,7 +11,6 @@ import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import javax.xml.bind.DatatypeConverter;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.MessageDigest;
@@ -22,32 +21,27 @@ import java.util.Locale;
 
 import static com.fasterxml.jackson.core.JsonToken.FIELD_NAME;
 import static com.fasterxml.jackson.core.JsonToken.START_OBJECT;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
 
 public class EventListDeserializer
-        extends JsonDeserializer<EventList>
-{
+        extends JsonDeserializer<EventList> {
     private final JsonEventDeserializer eventDeserializer;
     private final ApiKeyService apiKeyService;
 
     @Inject
     public EventListDeserializer(ApiKeyService apiKeyService,
-            JsonEventDeserializer jsonEventDeserializer)
-    {
+                                 JsonEventDeserializer jsonEventDeserializer) {
         eventDeserializer = jsonEventDeserializer;
         this.apiKeyService = apiKeyService;
     }
 
     @Override
     public EventList deserialize(JsonParser jp, DeserializationContext deserializationContext)
-            throws IOException
-    {
+            throws IOException {
         JsonToken t = jp.getCurrentToken();
 
         if (t != START_OBJECT) {
@@ -67,12 +61,10 @@ public class EventListDeserializer
         TokenBuffer eventsBuffer = null;
         if (fieldName.equals("api")) {
             context = jp.readValueAs(Event.EventContext.class);
-        }
-        else if (fieldName.equals("events")) {
+        } else if (fieldName.equals("events")) {
             InputStream stream = (InputStream) deserializationContext.getAttribute("stream");
             eventsBuffer = jp.readValueAs(TokenBuffer.class);
-        }
-        else {
+        } else {
             throw new RakamException(format("Invalid property '%s'", fieldName), BAD_REQUEST);
         }
 
@@ -96,22 +88,19 @@ public class EventListDeserializer
             JsonParser eventJp = eventsBuffer.asParser(jp);
             eventJp.nextToken();
             return readEvents(eventJp, context, deserializationContext);
-        }
-        else if (fieldName.equals("events")) {
+        } else if (fieldName.equals("events")) {
             if (eventsBuffer != null) {
                 throw new RakamException("multiple 'events' property", BAD_REQUEST);
             }
 
             return readEvents(jp, context, deserializationContext);
-        }
-        else {
+        } else {
             throw new RakamException(format("Invalid property '%s'", fieldName), BAD_REQUEST);
         }
     }
 
     private EventList readEvents(JsonParser jp, Event.EventContext context, DeserializationContext deserializationContext)
-            throws IOException
-    {
+            throws IOException {
         Object inputSource = jp.getInputSource();
 
         long start = jp.getTokenLocation().getByteOffset();
@@ -135,8 +124,7 @@ public class EventListDeserializer
             try {
                 project = apiKeyService.getProjectOfApiKey(context.apiKey,
                         apiKey == null ? WRITE_KEY : (ApiKeyService.AccessKeyType) apiKey);
-            }
-            catch (RakamException e) {
+            } catch (RakamException e) {
                 masterKey = true;
             }
         }
@@ -145,8 +133,7 @@ public class EventListDeserializer
             masterKey = true;
             try {
                 project = apiKeyService.getProjectOfApiKey(context.apiKey, MASTER_KEY);
-            }
-            catch (RakamException e) {
+            } catch (RakamException e) {
                 if (e.getStatusCode() == FORBIDDEN) {
                     throw new RakamException("api_key is invalid", FORBIDDEN);
                 }
@@ -171,13 +158,11 @@ public class EventListDeserializer
         return new EventList(context, project, list);
     }
 
-    private void validateChecksum(byte[] sourceRef, long start, long end, Event.EventContext context)
-    {
+    private void validateChecksum(byte[] sourceRef, long start, long end, Event.EventContext context) {
         MessageDigest md;
         try {
             md = MessageDigest.getInstance("MD5");
-        }
-        catch (NoSuchAlgorithmException e) {
+        } catch (NoSuchAlgorithmException e) {
             throw new RakamException(INTERNAL_SERVER_ERROR);
         }
 

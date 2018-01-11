@@ -10,37 +10,33 @@ public class RealTimeConfig {
     private Duration windowInterval = Duration.valueOf("120s");
     private Duration slideInterval = Duration.valueOf("10s");
 
+    public boolean isRealtimeModuleEnabled() {
+        return enabled;
+    }
+
     @Config("real-time.enabled")
     public RealTimeConfig setRealtimeModuleEnabled(boolean enabled) {
         this.enabled = enabled;
         return this;
     }
 
-    public boolean isRealtimeModuleEnabled() {
-        return enabled;
-    }
-
-    public Duration getWindowInterval()
-    {
+    public Duration getWindowInterval() {
         return windowInterval;
     }
 
     @Config("realtime.window.interval")
-    public RealTimeConfig setWindowInterval(String windowInterval)
-    {
+    public RealTimeConfig setWindowInterval(String windowInterval) {
         this.windowInterval = Duration.valueOf(windowInterval);
         return this;
     }
 
     @MinDuration("1s")
-    public Duration getSlideInterval()
-    {
+    public Duration getSlideInterval() {
         return slideInterval;
     }
 
     @Config("realtime.window.interval")
-    public RealTimeConfig setSlideInterval(String slideInterval)
-    {
+    public RealTimeConfig setSlideInterval(String slideInterval) {
         this.slideInterval = Duration.valueOf(slideInterval);
         return this;
     }

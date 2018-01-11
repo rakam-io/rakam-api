@@ -5,11 +5,11 @@ import com.google.common.base.Optional;
 import org.rakam.analysis.datasource.CustomDataSourceConfig;
 import org.rakam.config.ProjectConfig;
 import org.rakam.config.TaskConfig;
-import org.rakam.report.eventexplorer.EventExplorerConfig;
 import org.rakam.plugin.stream.EventStreamConfig;
-import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
+import org.rakam.report.eventexplorer.EventExplorerConfig;
+import org.rakam.report.realtime.RealTimeConfig;
 
 import javax.inject.Inject;
 
@@ -26,15 +26,15 @@ public class ActiveModuleListBuilder {
 
     @Inject
     public ActiveModuleListBuilder(UserPluginConfig userPluginConfig, CustomDataSourceConfig customDataSourceConfig, TaskConfig taskConfig, Optional<UserMailboxStorage> mailboxStorage, RealTimeConfig realtimeConfig, EventStreamConfig eventStreamConfig, EventExplorerConfig eventExplorerConfig, UserPluginConfig userStorage, ProjectConfig projectConfig) {
-       this.userPluginConfig = userPluginConfig;
-       this.realtimeConfig = realtimeConfig;
-       this.eventStreamConfig = eventStreamConfig;
-       this.eventExplorerConfig = eventExplorerConfig;
-       this.userStorage = userStorage;
-       this.projectConfig = projectConfig;
-       this.customDataSourceEnabled = customDataSourceConfig.getEnabled();
-       this.userStorageMailbox = mailboxStorage.isPresent();
-       this.taskConfig = taskConfig;
+        this.userPluginConfig = userPluginConfig;
+        this.realtimeConfig = realtimeConfig;
+        this.eventStreamConfig = eventStreamConfig;
+        this.eventExplorerConfig = eventExplorerConfig;
+        this.userStorage = userStorage;
+        this.projectConfig = projectConfig;
+        this.customDataSourceEnabled = customDataSourceConfig.getEnabled();
+        this.userStorageMailbox = mailboxStorage.isPresent();
+        this.taskConfig = taskConfig;
     }
 
     public ActiveModuleList build() {
@@ -77,10 +77,10 @@ public class ActiveModuleListBuilder {
         @JsonProperty
         public final String userColumn;
 
-        private ActiveModuleList(UserPluginConfig userPluginConfig,  boolean userStorageMailbox,
-                RealTimeConfig realtimeConfig, EventStreamConfig eventStreamConfig,
-                EventExplorerConfig eventExplorerConfig, UserPluginConfig userStorage,
-                ProjectConfig projectConfig, boolean scheduledTasksEnabled, boolean webhookEnabled, boolean customDatabaseEnabled) {
+        private ActiveModuleList(UserPluginConfig userPluginConfig, boolean userStorageMailbox,
+                                 RealTimeConfig realtimeConfig, EventStreamConfig eventStreamConfig,
+                                 EventExplorerConfig eventExplorerConfig, UserPluginConfig userStorage,
+                                 ProjectConfig projectConfig, boolean scheduledTasksEnabled, boolean webhookEnabled, boolean customDatabaseEnabled) {
             this.userStorage = userPluginConfig.isEnabled();
             this.userMailbox = userStorageMailbox;
             this.funnelAnalysisEnabled = userPluginConfig.isFunnelAnalysisEnabled();

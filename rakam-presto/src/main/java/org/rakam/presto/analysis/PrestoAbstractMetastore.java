@@ -8,10 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
-public abstract class PrestoAbstractMetastore extends AbstractMetastore
-{
-    public PrestoAbstractMetastore(EventBus eventBus)
-    {
+public abstract class PrestoAbstractMetastore extends AbstractMetastore {
+    public PrestoAbstractMetastore(EventBus eventBus) {
         super(eventBus);
     }
 

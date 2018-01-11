@@ -6,8 +6,7 @@ import org.rakam.plugin.EventMapper;
 import java.net.InetAddress;
 import java.util.List;
 
-public interface UserPropertyMapper
-{
+public interface UserPropertyMapper {
     List<Cookie> map(String project, List<? extends ISingleUserBatchOperation> user, EventMapper.RequestParams requestParams, InetAddress sourceAddress);
 }
 

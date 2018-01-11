@@ -29,7 +29,7 @@ public class RealTimeModule extends RakamModule {
         mappers.addBinding().to(RealtimeEventProcessor.class).in(Scopes.SINGLETON);
 
         Multibinder.newSetBinder(binder, Tag.class).addBinding()
-                .toInstance( new Tag().name("realtime").description("Realtime")
+                .toInstance(new Tag().name("realtime").description("Realtime")
                         .externalDocs(MetadataConfig.centralDocs));
     }
 

@@ -5,8 +5,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.List;
 import java.util.Map;
 
-public interface ISingleUserBatchOperation
-{
+public interface ISingleUserBatchOperation {
     ObjectNode getSetProperties();
 
     ObjectNode getSetPropertiesOnce();

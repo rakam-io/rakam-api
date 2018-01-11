@@ -5,6 +5,7 @@ import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.analysis.RequestContext;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecutorService;
@@ -22,8 +23,7 @@ import static org.rakam.report.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkCollection;
 
 public class PostgresqlUserStorage
-        extends AbstractPostgresqlUserStorage
-{
+        extends AbstractPostgresqlUserStorage {
     public static final String USER_TABLE = "_users";
     private final MaterializedViewService materializedViewService;
     private final QueryExecutorService queryExecutorService;
@@ -33,22 +33,19 @@ public class PostgresqlUserStorage
             QueryExecutorService queryExecutorService,
             MaterializedViewService materializedViewService,
             ConfigManager configManager,
-            PostgresqlQueryExecutor queryExecutor)
-    {
+            PostgresqlQueryExecutor queryExecutor) {
         super(queryExecutorService, queryExecutor, configManager);
         this.queryExecutorService = queryExecutorService;
         this.materializedViewService = materializedViewService;
     }
 
     @Override
-    public QueryExecutorService getExecutorForWithEventFilter()
-    {
+    public QueryExecutorService getExecutorForWithEventFilter() {
         return queryExecutorService;
     }
 
     @Override
-    public List<String> getEventFilterPredicate(String project, List<EventFilter> eventFilter)
-    {
+    public List<String> getEventFilterPredicate(String project, List<EventFilter> eventFilter) {
         List<String> filters = new ArrayList<>(2);
 
         for (EventFilter filter : eventFilter) {
@@ -62,8 +59,7 @@ public class PostgresqlUserStorage
                 }
                 // TODO: timeframe
                 filters.add((format("id in (%s)", builder.toString())));
-            }
-            else {
+            } else {
                 builder.append(format("select \"_user\" from %s", collection));
                 if (filter.filterExpression != null) {
                     builder.append(" where ").append(new ExpressionFormatter.Formatter(Optional.empty()).process(filter.getExpression(), null));
@@ -71,8 +67,7 @@ public class PostgresqlUserStorage
                 String field;
                 if (filter.aggregation.type == COUNT && filter.aggregation.field == null) {
                     field = "_user";
-                }
-                else {
+                } else {
                     field = filter.aggregation.field;
                 }
                 builder.append(" group by \"_user\" ");
@@ -96,14 +91,12 @@ public class PostgresqlUserStorage
     }
 
     @Override
-    public ProjectCollection getUserTable(String project, boolean isEventFilterActive)
-    {
+    public ProjectCollection getUserTable(String project, boolean isEventFilterActive) {
         return new ProjectCollection(project, USER_TABLE);
     }
 
     @Override
-    public void createSegment(String project, String name, String tableName, Expression filterExpression, List<EventFilter> eventFilter, Duration interval)
-    {
+    public void createSegment(RequestContext context, String name, String tableName, Expression filterExpression, List<EventFilter> eventFilter, Duration interval) {
         StringBuilder builder = new StringBuilder("select distinct id from _users where ");
 
         if (filterExpression != null) {
@@ -111,13 +104,13 @@ public class PostgresqlUserStorage
         }
 
         if (eventFilter != null && !eventFilter.isEmpty()) {
-            if(filterExpression != null) {
+            if (filterExpression != null) {
                 builder.append(" AND ");
             }
-            builder.append(getEventFilterPredicate(project, eventFilter).stream().collect(Collectors.joining(" AND ")));
+            builder.append(getEventFilterPredicate(context.project, eventFilter).stream().collect(Collectors.joining(" AND ")));
         }
 
-        materializedViewService.create(project, new MaterializedView(tableName,
+        materializedViewService.create(context, new MaterializedView(tableName,
                 "Users who did " + (tableName == null ? "at least one event" : tableName + " event"),
                 builder.toString(), interval, null, null, ImmutableMap.of()));
     }

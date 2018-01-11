@@ -35,7 +35,7 @@ public class ABTestingMetastore {
     }
 
     public void setup() {
-        try(Handle handle = dbi.open()) {
+        try (Handle handle = dbi.open()) {
             handle.createStatement("CREATE TABLE IF NOT EXISTS ab_testing (" +
                     "  id SERIAL NOT NULL," +
                     "  project VARCHAR(255) NOT NULL," +
@@ -52,7 +52,7 @@ public class ABTestingMetastore {
     }
 
     public List<ABTestingReport> getReports(String project) {
-        try(Handle handle = dbi.open()) {
+        try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT id, name, variants, collection_name, connector_field, goals, options FROM " +
                     "public.ab_testing WHERE project = :project")
                     .bind("project", project).map(mapper).list();
@@ -60,17 +60,17 @@ public class ABTestingMetastore {
     }
 
     public void delete(String project, int id) {
-        try(Handle handle = dbi.open()) {
+        try (Handle handle = dbi.open()) {
             handle.createStatement("DELETE FROM reports WHERE project = :project AND id = :id")
                     .bind("project", project).bind("id", id).execute();
         }
     }
 
     public void save(String project, ABTestingReport report) {
-        if(report.id != -1) {
+        if (report.id != -1) {
             throw new RakamException("Report already has an id.", HttpResponseStatus.BAD_REQUEST);
         }
-        try(Handle handle = dbi.open()) {
+        try (Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO ab_testing (project, name, variants, collection_name, connector_field, goals, options)" +
                     " VALUES (:project, :name, :variants, :collection_name, :goals, :options)")
                     .bind("project", project)
@@ -81,7 +81,7 @@ public class ABTestingMetastore {
                     .bind("options", JsonHelper.encode(report.options, false))
                     .execute();
         } catch (UnableToExecuteStatementException e) {
-            if(e.getCause() instanceof SQLException && ((SQLException) e.getCause()).getSQLState().equals("23505")) {
+            if (e.getCause() instanceof SQLException && ((SQLException) e.getCause()).getSQLState().equals("23505")) {
                 // TODO: replace
                 throw new RakamException("Report already exists", HttpResponseStatus.BAD_REQUEST);
             }
@@ -89,7 +89,7 @@ public class ABTestingMetastore {
     }
 
     public ABTestingReport get(String project, int id) {
-        try(Handle handle = dbi.open()) {
+        try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT id, name, variants, collection_name, connector_field, goals, options " +
                     "FROM ab_testing WHERE project = :project AND id = :id")
                     .bind("project", project)
@@ -98,20 +98,20 @@ public class ABTestingMetastore {
     }
 
     public ABTestingReport update(String project, ABTestingReport report) {
-        if(report.id == 1) {
+        if (report.id == 1) {
             throw new RakamException("Report doesn't have an id.", HttpResponseStatus.BAD_REQUEST);
         }
-        try(Handle handle = dbi.open()) {
+        try (Handle handle = dbi.open()) {
             int execute = handle.createStatement("UPDATE reports SET name = :name, variants = :variants, collection_name = :collection_name, connector_field = :connector_field, goals = :goals, options = :options WHERE project = :project AND id = :id")
                     .bind("project", project)
                     .bind("id", report.id)
                     .bind("variants", report.variants)
                     .bind("connector_field", report.connectorField)
                     .bind("collection_name", report.collectionName)
-                    .bind("goals",  JsonHelper.encode(ImmutableList.of(report.goal)))
+                    .bind("goals", JsonHelper.encode(ImmutableList.of(report.goal)))
                     .bind("options", JsonHelper.encode(report.options, false))
                     .execute();
-            if(execute == 0) {
+            if (execute == 0) {
                 throw new RakamException("Report does not exist", HttpResponseStatus.BAD_REQUEST);
             }
         }

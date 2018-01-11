@@ -29,10 +29,10 @@ public class TestUserAgentEventMapper {
 
     @DataProvider(name = "chrome-user-agent")
     public static Object[][] hashEnabledValuesProvider() throws UnknownHostException {
-        return new Object[][] {
-                { ImmutableMap.of("_user_agent", USER_AGENT), EventMapper.RequestParams.EMPTY_PARAMS},
-                { ImmutableMap.of("_user_agent", true), (EventMapper.RequestParams) () -> new DefaultHttpHeaders().set("User-Agent", USER_AGENT) },
-                { ImmutableMap.of("_user_agent", USER_AGENT), (EventMapper.RequestParams) () -> new DefaultHttpHeaders().set("User-Agent", USER_AGENT)  }
+        return new Object[][]{
+                {ImmutableMap.of("_user_agent", USER_AGENT), EventMapper.RequestParams.EMPTY_PARAMS},
+                {ImmutableMap.of("_user_agent", true), (EventMapper.RequestParams) () -> new DefaultHttpHeaders().set("User-Agent", USER_AGENT)},
+                {ImmutableMap.of("_user_agent", USER_AGENT), (EventMapper.RequestParams) () -> new DefaultHttpHeaders().set("User-Agent", USER_AGENT)}
         };
     }
 
@@ -59,7 +59,7 @@ public class TestUserAgentEventMapper {
 
         assertEquals("Chrome", event.getAttribute("_user_agent_family"));
         assertEquals("Mac OS X", event.getAttribute("_os"));
-        assertEquals(new Long(10), event.getAttribute("_os_version"));
+        assertEquals("10", event.getAttribute("_os_version"));
         assertEquals("Other", event.getAttribute("_device_family"));
         assertNull(resp);
         GenericData.get().validate(properties.getSchema(), properties);

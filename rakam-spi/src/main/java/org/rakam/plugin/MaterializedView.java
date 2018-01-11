@@ -20,19 +20,27 @@ import static java.time.temporal.ChronoUnit.MILLIS;
 public class MaterializedView {
     private final static SqlParser SQL_PARSER = new SqlParser();
 
-    @JsonProperty("table_name") public final String tableName;
-    @JsonProperty("query") public final String query;
-    @JsonProperty("incremental") public final boolean incremental;
-    @JsonProperty("real_time") public final boolean realTime;
-    @JsonProperty("update_interval") public final Duration updateInterval;
-    @JsonProperty("last_update") public transient Instant lastUpdate;
-    @JsonProperty("name") public String name;
-    @JsonProperty("options") public final Map<String, Object> options;
+    @JsonProperty("table_name")
+    public final String tableName;
+    @JsonProperty("query")
+    public final String query;
+    @JsonProperty("incremental")
+    public final boolean incremental;
+    @JsonProperty("real_time")
+    public final boolean realTime;
+    @JsonProperty("update_interval")
+    public final Duration updateInterval;
+    @JsonProperty("options")
+    public final Map<String, Object> options;
+    @JsonProperty("last_update")
+    public transient Instant lastUpdate;
+    @JsonProperty("name")
+    public String name;
 
     @JsonCreator
-    public MaterializedView(@ApiParam(value = "table_name", description="The table name of the materialized view that can be used when querying") String tableName,
-                            @ApiParam(value = "name", description="Name") String name,
-                            @ApiParam(value = "query", description="The sql query that will be executed and materialized") String query,
+    public MaterializedView(@ApiParam(value = "table_name", description = "The table name of the materialized view that can be used when querying") String tableName,
+                            @ApiParam(value = "name", description = "Name") String name,
+                            @ApiParam(value = "query", description = "The sql query that will be executed and materialized") String query,
                             @ApiParam(value = "update_interval", required = false) Duration updateInterval,
                             @ApiParam(value = "incremental", required = false) Boolean incremental,
                             @ApiParam(value = "real_time", required = false) Boolean realTime,
@@ -62,8 +70,7 @@ public class MaterializedView {
     }
 
     @Override
-    public boolean equals(Object o)
-    {
+    public boolean equals(Object o) {
         if (this == o) {
             return true;
         }
@@ -92,8 +99,7 @@ public class MaterializedView {
     }
 
     @Override
-    public int hashCode()
-    {
+    public int hashCode() {
         int result = tableName.hashCode();
         result = 31 * result + query.hashCode();
         result = 31 * result + (incremental ? 1 : 0);

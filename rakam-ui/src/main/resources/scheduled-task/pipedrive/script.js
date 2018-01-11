@@ -78,8 +78,7 @@ var fetch = function (parameters, events, startDate, offset) {
                         item._user = item.user + "";
                     }
                     item.user = undefined;
-                } else
-                if (activities.item == 'person') {
+                } else if (activities.item == 'person') {
                     if (typeof item.email === 'object') {
                         item.email = item.email.value;
                     }
@@ -138,7 +137,7 @@ var fetch = function (parameters, events, startDate, offset) {
     }
 
     eventStore.store(events);
-    if(data.additional_data.last_timestamp_on_page) {
+    if (data.additional_data.last_timestamp_on_page) {
         config.set('start_timestamp', data.additional_data.last_timestamp_on_page);
     }
 

@@ -16,23 +16,15 @@ import org.rakam.util.SuccessMessage;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.Query;
-import org.skife.jdbi.v2.StatementContext;
-import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Named;
-
 import java.net.URL;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -42,21 +34,18 @@ import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static java.util.Objects.requireNonNull;
 import static org.rakam.util.JDBCUtil.fromSql;
 
-public class CustomDataSourceService
-{
+public class CustomDataSourceService {
     private final DBI dbi;
     private final ExecutorService executor;
 
     @Inject
-    public CustomDataSourceService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource)
-    {
+    public CustomDataSourceService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
         this.dbi = new DBI(dataSource);
         this.executor = Executors.newCachedThreadPool();
     }
 
     @PostConstruct
-    public void setup()
-    {
+    public void setup() {
         try (Handle handle = dbi.open()) {
             handle.createStatement("CREATE TABLE IF NOT EXISTS custom_data_source (" +
                     "  project VARCHAR(255) NOT NULL," +
@@ -77,21 +66,7 @@ public class CustomDataSourceService
         }
     }
 
-    public static class CustomDataSourceList
-    {
-        public final List<CustomDataSource> customDataSources;
-        public final Map<String, RemoteTable> customFileSources;
-
-        @JsonCreator
-        public CustomDataSourceList(List<CustomDataSource> customDataSources, Map<String, RemoteTable> customFileSources)
-        {
-            this.customDataSources = customDataSources;
-            this.customFileSources = customFileSources;
-        }
-    }
-
-    public CustomDataSourceList listDatabases(@Named("project") String project)
-    {
+    public CustomDataSourceList listDatabases(String project) {
         try (Handle handle = dbi.open()) {
             List<CustomDataSource> customDataSources = handle.createQuery("SELECT schema_name, type, options FROM custom_data_source WHERE project = :project")
                     .bind("project", project)
@@ -113,8 +88,7 @@ public class CustomDataSourceService
         }
     }
 
-    public CompletableFuture<List<SchemaField>> schemaTable(String project, String schema, String table)
-    {
+    public CompletableFuture<List<SchemaField>> schemaTable(String project, String schema, String table) {
         CustomDataSource customDataSource = getDatabase(project, schema);
         List<SchemaField> builder = new ArrayList<>();
 
@@ -128,23 +102,20 @@ public class CustomDataSourceService
                     FieldType fieldType;
                     try {
                         fieldType = fromSql(dbColumns.getInt("DATA_TYPE"), dbColumns.getString("TYPE_NAME"));
-                    }
-                    catch (UnsupportedOperationException e) {
+                    } catch (UnsupportedOperationException e) {
                         continue;
                     }
                     builder.add(new SchemaField(columnName, fieldType));
                 }
 
                 return builder;
-            }
-            catch (SQLException e) {
+            } catch (SQLException e) {
                 throw Throwables.propagate(e);
             }
         }, executor);
     }
 
-    public CompletableFuture<Map<String, List<String>>> schemaDatabases(String project)
-    {
+    public CompletableFuture<Map<String, List<String>>> schemaDatabases(String project) {
         return CompletableFuture.supplyAsync(() -> {
 
             ImmutableMap.Builder<String, List<String>> schemas = ImmutableMap.builder();
@@ -163,8 +134,7 @@ public class CustomDataSourceService
                         }
                         builder.add(dbColumns.getString("table_name"));
                     }
-                }
-                catch (SQLException e) {
+                } catch (SQLException e) {
                     // TODO: report error
                     continue;
                 }
@@ -185,8 +155,7 @@ public class CustomDataSourceService
         }, executor);
     }
 
-    public CustomDataSource getDatabase(@Named("project") String project, String schema)
-    {
+    public CustomDataSource getDatabase(String project, String schema) {
         try (Handle handle = dbi.open()) {
             Query<Map<String, Object>> bind = handle.createQuery("SELECT type, options FROM custom_data_source WHERE project = :project AND lower(schema_name) = :schema_name")
                     .bind("project", project)
@@ -203,18 +172,7 @@ public class CustomDataSourceService
         }
     }
 
-    public static class ThirdPartyCustomDatabase {
-        public final List<Parameter> parameters;
-        public final String type;
-
-        public ThirdPartyCustomDatabase(String type, List<Parameter> parameters) {
-            this.parameters = parameters;
-            this.type = type;
-        }
-    }
-
-    public RemoteTable getFile(@Named("project") String project, String tableName)
-    {
+    public RemoteTable getFile(String project, String tableName) {
         try (Handle handle = dbi.open()) {
             Query<Map<String, Object>> bind = handle.createQuery("SELECT options FROM custom_file_source WHERE project = :project AND table_name = :table_name")
                     .bind("project", project)
@@ -232,8 +190,7 @@ public class CustomDataSourceService
         }
     }
 
-    public Map<String, RemoteTable> getFiles(@Named("project") String project)
-    {
+    public Map<String, RemoteTable> getFiles(String project) {
         try (Handle handle = dbi.open()) {
             Query<Map<String, Object>> bind = handle.createQuery("SELECT table_name, options FROM custom_file_source WHERE project = :project")
                     .bind("project", project);
@@ -249,8 +206,7 @@ public class CustomDataSourceService
         }
     }
 
-    public SuccessMessage addDatabase(@Named("project") String project, CustomDataSource hook)
-    {
+    public SuccessMessage addDatabase(String project, CustomDataSource hook) {
         try (Handle handle = dbi.open()) {
             try {
                 handle.createStatement("INSERT INTO custom_data_source (project, schema_name, type, options) " +
@@ -261,17 +217,14 @@ public class CustomDataSourceService
                         .bind("options", JsonHelper.encode(hook.options))
                         .execute();
                 return SuccessMessage.success();
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 try {
                     getDatabase(project, hook.schemaName);
                     throw new AlreadyExistsException("Custom database", BAD_REQUEST);
-                }
-                catch (RakamException e1) {
+                } catch (RakamException e1) {
                     if (e1.getStatusCode() != NOT_FOUND) {
                         throw e1;
-                    }
-                    else {
+                    } else {
                         throw e;
                     }
                 }
@@ -279,8 +232,7 @@ public class CustomDataSourceService
         }
     }
 
-    public SuccessMessage addFile(@Named("project") String project, @ApiParam("tableName") String tableName, @ApiParam("options") DiscoverableRemoteTable hook)
-    {
+    public SuccessMessage addFile(String project, @ApiParam("tableName") String tableName, @ApiParam("options") DiscoverableRemoteTable hook) {
         try (Handle handle = dbi.open()) {
             try {
                 handle.createStatement("INSERT INTO custom_file_source (project, table_name, options) " +
@@ -290,17 +242,14 @@ public class CustomDataSourceService
                         .bind("options", JsonHelper.encode(hook.getTable()))
                         .execute();
                 return SuccessMessage.success();
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 try {
                     getFile(project, tableName);
                     throw new AlreadyExistsException("Custom file", BAD_REQUEST);
-                }
-                catch (RakamException e1) {
+                } catch (RakamException e1) {
                     if (e1.getStatusCode() != NOT_FOUND) {
                         throw e1;
-                    }
-                    else {
+                    } else {
                         throw e;
                     }
                 }
@@ -308,8 +257,7 @@ public class CustomDataSourceService
         }
     }
 
-    public SuccessMessage removeFile(String project, String tableName)
-    {
+    public SuccessMessage removeFile(String project, String tableName) {
         try (Handle handle = dbi.open()) {
             int execute = handle.createStatement("DELETE FROM custom_file_source WHERE project = :project AND table_name = :table_name")
                     .bind("project", project)
@@ -324,8 +272,7 @@ public class CustomDataSourceService
         }
     }
 
-    public SuccessMessage removeDatabase(String project, String schemaName)
-    {
+    public SuccessMessage removeDatabase(String project, String schemaName) {
         try (Handle handle = dbi.open()) {
             int execute = handle.createStatement("DELETE FROM custom_data_source WHERE project = :project AND schema_name = :schema_name")
                     .bind("project", project)
@@ -340,8 +287,7 @@ public class CustomDataSourceService
         }
     }
 
-    public SuccessMessage testDatabase(String project, String type, JDBCSchemaConfig options)
-    {
+    public SuccessMessage testDatabase(String project, String type, JDBCSchemaConfig options) {
         SupportedCustomDatabase optionalFunction = SupportedCustomDatabase.getAdapter(type);
         Optional<String> test = optionalFunction.getDataSource().test(options);
         if (test.isPresent()) {
@@ -351,8 +297,7 @@ public class CustomDataSourceService
         return SuccessMessage.success();
     }
 
-    public SuccessMessage testFile(String project, DiscoverableRemoteTable hook)
-    {
+    public SuccessMessage testFile(String project, DiscoverableRemoteTable hook) {
         ExternalFileCustomDataSource source = new ExternalFileCustomDataSource();
         Optional<String> test = source.test(hook.getTable());
         if (test.isPresent()) {
@@ -362,8 +307,28 @@ public class CustomDataSourceService
         return SuccessMessage.success();
     }
 
-    public static class DiscoverableRemoteTable
-    {
+    public static class CustomDataSourceList {
+        public final List<CustomDataSource> customDataSources;
+        public final Map<String, RemoteTable> customFileSources;
+
+        @JsonCreator
+        public CustomDataSourceList(List<CustomDataSource> customDataSources, Map<String, RemoteTable> customFileSources) {
+            this.customDataSources = customDataSources;
+            this.customFileSources = customFileSources;
+        }
+    }
+
+    public static class ThirdPartyCustomDatabase {
+        public final List<Parameter> parameters;
+        public final String type;
+
+        public ThirdPartyCustomDatabase(String type, List<Parameter> parameters) {
+            this.parameters = parameters;
+            this.type = type;
+        }
+    }
+
+    public static class DiscoverableRemoteTable {
         public final URL url;
         public final boolean indexUrl;
         public final List<SchemaField> columns;
@@ -378,8 +343,7 @@ public class CustomDataSourceService
                 @ApiParam(value = "typeOptions", required = false) Map<String, String> typeOptions,
                 @ApiParam(value = "columns", required = false) List<SchemaField> columns,
                 @ApiParam(value = "compressionType", required = false) RemoteTable.CompressionType compressionType,
-                @ApiParam(value = "format") org.rakam.analysis.datasource.RemoteTable.ExternalSourceType format)
-        {
+                @ApiParam(value = "format") org.rakam.analysis.datasource.RemoteTable.ExternalSourceType format) {
             this.url = url;
             this.indexUrl = indexUrl == Boolean.TRUE;
             this.typeOptions = Optional.ofNullable(typeOptions).orElse(ImmutableMap.of());
@@ -388,8 +352,7 @@ public class CustomDataSourceService
             this.format = requireNonNull(format, "format is null");
         }
 
-        public RemoteTable getTable()
-        {
+        public RemoteTable getTable() {
             List<SchemaField> columns = (this.columns == null ? ExternalFileCustomDataSource.fillColumnIfNotSet(typeOptions, format, url, indexUrl) : this.columns);
 
             return new RemoteTable(url,

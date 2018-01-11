@@ -7,8 +7,7 @@ import org.rakam.plugin.SyncEventStore;
 import java.util.ArrayList;
 import java.util.List;
 
-public class InMemoryEventStore implements SyncEventStore
-{
+public class InMemoryEventStore implements SyncEventStore {
     private final List<Event> events = new ArrayList<>();
 
     @Override

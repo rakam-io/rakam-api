@@ -5,11 +5,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
-import org.apache.avro.io.BinaryDecoder;
-import org.apache.avro.io.BinaryEncoder;
-import org.apache.avro.io.DatumWriter;
-import org.apache.avro.io.DecoderFactory;
-import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.io.*;
 import org.rakam.recipe.Recipe;
 import org.testng.annotations.Test;
 
@@ -19,7 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 public class RecipeConfigTest {
-//    @Test
+    //    @Test
     public void test() throws IOException {
         InputStream io = getClass().getResourceAsStream("recipes/ecommerce_test.yml");
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());

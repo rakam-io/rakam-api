@@ -10,12 +10,10 @@ import com.facebook.presto.sql.tree.Statement;
 import com.google.common.collect.ImmutableList;
 import org.testng.annotations.Test;
 
-public class TestFuturistic
-{
+public class TestFuturistic {
     @Test(enabled = false)
     public void testName()
-            throws Exception
-    {
+            throws Exception {
         String s = "select count(*) from test where ali = 5";
         Statement statement = new SqlParser().createStatement(s);
         Analysis analysis = new Analysis(statement, ImmutableList.of(), false);

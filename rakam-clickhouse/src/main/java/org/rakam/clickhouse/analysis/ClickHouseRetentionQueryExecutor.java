@@ -25,22 +25,19 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class ClickHouseRetentionQueryExecutor
-        implements RetentionQueryExecutor
-{
+        implements RetentionQueryExecutor {
     private final QueryExecutor executor;
     private final Metastore metastore;
     private final ProjectConfig projectConfig;
 
     @Inject
-    public ClickHouseRetentionQueryExecutor(ProjectConfig projectConfig, QueryExecutor executor, Metastore metastore)
-    {
+    public ClickHouseRetentionQueryExecutor(ProjectConfig projectConfig, QueryExecutor executor, Metastore metastore) {
         this.projectConfig = projectConfig;
         this.executor = executor;
         this.metastore = metastore;
     }
 
-    private static String formatExpression(Expression value)
-    {
+    private static String formatExpression(Expression value) {
         return RakamSqlFormatter.formatExpression(value,
                 name -> name.getParts().stream().map(e -> formatIdentifier(e, '`')).collect(Collectors.joining(".")),
                 ValidationUtil::checkTableColumn, '`');
@@ -48,15 +45,14 @@ public class ClickHouseRetentionQueryExecutor
 
     @Override
     public QueryExecution query(String project,
-            Optional<RetentionAction> firstAction,
-            Optional<RetentionAction> returningAction,
-            DateUnit dateUnit,
-            Optional<String> dimension,
-            Optional<Integer> period,
-            LocalDate startDate,
-            LocalDate endDate, ZoneId zoneId,
-            boolean approximate)
-    {
+                                Optional<RetentionAction> firstAction,
+                                Optional<RetentionAction> returningAction,
+                                DateUnit dateUnit,
+                                Optional<String> dimension,
+                                Optional<Integer> period,
+                                LocalDate startDate,
+                                LocalDate endDate, ZoneId zoneId,
+                                boolean approximate) {
         int startEpoch = (int) startDate.toEpochDay();
         int endEpoch = (int) endDate.toEpochDay();
 

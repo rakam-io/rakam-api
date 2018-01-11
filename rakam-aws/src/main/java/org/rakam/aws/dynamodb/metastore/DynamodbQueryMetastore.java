@@ -22,8 +22,7 @@ import java.util.stream.Collectors;
 import static com.google.common.collect.ImmutableMap.of;
 
 public class DynamodbQueryMetastore
-        implements QueryMetadataStore
-{
+        implements QueryMetadataStore {
     private static final List<KeySchemaElement> PROJECT_KEYSCHEMA = ImmutableList.of(
             new KeySchemaElement().withKeyType(KeyType.HASH).withAttributeName("project"),
             new KeySchemaElement().withKeyType(KeyType.RANGE).withAttributeName("type_table_name")
@@ -37,8 +36,7 @@ public class DynamodbQueryMetastore
     private final DynamodbQueryMetastoreConfig tableConfig;
 
     @Inject
-    public DynamodbQueryMetastore(AWSConfig config, DynamodbQueryMetastoreConfig tableConfig)
-    {
+    public DynamodbQueryMetastore(AWSConfig config, DynamodbQueryMetastoreConfig tableConfig) {
         dynamoDBClient = new AmazonDynamoDBClient(config.getCredentials());
         dynamoDBClient.setRegion(config.getAWSRegion());
 
@@ -49,8 +47,7 @@ public class DynamodbQueryMetastore
     }
 
     @PostConstruct
-    public void setup()
-    {
+    public void setup() {
         try {
             DescribeTableResult table = dynamoDBClient.describeTable(tableConfig.getTableName());
 
@@ -61,14 +58,12 @@ public class DynamodbQueryMetastore
             if (!ImmutableSet.copyOf(table.getTable().getAttributeDefinitions()).equals(ATTRIBUTES)) {
                 throw new IllegalStateException("Dynamodb table for query metadata store has invalid attribute schema");
             }
-        }
-        catch (ResourceNotFoundException e) {
+        } catch (ResourceNotFoundException e) {
             createTable();
         }
     }
 
-    private void createTable()
-    {
+    private void createTable() {
         dynamoDBClient.createTable(new CreateTableRequest()
                 .withTableName(tableConfig.getTableName()).withKeySchema(PROJECT_KEYSCHEMA)
                 .withAttributeDefinitions(ATTRIBUTES)
@@ -78,8 +73,7 @@ public class DynamodbQueryMetastore
     }
 
     @Override
-    public void createMaterializedView(String project, MaterializedView materializedView)
-    {
+    public void createMaterializedView(String project, MaterializedView materializedView) {
         dynamoDBClient.putItem(new PutItemRequest().withTableName(tableConfig.getTableName())
                 .withItem(of(
                         "project", new AttributeValue(project),
@@ -88,8 +82,7 @@ public class DynamodbQueryMetastore
     }
 
     @Override
-    public void deleteMaterializedView(String project, String tableName)
-    {
+    public void deleteMaterializedView(String project, String tableName) {
         dynamoDBClient.deleteItem(new DeleteItemRequest().withTableName(tableConfig.getTableName())
                 .withKey(of(
                         "project", new AttributeValue(project),
@@ -97,8 +90,7 @@ public class DynamodbQueryMetastore
     }
 
     @Override
-    public MaterializedView getMaterializedView(String project, String tableName)
-    {
+    public MaterializedView getMaterializedView(String project, String tableName) {
         Map<String, AttributeValue> item = dynamoDBClient.getItem(new GetItemRequest().withTableName(tableConfig.getTableName())
                 .withAttributesToGet("value")
                 .withKey(of(
@@ -112,8 +104,7 @@ public class DynamodbQueryMetastore
     }
 
     @Override
-    public List<MaterializedView> getMaterializedViews(String project)
-    {
+    public List<MaterializedView> getMaterializedViews(String project) {
         List<Map<String, AttributeValue>> items = dynamoDBClient.scan(new ScanRequest()
                 .withTableName(tableConfig.getTableName())
                 .withFilterExpression("#P = :pValue AND begins_with(type_table_name, :prefix)")
@@ -127,14 +118,12 @@ public class DynamodbQueryMetastore
     }
 
     @Override
-    public boolean updateMaterializedView(String project, MaterializedView view, CompletableFuture<Instant> releaseLock)
-    {
+    public boolean updateMaterializedView(String project, MaterializedView view, CompletableFuture<Instant> releaseLock) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void changeMaterializedView(String project, String tableName, boolean realTime)
-    {
+    public void changeMaterializedView(String project, String tableName, boolean realTime) {
         throw new UnsupportedOperationException();
     }
 

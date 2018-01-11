@@ -2,16 +2,23 @@ package org.rakam.config;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.log.Logger;
 
 import java.net.URISyntaxException;
 
 public class ProjectConfig {
+    private final static Logger LOGGER = Logger.get(ProjectConfig.class);
+
     private String lockKey;
     private String passphrase;
     private String timeColumn = "_time";
     private String userColumn = "_user";
     private String companyName;
     private boolean allowProjectDeletion;
+
+    public String getLockKey() {
+        return lockKey;
+    }
 
     @Config("lock-key")
     @ConfigDescription("A key that is required only for creating projects")
@@ -20,8 +27,18 @@ public class ProjectConfig {
         return this;
     }
 
-    public String getLockKey() {
-        return lockKey;
+    public boolean getTasksEnabled() {
+        return false;
+    }
+
+    @Config("tasks.enable")
+    public ProjectConfig setTasksEnabled(boolean tasksEnabled) throws URISyntaxException {
+        LOGGER.warn("`tasks.enable` config is deprecated, task feature is not maintained anymore.");
+        return this;
+    }
+
+    public String getPassphrase() {
+        return passphrase;
     }
 
     @Config("passphrase")
@@ -30,8 +47,8 @@ public class ProjectConfig {
         return this;
     }
 
-    public String getPassphrase() {
-        return passphrase;
+    public String getTimeColumn() {
+        return timeColumn;
     }
 
     @Config("time-column")
@@ -40,8 +57,8 @@ public class ProjectConfig {
         return this;
     }
 
-    public String getTimeColumn() {
-        return timeColumn;
+    public String getUserColumn() {
+        return userColumn;
     }
 
     @Config("user-column")
@@ -50,10 +67,9 @@ public class ProjectConfig {
         return this;
     }
 
-    public String getUserColumn() {
-        return userColumn;
+    public String getCompanyName() {
+        return companyName;
     }
-
 
     @Config("company-name")
     public ProjectConfig setCompanyName(String companyName) {
@@ -61,18 +77,13 @@ public class ProjectConfig {
         return this;
     }
 
-    public String getCompanyName() {
-        return companyName;
+    public boolean getAllowProjectDeletion() {
+        return allowProjectDeletion;
     }
-
 
     @Config("allow-project-deletion")
     public ProjectConfig setAllowProjectDeletion(boolean allowProjectDeletion) {
         this.allowProjectDeletion = allowProjectDeletion;
         return this;
-    }
-
-    public boolean getAllowProjectDeletion() {
-        return allowProjectDeletion;
     }
 }

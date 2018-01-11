@@ -4,26 +4,11 @@ import com.google.common.base.CharMatcher;
 import com.google.common.base.Splitter;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.http.DefaultFullHttpRequest;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpClientCodec;
-import io.netty.handler.codec.http.HttpContentDecompressor;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpObject;
-import io.netty.handler.codec.http.HttpObjectAggregator;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.codec.http.*;
 import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
@@ -65,35 +50,35 @@ public class ProxyWebService extends HttpService {
 
         sslBootstrap = new Bootstrap().channel(NioSocketChannel.class)
                 .group(group).handler(new ChannelInitializer<SocketChannel>() {
-            @Override
-            protected void initChannel(SocketChannel ch) throws Exception {
-                InetSocketAddress addr = ch.remoteAddress();
-                SslHandler sslHandler;
-                // for some hosts the hostname and port required, jdk ssl throws handshake_failure
-                if(addr != null) {
-                    sslHandler = sslCtx.newHandler(ch.alloc(), addr.getHostName(), addr.getPort());
-                } else {
-                    sslHandler = sslCtx.newHandler(ch.alloc());
-                }
+                    @Override
+                    protected void initChannel(SocketChannel ch) throws Exception {
+                        InetSocketAddress addr = ch.remoteAddress();
+                        SslHandler sslHandler;
+                        // for some hosts the hostname and port required, jdk ssl throws handshake_failure
+                        if (addr != null) {
+                            sslHandler = sslCtx.newHandler(ch.alloc(), addr.getHostName(), addr.getPort());
+                        } else {
+                            sslHandler = sslCtx.newHandler(ch.alloc());
+                        }
 
-                ch.pipeline().addLast(sslHandler)
-                        .addLast(new HttpClientCodec())
-                        .addLast(new HttpContentDecompressor())
-                        .addLast(new HttpObjectAggregator(10048576))
-                        .addLast(new ProxyChannelInboundHandler());
-            }
-        });
+                        ch.pipeline().addLast(sslHandler)
+                                .addLast(new HttpClientCodec())
+                                .addLast(new HttpContentDecompressor())
+                                .addLast(new HttpObjectAggregator(10048576))
+                                .addLast(new ProxyChannelInboundHandler());
+                    }
+                });
 
         bootstrap = new Bootstrap().channel(NioSocketChannel.class)
                 .group(group).handler(new ChannelInitializer<SocketChannel>() {
-            @Override
-            protected void initChannel(SocketChannel ch) throws Exception {
-                ch.pipeline().addLast(new HttpClientCodec())
-                        .addLast(new HttpContentDecompressor())
-                        .addLast(new HttpObjectAggregator(10048576))
-                        .addLast(new ProxyChannelInboundHandler());
-            }
-        });
+                    @Override
+                    protected void initChannel(SocketChannel ch) throws Exception {
+                        ch.pipeline().addLast(new HttpClientCodec())
+                                .addLast(new HttpContentDecompressor())
+                                .addLast(new HttpObjectAggregator(10048576))
+                                .addLast(new ProxyChannelInboundHandler());
+                    }
+                });
     }
 
     @Path("/")
@@ -102,13 +87,11 @@ public class ProxyWebService extends HttpService {
         URI url = UriBuilder.fromUri(uri).build();
 
         int port;
-        if(url.getPort() != -1) {
+        if (url.getPort() != -1) {
             port = url.getPort();
-        } else
-        if(url.getScheme().equals("http")) {
+        } else if (url.getScheme().equals("http")) {
             port = 80;
-        } else
-        if(url.getScheme().equals("https")) {
+        } else if (url.getScheme().equals("https")) {
             port = 443;
         } else {
             request.response("invalid scheme").end();
@@ -141,18 +124,18 @@ public class ProxyWebService extends HttpService {
             String contentType = resp.headers().get(HttpHeaders.Names.CONTENT_TYPE);
             Charset charset = null;
 
-            if(contentType != null) {
+            if (contentType != null) {
                 Iterable<String> split = Splitter.on(";").trimResults().split(contentType);
                 for (String item : split) {
                     List<String> charsetStr = new QueryStringDecoder("?" + item).parameters().get("charset");
-                    if(charsetStr != null) {
+                    if (charsetStr != null) {
                         charset = Charset.forName(charsetStr.get(0));
                         break;
                     }
                 }
             }
 
-            if(charset == null) {
+            if (charset == null) {
                 charset = CharsetUtil.UTF_8;
             }
 
@@ -188,11 +171,11 @@ public class ProxyWebService extends HttpService {
 
             copy.headers().set("X-Frame-Options", "ALLOWALL");
 
-            if(location != null && (location.startsWith("/") || (resp.getStatus().code() == 301 || resp.getStatus().code() == 302))) {
-                if(location.startsWith("/")) {
-                    location = url.trim()+location;
+            if (location != null && (location.startsWith("/") || (resp.getStatus().code() == 301 || resp.getStatus().code() == 302))) {
+                if (location.startsWith("/")) {
+                    location = url.trim() + location;
                 }
-                copy.headers().set(HttpHeaders.Names.LOCATION, CharMatcher.is('/').trimTrailingFrom("/ui/proxy?u="+location)+'/');
+                copy.headers().set(HttpHeaders.Names.LOCATION, CharMatcher.is('/').trimTrailingFrom("/ui/proxy?u=" + location) + '/');
             }
 
             channel.writeAndFlush(copy).addListener(ChannelFutureListener.CLOSE);

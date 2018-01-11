@@ -1,7 +1,8 @@
 package org.rakam.kafka.collection;
 
-import org.rakam.collection.SchemaField;
+import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.SchemaField;
 import org.rakam.plugin.stream.CollectionStreamQuery;
 import org.rakam.plugin.stream.EventStream;
 import org.rakam.plugin.stream.StreamResponse;
@@ -38,12 +39,11 @@ public class KafkaStream implements EventStream {
 
     public class KafkaEventSupplier implements EventStreamer {
         private final StreamResponse response;
-        private Map<String, Long> lastOffsets;
         private final List<CollectionStreamQuery> collections;
         private final Set<String> collectionNames;
         private final String project;
         private final List<SchemaField> columns;
-
+        private Map<String, Long> lastOffsets;
         private Map<String, List<SchemaField>> metadata;
 
         public KafkaEventSupplier(String project, List<CollectionStreamQuery> collections, List<String> columns, StreamResponse response) {
@@ -116,7 +116,7 @@ public class KafkaStream implements EventStream {
             if (query.isEmpty())
                 return;
 
-            prestoExecutor.executeRawQuery(query + " limit 1000").getResult()
+            prestoExecutor.executeRawQuery(new RequestContext(project, null), query + " limit 1000").getResult()
                     .thenAccept(r -> {
                         lastOffsets = offsets;
                         response.send("data", "[" + r.getResult().stream()

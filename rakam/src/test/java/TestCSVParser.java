@@ -11,11 +11,7 @@ import org.rakam.analysis.InMemoryApiKeyService;
 import org.rakam.analysis.InMemoryMetastore;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.SchemaChecker;
-import org.rakam.collection.CsvEventDeserializer;
-import org.rakam.collection.Event;
-import org.rakam.collection.EventList;
-import org.rakam.collection.FieldDependencyBuilder;
-import org.rakam.collection.SchemaField;
+import org.rakam.collection.*;
 import org.rakam.config.ProjectConfig;
 import org.rakam.util.AvroUtil;
 import org.testng.annotations.Test;
@@ -46,9 +42,9 @@ public class TestCSVParser {
                 "1/2/09 4:53,Product2,1500\n";
 
         EventList actual = mapper.reader(EventList.class).with(ContextAttributes.getEmpty()
-                        .withSharedAttribute("project", "project")
-                        .withSharedAttribute("collection", "collection")
-                        .withSharedAttribute("apiKey", "apiKey")
+                .withSharedAttribute("project", "project")
+                .withSharedAttribute("collection", "collection")
+                .withSharedAttribute("apiKey", "apiKey")
         ).readValue(csv);
 
         List<SchemaField> collection = metastore.getCollection("project", "collection");
