@@ -203,9 +203,8 @@ public class PrestoMaterializedViewService
                         name -> {
                             String collection = format("(SELECT * FROM %s %s) data",
                                     queryExecutor.formatTableReference(context.project, name, Optional.empty(), ImmutableMap.of()),
-                                    format("WHERE %s > from_unixtime(%d)",
-                                            checkTableColumn(prestoConfig.getCheckpointColumn()),
-                                            (lastUpdated != null ? lastUpdated : now).getEpochSecond()));
+                                    lastUpdated != null ? format("WHERE %s > from_unixtime(%d)",
+                                            checkTableColumn(prestoConfig.getCheckpointColumn()), lastUpdated.getEpochSecond()) : "");
                             return collection;
                         }, '"');
 
