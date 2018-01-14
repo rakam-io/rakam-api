@@ -5,6 +5,7 @@ import com.facebook.presto.metadata.MetadataManager;
 import com.facebook.presto.transaction.TransactionManager;
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
+import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.Multibinder;
 import org.apache.avro.generic.GenericRecord;
@@ -33,6 +34,7 @@ public class APIEventStreamModule
         })
                 .toInstance(new ConcurrentHashMap<>());
         binder.bind(EventStream.class).to(APIEventStream.class);
+        binder.bind(ExpressionCompiler.class).in(Scopes.SINGLETON);
         Multibinder<EventMapper> mapperMultibinder = Multibinder.newSetBinder(binder, EventMapper.class);
         mapperMultibinder.addBinding().to(EventListenerMapper.class);
 
