@@ -1,8 +1,5 @@
 package org.rakam.analysis.stream;
 
-import com.facebook.presto.metadata.Metadata;
-import com.facebook.presto.metadata.MetadataManager;
-import com.facebook.presto.transaction.TransactionManager;
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
@@ -37,9 +34,6 @@ public class APIEventStreamModule
         binder.bind(ExpressionCompiler.class).in(Scopes.SINGLETON);
         Multibinder<EventMapper> mapperMultibinder = Multibinder.newSetBinder(binder, EventMapper.class);
         mapperMultibinder.addBinding().to(EventListenerMapper.class);
-
-        binder.bind(TransactionManager.class).toInstance(TransactionManager.createTestTransactionManager());
-        binder.bind(Metadata.class).toInstance(MetadataManager.createTestMetadataManager());
     }
 
     @Override

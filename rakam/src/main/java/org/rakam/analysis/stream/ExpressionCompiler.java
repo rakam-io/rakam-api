@@ -7,6 +7,7 @@ import com.facebook.presto.bytecode.CompilerUtils;
 import com.facebook.presto.bytecode.ParameterizedType;
 import com.facebook.presto.metadata.FunctionRegistry;
 import com.facebook.presto.metadata.Metadata;
+import com.facebook.presto.metadata.MetadataManager;
 import com.facebook.presto.metadata.SessionPropertyManager;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.QueryId;
@@ -21,7 +22,6 @@ import com.facebook.presto.sql.analyzer.FeaturesConfig;
 import com.facebook.presto.sql.gen.CachedInstanceBinder;
 import com.facebook.presto.sql.gen.CallSiteBinder;
 import com.facebook.presto.sql.gen.CursorProcessorCompiler;
-import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.relational.RowExpression;
 import com.facebook.presto.sql.relational.optimizer.ExpressionOptimizer;
@@ -45,18 +45,20 @@ import static com.google.common.collect.ImmutableList.copyOf;
 
 public class ExpressionCompiler {
     private final BlockEncodingSerde serde;
-    private final Metadata metadata;
-    private final SqlParser sqlParser = new SqlParser();
+    private final Metadata metadata ;
     private final Session session;
     private final TypeManager typeManager;
     private final FeaturesConfig featuresConfig;
     private final ExpressionOptimizer expressionOptimizer;
 
     @Inject
-    public ExpressionCompiler(Metadata metadata, TransactionManager transactionManager, FeaturesConfig featuresConfig) {
+    public ExpressionCompiler() {
+        TransactionManager transactionManager = TransactionManager.createTestTransactionManager();
+        Metadata metadata = MetadataManager.createTestMetadataManager();
+
         this.serde = metadata.getBlockEncodingSerde();
         this.metadata = metadata;
-        this.featuresConfig = featuresConfig;
+        this.featuresConfig = new FeaturesConfig();
         this.typeManager = metadata.getTypeManager();
         this.session = Session.builder(new SessionPropertyManager())
                 .setIdentity(new Identity("user", Optional.empty()))
@@ -65,6 +67,7 @@ public class ExpressionCompiler {
                 .setQueryId(QueryId.valueOf("row_expression_compiler"))
                 .setTransactionId(transactionManager.beginTransaction(IsolationLevel.REPEATABLE_READ, true, true))
                 .build();
+
         this.expressionOptimizer = new ExpressionOptimizer(metadata.getFunctionRegistry(), metadata.getTypeManager(), session);
 
     }
