@@ -692,7 +692,6 @@ public abstract class AbstractPostgresqlUserStorage
             return;
         }
 
-
         Map<String, FieldType> columns = createMissingColumns(project, userId, properties, new CommitConnection(connection));
 
         ProjectCollection userTable = getUserTable(project, false);
@@ -914,6 +913,9 @@ public abstract class AbstractPostgresqlUserStorage
         } else if (clazz.isBoolean()) {
             return "bool";
         } else if (clazz.isArray()) {
+            if(clazz.get(0).isObject()){
+                return "jsonb";
+            }
             return getPostgresqlType(clazz.get(0)) + "[]";
         } else if (clazz.isObject()) {
             return "jsonb";
