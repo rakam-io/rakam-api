@@ -275,19 +275,19 @@ public class WebUserHttpService
     @ProtectEndpoint(writeOperation = true)
     public SuccessMessage giveUserAccess(@Named("user_id") Project project,
                                          @ApiParam("email") String email,
-                                         @ApiParam(value = "scope_expression", required = false) String scopeExpression,
                                          @ApiParam(value = "keys") ApiKeyService.ProjectApiKeys keys,
                                          @ApiParam(value = "read_permission") boolean readPermission,
                                          @ApiParam(value = "write_permission") boolean writePermission,
-                                         @ApiParam(value = "master_permission") boolean masterPermission) {
+                                         @ApiParam(value = "master_permission") boolean masterPermission,
+                                         @ApiParam(value = "active_ui_features") WebUserService.UIFeatures activeUiFeatures) {
         Optional<WebUser> user = service.getUser(project.userId);
         if (!user.get().projects.stream()
                 .anyMatch(e -> e.apiKeys.stream().anyMatch(a -> a.masterKey() != null))) {
             throw new RakamException(FORBIDDEN);
         }
 
-        service.giveAccessToUser(project.project, user.get().id, email, keys, scopeExpression,
-                readPermission, writePermission, masterPermission, Optional.empty());
+        service.giveAccessToUser(project.project, user.get().id, email, keys,
+                readPermission, writePermission, masterPermission, activeUiFeatures, Optional.empty());
         return SuccessMessage.success();
     }
 
@@ -298,7 +298,8 @@ public class WebUserHttpService
                                            @ApiParam("email") String email,
                                            @ApiParam(value = "read_permission") boolean readPermission,
                                            @ApiParam(value = "write_permission") boolean writePermission,
-                                           @ApiParam(value = "master_permission") boolean masterPermission) {
+                                           @ApiParam(value = "master_permission") boolean masterPermission,
+                                           @ApiParam(value = "active_ui_features") WebUserService.UIFeatures activeUiFeatures) {
         Optional<WebUser> user = service.getUser(project.userId);
         if (!user.get().projects.stream()
                 .anyMatch(e -> e.apiKeys.stream().anyMatch(a -> a.masterKey() != null))) {
@@ -306,7 +307,7 @@ public class WebUserHttpService
         }
 
         service.giveAccessToExistingUser(project.project, user.get().id, email,
-                readPermission, writePermission, masterPermission);
+                readPermission, writePermission, masterPermission, activeUiFeatures);
         return SuccessMessage.success();
     }
 

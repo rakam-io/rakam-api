@@ -50,14 +50,16 @@ public class WebUser {
         public final ZoneId timezone;
         public final int ownerId;
         public final List<ProjectApiKeys> apiKeys;
+        public final WebUserService.UIFeatures uiFeatures;
 
-        public Project(int id, String name, String apiUrl, ZoneId zoneId, int ownerId, List<ProjectApiKeys> apiKeys) {
+        public Project(int id, String name, String apiUrl, ZoneId zoneId, int ownerId, List<ProjectApiKeys> apiKeys, WebUserService.UIFeatures uiFeatures) {
             this.id = id;
             this.name = name;
             this.timezone = zoneId;
             this.ownerId = ownerId;
             this.apiKeys = apiKeys;
             this.apiUrl = apiUrl;
+            this.uiFeatures = uiFeatures;
         }
 
         @Override

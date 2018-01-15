@@ -81,14 +81,15 @@ public final class ServiceStarter {
             } else {
                 inputStream = resource.openStream();
                 properties.load(inputStream);
+
+                try {
+                    RAKAM_VERSION = properties.get("git.commit.id.describe-short").toString().split("-", 2)[0];
+                } catch (Exception e) {
+                    LOGGER.warn(e, "Error while parsing git.properties");
+                }
             }
         } catch (IOException e) {
             LOGGER.warn(e, "Error while reading git.properties");
-        }
-        try {
-            RAKAM_VERSION = properties.get("git.commit.id.describe-short").toString().split("-", 2)[0];
-        } catch (Exception e) {
-            LOGGER.warn(e, "Error while parsing git.properties");
         }
     }
 

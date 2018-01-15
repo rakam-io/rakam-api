@@ -23,10 +23,7 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.ui.AuthService;
 import org.rakam.ui.RakamUIConfig;
 import org.rakam.ui.UIEvents;
-import org.rakam.util.AlreadyExistsException;
-import org.rakam.util.CryptUtil;
-import org.rakam.util.MailSender;
-import org.rakam.util.RakamException;
+import org.rakam.util.*;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.ResultIterator;
@@ -509,21 +506,45 @@ public class WebUserService {
             }
 
             return handle.createQuery("SELECT web_user.email, keys.scope_expression, " +
-                    "read_permission, write_permission, master_permission, web_user.id " +
+                    "read_permission, write_permission, master_permission, web_user.id, active_ui_features " +
                     "FROM web_user_api_key_permission keys " +
                     "JOIN web_user_api_key ON (web_user_api_key.id = keys.api_key_id) " +
                     "JOIN web_user ON (web_user.id = keys.user_id) " +
                     "WHERE web_user.id != :user AND web_user_api_key.project_id = :project " +
                     "ORDER BY keys.created_at")
                     .bind("user", user)
-                    .bind("project", project).map((i, resultSet, statementContext) -> {
-                        return new UserAccess(project, resultSet.getInt(6), resultSet.getString(1), resultSet.getString(2),
-                                resultSet.getBoolean(3), resultSet.getBoolean(4), resultSet.getBoolean(5));
-                    }).list();
+                    .bind("project", project).map((i, resultSet, statementContext) ->
+                            new UserAccess(project, resultSet.getInt(6), resultSet.getString(1), resultSet.getString(2),
+                                    resultSet.getBoolean(3), resultSet.getBoolean(4), resultSet.getBoolean(5),
+                                    resultSet.getString(7) == null ? null : JsonHelper.read(resultSet.getString(7), UIFeatures.class))).list();
         }
     }
 
-    public void giveAccessToExistingUser(int projectId, int userId, String email, boolean readPermission, boolean writePermission, boolean masterPermisson) {
+    public static class UIFeatures {
+        public final boolean eventExplorer;
+        public final boolean dashboard;
+        public final boolean reports;
+        public final boolean people;
+        public final boolean funnel;
+        public final boolean retention;
+
+        @JsonCreator
+        public UIFeatures(@ApiParam(value = "eventExplorer", required = false) boolean eventExplorer,
+                          @ApiParam(value = "dashboard", required = false) boolean dashboard,
+                          @ApiParam(value = "reports", required = false) boolean reports,
+                          @ApiParam(value = "people", required = false) boolean people,
+                          @ApiParam(value = "funnel", required = false) boolean funnel,
+                          @ApiParam(value = "retention", required = false) boolean retention) {
+            this.eventExplorer = eventExplorer;
+            this.dashboard = dashboard;
+            this.reports = reports;
+            this.people = people;
+            this.funnel = funnel;
+            this.retention = retention;
+        }
+    }
+
+    public void giveAccessToExistingUser(int projectId, int userId, String email, boolean readPermission, boolean writePermission, boolean masterPermission, UIFeatures activeUiFeatures) {
         try (Handle handle = dbi.open()) {
             if (!hasMasterAccess(handle, projectId, userId)) {
                 throw new RakamException("You do not have master key permission", UNAUTHORIZED);
@@ -537,12 +558,13 @@ public class WebUserService {
             }
 
             int exists = handle.createStatement("UPDATE web_user_api_key_permission SET " +
-                    "read_permission = :readPermission, write_permission = :writePermission, master_permission = :masterPermission " +
+                    "read_permission = :readPermission, write_permission = :writePermission, master_permission = :masterPermission, active_ui_features = :activeUiFeatures " +
                     "WHERE user_id = :newUserId")
                     .bind("newUserId", newUserId)
                     .bind("readPermission", readPermission)
                     .bind("writePermission", writePermission)
-                    .bind("masterPermission", masterPermisson)
+                    .bind("masterPermission", masterPermission)
+                    .bind("activeUiFeatures", JsonHelper.encode(activeUiFeatures))
                     .bind("project", projectId).execute();
 
             if (exists == 0) {
@@ -559,8 +581,8 @@ public class WebUserService {
                         mailConfig.getSiteUrl(), getRecoverUrl(email, 24))));
     }
 
-    public void giveAccessToUser(int projectId, int userId, String email, ProjectApiKeys keys, String scope_expression,
-                                 boolean readPermission, boolean writePermission, boolean masterPermission,
+    public void giveAccessToUser(int projectId, int userId, String email, ProjectApiKeys keys,
+                                 boolean readPermission, boolean writePermission, boolean masterPermission, UIFeatures activeUiFeatures,
                                  Optional<Access> access) {
         if (masterPermission && access.isPresent()) {
             throw new RakamException("Scoped keys cannot have access to master_key", BAD_REQUEST);
@@ -617,14 +639,15 @@ public class WebUserService {
                         .bind("project", projectId).first() != null;
 
                 if (!exists) {
-                    handle.createStatement("INSERT INTO web_user_api_key_permission (api_key_id, user_id, read_permission, write_permission, master_permission, scope_expression) " +
-                            " VALUES (:apiKeyId, :newUserId, :readPermission, :writePermission, :masterPermission, :scope)")
+                    handle.createStatement("INSERT INTO web_user_api_key_permission (api_key_id, user_id, read_permission, write_permission, master_permission, active_ui_features) " +
+                            " VALUES (:apiKeyId, :newUserId, :readPermission, :writePermission, :masterPermission, :activeUiFeatures)")
                             .bind("apiKeyId", apiKeyId)
                             .bind("newUserId", finalNewUserId)
                             .bind("readPermission", readPermission)
                             .bind("writePermission", writePermission)
                             .bind("masterPermission", masterPermission)
-                            .bind("scope", scope_expression).execute();
+                            .bind("activeUiFeatures", JsonHelper.encode(activeUiFeatures))
+                            .execute();
                 } else {
                     throw new RakamException("The user (" + email + ") already has access", BAD_REQUEST);
                 }
@@ -788,14 +811,15 @@ public class WebUserService {
 
     private List<WebUser.Project> getUserApiKeys(Handle handle, int userId) {
         List<WebUser.Project> list = new ArrayList<>();
-        ResultIterator<Object> user = handle.createQuery("SELECT project.id, project.project, project.api_url, project.timezone, :user, api_key.master_key, api_key.read_key, api_key.write_key " +
+        ResultIterator<Object> user = handle.createQuery("SELECT project.id, project.project, project.api_url, project.timezone, " +
+                ":user, api_key.master_key, api_key.read_key, api_key.write_key, null " +
                 " FROM web_user_project project " +
                 " JOIN web_user_api_key api_key ON (api_key.project_id = project.id)" +
                 " WHERE api_key.user_id = :user " +
                 " UNION ALL SELECT api_key.project_id, project.project, project.api_url, project.timezone, project.user_id, " +
                 "case when permission.master_permission then api_key.master_key else null end," +
                 "case when permission.master_permission or permission.read_permission then api_key.read_key else null end," +
-                "case when permission.master_permission or permission.write_permission then api_key.write_key else null end " +
+                "case when permission.master_permission or permission.write_permission then api_key.write_key else null end, permission.active_ui_features " +
                 "FROM web_user_api_key_permission permission \n" +
                 "JOIN web_user_api_key api_key ON (permission.api_key_id = api_key.id) \n" +
                 "JOIN web_user_project project ON (project.id = api_key.project_id)\n" +
@@ -814,11 +838,13 @@ public class WebUserService {
                     }
 
                     int ownerId = r.getInt(5);
+                    UIFeatures uiFeatures = r.getString(9) == null ? null : JsonHelper.read(r.getString(9), UIFeatures.class);
+
                     ZoneId finalZoneId = zoneId;
                     WebUser.Project p = list.stream().filter(e -> e.id == id)
                             .findFirst()
                             .orElseGet(() -> {
-                                WebUser.Project project = new WebUser.Project(id, name, url, finalZoneId, ownerId, new ArrayList<>());
+                                WebUser.Project project = new WebUser.Project(id, name, url, finalZoneId, ownerId, new ArrayList<>(), uiFeatures);
                                 list.add(project);
                                 return project;
                             });
@@ -915,8 +941,10 @@ public class WebUserService {
         public final boolean writeKey;
         @JsonProperty("master_key")
         public final boolean masterKey;
+        @JsonProperty("active_ui_features")
+        public final UIFeatures activeUIFeatures;
 
-        public UserAccess(int project, int id, String email, String scope_expression, boolean readKey, boolean writeKey, boolean masterKey) {
+        public UserAccess(int project, int id, String email, String scope_expression, boolean readKey, boolean writeKey, boolean masterKey, UIFeatures activeUIFeatures) {
             this.project = project;
             this.id = id;
             this.email = email;
@@ -924,6 +952,7 @@ public class WebUserService {
             this.readKey = readKey;
             this.writeKey = writeKey;
             this.masterKey = masterKey;
+            this.activeUIFeatures = activeUIFeatures;
         }
     }
 

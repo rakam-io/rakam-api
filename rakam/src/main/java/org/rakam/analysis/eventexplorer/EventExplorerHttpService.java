@@ -140,9 +140,6 @@ public class EventExplorerHttpService
     public void analyzeEvents(RakamHttpRequest request, @QueryParam("read_key") String readKey) {
         queryService.handleServerSentQueryExecution(request, AnalyzeRequest.class, (project, analyzeRequest) -> {
             checkArgument(!analyzeRequest.collections.isEmpty(), "collections array is empty");
-            if (analyzeRequest.measure.column != null) {
-                checkArgument(!analyzeRequest.measure.column.equals(projectConfig.getTimeColumn()), "measure column value cannot be time column");
-            }
 
             ZoneId timezone = Optional.ofNullable(analyzeRequest.timezone).orElse(ZoneOffset.UTC);
             return eventExplorer.analyze(new RequestContext(project, readKey), analyzeRequest.collections,
@@ -166,9 +163,6 @@ public class EventExplorerHttpService
     public void exportEvents(RakamHttpRequest request, @QueryParam("read_key") String readKey) {
         queryService.handleServerSentQueryExecution(request, AnalyzeRequest.class, (project, analyzeRequest) -> {
             checkArgument(!analyzeRequest.collections.isEmpty(), "collections array is empty");
-            if (analyzeRequest.measure.column != null) {
-                checkArgument(!analyzeRequest.measure.column.equals(projectConfig.getTimeColumn()), "measure column value cannot be time column");
-            }
 
             return eventExplorer.export(new RequestContext(project, readKey), analyzeRequest.collections,
                     analyzeRequest.measure, analyzeRequest.grouping,
