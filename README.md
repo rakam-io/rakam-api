@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/rakam-io/rakam.svg?branch=master)](https://travis-ci.org/rakam-io/rakam) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [<img alt="Deploy" src="http://www.herokucdn.com/deploy/button.png" height="21">](https://dashboard.heroku.com/new?button-url=https%3A%2F%2Fgithub.com%2Frakam-io%2Frakam&template=https%3A%2F%2Fgithub.com%2Frakam-io%2Frakam) [![Install on DigitalOcean](http://installer.71m.us/button.svg)](http://installer.71m.us/install?url=https://github.com/rakam-io/rakam)
+[![Build Status](https://travis-ci.org/rakam-io/rakam.svg?branch=master)](https://travis-ci.org/rakam-io/rakam) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [<img alt="Deploy" src="https://www.herokucdn.com/deploy/button.png" height="21">](https://dashboard.heroku.com/new?button-url=https%3A%2F%2Fgithub.com%2Frakam-io%2Frakam&template=https%3A%2F%2Fgithub.com%2Frakam-io%2Frakam) [![Install on DigitalOcean](https://installer.71m.us/button.svg)](https://installer.71m.us/install?url=https://github.com/rakam-io/rakam)
 
 Rakam
 =======
@@ -39,7 +39,7 @@ You can deploy Rakam to Heroku using Heroku button, it uses Heroku Postgresql ad
 
 Digitalocean installer uses Docker under the hood. It will install Docker on your droplet and run docker image of Postgresql and link it with your Rakam container. The API the image exposes is `9999`, you may visit your Rakam API address from `YOUR_DROPLET_IP:80`. The default lock key is `mylockKey`.
 
-[![Install on DigitalOcean](http://installer.71m.us/button.svg)](http://installer.71m.us/install?url=https://github.com/rakam-io/rakam)
+[![Install on DigitalOcean](https://installer.71m.us/button.svg)](https://installer.71m.us/install?url=https://github.com/rakam-io/rakam)
 
 ### Docker
 
