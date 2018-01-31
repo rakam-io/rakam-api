@@ -102,6 +102,8 @@ public class RakamUIModule
         binder.bind(CustomReportMetadata.class).to(JDBCCustomReportMetadata.class).in(Scopes.SINGLETON);
         binder.bind(DefaultDashboardCreator.class).asEagerSingleton();
 
+        binder.bind(WebUserHttpService.class).asEagerSingleton();
+
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(WebUserHttpService.class);
         httpServices.addBinding().to(ReportHttpService.class);
