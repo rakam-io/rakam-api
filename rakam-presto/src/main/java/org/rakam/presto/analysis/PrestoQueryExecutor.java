@@ -247,7 +247,8 @@ public class PrestoQueryExecutor
                                     getTableReference(project, collection, sample)))
                             .collect(Collectors.joining(" union all ")) + ") _all";
                 } else {
-                    return "(select cast(null as varchar) as \"_collection\", null as _user, null as " + checkTableColumn(projectConfig.getTimeColumn()) + " limit 0) _all";
+                    return "(select cast(null as varchar) as _collection, cast(null as timestamp) as " + checkTableColumn(prestoConfig.getCheckpointColumn())
+                            + ", null as _user, null as " + checkTableColumn(projectConfig.getTimeColumn()) + " limit 0) _all";
                 }
             } else {
                 prefix = Optional.ofNullable(prefix).orElse("collection");

@@ -1,14 +1,14 @@
 package org.rakam.util;
 
-import com.getsentry.raven.Raven;
-import com.getsentry.raven.RavenFactory;
-import com.getsentry.raven.event.Event;
-import com.getsentry.raven.event.EventBuilder;
-import com.getsentry.raven.event.interfaces.ExceptionInterface;
-import com.getsentry.raven.event.interfaces.HttpInterface;
-import com.getsentry.raven.jul.SentryHandler;
 import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.sentry.SentryClient;
+import io.sentry.SentryClientFactory;
+import io.sentry.event.Event;
+import io.sentry.event.EventBuilder;
+import io.sentry.event.interfaces.ExceptionInterface;
+import io.sentry.event.interfaces.HttpInterface;
+import io.sentry.jul.SentryHandler;
 import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecutor;
 import org.rakam.server.http.RakamHttpRequest;
@@ -21,7 +21,7 @@ import java.util.logging.LogManager;
 import java.util.stream.Collectors;
 
 public class LogUtil {
-    private static final Raven RAVEN;
+    private static final SentryClient RAVEN;
     private static final Map<String, String> TAGS;
     private static final String RELEASE;
 
@@ -37,7 +37,7 @@ public class LogUtil {
 
         RELEASE = manager.getProperty(canonicalName + ".release");
 
-        RAVEN = dsnInternal != null ? RavenFactory.ravenInstance(dsnInternal) : null;
+        RAVEN = dsnInternal != null ? SentryClientFactory.sentryClient(dsnInternal) : null;
     }
 
     public static void logException(RakamHttpRequest request, RakamException e) {

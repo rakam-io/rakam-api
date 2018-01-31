@@ -1,9 +1,9 @@
 package org.rakam;
 
-import com.getsentry.raven.jul.SentryHandler;
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import io.airlift.configuration.Config;
+import io.sentry.jul.SentryHandler;
 import org.rakam.plugin.RakamModule;
 import org.rakam.util.RakamClient;
 

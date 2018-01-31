@@ -18,6 +18,7 @@ import io.swagger.models.auth.In;
 import io.swagger.models.properties.RefProperty;
 import io.swagger.util.PrimitiveType;
 import org.apache.avro.generic.GenericRecord;
+import org.rakam.Access;
 import org.rakam.ServiceStarter;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.CustomParameter;
@@ -198,8 +199,32 @@ public class WebServiceModule
                             "query parameter is missing.", FORBIDDEN);
                 }
             }
+
+            Access access;
+            if (apiKey.length() > 64) {
+                int apiKeyId = -1;
+
+                for (int i = 0; i < apiKey.length(); i++) {
+                    if (!Character.isDigit(apiKey.charAt(i))) {
+                        if (i == 0) {
+                            throw new RakamException("Invalid API key format.", FORBIDDEN);
+                        }
+                    }
+                    apiKeyId = Integer.parseInt(apiKey.substring(0, i));
+                }
+
+                if (apiKeyId == -1) {
+                    throw new RakamException("Invalid API key format.", FORBIDDEN);
+                }
+                ApiKeyService.Key projectKey = apiKeyService.getProjectKey(apiKeyId, type);
+                String data = CryptUtil.decryptAES(apiKey.substring(apiKeyId), projectKey.key);
+                access = JsonHelper.read(data, Access.class);
+            } else {
+                access = null;
+            }
+
             String project = apiKeyService.getProjectOfApiKey(apiKey, type);
-            return new RequestContext(project.toLowerCase(Locale.ENGLISH), apiKey);
+            return new RequestContext(project.toLowerCase(Locale.ENGLISH), apiKey, access);
         }
     }
 }

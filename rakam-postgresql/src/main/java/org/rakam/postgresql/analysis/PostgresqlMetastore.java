@@ -281,6 +281,10 @@ public class PostgresqlMetastore
             List<SchemaField> schema = getSchema(connection, project, collection);
 
             if (schema != null) {
+                if (schema.size() > 200) {
+                    throw new RakamException("200 columns are supported at most, can't add new attributes because of this restriction.", BAD_REQUEST);
+                }
+
                 for (SchemaField field : schema) {
                     strings.add(field.getName());
                     currentFields.add(field);

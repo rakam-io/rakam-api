@@ -15,6 +15,7 @@ import com.google.inject.name.Named;
 import com.lambdaworks.crypto.SCryptUtil;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.Access;
 import org.rakam.analysis.ApiKeyService.ProjectApiKeys;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.config.EncryptionConfig;
@@ -953,26 +954,6 @@ public class WebUserService {
             this.writeKey = writeKey;
             this.masterKey = masterKey;
             this.activeUIFeatures = activeUIFeatures;
-        }
-    }
-
-    public static final class Access {
-        public final List<TableAccess> tableAccessList;
-
-        @JsonCreator
-        public Access(@ApiParam("tableAccessList") List<TableAccess> tableAccessList) {
-            this.tableAccessList = tableAccessList;
-        }
-
-        public static class TableAccess {
-            public final String tableName;
-            public final String expression;
-
-            @JsonCreator
-            public TableAccess(@ApiParam("tableName") String tableName, @ApiParam("expression") String expression) {
-                this.tableName = tableName;
-                this.expression = expression;
-            }
         }
     }
 

@@ -291,7 +291,11 @@ public class PostgresqlEventStore
             FieldType type = field.getType();
             switch (type) {
                 case STRING:
-                    ps.setString(i + 1, (String) value);
+                    String val = (String) value;
+                    if (val != null && val.length() > 100) {
+                        val = val.substring(0, 100);
+                    }
+                    ps.setString(i + 1, val);
                     break;
                 case LONG:
                     ps.setLong(i + 1, ((Number) value).longValue());

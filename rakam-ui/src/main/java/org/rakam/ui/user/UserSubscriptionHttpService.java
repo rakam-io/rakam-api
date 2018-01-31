@@ -95,13 +95,15 @@ public class UserSubscriptionHttpService
                 customer = Customer.retrieve(userStripeId, requestOptions);
                 if (customer.getDeleted() == Boolean.TRUE) {
                     customer = Customer.create(customerParams, requestOptions);
-                    service.setStripeId(webUser.get().id, customer.getId());
+                    userStripeId = customer.getId();
+                    service.setStripeId(webUser.get().id, userStripeId);
                 } else {
                     customer.update(customerParams, requestOptions);
                 }
             } else {
                 customer = Customer.create(customerParams, requestOptions);
-                service.setStripeId(webUser.get().id, customer.getId());
+                userStripeId = customer.getId();
+                service.setStripeId(webUser.get().id, userStripeId);
             }
 
             if (plan != null && !plan.isEmpty()) {
@@ -112,24 +114,24 @@ public class UserSubscriptionHttpService
                 }
                 customer.createSubscription(subsParams, requestOptions);
             }
+
+            return Customer.retrieve(userStripeId, requestOptions).getSubscriptions().getData().stream().map(subs ->
+                    new UserSubscription(
+                            subs.getPlan().getId(),
+                            subs.getPlan().getAmount(),
+                            Instant.ofEpochMilli(subs.getCurrentPeriodStart()),
+                            Instant.ofEpochMilli(subs.getCurrentPeriodEnd()),
+                            Optional.ofNullable(subs.getDiscount())
+                                    .map(e -> e.getCoupon())
+                                    .map(e -> new RakamCoupon(e.getPercentOff(), e.getAmountOff())).orElse(null)))
+                    .collect(Collectors.toList());
+            // TODO: hasmore?
         } catch (InvalidRequestException e) {
             throw new RakamException(e.getMessage(),
                     HttpResponseStatus.valueOf(e.getStatusCode()));
         } catch (StripeException e) {
             throw new RakamException(e.getMessage(), BAD_REQUEST);
         }
-
-        return customer.getSubscriptions().getData().stream().map(subs ->
-                new UserSubscription(
-                        subs.getPlan().getId(),
-                        subs.getPlan().getAmount(),
-                        Instant.ofEpochMilli(subs.getCurrentPeriodStart()),
-                        Instant.ofEpochMilli(subs.getCurrentPeriodEnd()),
-                        Optional.ofNullable(subs.getDiscount())
-                                .map(e -> e.getCoupon())
-                                .map(e -> new RakamCoupon(e.getPercentOff(), e.getAmountOff())).orElse(null)))
-                .collect(Collectors.toList());
-        // TODO: hasmore?
     }
 
     @JsonRequest

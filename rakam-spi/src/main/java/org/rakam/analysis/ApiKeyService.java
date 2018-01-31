@@ -11,6 +11,18 @@ public interface ApiKeyService {
 
     String getProjectOfApiKey(String apiKey, AccessKeyType type);
 
+    Key getProjectKey(int apiId, AccessKeyType type);
+
+    class Key {
+        public final String project;
+        public final String key;
+
+        public Key(String project, String key) {
+            this.project = project;
+            this.key = key;
+        }
+    }
+
     void revokeApiKeys(String project, String masterKey);
 
     void revokeAllKeys(String project);

@@ -1,11 +1,11 @@
 package org.rakam.ui;
 
-import com.getsentry.raven.jul.SentryHandler;
 import com.google.common.collect.ImmutableMap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.DefaultFileRegion;
 import io.netty.handler.codec.http.*;
+import io.sentry.jul.SentryHandler;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;

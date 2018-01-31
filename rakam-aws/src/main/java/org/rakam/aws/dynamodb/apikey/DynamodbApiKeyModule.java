@@ -2,7 +2,6 @@ package org.rakam.aws.dynamodb.apikey;
 
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
-import org.rakam.analysis.ApiKeyService;
 import org.rakam.aws.AWSConfig;
 import org.rakam.plugin.RakamModule;
 import org.rakam.util.ConditionalModule;
@@ -16,8 +15,6 @@ public class DynamodbApiKeyModule extends RakamModule {
     protected void setup(Binder binder) {
         configBinder(binder).bindConfig(DynamodbApiKeyConfig.class);
         configBinder(binder).bindConfig(AWSConfig.class);
-
-        binder.bind(ApiKeyService.class).to(DynamodbApiKeyService.class);
     }
 
     @Override

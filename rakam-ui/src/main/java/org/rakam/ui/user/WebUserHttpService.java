@@ -379,7 +379,7 @@ public class WebUserHttpService
             return getLoginResponseForUser(encryptionConfig.getSecretKey(), user.get(), config.getCookieDuration());
         }
 
-        throw new RakamException("Account couldn't found.", NOT_FOUND);
+        throw new RakamException("You have entered an unregistered email or invalid password.", NOT_FOUND);
     }
 
     @JsonRequest

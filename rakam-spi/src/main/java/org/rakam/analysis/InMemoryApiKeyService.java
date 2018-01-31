@@ -31,6 +31,11 @@ public class InMemoryApiKeyService implements ApiKeyService {
     }
 
     @Override
+    public Key getProjectKey(int apiId, AccessKeyType type) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void revokeApiKeys(String project, String masterKey) {
         apiKeys.getOrDefault(project, ImmutableList.of())
                 .removeIf(e -> e.masterKey().equals(masterKey));

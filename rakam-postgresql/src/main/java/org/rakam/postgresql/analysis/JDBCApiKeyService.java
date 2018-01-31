@@ -4,7 +4,6 @@ import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.util.concurrent.UncheckedExecutionException;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.util.CryptUtil;
@@ -24,7 +23,6 @@ public class JDBCApiKeyService
         implements ApiKeyService {
     protected final JDBCPoolDataSource connectionPool;
     private final LoadingCache<String, List<Set<String>>> apiKeyCache;
-    private final LoadingCache<ApiKey, String> apiKeyReverseCache;
 
     public JDBCApiKeyService(JDBCPoolDataSource connectionPool) {
         this.connectionPool = connectionPool;
@@ -35,24 +33,6 @@ public class JDBCApiKeyService
                     throws Exception {
                 try (Connection conn = connectionPool.getConnection()) {
                     return getKeys(conn, project);
-                }
-            }
-        });
-
-        apiKeyReverseCache = CacheBuilder.newBuilder().build(new CacheLoader<ApiKey, String>() {
-            @Override
-            public String load(ApiKey apiKey)
-                    throws Exception {
-                try (Connection conn = connectionPool.getConnection()) {
-                    PreparedStatement ps = conn.prepareStatement(format("SELECT lower(project) FROM api_key WHERE %s = ?", apiKey.type.name()));
-                    ps.setString(1, apiKey.key);
-                    ResultSet resultSet = ps.executeQuery();
-                    if (!resultSet.next()) {
-                        throw new RakamException(apiKey.type.getKey() + " is invalid", FORBIDDEN);
-                    }
-                    return resultSet.getString(1);
-                } catch (SQLException e) {
-                    throw Throwables.propagate(e);
                 }
             }
         });
@@ -117,10 +97,32 @@ public class JDBCApiKeyService
         if (apiKey == null) {
             throw new RakamException(type.getKey() + " is missing", FORBIDDEN);
         }
-        try {
-            return apiKeyReverseCache.getUnchecked(new ApiKey(apiKey, type));
-        } catch (UncheckedExecutionException e) {
-            throw Throwables.propagate(e.getCause());
+
+        try (Connection conn = connectionPool.getConnection()) {
+            PreparedStatement ps = conn.prepareStatement(format("SELECT lower(project) FROM api_key WHERE %s = ?", type.name()));
+            ps.setString(1, apiKey);
+            ResultSet resultSet = ps.executeQuery();
+            if (!resultSet.next()) {
+                throw new RakamException(type.getKey() + " is invalid", FORBIDDEN);
+            }
+            return resultSet.getString(1);
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    @Override
+    public Key getProjectKey(int apiId, AccessKeyType type) {
+        try (Connection conn = connectionPool.getConnection()) {
+            PreparedStatement ps = conn.prepareStatement(String.format("SELECT lower(project), %s FROM api_key WHERE id = ?", type.getKey()));
+            ps.setInt(1, apiId);
+            ResultSet resultSet = ps.executeQuery();
+            if (!resultSet.next()) {
+                throw new RakamException("api key is invalid", FORBIDDEN);
+            }
+            return new Key(resultSet.getString(1), resultSet.getString(2));
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
         }
     }
 
