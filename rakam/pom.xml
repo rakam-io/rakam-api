@@ -192,12 +192,12 @@
             <artifactId>jackson-core</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.getsentry.raven</groupId>
-            <artifactId>raven</artifactId>
-        </dependency>
-        <dependency>
             <groupId>io.swagger</groupId>
             <artifactId>swagger-models</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.sentry</groupId>
+            <artifactId>sentry</artifactId>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>

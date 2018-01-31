@@ -1,8 +1,11 @@
 package org.rakam;
 
 import com.google.auto.service.AutoService;
+import com.google.common.base.Splitter;
 import com.google.inject.Binder;
 import io.airlift.configuration.Config;
+import io.sentry.Sentry;
+import io.sentry.SentryClient;
 import io.sentry.jul.SentryHandler;
 import org.rakam.plugin.RakamModule;
 import org.rakam.util.RakamClient;
@@ -26,12 +29,17 @@ public class LogModule
                     .anyMatch(e -> e instanceof SentryHandler)) {
                 Logger rootLogger = manager.getLogger("");
 
-                SentryHandler sentryHandler = new SentryHandler();
-                sentryHandler.setDsn(SENTRY_DSN);
-                sentryHandler.setTags(logConfig.getTags());
-                sentryHandler.setLevel(Level.SEVERE);
+                SentryClient client = Sentry.init(SENTRY_DSN);
+                if (logConfig.getTags() != null) {
+                    for (String item : Splitter.on(',').split(logConfig.getTags())) {
+                        String[] split = item.split("=", 2);
+                        client.addTag(split[0], split[1]);
+                    }
+                }
+                client.setRelease(RakamClient.RELEASE);
 
-                sentryHandler.setRelease(RakamClient.RELEASE);
+                SentryHandler sentryHandler = new SentryHandler();
+                sentryHandler.setLevel(Level.SEVERE);
                 rootLogger.addHandler(sentryHandler);
             }
         }
