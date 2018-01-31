@@ -77,6 +77,8 @@ public class UserModule
         }
 
         if (userPluginConfig.getStorageModule() != null) {
+            binder.bind(UserHttpService.class).asEagerSingleton();
+            
             httpServices.addBinding().to(UserUtilHttpService.class);
             httpServices.addBinding().to(UserHttpService.class).in(Scopes.SINGLETON);
         }
