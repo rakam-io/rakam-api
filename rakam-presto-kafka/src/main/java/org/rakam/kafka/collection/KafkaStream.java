@@ -92,7 +92,7 @@ public class KafkaStream implements EventStream {
                                 case BOOLEAN:
                                     return format("\"%1$s\": '||COALESCE(cast(%1$s as varchar), 'null')||'", field.getName());
                                 default:
-                                    return format("\"%1$s\": \"'||COALESCE(replaceView(try_cast(%1$s as varchar), '\n', '\\n'), 'null')||'\"", field.getName());
+                                    return format("\"%1$s\": \"'||COALESCE(replace(try_cast(%1$s as varchar), '\n', '\\n'), 'null')||'\"", field.getName());
                             }
 
                         })

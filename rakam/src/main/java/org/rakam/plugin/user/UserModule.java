@@ -52,7 +52,7 @@ public class UserModule
         webSocketServices.addBinding().to(MailBoxWebSocketService.class).in(Scopes.SINGLETON);
 
         binder.bind(UserStorageListener.class).asEagerSingleton();
-//        binder.bind(UserPrecomputationListener.class).asEagerSingleton();
+
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
         ConfigBinder.configBinder(binder).bindConfig(EmailClientConfig.class);
 
@@ -78,7 +78,7 @@ public class UserModule
 
         if (userPluginConfig.getStorageModule() != null) {
             binder.bind(UserHttpService.class).asEagerSingleton();
-            
+
             httpServices.addBinding().to(UserUtilHttpService.class);
             httpServices.addBinding().to(UserHttpService.class).in(Scopes.SINGLETON);
         }

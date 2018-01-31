@@ -98,7 +98,7 @@ public class PrestoUserService
                                     if (field.getType().isArray() || field.getType().isMap()) {
                                         return format("\"%1$s\": '|| json_format(try_cast(%1$s as json)) ||'", field.getName());
                                     }
-                                    return format("\"%1$s\": \"'|| COALESCE(replaceView(try_cast(%1$s as varchar), '\n', '\\n'), 'null')||'\"", field.getName());
+                                    return format("\"%1$s\": \"'|| COALESCE(replace(try_cast(%1$s as varchar), '\n', '\\n'), 'null')||'\"", field.getName());
                                 })
                                 .collect(Collectors.joining(", ")) +
                                 format(" }' as json, %s from %s where %s = %s %s",
