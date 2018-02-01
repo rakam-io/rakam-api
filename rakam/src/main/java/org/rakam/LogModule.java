@@ -33,7 +33,7 @@ public class LogModule
                 if (logConfig.getTags() != null) {
                     for (String item : Splitter.on(',').split(logConfig.getTags())) {
                         String[] split = item.split("=", 2);
-                        client.addTag(split[0], split[1]);
+                        client.addTag(split[0], split.length > 1 ? split[1] : "true");
                     }
                 }
                 client.setRelease(RakamClient.RELEASE);

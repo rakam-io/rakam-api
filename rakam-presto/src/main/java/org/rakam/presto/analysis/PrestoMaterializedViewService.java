@@ -1,6 +1,7 @@
 package org.rakam.presto.analysis;
 
 import com.facebook.presto.sql.RakamSqlFormatter;
+import com.facebook.presto.sql.parser.ParsingOptions;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.*;
 import com.google.common.collect.ImmutableMap;
@@ -75,20 +76,7 @@ public class PrestoMaterializedViewService
 
     @Override
     public CompletableFuture<Void> create(RequestContext context, MaterializedView materializedView) {
-        Query statement = (Query) sqlParser.createStatement(materializedView.query);
-        QuerySpecification queryBody = (QuerySpecification) statement.getQueryBody();
-        List<SelectItem> selectItems = queryBody.getSelect().getSelectItems();
-        if (selectItems.stream().anyMatch(e -> e instanceof AllColumns)) {
-            throw new RakamException("Wildcard in select items is not supported in materialized views.", BAD_REQUEST);
-        }
-
-        for (SelectItem selectItem : selectItems) {
-            SingleColumn selectColumn = (SingleColumn) selectItem;
-            if (!selectColumn.getAlias().isPresent() && !(selectColumn.getExpression() instanceof Identifier)
-                    && !(selectColumn.getExpression() instanceof DereferenceExpression)) {
-                throw new RakamException(format("Column '%s' must have alias", selectColumn.getExpression().toString()), BAD_REQUEST);
-            }
-        }
+        Query statement = (Query) sqlParser.createStatement(materializedView.query, new ParsingOptions());
 
         StringBuilder builder = new StringBuilder();
         HashMap<String, String> map = new HashMap<>();
