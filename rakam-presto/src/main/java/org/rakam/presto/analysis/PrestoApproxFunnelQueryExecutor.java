@@ -27,8 +27,7 @@ import java.util.stream.IntStream;
 import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
-import static org.rakam.collection.FieldType.LONG;
-import static org.rakam.collection.FieldType.STRING;
+import static org.rakam.collection.FieldType.*;
 import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
@@ -51,14 +50,20 @@ public class PrestoApproxFunnelQueryExecutor
     public QueryExecution query(RequestContext context, List<FunnelStep> steps, Optional<String> dimension, Optional<String> segment, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId, Optional<List<String>> connectors, FunnelType funnelType) {
 
         if (dimension.isPresent()) {
-            if (dimension.get().equals(projectConfig.getTimeColumn())) {
+            String val = dimension.get();
+            if (val.equals(projectConfig.getTimeColumn())) {
                 if (!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
                     throw new RakamException("When dimension is time, segmenting should be done on timestamp field.", BAD_REQUEST);
                 }
             }
-            if (metastore.getCollections(context.project).entrySet().stream()
-                    .filter(c -> !c.getValue().contains(dimension.get())).findAny().get().getValue().stream()
-                    .filter(d -> d.getName().equals(dimension.get())).findAny().get().getType().getPrettyName().equals("TIMESTAMP")) {
+            Optional<SchemaField> fieldType = metastore.getCollections(context.project).entrySet().stream()
+                    .filter(c -> !c.getValue().contains(val)).findAny().get().getValue().stream()
+                    .filter(d -> d.getName().equals(val)).findAny();
+            if(!fieldType.isPresent()) {
+                throw new RakamException("Dimension does not exist.", BAD_REQUEST);
+            }
+
+            if (fieldType.get().getType().getPrettyName().equals(TIMESTAMP.getPrettyName())) {
                 if (!segment.isPresent() || !timeStampMapping.containsKey(FunnelTimestampSegments.valueOf(segment.get().toUpperCase()))) {
                     throw new RakamException("When dimension is of type TIMESTAMP, segmenting should be done on timestamp field.", BAD_REQUEST);
                 }

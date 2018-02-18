@@ -1,22 +1,19 @@
 package org.rakam.plugin;
 
 import com.facebook.presto.sql.parser.SqlParser;
-import com.facebook.presto.sql.tree.*;
+import com.facebook.presto.sql.tree.Query;
+import com.facebook.presto.sql.tree.Statement;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.util.RakamException;
 
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static java.lang.String.format;
 import static java.time.temporal.ChronoUnit.MILLIS;
 
 
@@ -67,22 +64,21 @@ public class MaterializedView {
         checkState((!((Query) query).getLimit().isPresent()),
                 "The query of materialized view can't contain LIMIT statement");
 
-        QueryBody queryBody = ((Query) query).getQueryBody();
-        if (queryBody instanceof QuerySpecification) {
-            List<SelectItem> selectItems = ((QuerySpecification) queryBody).getSelect().getSelectItems();
-            if (selectItems.stream().anyMatch(e -> e instanceof AllColumns)) {
-                throw new RakamException("Wildcard in select items is not supported in materialized views.", BAD_REQUEST);
-            }
-
-            for (SelectItem selectItem : selectItems) {
-                SingleColumn selectColumn = (SingleColumn) selectItem;
-                if (!selectColumn.getAlias().isPresent() && !(selectColumn.getExpression() instanceof Identifier)
-                        && !(selectColumn.getExpression() instanceof DereferenceExpression)) {
-                    throw new RakamException(format("Column '%s' must have alias", selectColumn.getExpression().toString()), BAD_REQUEST);
-                }
-            }
-        }
-
+//        QueryBody queryBody = ((Query) query).getQueryBody();
+//        if (queryBody instanceof QuerySpecification) {
+//            List<SelectItem> selectItems = ((QuerySpecification) queryBody).getSelect().getSelectItems();
+//            if (selectItems.stream().anyMatch(e -> e instanceof AllColumns)) {
+//                throw new RakamException("Wildcard in select items is not supported in materialized views.", BAD_REQUEST);
+//            }
+//
+//            for (SelectItem selectItem : selectItems) {
+//                SingleColumn selectColumn = (SingleColumn) selectItem;
+//                if (!selectColumn.getAlias().isPresent() && !(selectColumn.getExpression() instanceof Identifier)
+//                        && !(selectColumn.getExpression() instanceof DereferenceExpression)) {
+//                    throw new RakamException(format("Column '%s' must have alias", selectColumn.getExpression().toString()), BAD_REQUEST);
+//                }
+//            }
+//        }
     }
 
     public boolean needsUpdate(Clock clock) {

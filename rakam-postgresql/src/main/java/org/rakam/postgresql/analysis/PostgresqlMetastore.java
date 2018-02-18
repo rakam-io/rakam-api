@@ -418,14 +418,15 @@ public class PostgresqlMetastore
             samplePercentage = 100;
         }
 
-        String queryPrep = format("SELECT DISTINCT %s as result FROM %s.%s TABLESAMPLE SYSTEM(%d)",
+        String queryPrep = format("SELECT DISTINCT %s as result FROM %s.%s TABLESAMPLE SYSTEM(%d) WHERE TRUE",
                 checkCollection(attribute),
                 checkProject(project),
                 checkProject(collection),
                 samplePercentage);
         if (filter.isPresent() && !filter.get().isEmpty()) {
             String value = "%" + filter.get().replaceAll("%", "\\%").replaceAll("_", "\\_") + "%";
-            queryPrep += format(" where %s like '%s' escape '\\'", checkCollection(attribute), checkLiteral(value));
+            queryPrep += format(" AND %s like '%s' escape '\\' and %s is not null",
+                    checkCollection(attribute), checkLiteral(value), checkCollection(attribute));
         }
 
         if (startDate.isPresent() || endDate.isPresent()) {
@@ -436,8 +437,8 @@ public class PostgresqlMetastore
             }
             String startDateStr = startDate.isPresent() ? startDate.get().toString() : endDate.get().minusDays(30).toString();
             String endDateStr = endDate.isPresent() ? endDate.get().plusDays(1).toString() : startDate.get().plusDays(30).toString();
-            queryPrep = format("%s AND %s >= '%s'::date AND %s <= '%s'::date",
-                    queryPrep, projectConfig.getTimeColumn(), startDateStr, projectConfig.getTimeColumn(), endDateStr);
+            queryPrep += format(" AND %s >= '%s'::date AND %s <= '%s'::date",
+                    projectConfig.getTimeColumn(), startDateStr, projectConfig.getTimeColumn(), endDateStr);
         }
         queryPrep += " LIMIT 10";
 
