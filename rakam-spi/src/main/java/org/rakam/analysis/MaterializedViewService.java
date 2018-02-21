@@ -119,10 +119,12 @@ public abstract class MaterializedViewService {
     public static class MaterializedViewExecution {
         public final Supplier<QueryExecution> materializedViewUpdateQuery;
         public final String computeQuery;
+        public final boolean waitForUpdate;
 
-        public MaterializedViewExecution(Supplier<QueryExecution> materializedViewUpdateQuery, String computeQuery) {
+        public MaterializedViewExecution(Supplier<QueryExecution> materializedViewUpdateQuery, String computeQuery, boolean waitForUpdate) {
             this.materializedViewUpdateQuery = materializedViewUpdateQuery;
             this.computeQuery = computeQuery;
+            this.waitForUpdate = waitForUpdate;
         }
     }
 }

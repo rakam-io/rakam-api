@@ -127,7 +127,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
         Map<String, String> sessionProperties = new HashMap<>();
         if (!materializedView.incremental) {
             if (!materializedView.needsUpdate(clock) || !database.updateMaterializedView(context.project, materializedView, f)) {
-                return null;
+                return new MaterializedViewExecution(null, tableName, false);
             }
 
             String collection = checkCollection(MATERIALIZED_VIEW_PREFIX + materializedView.tableName);
@@ -136,20 +136,23 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
             return new MaterializedViewExecution(() -> new DelegateQueryExecution(execution, result -> {
                 f.complete(!result.isFailed() ? Instant.now() : null);
                 return result;
-            }), tableName);
+            }), tableName, materializedView.lastUpdate == null);
         } else {
             String materializedTableReference = tableName;
 
             boolean willBeUpdated = materializedView.needsUpdate(clock) && database.updateMaterializedView(context.project, materializedView, f);
 
             Supplier<QueryExecution> queryExecution;
-            Instant now = Instant.now();
+            Instant now = queryExecutor.runRawQuery("select now()", resultSet -> {
+                resultSet.next();
+                return resultSet.getTimestamp(1).toInstant();
+            });
+
             if (willBeUpdated) {
                 String query = formatSql(statement,
                         name -> {
-                            String predicate = materializedView.lastUpdate != null ? format("between timezone('UTC', to_timestamp(%d)) and  timezone('UTC', to_timestamp(%d))",
-                                    materializedView.lastUpdate.getEpochSecond(), now.getEpochSecond()) :
-                                    format(" < timezone('UTC', to_timestamp(%d))", now.getEpochSecond());
+                            String predicate = materializedView.lastUpdate != null ? format("between timestamp with time zone '%s' and timestamp with time zone '%s'",
+                                    materializedView.lastUpdate.toString(), now.toString()) : format(" < timestamp with time zone '%s'", now.toString());
 
                             String collection = queryExecutor.formatTableReference(context.project, name, Optional.empty(),
                                     ImmutableMap.of());
@@ -168,22 +171,23 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
             }
 
             String reference;
-            if (!willBeUpdated && !materializedView.realTime) {
+            if (!materializedView.realTime || materializedView.lastUpdate == null) {
                 reference = materializedTableReference;
             } else {
                 String query = formatSql(statement,
                         name -> {
                             String collection = format("(SELECT * FROM %s %s) data",
                                     queryExecutor.formatTableReference(context.project, name, Optional.empty(), ImmutableMap.of()),
-                                    format("WHERE \"$server_time\" > to_timestamp(%d)",
-                                            (materializedView.lastUpdate != null ? materializedView.lastUpdate : now).getEpochSecond()));
+                                    format("WHERE \"$server_time\" > timestamp with time zone '%s'", now.toString()));
                             return collection;
                         }, '"');
 
                 reference = format("(SELECT * from %s UNION ALL %s) data", materializedTableReference, query);
             }
 
-            return new MaterializedViewExecution(queryExecution, reference);
+            // PG doesn't support UNCOMMITTED transactions so if the INSERT queries happens to finish before the SELECT,
+            // the user will see duplicate data
+            return new MaterializedViewExecution(queryExecution, reference, true);
         }
     }
 }

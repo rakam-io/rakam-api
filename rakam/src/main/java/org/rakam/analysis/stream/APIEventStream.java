@@ -12,6 +12,7 @@ import org.rakam.collection.SchemaField;
 import org.rakam.plugin.stream.CollectionStreamQuery;
 import org.rakam.plugin.stream.EventStream;
 import org.rakam.plugin.stream.StreamResponse;
+import org.rakam.presto.PrestoType;
 import org.rakam.util.JsonHelper;
 
 import javax.inject.Inject;
@@ -23,8 +24,6 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-
-import static org.rakam.presto.analysis.PrestoRakamRaptorMetastore.toType;
 
 public class APIEventStream
         implements EventStream {
@@ -52,7 +51,7 @@ public class APIEventStream
                     List<Map.Entry<String, Type>> collect = metastore.getCollection(project, item.getCollection())
                             .stream()
                             .map((Function<SchemaField, Map.Entry<String, Type>>) f ->
-                                    new SimpleImmutableEntry<>(f.getName(), toType(f.getType())))
+                                    new SimpleImmutableEntry<>(f.getName(), PrestoType.toType(f.getType())))
                             .collect(Collectors.toList());
 
                     predicate = Optional.ofNullable(item.getFilter())

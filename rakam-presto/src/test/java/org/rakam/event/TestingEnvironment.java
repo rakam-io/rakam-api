@@ -6,23 +6,16 @@ import com.facebook.presto.raptor.RaptorPlugin;
 import com.facebook.presto.server.testing.TestingPrestoServer;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
-import com.google.inject.Binder;
-import com.google.inject.Module;
-import com.google.inject.Provides;
-import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.airlift.testing.postgresql.TestingPostgreSqlServer;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.config.JDBCConfig;
 import org.rakam.presto.analysis.PrestoConfig;
-import org.skife.jdbi.v2.DBI;
-import org.skife.jdbi.v2.IDBI;
 
 import java.io.IOException;
 import java.net.URI;
 
 import static com.google.common.base.Throwables.propagate;
-import static java.lang.String.format;
 
 public class TestingEnvironment {
     private final static Logger LOGGER = Logger.get(TestingEnvironment.class);
@@ -45,18 +38,6 @@ public class TestingEnvironment {
 
                     String metadataDatabase = Files.createTempDir().getAbsolutePath();
                     RaptorPlugin plugin = new RakamRaptorPlugin();
-
-                    Module metastoreModule = new Module() {
-                        @Override
-                        public void configure(Binder binder) {
-                        }
-
-                        @Provides
-                        @Singleton
-                        public IDBI getDataSource() {
-                            return new DBI(format("jdbc:h2:mem:test%s;DB_CLOSE_DELAY=-1;mode=MySQL", System.nanoTime()));
-                        }
-                    };
 
                     testingPrestoServer.installPlugin(plugin);
                     testingPrestoServer.installPlugin(new RakamPlugin());

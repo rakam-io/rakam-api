@@ -6,6 +6,7 @@ import org.rakam.plugin.MaterializedView;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.MaterializedViewNotExists;
 import org.rakam.util.NotExistsException;
+import org.rakam.util.ProjectCollection;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -16,6 +17,7 @@ import java.util.stream.Collectors;
 public class InMemoryQueryMetadataStore
         implements QueryMetadataStore {
     private final Map<String, Set<MaterializedView>> materializedViews = new HashMap<>();
+    private final Set<ProjectCollection> locks = new HashSet<>();
 
     @Override
     public void createMaterializedView(String project, MaterializedView materializedView) {
@@ -29,6 +31,10 @@ public class InMemoryQueryMetadataStore
 
     @Override
     public void deleteMaterializedView(String project, String name) {
+        Set<MaterializedView> materializedViews = this.materializedViews.get(project);
+        if (materializedViews == null) {
+            throw new IllegalArgumentException();
+        }
         materializedViews.remove(getMaterializedView(project, name));
     }
 
@@ -47,7 +53,7 @@ public class InMemoryQueryMetadataStore
     }
 
     @Override
-    public boolean updateMaterializedView(String project, MaterializedView userView, CompletableFuture<Instant> releaseLock) {
+    public synchronized boolean updateMaterializedView(String project, MaterializedView userView, CompletableFuture<Instant> releaseLock) {
         MaterializedView view = materializedViews.get(project).stream()
                 .filter(e -> e.tableName.equals(userView.tableName)).findFirst().get();
 
@@ -55,13 +61,20 @@ public class InMemoryQueryMetadataStore
             return false;
         }
 
-        releaseLock.whenComplete((success, ex) -> {
-            if (success != null) {
-                view.lastUpdate = success;
-            }
-        });
+        ProjectCollection table = new ProjectCollection(project, userView.tableName);
 
-        return true;
+        boolean notLocked = locks.add(table);
+
+        if (notLocked) {
+            releaseLock.whenComplete((success, ex) -> {
+                if (success != null) {
+                    locks.remove(table);
+                    view.lastUpdate = success;
+                }
+            });
+        }
+
+        return notLocked;
     }
 
     @Override

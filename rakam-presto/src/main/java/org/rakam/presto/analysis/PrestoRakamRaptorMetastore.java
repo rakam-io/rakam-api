@@ -1,6 +1,7 @@
 package org.rakam.presto.analysis;
 
 import com.facebook.presto.client.ClientSession;
+import com.facebook.presto.metadata.MetadataManager;
 import com.facebook.presto.raptor.metadata.MetadataDao;
 import com.facebook.presto.raptor.metadata.Table;
 import com.facebook.presto.raptor.metadata.TableColumn;
@@ -13,6 +14,7 @@ import com.facebook.presto.spi.function.OperatorType;
 import com.facebook.presto.spi.type.*;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
@@ -52,6 +54,7 @@ import static com.facebook.presto.raptor.storage.ShardStats.MAX_BINARY_INDEX_SIZ
 import static com.facebook.presto.raptor.util.DatabaseUtil.metadataError;
 import static com.facebook.presto.raptor.util.DatabaseUtil.onDemandDao;
 import static com.facebook.presto.spi.type.ParameterKind.TYPE;
+import static com.facebook.presto.type.MapParametricType.MAP;
 import static com.google.common.base.Throwables.propagateIfInstanceOf;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static java.lang.String.format;
@@ -192,39 +195,6 @@ public class PrestoRakamRaptorMetastore
                     return "MAP<VARCHAR, " + toSql(type.getMapValueType()) + ">";
                 }
                 throw new IllegalStateException("sql type couldn't converted to fieldtype");
-        }
-    }
-
-    public static Type toType(FieldType type) {
-        switch (type) {
-            case DOUBLE:
-                return DoubleType.DOUBLE;
-            case LONG:
-                return BigintType.BIGINT;
-            case BOOLEAN:
-                return BooleanType.BOOLEAN;
-            case STRING:
-                return VarcharType.VARCHAR;
-            case INTEGER:
-                return IntegerType.INTEGER;
-            case DECIMAL:
-                return DecimalType.createDecimalType();
-            case DATE:
-                return DateType.DATE;
-            case TIMESTAMP:
-                return TimestampType.TIMESTAMP;
-            case TIME:
-                return TimeType.TIME;
-            case BINARY:
-                return VarbinaryType.VARBINARY;
-            default:
-                if (type.isArray()) {
-                    return new ArrayType(toType(type.getArrayElementType()));
-                }
-                if (type.isMap()) {
-                    return new MapType(VarcharType.VARCHAR, toType(type.getMapValueType()), null, null, null);
-                }
-                throw new IllegalStateException();
         }
     }
 

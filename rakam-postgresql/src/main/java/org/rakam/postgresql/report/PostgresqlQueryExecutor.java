@@ -27,6 +27,7 @@ import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.ZoneId;
 import java.util.List;
@@ -117,6 +118,21 @@ public class PostgresqlQueryExecutor
             }));
         }
         return new JDBCQueryExecution(connectionPool::getConnection, query, false, Optional.ofNullable(zoneId), true);
+    }
+
+    public <T> T runRawQuery(String query, CheckedFunction<ResultSet, T> mapper) {
+        try (Connection connection = connectionPool.getConnection()) {
+            java.sql.Statement statement = connection.createStatement();
+            ResultSet resultSet = statement.executeQuery(query);
+            return mapper.apply(resultSet);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @FunctionalInterface
+    public interface CheckedFunction<T, R> {
+        R apply(T t) throws SQLException;
     }
 
     @Override

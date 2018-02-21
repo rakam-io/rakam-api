@@ -16,7 +16,6 @@ import org.rakam.report.QueryExecutorService;
 import org.testng.annotations.BeforeSuite;
 
 import java.time.Clock;
-import java.time.ZoneId;
 
 public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
 
@@ -45,7 +44,7 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
                 new PrestoConfig(),
                 prestoQueryExecutor, metastore, inMemoryQueryMetadataStore, Clock.systemUTC());
         QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, metastore,
-                materializedViewService, Clock.system(ZoneId.of("UTC")), '"');
+                materializedViewService, '"');
 
         FastGenericFunnelQueryExecutor fastGenericFunnelQueryExecutor = new FastGenericFunnelQueryExecutor(queryExecutorService, new ProjectConfig(), metastore);
         PrestoApproxFunnelQueryExecutor prestoApproxFunnelQueryExecutor = new PrestoApproxFunnelQueryExecutor(new ProjectConfig(), queryExecutorService, metastore);

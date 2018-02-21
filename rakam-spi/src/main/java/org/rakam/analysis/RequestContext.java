@@ -7,6 +7,10 @@ public class RequestContext {
     public final String apiKey;
     public final Access access;
 
+    public RequestContext(String project) {
+        this(project, null, null);
+    }
+
     public RequestContext(String project, String apiKey) {
         this(project, apiKey, null);
     }

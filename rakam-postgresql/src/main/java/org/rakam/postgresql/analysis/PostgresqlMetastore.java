@@ -293,7 +293,7 @@ public class PostgresqlMetastore
 
             List<SchemaField> schemaFields = fields.stream().filter(f -> !strings.contains(f.getName())).collect(Collectors.toList());
             if (currentFields.isEmpty()) {
-                if (!getProjects().contains(project)) {
+                if (!getProjects().contains(ValidationUtil.checkProject(project))) {
                     throw new NotExistsException("Project");
                 }
                 String queryEnd = schemaFields.stream()

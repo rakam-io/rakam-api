@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.sql.*;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -58,6 +59,9 @@ public class JDBCQueryExecution
         this.update = update;
 
         this.result = CompletableFuture.supplyAsync(() -> {
+            Instant now = Instant.now();
+            now.toString();
+
             final QueryResult queryResult;
             try (Connection connection = connectionPool.openConnection()) {
                 statement = connection.createStatement();

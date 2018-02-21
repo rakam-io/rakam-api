@@ -15,13 +15,15 @@ import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.util.*;
 
-import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -39,13 +41,15 @@ public class QueryExecutorService {
     private final Metastore metastore;
     private final char escapeIdentifier;
     private volatile Set<String> projectCache;
+    private final ScheduledExecutorService asyncMaterializedViewUpdateQueue;
 
     @Inject
-    public QueryExecutorService(QueryExecutor executor, Metastore metastore, MaterializedViewService materializedViewService, Clock clock, @EscapeIdentifier char escapeIdentifier) {
+    public QueryExecutorService(QueryExecutor executor, Metastore metastore, MaterializedViewService materializedViewService, @EscapeIdentifier char escapeIdentifier) {
         this.executor = executor;
         this.materializedViewService = materializedViewService;
         this.metastore = metastore;
         this.escapeIdentifier = escapeIdentifier;
+        this.asyncMaterializedViewUpdateQueue = Executors.newScheduledThreadPool(1);
     }
 
     public QueryExecution executeQuery(String project, String sqlQuery, Optional<QuerySampling> sample, String defaultSchema, ZoneId zoneId, int limit) {
@@ -80,13 +84,36 @@ public class QueryExecutorService {
 
         long startTime = System.currentTimeMillis();
 
-        List<MaterializedViewExecution> queryExecutions = materializedViews.values().stream()
-                .filter(e -> e.materializedViewUpdateQuery != null)
-                .collect(Collectors.toList());
+        List<QueryExecution> syncExecutions = materializedViews.values().stream()
+                .filter(e -> e.materializedViewUpdateQuery != null && e.waitForUpdate)
+                .map(e -> e.materializedViewUpdateQuery.get()).collect(Collectors.toList());
+
+        Function<QueryResult, QueryResult> attachMaterializedViews = result -> {
+
+            if (!result.isFailed()) {
+                Map<String, Long> collect = materializedViews.entrySet().stream()
+                        .collect(Collectors.toMap(
+                                v -> v.getKey().tableName,
+                                v -> Optional.ofNullable(v.getKey().lastUpdate).map(Instant::toEpochMilli).orElse(0L)));
+                result.setProperty("materializedViews", collect);
+                result.setProperty(EXECUTION_TIME, System.currentTimeMillis() - startTime);
+            }
+
+            return result;
+        };
 
         QueryExecution execution;
+        if (!syncExecutions.isEmpty()) {
+            execution = new ChainQueryExecution(syncExecutions,
+                    queryResults -> new DelegateQueryExecution(executor.executeRawQuery(context, query, zoneId, sessionParameters), attachMaterializedViews));
+        } else {
+            execution = new DelegateQueryExecution(executor.executeRawQuery(context, query, zoneId, sessionParameters), attachMaterializedViews);
+        }
 
-        queryExecutions.stream()
+        // async execution
+        Stream<MaterializedViewExecution> materializedViewExecutionStream = materializedViews.values().stream()
+                .filter(e -> e.materializedViewUpdateQuery != null && !e.waitForUpdate);
+        materializedViewExecutionStream
                 .forEach(e -> {
                     QueryExecution updateQuery = e.materializedViewUpdateQuery.get();
                     updateQuery.getResult().whenComplete((queryResult, throwable) -> {
@@ -103,19 +130,6 @@ public class QueryExecutorService {
                         }
                     });
                 });
-
-        execution = new DelegateQueryExecution(executor.executeRawQuery(context, query, zoneId, sessionParameters), result -> {
-            if (!result.isFailed()) {
-                Map<String, Long> collect = materializedViews.entrySet().stream()
-                        .collect(Collectors.toMap(
-                                v -> v.getKey().tableName,
-                                v -> Optional.ofNullable(v.getKey().lastUpdate).map(Instant::toEpochMilli).orElse(0L)));
-                result.setProperty("materializedViews", collect);
-                result.setProperty(EXECUTION_TIME, System.currentTimeMillis() - startTime);
-            }
-
-            return result;
-        });
 
         return execution;
     }

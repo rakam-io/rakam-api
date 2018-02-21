@@ -19,8 +19,6 @@ import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecutorService;
 import org.testng.annotations.BeforeSuite;
 
-import java.time.Clock;
-
 public class TestPostgresqlFunnelQueryExecutor extends TestFunnelQueryExecutor {
 
     private TestingEnvironmentPg9 testingPostgresqlServer;
@@ -40,7 +38,7 @@ public class TestPostgresqlFunnelQueryExecutor extends TestFunnelQueryExecutor {
 
         PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(new ProjectConfig(), dataSource, metastore, new CustomDataSourceService(dataSource), false);
         eventStore = new PostgresqlEventStore(dataSource, new PostgresqlModule.PostgresqlVersion(dataSource), build);
-        FastGenericFunnelQueryExecutor exec = new FastGenericFunnelQueryExecutor(new QueryExecutorService(queryExecutor, metastore, null, Clock.systemUTC(), '"'),
+        FastGenericFunnelQueryExecutor exec = new FastGenericFunnelQueryExecutor(new QueryExecutorService(queryExecutor, metastore, null, '"'),
                 new ProjectConfig(), metastore);
 
         funnelQueryExecutor = new PostgresqlFunnelQueryExecutor(exec, new ProjectConfig(), metastore, queryExecutor);

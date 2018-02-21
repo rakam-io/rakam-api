@@ -1,7 +1,6 @@
-package org.rakam.aws;
+package org.rakam;
 
 import com.google.common.eventbus.EventBus;
-import org.rakam.TestingPrestoEventStore;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.InMemoryQueryMetadataStore;
 import org.rakam.analysis.JDBCPoolDataSource;
@@ -29,9 +28,7 @@ public class TestPrestoEventExplorer
 
     @BeforeSuite
     @Override
-    public void
-    setup()
-            throws Exception {
+    public void setup() throws Exception {
         testingEnvironment = new TestingEnvironment();
         PrestoConfig prestoConfig = testingEnvironment.getPrestoConfig();
         JDBCConfig postgresqlConfig = testingEnvironment.getPostgresqlConfig();
@@ -47,7 +44,7 @@ public class TestPrestoEventExplorer
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(
                 new PrestoConfig(),
                 prestoQueryExecutor, metastore, queryMetadataStore, Clock.systemUTC());
-        QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, metastore, materializedViewService, Clock.systemUTC(), '"');
+        QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, metastore, materializedViewService, '"');
 
         eventExplorer = new PrestoEventExplorer(new ProjectConfig(), queryExecutorService, materializedViewService);
         eventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);

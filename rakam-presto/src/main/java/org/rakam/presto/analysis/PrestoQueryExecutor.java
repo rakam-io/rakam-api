@@ -23,6 +23,7 @@ import org.rakam.config.JDBCConfig;
 import org.rakam.config.ProjectConfig;
 import org.rakam.postgresql.report.JDBCQueryExecution;
 import org.rakam.presto.PrestoModule.UserConfig;
+import org.rakam.presto.PrestoType;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QuerySampling;
@@ -47,7 +48,6 @@ import static java.util.Base64.getDecoder;
 import static java.util.Base64.getEncoder;
 import static org.rakam.postgresql.report.PostgresqlQueryExecutor.dbSeparator;
 import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
-import static org.rakam.presto.analysis.PrestoRakamRaptorMetastore.toType;
 import static org.rakam.util.JsonHelper.encodeAsBytes;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
@@ -262,7 +262,7 @@ public class PrestoQueryExecutor
 
                     List<RemoteFileDataSource.RemoteTable> prestoTables = files.entrySet().stream().map(file -> {
                         List<RemoteFileDataSource.Column> collect = file.getValue().columns.stream()
-                                .map(column -> new RemoteFileDataSource.Column(column.getName(), toType(column.getType())))
+                                .map(column -> new RemoteFileDataSource.Column(column.getName(), PrestoType.toType(column.getType())))
                                 .collect(Collectors.toList());
 
                         return new RemoteFileDataSource.RemoteTable(file.getKey(),

@@ -3,13 +3,16 @@ package org.rakam.presto.analysis;
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.ParsingOptions;
 import com.facebook.presto.sql.parser.SqlParser;
-import com.facebook.presto.sql.tree.*;
+import com.facebook.presto.sql.tree.QualifiedName;
+import com.facebook.presto.sql.tree.Query;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
+import org.rakam.report.ChainQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
@@ -127,23 +130,23 @@ public class PrestoMaterializedViewService
         Map<String, String> sessionProperties = new HashMap<>();
         if (!materializedView.incremental) {
             if (!materializedView.needsUpdate(clock) || !database.updateMaterializedView(context.project, materializedView, f)) {
-                return new MaterializedViewExecution(null, tableName);
+                return new MaterializedViewExecution(null, tableName, false);
             }
 
-            QueryResult join = queryExecutor.executeRawStatement(context, format("DELETE FROM %s", tableName)).getResult().join();
-            if (join.isFailed()) {
-                throw new RakamException("Failed to delete table: " + join.getError().toString(), INTERNAL_SERVER_ERROR);
-            }
             StringBuilder builder = new StringBuilder();
-
             new RakamSqlFormatter.Formatter(builder, name ->
                     queryExecutor.formatTableReference(context.project, name, Optional.empty(),
                             sessionProperties), '"').process(statement, 1);
+
             return new MaterializedViewExecution(() -> {
-                QueryExecution execution = queryExecutor.executeRawStatement(context, format("INSERT INTO %s %s", tableName, builder.toString()), sessionProperties);
-                execution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? Instant.now() : null));
-                return execution;
-            }, tableName);
+                // TODO: make this atomic
+                QueryExecution deleteData = queryExecutor.executeRawStatement(context, format("DELETE FROM %s", tableName));
+                return new ChainQueryExecution(ImmutableList.of(deleteData), queryResults -> {
+                    QueryExecution execution = queryExecutor.executeRawStatement(context, format("INSERT INTO %s %s", tableName, builder.toString()), sessionProperties);
+                    execution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? Instant.now() : null));
+                    return execution;
+                });
+            }, tableName, true);
         } else {
             List<String> referencedCollections = new ArrayList<>();
 
@@ -184,22 +187,22 @@ public class PrestoMaterializedViewService
             }
 
             String reference;
-            if (!materializedView.realTime) {
+            if (!materializedView.realTime || lastUpdated == null) {
                 reference = materializedTableReference;
             } else {
                 String query = formatSql(statement,
                         name -> {
                             String collection = format("(SELECT * FROM %s %s) data",
                                     queryExecutor.formatTableReference(context.project, name, Optional.empty(), ImmutableMap.of()),
-                                    lastUpdated != null ? format("WHERE %s > from_unixtime(%d)",
-                                            checkTableColumn(prestoConfig.getCheckpointColumn()), lastUpdated.getEpochSecond()) : "");
+                                    format("WHERE %s > from_unixtime(%d)",
+                                            checkTableColumn(prestoConfig.getCheckpointColumn()), lastUpdated.getEpochSecond()));
                             return collection;
                         }, '"');
 
                 reference = format("(SELECT * from %s UNION ALL %s)", materializedTableReference, query);
             }
 
-            return new MaterializedViewExecution(runnable, reference);
+            return new MaterializedViewExecution(runnable, reference, materializedView.lastUpdate == null);
         }
     }
 }

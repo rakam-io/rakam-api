@@ -1,10 +1,11 @@
 package org.rakam.pg9.analysis;
 
 import com.google.common.eventbus.EventBus;
-import org.rakam.analysis.EventExplorer;
+import org.rakam.PGClock;
 import org.rakam.analysis.InMemoryQueryMetadataStore;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.analysis.TestEventExplorer;
+import org.rakam.analysis.MaterializedViewService;
+import org.rakam.analysis.TestMaterializedView;
 import org.rakam.analysis.datasource.CustomDataSourceService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldDependencyBuilder;
@@ -15,50 +16,32 @@ import org.rakam.postgresql.PostgresqlModule;
 import org.rakam.postgresql.analysis.PostgresqlEventStore;
 import org.rakam.postgresql.analysis.PostgresqlMaterializedViewService;
 import org.rakam.postgresql.analysis.PostgresqlMetastore;
-import org.rakam.postgresql.report.PostgresqlEventExplorer;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
-import org.rakam.report.QueryExecutorService;
+import org.rakam.report.QueryExecutor;
 import org.testng.annotations.BeforeSuite;
 
-import java.time.Clock;
-
-public class TestPostgresqlEventExplorer
-        extends TestEventExplorer {
-
+public class TestPostgresqlMaterializedView extends TestMaterializedView {
     private TestingEnvironmentPg9 testingPostgresqlServer;
     private PostgresqlMetastore metastore;
     private PostgresqlEventStore eventStore;
-    private PostgresqlEventExplorer eventExplorer;
+    private PostgresqlQueryExecutor queryExecutor;
+    private InMemoryQueryMetadataStore queryMetadataStore;
 
-    @Override
     @BeforeSuite
-    public void setup()
-            throws Exception {
+    public void setup() throws Exception {
         testingPostgresqlServer = new TestingEnvironmentPg9();
 
-        InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();
+        queryMetadataStore = new InMemoryQueryMetadataStore();
         JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(testingPostgresqlServer.getPostgresqlConfig(), "set time zone 'UTC'");
 
         FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
         EventBus eventBus = new EventBus();
 
         metastore = new PostgresqlMetastore(dataSource, new PostgresqlModule.PostgresqlVersion(dataSource), eventBus, new ProjectConfig());
-        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(new ProjectConfig(), dataSource, metastore, new CustomDataSourceService(dataSource), false);
-
-        PostgresqlMaterializedViewService postgresqlMaterializedViewService = new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore, Clock.systemUTC());
+        queryExecutor = new PostgresqlQueryExecutor(new ProjectConfig(), dataSource, metastore, new CustomDataSourceService(dataSource), false);
 
         eventStore = new PostgresqlEventStore(dataSource, new PostgresqlModule.PostgresqlVersion(dataSource), build);
-        PostgresqlMaterializedViewService materializedViewService = postgresqlMaterializedViewService;
-        eventExplorer = new PostgresqlEventExplorer(
-                new ProjectConfig(),
-                new QueryExecutorService(queryExecutor, metastore, materializedViewService, '"'),
-                materializedViewService);
         super.setup();
-    }
-
-    @Override
-    public EventStore getEventStore() {
-        return eventStore;
     }
 
     @Override
@@ -67,7 +50,23 @@ public class TestPostgresqlEventExplorer
     }
 
     @Override
-    public EventExplorer getEventExplorer() {
-        return eventExplorer;
+    public IncrementableClock getClock() {
+        return new PGClock(queryExecutor);
     }
+
+    @Override
+    public MaterializedViewService getMaterializedViewService() {
+        return new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore, new PGClock(queryExecutor));
+    }
+
+    @Override
+    public QueryExecutor getQueryExecutor() {
+        return queryExecutor;
+    }
+
+    @Override
+    public EventStore getEventStore() {
+        return eventStore;
+    }
+
 }
