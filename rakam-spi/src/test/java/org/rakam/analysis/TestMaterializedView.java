@@ -81,9 +81,15 @@ public abstract class TestMaterializedView {
 
     @AfterMethod
     public void tearDown() throws Exception {
-        QueryResult testview = getMaterializedViewService().delete(new RequestContext(PROJECT_NAME), "testview").join();
-        if (testview.isFailed()) {
-            throw new IllegalStateException(testview.getError().toString());
+        QueryResult testview;
+        try {
+            testview = getMaterializedViewService().delete(new RequestContext(PROJECT_NAME), "testview").join();
+
+            if (testview.isFailed()) {
+                throw new IllegalStateException(testview.getError().toString());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 

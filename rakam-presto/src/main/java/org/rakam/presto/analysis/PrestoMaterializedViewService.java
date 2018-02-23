@@ -121,14 +121,14 @@ public class PrestoMaterializedViewService
 
     @Override
     public MaterializedViewExecution lockAndUpdateView(RequestContext context, MaterializedView materializedView) {
-        CompletableFuture<Instant> f = new CompletableFuture<>();
-
         String tableName = queryExecutor.formatTableReference(context.project,
                 QualifiedName.of("materialized", materializedView.tableName), Optional.empty(), ImmutableMap.of());
         Query statement = (Query) sqlParser.createStatement(materializedView.query);
 
         Map<String, String> sessionProperties = new HashMap<>();
         if (!materializedView.incremental) {
+            CompletableFuture<Instant> f = new CompletableFuture<>();
+
             if (!materializedView.needsUpdate(clock) || !database.updateMaterializedView(context.project, materializedView, f)) {
                 return new MaterializedViewExecution(null, tableName, false);
             }
@@ -143,11 +143,13 @@ public class PrestoMaterializedViewService
                 QueryExecution deleteData = queryExecutor.executeRawStatement(context, format("DELETE FROM %s", tableName));
                 return new ChainQueryExecution(ImmutableList.of(deleteData), queryResults -> {
                     QueryExecution execution = queryExecutor.executeRawStatement(context, format("INSERT INTO %s %s", tableName, builder.toString()), sessionProperties);
-                    execution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? Instant.now() : null));
+                    execution.getResult().whenComplete((result, ex) -> f.complete(ex == null && !result.isFailed() ? Instant.now() : null));
                     return execution;
                 });
             }, tableName, true);
         } else {
+            CompletableFuture<Instant> f = new CompletableFuture<>();
+
             List<String> referencedCollections = new ArrayList<>();
 
             formatSql(statement, name -> {
@@ -178,12 +180,11 @@ public class PrestoMaterializedViewService
 
                 runnable = () -> {
                     QueryExecution execution = queryExecutor.executeRawStatement(context, format("INSERT INTO %s %s", materializedTableReference, query), sessionProperties);
-                    execution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? now : null));
+                    execution.getResult().whenComplete((result, ex) -> f.complete(ex == null && !result.isFailed() ? Instant.now() : null));
                     return execution;
                 };
             } else {
                 runnable = null;
-                f.complete(lastUpdated);
             }
 
             String reference;
