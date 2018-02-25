@@ -87,12 +87,16 @@ public abstract class TestMaterializedView {
 
     @AfterMethod
     public void tearDown() throws Exception {
-        QueryResult testview = getMaterializedViewService().delete(new RequestContext(PROJECT_NAME), "testview").join();
+        QueryResult testview;
+        try {
+            testview = getMaterializedViewService().delete(new RequestContext(PROJECT_NAME), "testview").join();
 
-        if (testview.isFailed()) {
-            throw new IllegalStateException(testview.getError().toString());
+            if (testview.isFailed()) {
+                throw new IllegalStateException(testview.getError().toString());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
         queryMetadataStore.clear();
     }
 
@@ -210,7 +214,7 @@ public abstract class TestMaterializedView {
         assertFalse(result.isFailed());
 
         // the insert query was fast enough
-        if (result.getResult().size() == 2) {
+        if(result.getResult().size() == 2) {
             assertEquals(1, result.getResult().get(0).size());
             assertEquals(1, result.getResult().get(1).size());
 
