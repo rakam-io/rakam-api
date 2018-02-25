@@ -127,6 +127,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
         Map<String, String> sessionProperties = new HashMap<>();
         if (!materializedView.incremental) {
             if (!materializedView.needsUpdate(clock) || !database.updateMaterializedView(context.project, materializedView, f)) {
+                f.complete(null);
                 return new MaterializedViewExecution(null, tableName, false);
             }
 

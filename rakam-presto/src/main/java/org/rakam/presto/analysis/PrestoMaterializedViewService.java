@@ -130,6 +130,7 @@ public class PrestoMaterializedViewService
             CompletableFuture<Instant> f = new CompletableFuture<>();
 
             if (!materializedView.needsUpdate(clock) || !database.updateMaterializedView(context.project, materializedView, f)) {
+                f.complete(null);
                 return new MaterializedViewExecution(null, tableName, false);
             }
 

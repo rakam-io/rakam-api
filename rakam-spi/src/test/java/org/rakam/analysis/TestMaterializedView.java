@@ -197,6 +197,7 @@ public abstract class TestMaterializedView {
         QueryExecutorService queryService = getQueryService();
         QueryResult result = queryService.executeQuery(PROJECT_NAME, "select * from materialized.testview", ZoneId.systemDefault()).getResult().join();
         assertFalse(result.isFailed());
+        assertEquals(1, result.getResult().size());
 
         populate(tableName);
 
