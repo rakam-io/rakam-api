@@ -1,7 +1,6 @@
 package org.rakam;
 
 import com.google.common.eventbus.EventBus;
-import org.rakam.analysis.InMemoryQueryMetadataStore;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.TestMaterializedView;
 import org.rakam.analysis.metadata.Metastore;
@@ -25,7 +24,6 @@ public class TestPrestoMaterializedView extends TestMaterializedView {
     private TestingEnvironment testingEnvironment;
     private PrestoRakamRaptorMetastore metastore;
     private PrestoQueryExecutor prestoQueryExecutor;
-    private InMemoryQueryMetadataStore queryMetadataStore;
     private TestingPrestoEventStore eventStore;
     private PrestoMaterializedViewService materializedViewService;
 
@@ -35,8 +33,6 @@ public class TestPrestoMaterializedView extends TestMaterializedView {
         testingEnvironment = new TestingEnvironment();
         PrestoConfig prestoConfig = testingEnvironment.getPrestoConfig();
 
-        queryMetadataStore = new InMemoryQueryMetadataStore();
-
         metastore = new PrestoRakamRaptorMetastore(testingEnvironment.getPrestoMetastore(), new EventBus(), new ProjectConfig(), prestoConfig);
         metastore.setup();
 
@@ -44,7 +40,7 @@ public class TestPrestoMaterializedView extends TestMaterializedView {
 
         materializedViewService = new PrestoMaterializedViewService(
                 new PrestoConfig(),
-                prestoQueryExecutor, metastore, queryMetadataStore, Clock.systemUTC());
+                prestoQueryExecutor, metastore, getDatabaseMetadataStore(), Clock.systemUTC());
 
         eventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);
 

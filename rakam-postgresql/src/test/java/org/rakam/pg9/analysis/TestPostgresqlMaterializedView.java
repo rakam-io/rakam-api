@@ -2,7 +2,6 @@ package org.rakam.pg9.analysis;
 
 import com.google.common.eventbus.EventBus;
 import org.rakam.PGClock;
-import org.rakam.analysis.InMemoryQueryMetadataStore;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.TestMaterializedView;
@@ -25,13 +24,11 @@ public class TestPostgresqlMaterializedView extends TestMaterializedView {
     private PostgresqlMetastore metastore;
     private PostgresqlEventStore eventStore;
     private PostgresqlQueryExecutor queryExecutor;
-    private InMemoryQueryMetadataStore queryMetadataStore;
 
     @BeforeSuite
     public void setup() throws Exception {
         testingPostgresqlServer = new TestingEnvironmentPg9();
 
-        queryMetadataStore = new InMemoryQueryMetadataStore();
         JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(testingPostgresqlServer.getPostgresqlConfig(), "set time zone 'UTC'");
 
         FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
@@ -56,7 +53,7 @@ public class TestPostgresqlMaterializedView extends TestMaterializedView {
 
     @Override
     public MaterializedViewService getMaterializedViewService() {
-        return new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore, new PGClock(queryExecutor));
+        return new PostgresqlMaterializedViewService(queryExecutor, getDatabaseMetadataStore(), new PGClock(queryExecutor));
     }
 
     @Override

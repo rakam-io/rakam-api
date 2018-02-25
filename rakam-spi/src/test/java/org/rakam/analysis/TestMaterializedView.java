@@ -3,6 +3,7 @@ package org.rakam.analysis;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.EventBuilder;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.Event;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.MaterializedView;
@@ -31,6 +32,7 @@ import static org.testng.Assert.assertFalse;
 public abstract class TestMaterializedView {
     protected static final String PROJECT_NAME = TestMaterializedView.class.getSimpleName().toLowerCase(Locale.ENGLISH);
     private static final int SCALE_FACTOR = 100;
+    private final InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();
 
     public abstract Metastore getMetastore();
 
@@ -39,6 +41,10 @@ public abstract class TestMaterializedView {
     public abstract MaterializedViewService getMaterializedViewService();
 
     public abstract QueryExecutor getQueryExecutor();
+
+    public QueryMetadataStore getDatabaseMetadataStore() {
+        return queryMetadataStore;
+    }
 
     public char getEscapeIdentifier() {
         return '"';
@@ -81,16 +87,13 @@ public abstract class TestMaterializedView {
 
     @AfterMethod
     public void tearDown() throws Exception {
-        QueryResult testview;
-        try {
-            testview = getMaterializedViewService().delete(new RequestContext(PROJECT_NAME), "testview").join();
+        QueryResult testview = getMaterializedViewService().delete(new RequestContext(PROJECT_NAME), "testview").join();
 
-            if (testview.isFailed()) {
-                throw new IllegalStateException(testview.getError().toString());
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (testview.isFailed()) {
+            throw new IllegalStateException(testview.getError().toString());
         }
+
+        queryMetadataStore.clear();
     }
 
     @Test
@@ -207,7 +210,7 @@ public abstract class TestMaterializedView {
         assertFalse(result.isFailed());
 
         // the insert query was fast enough
-        if(result.getResult().size() == 2) {
+        if (result.getResult().size() == 2) {
             assertEquals(1, result.getResult().get(0).size());
             assertEquals(1, result.getResult().get(1).size());
 

@@ -29,6 +29,11 @@ public class InMemoryQueryMetadataStore
         materializedViews.add(materializedView);
     }
 
+    public void clear() {
+        locks.clear();
+        materializedViews.clear();
+    }
+
     @Override
     public void deleteMaterializedView(String project, String name) {
         Set<MaterializedView> materializedViews = this.materializedViews.get(project);
