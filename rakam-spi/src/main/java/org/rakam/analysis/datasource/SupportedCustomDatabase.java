@@ -8,11 +8,14 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.function.BiFunction;
 
 import static java.lang.String.format;
+import static java.util.Optional.ofNullable;
+import static org.rakam.util.ValidationUtil.checkCollection;
 
 public enum SupportedCustomDatabase {
-    POSTGRESQL(new CDataSource<JDBCSchemaConfig>() {
+    POSTGRESQL('"', new CDataSource<JDBCSchemaConfig>() {
         @Override
         public Optional<String> test(JDBCSchemaConfig factory) {
             Connection connect = null;
@@ -55,8 +58,10 @@ public enum SupportedCustomDatabase {
                             Optional.ofNullable(factory.getPort()).orElse(5432),
                             factory.getDatabase()), properties);
         }
-    }),
-    REDSHIFT(new CDataSource<JDBCSchemaConfig>() {
+    }, (jdbcSchemaConfig, table) -> ofNullable(jdbcSchemaConfig.getSchema())
+            .map(e -> e + "." + table)
+            .orElse(table)),
+    REDSHIFT('"', new CDataSource<JDBCSchemaConfig>() {
         @Override
         public Optional<String> test(JDBCSchemaConfig factory) {
             Connection connect = null;
@@ -100,8 +105,10 @@ public enum SupportedCustomDatabase {
                             Optional.ofNullable(factory.getPort()).orElse(5432),
                             factory.getDatabase()), properties);
         }
-    }),
-    MYSQL(new CDataSource<JDBCSchemaConfig>() {
+    }, (jdbcSchemaConfig, table) -> ofNullable(jdbcSchemaConfig.getSchema())
+            .map(e -> e + "." + table)
+            .orElse(table)),
+    MYSQL('`', new CDataSource<JDBCSchemaConfig>() {
         @Override
         public Optional<String> test(JDBCSchemaConfig factory) {
             Connection connect = null;
@@ -136,8 +143,8 @@ public enum SupportedCustomDatabase {
                     Optional.ofNullable(factory.getPort()).orElse(3306),
                     factory.getDatabase()), info);
         }
-    }),
-    MSSQL(new CDataSource<JDBCSchemaConfig>() {
+    }, (jdbcSchemaConfig, table) -> checkCollection(jdbcSchemaConfig.getDatabase(), '`') + '.' + checkCollection(table, '`')),
+    MSSQL('"', new CDataSource<JDBCSchemaConfig>() {
         @Override
         public Optional<String> test(JDBCSchemaConfig config) {
             Connection connection = null;
@@ -171,12 +178,26 @@ public enum SupportedCustomDatabase {
                             Optional.ofNullable(config.getPort()).orElse(1433),
                             config.getDatabase()), info);
         }
-    });
+    }, (jdbcSchemaConfig, table) -> ofNullable(jdbcSchemaConfig.getSchema())
+            .map(e -> e + "." + table)
+            .orElse(table));
 
+    private final char tableQuote;
     private final CDataSource<JDBCSchemaConfig> dataSource;
+    private final BiFunction<JDBCSchemaConfig, String, String> tableMapper;
 
-    SupportedCustomDatabase(CDataSource<JDBCSchemaConfig> dataSource) {
+    SupportedCustomDatabase(char tableQuote, CDataSource<JDBCSchemaConfig> dataSource, BiFunction<JDBCSchemaConfig, String, String> tableMapper) {
+        this.tableQuote = tableQuote;
         this.dataSource = dataSource;
+        this.tableMapper = tableMapper;
+    }
+
+    public char getTableQuote() {
+        return tableQuote;
+    }
+
+    public BiFunction<JDBCSchemaConfig, String, String> getTableMapper() {
+        return tableMapper;
     }
 
     public static SupportedCustomDatabase getAdapter(String value) {

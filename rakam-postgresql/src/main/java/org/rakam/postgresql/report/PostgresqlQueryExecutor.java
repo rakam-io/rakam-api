@@ -43,7 +43,6 @@ import java.util.stream.Collectors;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.EXPECTATION_FAILED;
 import static java.lang.String.format;
-import static java.util.Optional.ofNullable;
 import static org.rakam.util.ValidationUtil.*;
 
 // forbid crosstab, dblink
@@ -259,9 +258,8 @@ public class PostgresqlQueryExecutor
                         .filter(e -> e.schemaName.equals(schema)).findAny()
                         .orElseThrow(() -> new RakamException("Cross database operations are not supported.", BAD_REQUEST));
 
-                return ofNullable(customDataSource1.options.getSchema())
-                        .map(e -> e + "." + qualifiedName.getSuffix())
-                        .orElse(qualifiedName.getSuffix());
+                return SupportedCustomDatabase.getAdapter(customDataSource1.type).getTableMapper()
+                        .apply(customDataSource1.options, qualifiedName.getSuffix());
             }, seperator) {
             }.process(statement, 1);
         } catch (UnsupportedOperationException e) {
@@ -272,5 +270,9 @@ public class PostgresqlQueryExecutor
 
         return new JDBCQueryExecution(() ->
                 SupportedCustomDatabase.getAdapter(type.get(0).type).getDataSource().openConnection(type.get(0).options), sqlQuery, false, Optional.empty(), false);
+    }
+
+    public enum DBQuote {
+
     }
 }
