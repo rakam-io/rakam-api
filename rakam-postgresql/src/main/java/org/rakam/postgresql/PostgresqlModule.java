@@ -105,6 +105,7 @@ public class PostgresqlModule
 
         binder.bind(MaterializedViewService.class).to(PostgresqlMaterializedViewService.class).in(Scopes.SINGLETON);
         binder.bind(QueryExecutor.class).to(PostgresqlQueryExecutor.class).in(Scopes.SINGLETON);
+        binder.bind(PostgresqlQueryExecutor.class).in(Scopes.SINGLETON);
         binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class).toInstance("to_unixtime");
 
         boolean isUserModulePostgresql = "postgresql".equals(getConfig("plugin.user.storage"));
