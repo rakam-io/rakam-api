@@ -279,7 +279,7 @@ public class WebUserHttpService
                                          @ApiParam(value = "read_permission") boolean readPermission,
                                          @ApiParam(value = "write_permission") boolean writePermission,
                                          @ApiParam(value = "master_permission") boolean masterPermission,
-                                         @ApiParam(value = "active_ui_features") WebUserService.UIFeatures activeUiFeatures) {
+                                         @ApiParam(value = "active_ui_features", required = false) WebUserService.UIFeatures activeUiFeatures) {
         Optional<WebUser> user = service.getUser(project.userId);
         if (!user.get().projects.stream()
                 .anyMatch(e -> e.apiKeys.stream().anyMatch(a -> a.masterKey() != null))) {
