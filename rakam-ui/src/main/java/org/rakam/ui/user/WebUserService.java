@@ -928,21 +928,21 @@ public class WebUserService {
     }
 
     public static class UserAccess {
-        @JsonProperty("project")
+        @ApiParam("project")
         public final int project;
-        @JsonProperty("id")
+        @ApiParam("id")
         public final int id;
-        @JsonProperty("email")
+        @ApiParam("email")
         public final String email;
-        @JsonProperty("scope_expression")
+        @ApiParam("scope_expression")
         public final String scope_expression;
-        @JsonProperty("read_key")
+        @ApiParam("read_key")
         public final boolean readKey;
-        @JsonProperty("write_key")
+        @ApiParam("write_key")
         public final boolean writeKey;
-        @JsonProperty("master_key")
+        @ApiParam("master_key")
         public final boolean masterKey;
-        @JsonProperty("active_ui_features")
+        @ApiParam(value = "active_ui_features", required = false)
         public final UIFeatures activeUIFeatures;
 
         public UserAccess(int project, int id, String email, String scope_expression, boolean readKey, boolean writeKey, boolean masterKey, UIFeatures activeUIFeatures) {
