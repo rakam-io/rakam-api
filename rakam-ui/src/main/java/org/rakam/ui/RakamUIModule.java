@@ -112,7 +112,6 @@ public class RakamUIModule
         httpServices.addBinding().to(CustomPageHttpService.class);
         httpServices.addBinding().to(ProxyWebService.class);
         httpServices.addBinding().to(WebHookUIHttpService.class);
-        httpServices.addBinding().to(ScheduledTaskUIHttpService.class);
         httpServices.addBinding().to(CustomEventMapperUIHttpService.class);
         httpServices.addBinding().to(ClusterService.class);
         httpServices.addBinding().to(UIRecipeHttpService.class);

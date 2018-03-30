@@ -31,7 +31,7 @@ import static com.google.common.net.HttpHeaders.CACHE_CONTROL;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
-import static org.rakam.ui.ScheduledTaskUIHttpService.getResourceFiles;
+import static org.rakam.util.ResourceUtil.getResourceFiles;
 
 @IgnoreApi
 @Path("/ui/webhook")

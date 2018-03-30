@@ -230,7 +230,6 @@ public class PrestoQueryExecutor
             // special prefix for all columns
             else if (suffix.equals("_all") && prefix == null) {
                 List<Map.Entry<String, List<SchemaField>>> collections = metastore.getCollections(project).entrySet().stream()
-                        .filter(c -> !c.getKey().startsWith("_"))
                         .collect(Collectors.toList());
                 if (!collections.isEmpty()) {
                     String sharedColumns = collections.get(0).getValue().stream()
