@@ -8,6 +8,8 @@ import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import io.airlift.configuration.Config;
 
+import javax.validation.constraints.NotNull;
+
 public class AWSConfig {
     private String accessKey;
     private String secretAccessKey;
@@ -17,7 +19,6 @@ public class AWSConfig {
     private String s3Endpoint;
     private String kinesisEndpoint;
     private String dynamodbEndpoint;
-    private String lambdaEndpoint;
 
     public String getEventStoreStreamName() {
         return eventStoreStreamName;
@@ -49,6 +50,7 @@ public class AWSConfig {
         return this;
     }
 
+    @NotNull
     public String getRegion() {
         return region;
     }
@@ -76,16 +78,6 @@ public class AWSConfig {
     @Config("aws.kinesis-endpoint")
     public AWSConfig setKinesisEndpoint(String kinesisEndpoint) {
         this.kinesisEndpoint = kinesisEndpoint;
-        return this;
-    }
-
-    public String getLambdaEndpoint() {
-        return lambdaEndpoint;
-    }
-
-    @Config("aws.lambda-endpoint")
-    public AWSConfig setLambdaEndpoint(String lambdaEndpoint) {
-        this.lambdaEndpoint = lambdaEndpoint;
         return this;
     }
 

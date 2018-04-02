@@ -348,7 +348,8 @@ public class EventCollectionHttpService
         storeEventsSync(request,
                 buff -> {
                     String contentType = request.headers().get(CONTENT_TYPE);
-                    if (contentType == null || "application/json".equals(contentType)) {
+                    // TODO: find a way to parse the content type
+                    if (contentType == null || "application/json".equals(contentType) || "application/json; charset=utf-8".equals(contentType)) {
                         return jsonMapper.readerFor(EventList.class).readValue(buff);
                     } else if ("application/x-rawjson".equals(contentType) || "application/x-ndjson".equals(contentType)) {
                         String apiKey;

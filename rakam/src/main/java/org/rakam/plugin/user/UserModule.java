@@ -87,8 +87,8 @@ public class UserModule
             Multibinder<UserPropertyMapper> userPropertyMappers = Multibinder.newSetBinder(binder, UserPropertyMapper.class);
             Multibinder<EventMapper> eventMappers = Multibinder.newSetBinder(binder, EventMapper.class);
 
-            eventMappers.addBinding().to(UserIdCheckEventMapper.class).in(Scopes.SINGLETON);
-            userPropertyMappers.addBinding().to(UserIdCheckEventMapper.class).in(Scopes.SINGLETON);
+//            eventMappers.addBinding().to(UserIdCheckEventMapper.class).in(Scopes.SINGLETON);
+//            userPropertyMappers.addBinding().to(UserIdCheckEventMapper.class).in(Scopes.SINGLETON);
         }
     }
 

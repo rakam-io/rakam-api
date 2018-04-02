@@ -136,6 +136,7 @@ public final class ServiceStarter {
             builder.add(rakamModule);
         }
 
+        builder.add(new CollectionServiceRecipe());
         builder.add(new ServiceRecipe());
         return builder.build();
     }
@@ -158,6 +159,22 @@ public final class ServiceStarter {
         }
     }
 
+    public static class CollectionServiceRecipe
+            extends AbstractConfigurationAwareModule {
+        @Override
+        protected void setup(Binder binder) {
+            Multibinder<Tag> tags = Multibinder.newSetBinder(binder, Tag.class);
+            tags.addBinding().toInstance(new Tag().name("collect").description("Collect data").externalDocs(MetadataConfig.centralDocs));
+
+            Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
+            httpServices.addBinding().to(EventCollectionHttpService.class);
+
+            Multibinder.newSetBinder(binder, EventMapper.class);
+            httpServices.addBinding().to(AdminHttpService.class);
+            httpServices.addBinding().to(ProjectHttpService.class);
+        }
+    }
+
     public static class ServiceRecipe
             extends AbstractConfigurationAwareModule {
         @Override
@@ -167,7 +184,6 @@ public final class ServiceStarter {
             binder.bind(LockService.class).toProvider(LockServiceProvider.class);
             binder.bind(FieldDependency.class).toProvider(FieldDependencyProvider.class).in(Scopes.SINGLETON);
 
-            Multibinder.newSetBinder(binder, EventMapper.class);
             Multibinder.newSetBinder(binder, InjectionHook.class);
             OptionalBinder.newOptionalBinder(binder, AbstractUserService.class);
             OptionalBinder.newOptionalBinder(binder, UserStorage.class);
@@ -192,12 +208,8 @@ public final class ServiceStarter {
 
             Multibinder<Tag> tags = Multibinder.newSetBinder(binder, Tag.class);
             tags.addBinding().toInstance(new Tag().name("admin").description("System related actions").externalDocs(MetadataConfig.centralDocs));
-            tags.addBinding().toInstance(new Tag().name("collect").description("Collect data").externalDocs(MetadataConfig.centralDocs));
             tags.addBinding().toInstance(new Tag().name("query").description("Analyze data").externalDocs(MetadataConfig.centralDocs));
             tags.addBinding().toInstance(new Tag().name("materialized-view").description("Materialized view").externalDocs(MetadataConfig.centralDocs));
-
-            // Register these interfaces to MultiBinder
-            Multibinder.newSetBinder(binder, EventMapper.class);
 
             Multibinder.newSetBinder(binder, RequestPreProcessorItem.class);
 
@@ -212,10 +224,7 @@ public final class ServiceStarter {
             binder.bind(ActiveModuleListBuilder.class).asEagerSingleton();
 
             Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
-            httpServices.addBinding().to(AdminHttpService.class);
-            httpServices.addBinding().to(ProjectHttpService.class);
             httpServices.addBinding().to(MaterializedViewHttpService.class);
-            httpServices.addBinding().to(EventCollectionHttpService.class);
             httpServices.addBinding().to(QueryHttpService.class);
             httpServices.addBinding().to(OptionMethodHttpService.class);
 
