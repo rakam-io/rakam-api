@@ -17,10 +17,12 @@ public class DateTimeUtils {
                 DateTimeFormat.forPattern("yyyy-M-d").getParser(),
                 DateTimeFormat.forPattern("yyyy-M-d H:m").getParser(),
                 DateTimeFormat.forPattern("yyyy-M-d H:m:s").getParser(),
-                DateTimeFormat.forPattern("yyyy-M-d H:m:s.SSS").getParser()};
-        DateTimePrinter timestampWithoutTimeZonePrinter = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS").getPrinter();
+                DateTimeFormat.forPattern("yyyy-M-d H:m:s.SSS").getParser(),
+                DateTimeFormat.forPattern("yyyy-M-d H:m:s.SSSSSS").getParser(),
+        };
+
         TIMESTAMP_WITHOUT_TIME_ZONE_FORMATTER = new DateTimeFormatterBuilder()
-                .append(timestampWithoutTimeZonePrinter, timestampWithoutTimeZoneParser)
+                .append(DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS").getPrinter(), timestampWithoutTimeZoneParser)
                 .toFormatter()
                 .withOffsetParsed();
 
@@ -40,7 +42,10 @@ public class DateTimeUtils {
                 DateTimeFormat.forPattern("yyyy-M-d H:m:sZZZ").getParser(),
                 DateTimeFormat.forPattern("yyyy-M-d H:m:s ZZZ").getParser(),
                 DateTimeFormat.forPattern("yyyy-M-d H:m:s.SSSZZZ").getParser(),
-                DateTimeFormat.forPattern("yyyy-M-d H:m:s.SSS ZZZ").getParser()};
+                DateTimeFormat.forPattern("yyyy-M-d H:m:s.SSS ZZZ").getParser(),
+                DateTimeFormat.forPattern("yyyy-M-d H:m:s.SSSSSS ZZZ").getParser()
+        };
+
         DateTimePrinter timestampWithTimeZonePrinter = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS ZZZ").getPrinter();
         TIMESTAMP_WITH_TIME_ZONE_FORMATTER = new DateTimeFormatterBuilder()
                 .append(timestampWithTimeZonePrinter, timestampWithTimeZoneParser)
