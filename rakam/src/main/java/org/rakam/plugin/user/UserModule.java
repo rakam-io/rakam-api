@@ -21,7 +21,6 @@ import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SyncEventMapper;
 import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.user.mailbox.MailBoxWebSocketService;
-import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 import org.rakam.report.EmailClientConfig;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
@@ -104,24 +103,19 @@ public class UserModule
 
     public static class UserStorageListener {
         private final Optional<UserStorage> storage;
-        private final Optional<UserMailboxStorage> mailboxStorage;
         private final ConfigManager configManager;
 
         @Inject
-        public UserStorageListener(Optional<UserStorage> storage, ConfigManager configManager, Optional<UserMailboxStorage> mailboxStorage) {
+        public UserStorageListener(Optional<UserStorage> storage, ConfigManager configManager) {
             this.storage = storage;
-            this.mailboxStorage = mailboxStorage;
             this.configManager = configManager;
         }
 
         @Subscribe
-        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
+        public void onCreateProject(SystemEvents.ProjectCreatedEvent event) {
             FieldType type = configManager.getConfig(event.project, USER_TYPE.name(), FieldType.class);
 
             if (type != null) {
-                if (mailboxStorage.isPresent()) {
-                    mailboxStorage.get().createProjectIfNotExists(event.project, type.isNumeric());
-                }
                 if (storage.isPresent()) {
                     storage.get().createProjectIfNotExists(event.project, type.isNumeric());
                 }
