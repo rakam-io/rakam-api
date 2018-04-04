@@ -99,7 +99,6 @@ public class WebServiceModule
                 .setHttpServices(httpServices)
                 .setWebsocketServices(webSocketServices)
                 .setSwagger(swagger)
-                .setMaximumBody(Runtime.getRuntime().maxMemory() / 10)
                 .setEventLoopGroup(eventExecutors)
                 .setSwaggerOperationProcessor((method, operation) -> {
                     ApiOperation annotation = method.getAnnotation(ApiOperation.class);
@@ -135,6 +134,8 @@ public class WebServiceModule
         }
 
         httpServer.setCustomRequestParameters(builder.build());
+        httpServer.setMaximumBody(config.getMaximumRequestSize());
+
         HttpServer build = httpServer.build();
 
         if (requestHandler != null) {

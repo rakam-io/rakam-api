@@ -11,6 +11,7 @@ public class HttpServerConfig {
     private boolean disabled;
     private boolean proxyProtocol;
     private boolean debug;
+    private long maximumRequestSize = Runtime.getRuntime().maxMemory() / 10;
 
     public HostAndPort getAddress() {
         return address;
@@ -52,6 +53,16 @@ public class HttpServerConfig {
     @Config("http.server.debug")
     public HttpServerConfig setDebug(boolean debug) {
         this.debug = debug;
+        return this;
+    }
+
+    public long getMaximumRequestSize() {
+        return maximumRequestSize;
+    }
+
+    @Config("http.server.debug")
+    public HttpServerConfig setMaximumRequestSize(long maximumRequestSize) {
+        this.maximumRequestSize = maximumRequestSize;
         return this;
     }
 }
