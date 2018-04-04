@@ -60,7 +60,7 @@ public class HttpServerConfig {
         return maximumRequestSize;
     }
 
-    @Config("http.server.debug")
+    @Config("http.server.max-request-size")
     public HttpServerConfig setMaximumRequestSize(long maximumRequestSize) {
         this.maximumRequestSize = maximumRequestSize;
         return this;
