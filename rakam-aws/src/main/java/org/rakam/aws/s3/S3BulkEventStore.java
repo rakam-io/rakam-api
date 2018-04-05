@@ -79,20 +79,19 @@ public class S3BulkEventStore {
 
         List<String> uploadedFiles = new ArrayList<>();
         try {
-            for (Map.Entry<String, List<Event>> entry : map.entrySet()) {
-                buffer.reset();
+            encoder = EncoderFactory.get().directBinaryEncoder(buffer, encoder);
+            encoder.writeString(project);
 
-                List<SchemaField> collection = metastore.getCollection(project, entry.getKey());
+            for (Map.Entry<String, List<Event>> entry : map.entrySet()) {
+                String collectionName = entry.getKey();
+                List<SchemaField> collection = metastore.getCollection(project, collectionName);
 
                 Schema avroSchema = convertAvroSchema(collection);
                 DatumWriter writer = new FilteredRecordWriter(avroSchema, data);
-                encoder = EncoderFactory.get().directBinaryEncoder(buffer, encoder);
+
+                encoder.writeString(collectionName);
 
                 encoder.writeInt(collection.size());
-                for (SchemaField schemaField : collection) {
-                    encoder.writeString(schemaField.getName());
-                }
-
                 encoder.writeInt(entry.getValue().size());
 
                 int expectedSchemaSize = collection.size() + conditionalMagicFieldsSize;
@@ -111,27 +110,27 @@ public class S3BulkEventStore {
                     }
                     writer.write(properties, encoder);
                 }
-
-                ObjectMetadata objectMetadata = new ObjectMetadata();
-                int bulkSize = buffer.size();
-                objectMetadata.setContentLength(bulkSize);
-                String key = events.get(0).project() + "/" + entry.getKey() + "/" + batchId;
-                PutObjectRequest putObjectRequest = new PutObjectRequest(config.getEventStoreBulkS3Bucket(),
-                        key,
-                        new SafeSliceInputStream(new BasicSliceInput(buffer.slice())), objectMetadata);
-                putObjectRequest.getRequestClientOptions().setReadLimit(bulkSize);
-
-                s3Client.putObject(putObjectRequest);
-
-                ByteBuffer allocate = ByteBuffer.allocate(key.length() + 1 + 8);
-                allocate.put((byte) 1);
-                allocate.putLong(bulkSize);
-                allocate.put(key.getBytes(StandardCharsets.UTF_8));
-                allocate.clear();
-
-                putMetadataToKinesis(allocate, events.get(0).project(), entry.getKey(), 3);
-                uploadedFiles.add(key);
             }
+
+            ObjectMetadata objectMetadata = new ObjectMetadata();
+            int bulkSize = buffer.size();
+            objectMetadata.setContentLength(bulkSize);
+            String key = events.get(0).project() + "/" + batchId;
+            PutObjectRequest putObjectRequest = new PutObjectRequest(config.getEventStoreBulkS3Bucket(),
+                    key,
+                    new SafeSliceInputStream(new BasicSliceInput(buffer.slice())), objectMetadata);
+            putObjectRequest.getRequestClientOptions().setReadLimit(bulkSize);
+
+            s3Client.putObject(putObjectRequest);
+
+            ByteBuffer allocate = ByteBuffer.allocate(key.length() + 1 + 8);
+            allocate.put((byte) 3);
+            allocate.putLong(bulkSize);
+            allocate.put(key.getBytes(StandardCharsets.UTF_8));
+            allocate.clear();
+
+            putMetadataToKinesis(allocate, batchId, 3);
+            uploadedFiles.add(key);
 
             LOGGER.debug("Stored batch file '%s', %d events in %d collection.", batchId, events.size(), map.size());
 
@@ -153,16 +152,15 @@ public class S3BulkEventStore {
         }
     }
 
-    private void putMetadataToKinesis(ByteBuffer allocate, String project, String collection, int tryCount) {
+    private void putMetadataToKinesis(ByteBuffer allocate, String id, int tryCount) {
         try {
-            kinesis.putRecord(config.getEventStoreStreamName(), allocate,
-                    project + "|" + collection);
+            kinesis.putRecord(config.getEventStoreStreamName(), allocate, id);
         } catch (Exception e) {
             if (tryCount == 0) {
                 throw e;
             }
 
-            putMetadataToKinesis(allocate, project, collection, tryCount - 1);
+            putMetadataToKinesis(allocate, id, tryCount - 1);
         }
     }
 
