@@ -551,9 +551,9 @@ public class JsonEventDeserializer
 //                            return new GenericData.Array(actualSchema, objects);
 //                        }
 //                    }
-                    return null;
-//                    throw new JsonMappingException(jp, format("Scalar value '%s' cannot be cast to %s type for '%s' field.",
-//                            jp.getValueAsString(), type.name(), field.name()));
+//                    return null;
+                    throw new JsonMappingException(jp, format("Scalar value '%s' cannot be cast to %s type for '%s' field.",
+                            jp.getValueAsString(), type.name(), field.name()));
             }
         } else {
             Schema actualSchema = field.schema().getTypes().get(1);
