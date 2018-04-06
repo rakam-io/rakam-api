@@ -539,8 +539,21 @@ public class JsonEventDeserializer
                         return null;
                     }
                 default:
-                    throw new JsonMappingException(jp, format("Scalar value '%s' cannot be cast to %s type for '%s' field.",
-                            jp.getValueAsString(), type.name(), field.name()));
+//                    if(type.isArray()) {
+//                        if (jp.getCurrentToken() == VALUE_STRING && jp.getValueAsString().charAt(0) == '[') {
+//                            JsonNode read = JsonHelper.read(jp.getValueAsString());
+//                            return new GenericData.Array(actualSchema, objects);
+//                        }
+//                    }
+//                    if(type.isMap()) {
+//                        if (jp.getCurrentToken() == VALUE_STRING && jp.getValueAsString().charAt(0) == '{') {
+//                            JsonNode read = JsonHelper.read(jp.getValueAsString());
+//                            return new GenericData.Array(actualSchema, objects);
+//                        }
+//                    }
+                    return null;
+//                    throw new JsonMappingException(jp, format("Scalar value '%s' cannot be cast to %s type for '%s' field.",
+//                            jp.getValueAsString(), type.name(), field.name()));
             }
         } else {
             Schema actualSchema = field.schema().getTypes().get(1);

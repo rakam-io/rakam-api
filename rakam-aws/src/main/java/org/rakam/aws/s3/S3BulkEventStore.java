@@ -9,7 +9,6 @@ import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.google.common.base.Throwables;
 import io.airlift.log.Logger;
 import io.airlift.slice.BasicSliceInput;
 import io.airlift.slice.DynamicSliceOutput;
@@ -73,13 +72,11 @@ public class S3BulkEventStore {
         events.forEach(event -> map.computeIfAbsent(event.collection(),
                 (col) -> new ArrayList<>()).add(event));
 
-        BinaryEncoder encoder = null;
-
         String batchId = UUID.randomUUID().toString();
+        String key = events.get(0).project() + "/" + batchId;
 
-        List<String> uploadedFiles = new ArrayList<>();
         try {
-            encoder = EncoderFactory.get().directBinaryEncoder(buffer, encoder);
+            BinaryEncoder encoder = EncoderFactory.get().directBinaryEncoder(buffer, null);
             encoder.writeString(project);
 
             for (Map.Entry<String, List<Event>> entry : map.entrySet()) {
@@ -115,7 +112,6 @@ public class S3BulkEventStore {
             ObjectMetadata objectMetadata = new ObjectMetadata();
             int bulkSize = buffer.size();
             objectMetadata.setContentLength(bulkSize);
-            String key = events.get(0).project() + "/" + batchId;
             PutObjectRequest putObjectRequest = new PutObjectRequest(config.getEventStoreBulkS3Bucket(),
                     key,
                     new SafeSliceInputStream(new BasicSliceInput(buffer.slice())), objectMetadata);
@@ -130,7 +126,6 @@ public class S3BulkEventStore {
             allocate.clear();
 
             putMetadataToKinesis(allocate, batchId, 3);
-            uploadedFiles.add(key);
 
             LOGGER.debug("Stored batch file '%s', %d events in %d collection.", batchId, events.size(), map.size());
 
@@ -141,11 +136,10 @@ public class S3BulkEventStore {
                             .withValue(((Number) events.size()).doubleValue())
                             .withDimensions(new Dimension().withName("project").withValue(project))));
         } catch (IOException | AmazonClientException e) {
-            for (String uploadedFile : uploadedFiles) {
-                s3Client.deleteObject(config.getEventStoreBulkS3Bucket(), uploadedFile);
-            }
+            s3Client.deleteObject(config.getEventStoreBulkS3Bucket(), key);
+
             if (tryCount <= 0) {
-                throw Throwables.propagate(e);
+                throw new RuntimeException(e);
             }
 
             upload(project, events, tryCount - 1);
