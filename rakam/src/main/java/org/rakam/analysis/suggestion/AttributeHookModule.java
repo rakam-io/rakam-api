@@ -13,7 +13,7 @@ public class AttributeHookModule extends RakamModule {
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(AutoSuggestionHttpService.class);
 
-        binder.bind(AttributeHook.class).asEagerSingleton();
+//        binder.bind(AttributeHook.class).asEagerSingleton();
     }
 
     @Override
