@@ -302,7 +302,7 @@ public abstract class AbstractEventExplorer
                     ).filter(e -> e != null && !e.isEmpty()).collect(Collectors.joining(" AND ")),
                     groupBy);
         } else {
-            String where = timeFilter + (filterExpression == null ? "" : (" AND " + filterExpression));
+            String where = timeFilter + (filterExpression == null ? "" : (" AND (" + filterExpression + ")"));
 
             String measureAgg = convertSqlFunction(measure != null &&
                     measure.aggregation != null ? measure.aggregation : COUNT);

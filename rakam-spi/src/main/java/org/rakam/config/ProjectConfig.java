@@ -27,16 +27,6 @@ public class ProjectConfig {
         return this;
     }
 
-    public boolean getTasksEnabled() {
-        return false;
-    }
-
-    @Config("tasks.enable")
-    public ProjectConfig setTasksEnabled(boolean tasksEnabled) throws URISyntaxException {
-        LOGGER.warn("`tasks.enable` config is deprecated, task feature is not maintained anymore.");
-        return this;
-    }
-
     public String getPassphrase() {
         return passphrase;
     }
