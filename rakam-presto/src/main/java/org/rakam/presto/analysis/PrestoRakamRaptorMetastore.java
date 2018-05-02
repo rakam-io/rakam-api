@@ -219,6 +219,8 @@ public class PrestoRakamRaptorMetastore
     }
 
     private static final String METADATA_ERROR = "Failed to perform metadata operation";
+    private static final String JDBI_CONFLICT_ERROR = "Unique index or primary key violation";
+    private static final String JDBI_DUPLICATE_ERROR = "Duplicate entry";
 
     public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields, int tryCount) {
         String query;
@@ -262,6 +264,7 @@ public class PrestoRakamRaptorMetastore
 
             query = format("CREATE TABLE %s.\"%s\".%s (%s) %s ",
                     prestoConfig.getColdStorageConnector(), project, checkCollection(collection), queryEnd, properties);
+
             QueryResult join = new PrestoQueryExecution(defaultSession, query, false).getResult().join();
             if (join.isFailed()) {
                 if (join.getError().message.contains("exists") || join.getError().message.equals(METADATA_ERROR)) {
@@ -299,14 +302,26 @@ public class PrestoRakamRaptorMetastore
                         try {
                             addColumn(tableInformation, project, collection, f.getName(), f.getType());
                         } catch (Exception e) {
-//                            if (e.getMessage().equals(METADATA_ERROR)) {
-//                                 TODO: fix stackoverflow
-//                                getOrCreateCollectionFields(project, collection, ImmutableSet.of(f), 2);
-//                            } else
-                            if (e.getMessage().contains("exists")) {
+                            if (e.getMessage().equals(METADATA_ERROR) && (e.getCause().getMessage().contains(JDBI_CONFLICT_ERROR) || e.getCause().getMessage().contains(JDBI_DUPLICATE_ERROR))) {
+                                for (int i = 0; i < 50; i++) {
+                                    try {
+                                        addColumn(tableInformation, project, collection, f.getName(), f.getType());
+                                    } catch (Exception ex) {
+                                        if (ex.getMessage().equals(METADATA_ERROR) && (ex.getCause().getMessage().contains(JDBI_CONFLICT_ERROR) || ex.getCause().getMessage().contains(JDBI_DUPLICATE_ERROR))) {
+                                            continue;
+                                        } else if (e.getMessage().contains("exists")) {
+                                            break;
+                                        }
+
+                                        throw new IllegalStateException(format("Error while adding a column called %s : %s", f.getName(), f.getType().name()), ex);
+                                    }
+
+                                    break;
+                                }
+                            } else if (e.getMessage().contains("exists")) {
                                 // no op
                             } else {
-                                throw new IllegalStateException(e);
+                                throw new IllegalStateException(format("Error while adding a column called %s : %s", f.getName(), f.getType().name()), e);
                             }
                         }
                     });
@@ -471,7 +486,7 @@ public class PrestoRakamRaptorMetastore
         }
 
         if (filter.isPresent() && !filter.get().isEmpty()) {
-            prestoQuery += String.format(" AND lower(%s) LIKE '%s' ESCAPE '\\'", checkTableColumn(attribute),
+            prestoQuery += format(" AND lower(%s) LIKE '%s' ESCAPE '\\'", checkTableColumn(attribute),
                     filter.get().replaceAll("%", "\\%").replaceAll("_", "\\_").toLowerCase(ENGLISH) + "%");
         }
 
