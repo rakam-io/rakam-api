@@ -1,7 +1,6 @@
 package org.rakam.presto.analysis;
 
 import com.facebook.presto.client.ClientSession;
-import com.facebook.presto.metadata.MetadataManager;
 import com.facebook.presto.raptor.metadata.MetadataDao;
 import com.facebook.presto.raptor.metadata.Table;
 import com.facebook.presto.raptor.metadata.TableColumn;
@@ -14,7 +13,6 @@ import com.facebook.presto.spi.function.OperatorType;
 import com.facebook.presto.spi.type.*;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
@@ -54,7 +52,6 @@ import static com.facebook.presto.raptor.storage.ShardStats.MAX_BINARY_INDEX_SIZ
 import static com.facebook.presto.raptor.util.DatabaseUtil.metadataError;
 import static com.facebook.presto.raptor.util.DatabaseUtil.onDemandDao;
 import static com.facebook.presto.spi.type.ParameterKind.TYPE;
-import static com.facebook.presto.type.MapParametricType.MAP;
 import static com.google.common.base.Throwables.propagateIfInstanceOf;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static java.lang.String.format;
@@ -221,6 +218,8 @@ public class PrestoRakamRaptorMetastore
         return getOrCreateCollectionFields(project, collection, fields, fields.size() + 1);
     }
 
+    private static final String METADATA_ERROR = "Failed to perform metadata operation";
+
     public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields, int tryCount) {
         String query;
         List<SchemaField> schemaFields = getCollection(project, collection);
@@ -265,7 +264,7 @@ public class PrestoRakamRaptorMetastore
                     prestoConfig.getColdStorageConnector(), project, checkCollection(collection), queryEnd, properties);
             QueryResult join = new PrestoQueryExecution(defaultSession, query, false).getResult().join();
             if (join.isFailed()) {
-                if (join.getError().message.contains("exists") || join.getError().message.equals("Failed to perform metadata operation")) {
+                if (join.getError().message.contains("exists") || join.getError().message.equals(METADATA_ERROR)) {
                     if (tryCount > 0) {
                         return getOrCreateCollectionFields(project, collection, fields, tryCount - 1);
                     } else {
@@ -300,11 +299,14 @@ public class PrestoRakamRaptorMetastore
                         try {
                             addColumn(tableInformation, project, collection, f.getName(), f.getType());
                         } catch (Exception e) {
-                            if (e.getMessage().equals("Failed to perform metadata operation")) {
-                                // TODO: fix stackoverflow
-                                getOrCreateCollectionFields(project, collection, ImmutableSet.of(f), 2);
-                            } else if (!e.getMessage().contains("exists")) {
-                                throw new IllegalStateException(e.getMessage());
+//                            if (e.getMessage().equals(METADATA_ERROR)) {
+//                                 TODO: fix stackoverflow
+//                                getOrCreateCollectionFields(project, collection, ImmutableSet.of(f), 2);
+//                            } else
+                            if (e.getMessage().contains("exists")) {
+                                // no op
+                            } else {
+                                throw new IllegalStateException(e);
                             }
                         }
                     });
