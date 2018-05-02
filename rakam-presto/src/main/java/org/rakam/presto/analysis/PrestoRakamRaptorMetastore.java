@@ -366,7 +366,6 @@ public class PrestoRakamRaptorMetastore
     @Override
     public List<SchemaField> getCollection(String project, String collection) {
         return dao.listTableColumns(project, collection).stream()
-                .filter(a -> !a.getColumnName().startsWith("$"))
                 // this field should be removed since the server sets it
                 .filter(a -> !a.getColumnName().equals(prestoConfig.getCheckpointColumn()))
                 .map(column -> {
