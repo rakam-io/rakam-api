@@ -3,7 +3,6 @@ package org.rakam.analysis.datasource;
 import com.google.common.base.Throwables;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Optional;
@@ -99,8 +98,8 @@ public enum SupportedCustomDatabase {
             }
             properties.setProperty("sslfactory", "org.postgresql.ssl.NonValidatingFactory");
 
-            return DriverManager.getConnection(
-                    format("jdbc:postgresql://%s:%s/%s",
+            return new com.amazon.redshift.jdbc42.Driver().connect(
+                    format("jdbc:redshift://%s:%s/%s",
                             factory.getHost(),
                             Optional.ofNullable(factory.getPort()).orElse(5432),
                             factory.getDatabase()), properties);

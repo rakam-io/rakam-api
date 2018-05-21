@@ -141,6 +141,7 @@ public class QueryHttpService
                     break;
                 case JSON:
                     bytes = JsonHelper.encodeAsBytes(result.getResult());
+                    break;
                 default:
                     throw new IllegalStateException();
             }
