@@ -8,6 +8,7 @@ import com.facebook.presto.rakam.externaldata.source.RemoteFileDataSource;
 import com.facebook.presto.rakam.externaldata.source.RemoteFileDataSource.CompressionType;
 import com.facebook.presto.rakam.externaldata.source.RemoteFileDataSource.ExternalSourceType;
 import com.facebook.presto.sql.RakamSqlFormatter;
+import com.facebook.presto.sql.parser.ParsingOptions;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -180,7 +181,7 @@ public class PrestoQueryExecutor
                         .orElse(qualifiedName.getSuffix());
             }
             return null;
-        }, seperator).process(sqlParser.createStatement(query), 1);
+        }, seperator).process(sqlParser.createStatement(query, new ParsingOptions(ParsingOptions.DecimalLiteralTreatment.AS_DOUBLE)), 1);
 
         if (hasOutsideReference.get()) {
             return null;

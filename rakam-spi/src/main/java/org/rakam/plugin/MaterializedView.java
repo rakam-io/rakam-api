@@ -1,5 +1,6 @@
 package org.rakam.plugin;
 
+import com.facebook.presto.sql.parser.ParsingOptions;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.Statement;
@@ -58,7 +59,7 @@ public class MaterializedView {
     public void validateQuery() {
         Statement query;
         synchronized (SQL_PARSER) {
-            query = SQL_PARSER.createStatement(this.query);
+            query = SQL_PARSER.createStatement(this.query, new ParsingOptions(ParsingOptions.DecimalLiteralTreatment.AS_DOUBLE));
         }
         checkState(query instanceof Query, "Expression is not query");
         checkState((!((Query) query).getLimit().isPresent()),

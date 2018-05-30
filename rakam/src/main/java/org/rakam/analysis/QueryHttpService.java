@@ -1,5 +1,6 @@
 package org.rakam.analysis;
 
+import com.facebook.presto.sql.parser.ParsingOptions;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.*;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -307,7 +308,7 @@ public class QueryHttpService
     @Path("/explain")
     public ResponseQuery explain(@ApiParam(value = "query", description = "Query") String query) {
         try {
-            Query statement = (Query) sqlParser.createStatement(query);
+            Query statement = (Query) sqlParser.createStatement(query, new ParsingOptions(ParsingOptions.DecimalLiteralTreatment.AS_DOUBLE));
 
             Map<String, NodeLocation> map = statement.getWith().map(with -> {
                 ImmutableMap.Builder<String, NodeLocation> builder = ImmutableMap.builder();

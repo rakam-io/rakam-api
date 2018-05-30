@@ -123,7 +123,7 @@ public class PrestoMaterializedViewService
     public MaterializedViewExecution lockAndUpdateView(RequestContext context, MaterializedView materializedView) {
         String tableName = queryExecutor.formatTableReference(context.project,
                 QualifiedName.of("materialized", materializedView.tableName), Optional.empty(), ImmutableMap.of());
-        Query statement = (Query) sqlParser.createStatement(materializedView.query);
+        Query statement = (Query) sqlParser.createStatement(materializedView.query, new ParsingOptions(ParsingOptions.DecimalLiteralTreatment.AS_DOUBLE));
 
         Map<String, String> sessionProperties = new HashMap<>();
         if (!materializedView.incremental) {
