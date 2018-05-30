@@ -4,10 +4,7 @@ import com.facebook.presto.sql.tree.*;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -186,6 +183,7 @@ public final class RakamSqlFormatter {
                 queryWithTables.addAll(with.getQueries().stream()
                         .map(WithQuery::getName)
                         .map(Identifier::getValue)
+                        .map(String::toLowerCase)
                         .collect(Collectors.toList()));
 
                 append(indent, "WITH");
@@ -314,7 +312,7 @@ public final class RakamSqlFormatter {
         @Override
         protected Void visitTable(Table node, Integer indent) {
 
-            if (!node.getName().getPrefix().isPresent() && queryWithTables.contains(node.getName().getSuffix())) {
+            if (!node.getName().getPrefix().isPresent() && queryWithTables.contains(node.getName().getSuffix().toLowerCase(Locale.ENGLISH))) {
                 builder.append(formatName(node.getName().toString(), escapeIdentifier));
                 return null;
             }
