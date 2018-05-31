@@ -24,7 +24,7 @@ public abstract class AbstractRetentionQueryExecutor
             return "cast(date_trunc('month', %s) as date)";
         }
 
-        throw new UnsupportedOperationException(dateUnit + " is not supported.");
+        throw new UnsupportedOperationException(dateUnit + " is not supported as date unit.");
     }
 
     protected boolean testDeviceIdExists(Optional<RetentionAction> firstAction, Map<String, List<SchemaField>> collections) {
