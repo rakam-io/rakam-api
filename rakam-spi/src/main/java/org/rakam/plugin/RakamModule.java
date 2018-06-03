@@ -39,7 +39,7 @@ public abstract class RakamModule
                 configurationFactory.consumeProperty(annotation.config());
                 String value = Optional.ofNullable(configurationFactory.getProperties().get(annotation.config()))
                         .map(v -> v.trim()).orElse(null);
-                if (!Objects.equals(annotation.value(), value)) {
+                if (!annotation.value().equals("") && !Objects.equals(annotation.value(), value)) {
                     return;
                 }
             }
