@@ -4,6 +4,7 @@ import com.amazonaws.services.cloudwatch.AmazonCloudWatchAsyncClient;
 import com.amazonaws.services.cloudwatch.model.MetricDatum;
 import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.airlift.log.Logger;
 import io.airlift.slice.DynamicSliceOutput;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -22,10 +23,7 @@ import java.net.InetAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -42,6 +40,8 @@ public class WebhookEventMapper implements EventMapper {
 
     @Inject
     public WebhookEventMapper(WebhookConfig config, AWSConfig awsConfig) {
+        LOGGER.warn("Logging every event to webhook");
+
         this.asyncHttpClient = new OkHttpClient.Builder()
                 .connectTimeout(timeoutInMillis, TimeUnit.MILLISECONDS)
                 .readTimeout(timeoutInMillis, TimeUnit.MILLISECONDS)
@@ -52,7 +52,9 @@ public class WebhookEventMapper implements EventMapper {
         cloudWatchClient = new AmazonCloudWatchAsyncClient(awsConfig.getCredentials());
         cloudWatchClient.setRegion(awsConfig.getAWSRegion());
 
-        Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(() -> {
+        ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor(
+                new ThreadFactoryBuilder().setNameFormat("collection-webhook").build());
+        service.scheduleAtFixedRate(() -> {
             try {
                 int size = counter.get();
                 if (size == 0) {
@@ -145,6 +147,12 @@ public class WebhookEventMapper implements EventMapper {
                         .withMetricData(new MetricDatum()
                                 .withMetricName("request-success")
                                 .withValue(Double.valueOf(numberOfRecords))));
+
+                cloudWatchClient.putMetricDataAsync(new PutMetricDataRequest()
+                        .withNamespace("rakam-webhook")
+                        .withMetricData(new MetricDatum()
+                                .withMetricName("request-latency")
+                                .withValue(Double.valueOf(execute.receivedResponseAtMillis()))));
             }
         } finally {
             if (execute != null) {
