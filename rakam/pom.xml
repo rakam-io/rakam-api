@@ -105,6 +105,10 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <artifactId>aws-java-sdk-cloudwatch</artifactId>
+            <groupId>com.amazonaws</groupId>
+        </dependency>
+        <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
         </dependency>

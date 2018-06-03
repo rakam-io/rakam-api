@@ -3,14 +3,12 @@ package org.rakam.analysis.webhook;
 import io.airlift.configuration.Config;
 import org.rakam.util.JsonHelper;
 
-import javax.validation.constraints.NotNull;
 import java.util.Map;
 
 public class WebhookConfig {
     private String url;
     private Map<String, String> headers;
 
-    @NotNull
     public String getUrl() {
         return url;
     }
