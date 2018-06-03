@@ -1,11 +1,15 @@
 package org.rakam.analysis.webhook;
 
+import com.amazonaws.services.cloudwatch.AmazonCloudWatchAsyncClient;
+import com.amazonaws.services.cloudwatch.model.MetricDatum;
+import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
 import com.fasterxml.jackson.core.JsonGenerator;
 import io.airlift.log.Logger;
 import io.airlift.slice.DynamicSliceOutput;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import okhttp3.*;
+import org.rakam.aws.AWSConfig;
 import org.rakam.collection.Event;
 import org.rakam.collection.EventList;
 import org.rakam.plugin.EventMapper;
@@ -34,9 +38,10 @@ public class WebhookEventMapper implements EventMapper {
     private final Queue<Event> queue = new ConcurrentLinkedQueue<>();
     private final DynamicSliceOutput slice;
     private final AtomicInteger counter;
+    private final AmazonCloudWatchAsyncClient cloudWatchClient;
 
     @Inject
-    public WebhookEventMapper(WebhookConfig config) {
+    public WebhookEventMapper(WebhookConfig config, AWSConfig awsConfig) {
         this.asyncHttpClient = new OkHttpClient.Builder()
                 .connectTimeout(timeoutInMillis, TimeUnit.MILLISECONDS)
                 .readTimeout(timeoutInMillis, TimeUnit.MILLISECONDS)
@@ -44,6 +49,8 @@ public class WebhookEventMapper implements EventMapper {
                 .build();
         slice = new DynamicSliceOutput(100);
         counter = new AtomicInteger();
+        cloudWatchClient = new AmazonCloudWatchAsyncClient(awsConfig.getCredentials());
+        cloudWatchClient.setRegion(awsConfig.getAWSRegion());
 
         Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(() -> {
             try {
@@ -104,7 +111,7 @@ public class WebhookEventMapper implements EventMapper {
                 }
 
                 Request build = builder.post(RequestBody.create(mediaType, base, 0, slice.size())).build();
-                tryOperation(build, 2);
+                tryOperation(build, 2, i);
                 counter.addAndGet(-i);
             } catch (IOException e) {
                 LOGGER.warn(e, "");
@@ -113,7 +120,7 @@ public class WebhookEventMapper implements EventMapper {
         }, 5, 5, SECONDS);
     }
 
-    private void tryOperation(Request build, int retryCount) throws IOException {
+    private void tryOperation(Request build, int retryCount, int numberOfRecords) throws IOException {
         Response execute = null;
 
         try {
@@ -121,11 +128,23 @@ public class WebhookEventMapper implements EventMapper {
 
             if (execute.code() != 200) {
                 if (retryCount > 0) {
-                    tryOperation(build, retryCount - 1);
+                    tryOperation(build, retryCount - 1, numberOfRecords);
                     return;
                 }
 
+                cloudWatchClient.putMetricDataAsync(new PutMetricDataRequest()
+                        .withNamespace("rakam-webhook")
+                        .withMetricData(new MetricDatum()
+                                .withMetricName("request-error")
+                                .withValue(Double.valueOf(numberOfRecords))));
+
                 LOGGER.warn(new RuntimeException(execute.body().string()), "Unable to execute Webhook request");
+            } else {
+                cloudWatchClient.putMetricDataAsync(new PutMetricDataRequest()
+                        .withNamespace("rakam-webhook")
+                        .withMetricData(new MetricDatum()
+                                .withMetricName("request-success")
+                                .withValue(Double.valueOf(numberOfRecords))));
             }
         } finally {
             if (execute != null) {
