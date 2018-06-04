@@ -40,8 +40,6 @@ public class WebhookEventMapper implements EventMapper {
 
     @Inject
     public WebhookEventMapper(WebhookConfig config, AWSConfig awsConfig) {
-        System.out.println("inside");
-
         this.asyncHttpClient = new OkHttpClient.Builder()
                 .connectTimeout(TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS)
                 .readTimeout(TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS)
@@ -55,8 +53,6 @@ public class WebhookEventMapper implements EventMapper {
         ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("collection-webhook").build());
         service.scheduleAtFixedRate(() -> {
-            System.out.println("log start");
-
             try {
                 int size = counter.get();
                 if (size == 0) {
@@ -114,16 +110,11 @@ public class WebhookEventMapper implements EventMapper {
                     }
                 }
 
-                System.out.println("request start");
-
                 Request build = builder.post(RequestBody.create(mediaType, base, 0, slice.size())).build();
                 tryOperation(build, 2, i);
-
-                System.out.println("request end");
-
                 counter.addAndGet(-i);
             } catch (Throwable e) {
-                LOGGER.warn(e, "");
+                LOGGER.error(e, "Error while sending request to webhook");
                 slice.reset();
             }
         }, 5, 5, SECONDS);
@@ -159,7 +150,7 @@ public class WebhookEventMapper implements EventMapper {
                         .withNamespace("rakam-webhook")
                         .withMetricData(new MetricDatum()
                                 .withMetricName("request-latency")
-                                .withValue(Double.valueOf(execute.receivedResponseAtMillis()))));
+                                .withValue(Double.valueOf(execute.receivedResponseAtMillis() - execute.sentRequestAtMillis()))));
             }
         } finally {
             if (execute != null) {
