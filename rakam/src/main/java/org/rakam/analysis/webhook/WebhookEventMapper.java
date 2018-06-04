@@ -83,8 +83,9 @@ public class WebhookEventMapper implements EventMapper {
                     generator.writeString(((String) user));
 
                     generator.writeFieldName("sessionId");
-                    Object session = event.getAttribute("_session_id");
-                    generator.writeString(session.toString());
+                    Object sessionId1 = event.getAttribute("_session_id");
+                    Object sessionId2 = event.getAttribute("session_id");
+                    generator.writeString(sessionId1 != null ? sessionId1.toString() : (sessionId2 != null ? sessionId2.toString() : null));
 
                     generator.writeFieldName("deviceId");
                     Object device = event.getAttribute("_device_id");
