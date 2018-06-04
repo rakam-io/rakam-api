@@ -40,6 +40,8 @@ public class WebhookEventMapper implements EventMapper {
 
     @Inject
     public WebhookEventMapper(WebhookConfig config, AWSConfig awsConfig) {
+        System.out.println("inside");
+
         this.asyncHttpClient = new OkHttpClient.Builder()
                 .connectTimeout(timeoutInMillis, TimeUnit.MILLISECONDS)
                 .readTimeout(timeoutInMillis, TimeUnit.MILLISECONDS)
