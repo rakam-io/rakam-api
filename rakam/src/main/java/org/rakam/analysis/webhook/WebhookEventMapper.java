@@ -55,6 +55,8 @@ public class WebhookEventMapper implements EventMapper {
         ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("collection-webhook").build());
         service.scheduleAtFixedRate(() -> {
+            System.out.println("log start");
+
             try {
                 int size = counter.get();
                 if (size == 0) {
@@ -112,8 +114,13 @@ public class WebhookEventMapper implements EventMapper {
                     }
                 }
 
+                System.out.println("request start");
+
                 Request build = builder.post(RequestBody.create(mediaType, base, 0, slice.size())).build();
                 tryOperation(build, 2, i);
+
+                System.out.println("request end");
+
                 counter.addAndGet(-i);
             } catch (IOException e) {
                 LOGGER.warn(e, "");
