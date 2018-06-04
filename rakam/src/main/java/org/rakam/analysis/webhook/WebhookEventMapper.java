@@ -32,7 +32,7 @@ public class WebhookEventMapper implements EventMapper {
     private final static Logger LOGGER = Logger.get(WebhookEventMapper.class);
 
     private final OkHttpClient asyncHttpClient;
-    private final int timeoutInMillis = 20000;
+    private final static int TIMEOUT_IN_MILLIS = 10000;
     private final Queue<Event> queue = new ConcurrentLinkedQueue<>();
     private final DynamicSliceOutput slice;
     private final AtomicInteger counter;
@@ -43,9 +43,9 @@ public class WebhookEventMapper implements EventMapper {
         System.out.println("inside");
 
         this.asyncHttpClient = new OkHttpClient.Builder()
-                .connectTimeout(timeoutInMillis, TimeUnit.MILLISECONDS)
-                .readTimeout(timeoutInMillis, TimeUnit.MILLISECONDS)
-                .writeTimeout(timeoutInMillis, TimeUnit.MILLISECONDS)
+                .connectTimeout(TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS)
+                .readTimeout(TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS)
+                .writeTimeout(TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS)
                 .build();
         slice = new DynamicSliceOutput(100);
         counter = new AtomicInteger();
@@ -122,7 +122,7 @@ public class WebhookEventMapper implements EventMapper {
                 System.out.println("request end");
 
                 counter.addAndGet(-i);
-            } catch (IOException e) {
+            } catch (Throwable e) {
                 LOGGER.warn(e, "");
                 slice.reset();
             }
