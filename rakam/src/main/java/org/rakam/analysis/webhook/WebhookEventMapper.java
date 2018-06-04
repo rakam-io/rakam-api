@@ -40,8 +40,6 @@ public class WebhookEventMapper implements EventMapper {
 
     @Inject
     public WebhookEventMapper(WebhookConfig config, AWSConfig awsConfig) {
-        LOGGER.warn("Logging every event to webhook");
-
         this.asyncHttpClient = new OkHttpClient.Builder()
                 .connectTimeout(timeoutInMillis, TimeUnit.MILLISECONDS)
                 .readTimeout(timeoutInMillis, TimeUnit.MILLISECONDS)
