@@ -568,7 +568,7 @@ public class JsonEventDeserializer
                     String format = format("Scalar value '%s' cannot be cast to %s type for '%s' field.",
                             jp.getValueAsString(), type.name(), field.name());
 
-                    LOGGER.warn(new RuntimeException(format), String.format("Error while parsing JSON field in collection %s.%s", project, collection);
+                    LOGGER.warn(new RuntimeException(format), String.format("Error while parsing JSON field in collection %s.%s", project, collection));
 
                     throw new JsonMappingException(jp, format);
             }
