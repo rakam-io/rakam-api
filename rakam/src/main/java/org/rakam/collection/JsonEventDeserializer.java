@@ -12,6 +12,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.airlift.log.Logger;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
 import org.apache.avro.generic.GenericData;
@@ -50,6 +51,8 @@ import static org.rakam.util.ValidationUtil.stripName;
 
 public class JsonEventDeserializer
         extends JsonDeserializer<Event> {
+    private final static Logger LOGGER = Logger.get(JsonEventDeserializer.class);
+
     private final Map<String, List<SchemaField>> conditionalMagicFields;
     private final Metastore metastore;
     private final Cache<ProjectCollection, Map.Entry<List<SchemaField>, Schema>> schemaCache =
@@ -503,6 +506,7 @@ public class JsonEventDeserializer
                         return (long) LocalTime.parse(jp.getValueAsString())
                                 .get(ChronoField.MILLI_OF_DAY);
                     } catch (Exception e) {
+                        LOGGER.warn(new RuntimeException(jp.getValueAsString(), e), "Error while parsing TIME field");
                         return null;
 //                        throw new RakamException(String.format("Unable to parse TIME value '%s'", jp.getValueAsString()),
 //                                BAD_REQUEST);
@@ -539,11 +543,19 @@ public class JsonEventDeserializer
                         return null;
                     }
                 default:
+                    if (type.isArray()) {
+                        Schema actualSchema = field.schema().getTypes().get(1);
+                        Object value = getValue(jp, type.getArrayElementType(), null, false);
+                        if(value == null) {
+                            LOGGER.warn(new RuntimeException(jp.getValueAsString()), String.format("Error while parsing %s field", type.name()));
+                        }
+                        return new GenericData.Array(actualSchema, ImmutableList.of(value));
+                    }
 //                    if(type.isArray()) {
-//                        if (jp.getCurrentToken() == VALUE_STRING && jp.getValueAsString().charAt(0) == '[') {
-//                            JsonNode read = JsonHelper.read(jp.getValueAsString());
-//                            return new GenericData.Array(actualSchema, objects);
-//                        }
+//                    if (jp.getCurrentToken() == VALUE_STRING && jp.getValueAsString().charAt(0) == '[') {
+//                        List<Object> read = JsonHelper.read(jp.getValueAsString(), List.class);
+//                        return new GenericData.Array(actualSchema, read);
+//                    }
 //                    }
 //                    if(type.isMap()) {
 //                        if (jp.getCurrentToken() == VALUE_STRING && jp.getValueAsString().charAt(0) == '{') {

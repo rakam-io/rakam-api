@@ -132,7 +132,7 @@ public class WebhookEventMapper implements EventMapper {
             default:
                 if (type.isMap()) {
                     generator.writeNull();
-                }
+                } else
                 if (type.isArray()) {
                     generator.writeStartArray();
 
@@ -141,8 +141,9 @@ public class WebhookEventMapper implements EventMapper {
                     }
 
                     generator.writeEndArray();
+                } else {
+                    throw new IllegalStateException(format("type %s is not supported.", type));
                 }
-                throw new IllegalStateException(format("type %s is not supported.", type));
         }
     }
 

@@ -15,10 +15,10 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 public class WebhookModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
-        configBinder(binder).bindConfig(WebhookConfig.class);
-        configBinder(binder).bindConfig(AWSConfig.class);
         WebhookConfig webhookConfig = buildConfigObject(WebhookConfig.class);
         if(webhookConfig.getUrl() != null) {
+            configBinder(binder).bindConfig(WebhookConfig.class);
+            configBinder(binder).bindConfig(AWSConfig.class);
             Multibinder<EventMapper> mappers = Multibinder.newSetBinder(binder, EventMapper.class);
             mappers.addBinding().to(WebhookEventMapper.class).in(Scopes.SINGLETON);
         }
