@@ -390,9 +390,9 @@ public class JsonEventDeserializer
                         if (type.isArray() || type.isMap()) {
                             // if the type of new field is ARRAY, we already switched to next token
                             // so current token is not START_ARRAY.
-                            record.put(field.pos(), getValue(jp, type, field, true));
+                            record.put(field.pos(), getValue(jp, type, field, true, project, collection));
                         } else {
-                            record.put(field.pos(), getValue(jp, type, field, false));
+                            record.put(field.pos(), getValue(jp, type, field, false, project, collection));
                         }
                         continue;
                     } else {
@@ -418,7 +418,7 @@ public class JsonEventDeserializer
             FieldType type = field.schema().getType() == NULL ? null :
                     (field.pos() >= rakamSchema.size() ?
                             newFields.get(field.pos() - rakamSchema.size()) : rakamSchema.get(field.pos())).getType();
-            Object value = getValue(jp, type, field, false);
+            Object value = getValue(jp, type, field, false, project, collection);
             record.put(field.pos(), value);
         }
 
@@ -476,7 +476,7 @@ public class JsonEventDeserializer
         return avroSchema;
     }
 
-    private Object getValue(JsonParser jp, FieldType type, Schema.Field field, boolean passInitialToken)
+    private Object getValue(JsonParser jp, FieldType type, Schema.Field field, boolean passInitialToken, String project, String collection)
             throws IOException {
         if (type == null) {
             return getValueOfMagicField(jp);
@@ -545,7 +545,7 @@ public class JsonEventDeserializer
                 default:
                     if (type.isArray()) {
                         Schema actualSchema = field.schema().getTypes().get(1);
-                        Object value = getValue(jp, type.getArrayElementType(), null, false);
+                        Object value = getValue(jp, type.getArrayElementType(), null, false, project, collection);
                         if(value == null) {
                             LOGGER.warn(new RuntimeException(jp.getValueAsString()), String.format("Error while parsing %s field", type.name()));
                         }
@@ -564,8 +564,13 @@ public class JsonEventDeserializer
 //                        }
 //                    }
 //                    return null;
-                    throw new JsonMappingException(jp, format("Scalar value '%s' cannot be cast to %s type for '%s' field.",
-                            jp.getValueAsString(), type.name(), field.name()));
+
+                    String format = format("Scalar value '%s' cannot be cast to %s type for '%s' field.",
+                            jp.getValueAsString(), type.name(), field.name());
+
+                    LOGGER.warn(new RuntimeException(format), String.format("Error while parsing JSON field in collection %s.%s", project, collection);
+
+                    throw new JsonMappingException(jp, format);
             }
         } else {
             Schema actualSchema = field.schema().getTypes().get(1);
@@ -587,7 +592,7 @@ public class JsonEventDeserializer
                     String key = jp.getCurrentName();
                     Object value;
                     if (t.isScalarValue()) {
-                        value = getValue(jp, type.getMapValueType(), null, false);
+                        value = getValue(jp, type.getMapValueType(), null, false, project, collection);
                     } else {
                         value = JsonHelper.encode(jp.readValueAsTree());
                     }
@@ -605,7 +610,7 @@ public class JsonEventDeserializer
                         }
                         value = JsonHelper.encode(jp.readValueAsTree());
                     } else {
-                        value = getValue(jp, type.getMapValueType(), null, false);
+                        value = getValue(jp, type.getMapValueType(), null, false, project, collection);
                     }
 
                     map.put(key, value);
@@ -632,7 +637,7 @@ public class JsonEventDeserializer
 
                         objects.add(JsonHelper.encode(jp.readValueAsTree()));
                     } else {
-                        objects.add(getValue(jp, type.getArrayElementType(), null, false));
+                        objects.add(getValue(jp, type.getArrayElementType(), null, false, project, collection));
                     }
                 }
                 return new GenericData.Array(actualSchema, objects);
