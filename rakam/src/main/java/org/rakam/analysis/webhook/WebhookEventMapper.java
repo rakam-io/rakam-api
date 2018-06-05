@@ -13,6 +13,8 @@ import okhttp3.*;
 import org.rakam.aws.AWSConfig;
 import org.rakam.collection.Event;
 import org.rakam.collection.EventList;
+import org.rakam.collection.FieldType;
+import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventMapper;
 import org.rakam.util.JsonHelper;
 
@@ -26,6 +28,7 @@ import java.util.Queue;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class WebhookEventMapper implements EventMapper {
@@ -73,27 +76,19 @@ public class WebhookEventMapper implements EventMapper {
                         break;
                     }
                     generator.writeStartObject();
+                    generator.writeFieldName("collection");
+                    generator.writeString(event.collection());
 
-                    generator.writeFieldName("timestamp");
-                    Object time = event.getAttribute("_time");
-                    generator.writeNumber(((Number) time).longValue());
-
-                    generator.writeFieldName("userId");
-                    Object user = event.getAttribute("_user");
-                    generator.writeString(((String) user));
-
-                    generator.writeFieldName("sessionId");
-                    Object sessionId1 = event.getAttribute("_session_id");
-                    Object sessionId2 = event.getAttribute("session_id");
-                    generator.writeString(sessionId1 != null ? sessionId1.toString() : (sessionId2 != null ? sessionId2.toString() : null));
-
-                    generator.writeFieldName("deviceId");
-                    Object device = event.getAttribute("_device_id");
-                    generator.writeString(((String) device));
-
-                    generator.writeFieldName("host");
-                    Object host = event.getAttribute("__ip");
-                    generator.writeString(((String) host));
+                    List<SchemaField> fields = event.schema();
+                    for (SchemaField field : fields) {
+                        generator.writeFieldName("properties." + field.getName());
+                        Object value = event.getAttribute(field.getName());
+                        if (value == null) {
+                            generator.writeNull();
+                        } else {
+                            write(field.getType(), generator, value);
+                        }
+                    }
 
                     generator.writeEndObject();
                 }
@@ -119,6 +114,36 @@ public class WebhookEventMapper implements EventMapper {
                 slice.reset();
             }
         }, 5, 5, SECONDS);
+    }
+
+    private void write(FieldType type, JsonGenerator generator, Object value) throws IOException {
+        switch (type) {
+            case STRING:
+            case BOOLEAN:
+            case LONG:
+            case INTEGER:
+            case DECIMAL:
+            case DOUBLE:
+            case TIMESTAMP:
+            case TIME:
+            case DATE:
+                generator.writeString(value.toString());
+                break;
+            default:
+                if (type.isMap()) {
+                    generator.writeNull();
+                }
+                if (type.isArray()) {
+                    generator.writeStartArray();
+
+                    for (Object item : ((List) value)) {
+                        generator.writeString(item.toString());
+                    }
+
+                    generator.writeEndArray();
+                }
+                throw new IllegalStateException(format("type %s is not supported.", type));
+        }
     }
 
     private void tryOperation(Request build, int retryCount, int numberOfRecords) throws IOException {
