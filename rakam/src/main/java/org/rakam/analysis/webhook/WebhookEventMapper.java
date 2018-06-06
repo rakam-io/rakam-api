@@ -97,7 +97,6 @@ public class WebhookEventMapper implements EventMapper {
                 generator.writeEndObject();
 
                 generator.flush();
-                byte[] base = (byte[]) slice.getUnderlyingSlice().getBase();
                 MediaType mediaType = MediaType.parse("application/json");
                 Request.Builder builder = new Request.Builder().url(config.getUrl());
                 if (config.getHeaders() != null) {
@@ -106,7 +105,10 @@ public class WebhookEventMapper implements EventMapper {
                     }
                 }
 
-                Request build = builder.post(RequestBody.create(mediaType, base, 0, slice.size())).build();
+                byte[] base = (byte[]) slice.getUnderlyingSlice().getBase();
+                RequestBody body = RequestBody.create(mediaType, base, 0, slice.size());
+
+                Request build = builder.post(body).build();
                 tryOperation(build, 2, i);
                 counter.addAndGet(-i);
             } catch (Throwable e) {
@@ -132,8 +134,7 @@ public class WebhookEventMapper implements EventMapper {
             default:
                 if (type.isMap()) {
                     generator.writeNull();
-                } else
-                if (type.isArray()) {
+                } else if (type.isArray()) {
                     generator.writeStartArray();
 
                     for (Object item : ((List) value)) {
@@ -178,6 +179,18 @@ public class WebhookEventMapper implements EventMapper {
                         .withMetricData(new MetricDatum()
                                 .withMetricName("request-latency")
                                 .withValue(Double.valueOf(execute.receivedResponseAtMillis() - execute.sentRequestAtMillis()))));
+            }
+        } catch (Throwable e) {
+            if (retryCount > 0) {
+                tryOperation(build, retryCount - 1, numberOfRecords);
+            } else {
+                cloudWatchClient.putMetricDataAsync(new PutMetricDataRequest()
+                        .withNamespace("rakam-webhook")
+                        .withMetricData(new MetricDatum()
+                                .withMetricName("request-error")
+                                .withValue(Double.valueOf(numberOfRecords))));
+
+                LOGGER.warn(new RuntimeException(execute.body().string()), "Unable to execute Webhook request");
             }
         } finally {
             if (execute != null) {
