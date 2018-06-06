@@ -301,6 +301,9 @@ public class JsonEventDeserializer
         if (properties == null) {
             if (propertiesBuffer != null) {
                 if (project == null) {
+                    if(api == null) {
+                        throw new RakamException("api parameter is requiredt", BAD_REQUEST);
+                    }
                     try {
                         project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
                     } catch (RakamException e) {
