@@ -1,4 +1,3 @@
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
@@ -422,7 +421,7 @@ public class TestEventJsonParser {
         assertNull(event.getAttribute("test"));
     }
 
-    @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "Scalar value 'test' cannot be cast to ARRAY_BOOLEAN type for 'test' field.*")
+    @Test
     public void testScalarSentToObjectValue()
             throws Exception {
         metastore.getOrCreateCollectionFields("test", "test",
@@ -436,7 +435,8 @@ public class TestEventJsonParser {
                 "collection", "test",
                 "properties", props));
 
-        mapper.readValue(bytes, Event.class);
+        Event event = mapper.readValue(bytes, Event.class);
+        assertEquals(event.getAttribute("test"), ImmutableList.of(false));
     }
 
     @Test
