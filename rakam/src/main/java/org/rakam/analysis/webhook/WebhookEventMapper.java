@@ -166,7 +166,7 @@ public class WebhookEventMapper implements EventMapper {
                                 .withMetricName("request-error")
                                 .withValue(Double.valueOf(numberOfRecords))));
 
-                LOGGER.warn(new RuntimeException(execute.body().string()), "Unable to execute Webhook request");
+                LOGGER.error(new RuntimeException(execute.body().string()), "Unable to execute Webhook request");
             } else {
                 cloudWatchClient.putMetricDataAsync(new PutMetricDataRequest()
                         .withNamespace("rakam-webhook")
@@ -190,7 +190,7 @@ public class WebhookEventMapper implements EventMapper {
                                 .withMetricName("request-error")
                                 .withValue(Double.valueOf(numberOfRecords))));
 
-                LOGGER.warn(e, "Unable to execute Webhook request");
+                LOGGER.error(e, "Unable to execute Webhook request");
             }
         } finally {
             if (execute != null) {
