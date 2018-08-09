@@ -256,7 +256,7 @@ public class PrestoRakamRaptorMetastore
 
             if (fields.stream().anyMatch(f -> f.getName().equals(projectConfig.getUserColumn()))) {
                 params.add(format("bucketed_on = array['%s']", checkLiteral(projectConfig.getUserColumn())));
-                params.add("bucket_count = 10");
+                params.add("bucket_count = 3");
                 params.add(format("distribution_name = '%s'", project));
             }
 
