@@ -1,6 +1,7 @@
 package org.rakam.presto.analysis;
 
 import com.facebook.presto.client.ClientSession;
+import com.facebook.presto.raptor.metadata.Distribution;
 import com.facebook.presto.raptor.metadata.MetadataDao;
 import com.facebook.presto.raptor.metadata.Table;
 import com.facebook.presto.raptor.metadata.TableColumn;
@@ -255,8 +256,15 @@ public class PrestoRakamRaptorMetastore
             }
 
             if (fields.stream().anyMatch(f -> f.getName().equals(projectConfig.getUserColumn()))) {
+                Distribution distribution = dao.getDistribution(project);
+                int bucketCount;
+                if (distribution == null) {
+                    bucketCount = 3;
+                } else {
+                    bucketCount = distribution.getBucketCount();
+                }
                 params.add(format("bucketed_on = array['%s']", checkLiteral(projectConfig.getUserColumn())));
-                params.add("bucket_count = 3");
+                params.add(format("bucket_count = %d", bucketCount));
                 params.add(format("distribution_name = '%s'", project));
             }
 
