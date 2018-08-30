@@ -72,7 +72,7 @@ public class ProjectConfig {
         return maxStringLength;
     }
 
-    @Config("max-string-length")
+    @Config("collection.max-string-length")
     public ProjectConfig setMaxStringLength(int maxStringLength) {
         this.maxStringLength = maxStringLength;
         return this;
