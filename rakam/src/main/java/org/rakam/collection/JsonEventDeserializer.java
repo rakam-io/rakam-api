@@ -493,8 +493,8 @@ public class JsonEventDeserializer
             switch (type) {
                 case STRING:
                     String valueAsString = jp.getValueAsString();
-                    if (valueAsString.length() > 100) {
-                        return valueAsString.substring(0, 100);
+                    if (valueAsString.length() > projectConfig.getMaxStringLength()) {
+                        return valueAsString.substring(0, projectConfig.getMaxStringLength());
                     }
                     return valueAsString;
                 case BOOLEAN:

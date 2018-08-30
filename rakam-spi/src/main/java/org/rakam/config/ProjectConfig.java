@@ -14,6 +14,7 @@ public class ProjectConfig {
     private String timeColumn = "_time";
     private String userColumn = "_user";
     private String companyName;
+    private int maxStringLength = 100;
     private boolean allowProjectDeletion;
 
     public String getLockKey() {
@@ -64,6 +65,16 @@ public class ProjectConfig {
     @Config("company-name")
     public ProjectConfig setCompanyName(String companyName) {
         this.companyName = companyName;
+        return this;
+    }
+
+    public int getMaxStringLength() {
+        return maxStringLength;
+    }
+
+    @Config("max-string-length")
+    public ProjectConfig setMaxStringLength(int maxStringLength) {
+        this.maxStringLength = maxStringLength;
         return this;
     }
 
