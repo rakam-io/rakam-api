@@ -85,7 +85,7 @@ public class PrestoRakamRaptorMetastore
         dbi = new DBI(prestoMetastoreDataSource);
         org.rakam.presto.analysis.PrestoRakamRaptorMetastore.SignatureReferenceTypeManager signatureReferenceTypeManager = new SignatureReferenceTypeManager();
         dbi.registerMapper(new TableColumn.Mapper(signatureReferenceTypeManager));
-        dbi.registerMapper(new Distribution.Mapper(signatureReferenceTypeManager))
+        dbi.registerMapper(new Distribution.Mapper(signatureReferenceTypeManager));
         this.dao = onDemandDao(dbi, MetadataDao.class);
         this.projectConfig = projectConfig;
         this.prestoConfig = prestoConfig;
