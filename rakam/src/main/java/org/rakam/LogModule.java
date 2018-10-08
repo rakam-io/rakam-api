@@ -18,7 +18,7 @@ import java.util.logging.Logger;
 @AutoService(RakamModule.class)
 public class LogModule
         extends RakamModule {
-    private static final String SENTRY_DSN = "https://b507ce9416da4799a8379ddf93ec4056:10c3db26414240489f124f65b360601e@app.getsentry.com/62493?raven.sample.rate=0.4";
+    private static final String SENTRY_DSN = "https://76daa36329be422ab9b592ab7239c2aa@sentry.io/1290994";
 
     @Override
     protected void setup(Binder binder) {
