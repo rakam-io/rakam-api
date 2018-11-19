@@ -4,16 +4,21 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 
 import javax.annotation.Nullable;
 
+import java.text.Normalizer;
+
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.util.Locale.ENGLISH;
 
-public final class ValidationUtil {
+public final class ValidationUtil
+{
     private ValidationUtil()
-            throws InstantiationException {
+            throws InstantiationException
+    {
         throw new InstantiationException("The class is not created for instantiation");
     }
 
-    public static String checkProject(String project) {
+    public static String checkProject(String project)
+    {
         checkArgument(project != null, "project is null");
         if (!project.matches("^[0-9A-Za-z_]+$")) {
             throw new IllegalArgumentException("Project id is not valid. It must be alphanumeric and should not include empty space.");
@@ -21,25 +26,30 @@ public final class ValidationUtil {
         return project.toLowerCase(ENGLISH);
     }
 
-    public static String checkProject(String project, char character) {
+    public static String checkProject(String project, char character)
+    {
         return character + checkProject(project).replaceAll("\"", "") + character;
     }
 
-    public static <T> T checkNotNull(T value, String name) {
+    public static <T> T checkNotNull(T value, String name)
+    {
         checkArgument(value != null, name + " is null");
         return value;
     }
 
-    public static String checkCollection(String collection) {
+    public static String checkCollection(String collection)
+    {
         return checkCollection(collection, '"');
     }
 
-    public static String checkCollection(String collection, char character) {
+    public static String checkCollection(String collection, char character)
+    {
         checkCollectionValid(collection);
         return character + collection.replaceAll("\"", "") + character;
     }
 
-    public static String checkCollectionValid(String collection) {
+    public static String checkCollectionValid(String collection)
+    {
         checkArgument(collection != null, "collection is null");
         checkArgument(!collection.isEmpty(), "collection is empty string");
         if (collection.length() > 100) {
@@ -48,19 +58,23 @@ public final class ValidationUtil {
         return collection;
     }
 
-    public static String checkTableColumn(String column, char escape) {
+    public static String checkTableColumn(String column, char escape)
+    {
         return checkTableColumn(column, column, escape);
     }
 
-    public static String checkTableColumn(String column) {
+    public static String checkTableColumn(String column)
+    {
         return checkTableColumn(column, column, '"');
     }
 
-    public static String checkLiteral(String value) {
+    public static String checkLiteral(String value)
+    {
         return value.replaceAll("'", "''");
     }
 
-    public static String checkTableColumn(String column, String type, char escape) {
+    public static String checkTableColumn(String column, String type, char escape)
+    {
         if (column == null) {
             throw new IllegalArgumentException(type + " is null");
         }
@@ -68,17 +82,20 @@ public final class ValidationUtil {
         return escape + stripName(column, "field name") + escape;
     }
 
-    public static void checkArgument(boolean expression, @Nullable String errorMessage) {
+    public static void checkArgument(boolean expression, @Nullable String errorMessage)
+    {
         if (!expression) {
             if (errorMessage == null) {
                 throw new RakamException(BAD_REQUEST);
-            } else {
+            }
+            else {
                 throw new RakamException(errorMessage, BAD_REQUEST);
             }
         }
     }
 
-    public static String stripName(String name, String type) {
+    public static String stripName(String name, String type)
+    {
         if (name.isEmpty()) {
             throw new RakamException(type + " is empty", HttpResponseStatus.BAD_REQUEST);
         }
@@ -98,7 +115,11 @@ public final class ValidationUtil {
                 }
 
                 builder.append(Character.toLowerCase(charAt));
-            } else {
+            }
+            else if (Character.UnicodeBlock.of(charAt) != Character.UnicodeBlock.BASIC_LATIN) {
+                throw new RakamException("Unicode characters are not supported. (" + name + ")", HttpResponseStatus.BAD_REQUEST);
+            }
+            else {
                 builder.append(charAt);
             }
         }
@@ -114,5 +135,4 @@ public final class ValidationUtil {
 
         return builder.toString();
     }
-
 }
