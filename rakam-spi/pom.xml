@@ -197,13 +197,6 @@
             <artifactId>swagger-models</artifactId>
         </dependency>
 
-        <!-- Causes bug when using this driver with Postgresql driver-->
-        <dependency>
-        <groupId>com.amazon.redshift</groupId>
-        <artifactId>redshift-jdbc42-no-awssdk</artifactId>
-        <version>1.2.10.1009</version>
-        </dependency>
-
         <dependency>
             <groupId>org.rakam</groupId>
             <artifactId>netty-rest</artifactId>
@@ -280,13 +273,6 @@
             <artifactId>javax.ws.rs-api</artifactId>
         </dependency>
     </dependencies>
-
-    <repositories>
-        <repository>
-            <id>redshift</id>
-            <url>http://redshift-maven-repository.s3-website-us-east-1.amazonaws.com/release</url>
-        </repository>
-    </repositories>
 
     <build>
         <plugins>

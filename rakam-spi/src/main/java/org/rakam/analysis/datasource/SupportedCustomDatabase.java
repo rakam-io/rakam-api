@@ -60,53 +60,6 @@ public enum SupportedCustomDatabase {
     }, (jdbcSchemaConfig, table) -> ofNullable(jdbcSchemaConfig.getSchema())
             .map(e -> e + "." + table)
             .orElse(table)),
-    REDSHIFT('"', new CDataSource<JDBCSchemaConfig>() {
-        @Override
-        public Optional<String> test(JDBCSchemaConfig factory) {
-            Connection connect = null;
-            try {
-                connect = openConnection(factory);
-                String schemaPattern = connect.getSchema() == null ? "public" : factory.getSchema();
-                ResultSet schemas = connect.getMetaData().getSchemas(null, schemaPattern);
-                return schemas.next() ? Optional.empty() : Optional.of(format("Schema '%s' does not exist", schemaPattern));
-            } catch (SQLException e) {
-                return Optional.of(e.getMessage());
-            } finally {
-                if (connect != null) {
-                    try {
-                        connect.close();
-                    } catch (SQLException e) {
-                        throw Throwables.propagate(e);
-                    }
-                }
-            }
-        }
-
-        @Override
-        public Connection openConnection(JDBCSchemaConfig factory)
-                throws SQLException {
-            Properties properties = new Properties();
-            Optional.ofNullable(factory.getPassword())
-                    .ifPresent(pass -> properties.setProperty("password", pass));
-            Optional.ofNullable(factory.getUsername())
-                    .ifPresent(user -> properties.setProperty("user", user));
-            properties.setProperty("loginTimeout", "120");
-            properties.setProperty("socketTimeout", "120");
-            properties.setProperty("connectTimeout", "120");
-            if (factory.getEnableSSL() != null) {
-                properties.setProperty("ssl", factory.getEnableSSL().toString());
-            }
-            properties.setProperty("sslfactory", "org.postgresql.ssl.NonValidatingFactory");
-
-            return new com.amazon.redshift.jdbc42.Driver().connect(
-                    format("jdbc:redshift://%s:%s/%s",
-                            factory.getHost(),
-                            Optional.ofNullable(factory.getPort()).orElse(5432),
-                            factory.getDatabase()), properties);
-        }
-    }, (jdbcSchemaConfig, table) -> ofNullable(jdbcSchemaConfig.getSchema())
-            .map(e -> e + "." + table)
-            .orElse(table)),
     MYSQL('`', new CDataSource<JDBCSchemaConfig>() {
         @Override
         public Optional<String> test(JDBCSchemaConfig factory) {
