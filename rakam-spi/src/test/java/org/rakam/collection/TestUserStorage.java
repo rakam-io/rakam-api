@@ -28,13 +28,13 @@ public abstract class TestUserStorage {
     private ObjectNode sampleProperties = JsonHelper.jsonObject()
             .put("test", 1.0)
             .put("test1 Naber Abi", "value")
-            .put("test4 Şamil", true)
+            .put("test4 samil", true)
             .put("created_at", 100)
             .put("test5", 1.5);
     private ObjectNode samplePropertiesExpected = JsonHelper.jsonObject()
             .put("test", 1.0)
             .put("test1 naber abi", "value")
-            .put("test4 şamil", true)
+            .put("test4 samil", true)
             .put("created_at", Instant.ofEpochMilli(100).toString())
             .put("test5", 1.5);
 
@@ -78,7 +78,7 @@ public abstract class TestUserStorage {
         userService.setUserProperties(PROJECT_NAME, 2, JsonHelper.jsonObject()
                 .put("test", "2")
                 .put("test1 Naber abi", 324)
-                .put("test4 şamil", "true")
+                .put("test4 samil", "true")
                 .put("created_at", "test")
                 .put("test5", "2.5"));
 
@@ -87,7 +87,7 @@ public abstract class TestUserStorage {
         assertEquals((Object) test.properties, JsonHelper.jsonObject()
                 .put("test", 2.0)
                 .put("test1 naber abi", "324")
-                .put("test4 şamil", true)
+                .put("test4 samil", true)
                 .put("created_at", Instant.ofEpochMilli(100).toString())
                 .put("test5", 2.5));
     }
@@ -274,7 +274,7 @@ public abstract class TestUserStorage {
         userService.setUserPropertiesOnce(PROJECT_NAME, 6, JsonHelper.jsonObject()
                 .put("test", 2)
                 .put("test1 Naber Abi", "value1")
-                .put("test4 Şamil", false)
+                .put("test4 samil", false)
                 .put("created_at", Instant.now().toEpochMilli())
                 .put("test5", 2.5));
 
@@ -291,7 +291,7 @@ public abstract class TestUserStorage {
         userService.unsetProperties(PROJECT_NAME, 7, ImmutableList.of(
                 "test",
                 "test1 Naber Abi",
-                "test4 Şamil"));
+                "test4 samil"));
 
         User test = userService.getUser(CONTEXT, 7).join();
         assertEquals(test.id, 7);
