@@ -11,6 +11,7 @@ import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.name.Names;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import org.postgresql.Driver;
 import org.rakam.analysis.*;
 import org.rakam.analysis.metadata.JDBCQueryMetadata;
 import org.rakam.analysis.metadata.Metastore;
@@ -41,6 +42,7 @@ import javax.inject.Named;
 import java.net.URISyntaxException;
 import java.sql.Connection;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 import java.util.Optional;
@@ -87,6 +89,11 @@ public class PostgresqlModule
 
     @Override
     protected void setup(Binder binder) {
+        try {
+            Driver.register();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
         JDBCConfig config = buildConfigObject(JDBCConfig.class, "store.adapter.postgresql");
         PostgresqlConfig postgresqlConfig = buildConfigObject(PostgresqlConfig.class);
         MetadataConfig metadataConfig = buildConfigObject(MetadataConfig.class);
