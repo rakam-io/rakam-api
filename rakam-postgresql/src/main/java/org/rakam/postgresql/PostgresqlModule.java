@@ -89,11 +89,6 @@ public class PostgresqlModule
 
     @Override
     protected void setup(Binder binder) {
-        try {
-            Driver.register();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
         JDBCConfig config = buildConfigObject(JDBCConfig.class, "store.adapter.postgresql");
         PostgresqlConfig postgresqlConfig = buildConfigObject(PostgresqlConfig.class);
         MetadataConfig metadataConfig = buildConfigObject(MetadataConfig.class);
