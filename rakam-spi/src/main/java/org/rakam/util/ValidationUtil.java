@@ -117,7 +117,7 @@ public final class ValidationUtil
                 builder.append(Character.toLowerCase(charAt));
             }
             else if (Character.UnicodeBlock.of(charAt) != Character.UnicodeBlock.BASIC_LATIN) {
-                throw new RakamException("Unicode characters are not supported. (" + name + ")", HttpResponseStatus.BAD_REQUEST);
+//                throw new RakamException("Unicode characters are not supported. (" + name + ")", HttpResponseStatus.BAD_REQUEST);
             }
             else {
                 builder.append(charAt);

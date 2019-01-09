@@ -13,6 +13,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.log.Logger;
+import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
 import org.apache.avro.generic.GenericData;
@@ -449,7 +450,11 @@ public class JsonEventDeserializer
 
             for (Schema.Field field : record.getSchema().getFields()) {
                 Object value = record.get(field.name());
-                newRecord.put(field.name(), value);
+                try {
+                    newRecord.put(field.name(), value);
+                } catch (AvroRuntimeException e) {
+                    LOGGER.error(e);
+                }
             }
             record = newRecord;
         }
