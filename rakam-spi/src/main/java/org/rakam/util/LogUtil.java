@@ -47,7 +47,7 @@ public class LogUtil {
         EventBuilder builder = new EventBuilder()
                 .withMessage(e.getMessage())
                 .withSentryInterface(new HttpInterface(new RakamServletWrapper(request)))
-                .withLevel(Event.Level.WARNING)
+                .withLevel(Event.Level.ERROR)
                 .withLogger(RakamException.class.getName())
                 .withTag("status", e.getStatusCode().reasonPhrase());
 
