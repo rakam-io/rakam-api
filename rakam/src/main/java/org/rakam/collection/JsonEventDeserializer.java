@@ -350,14 +350,14 @@ public class JsonEventDeserializer
 
         JsonToken t = jp.nextToken();
         for (; t == JsonToken.FIELD_NAME; t = jp.nextToken()) {
-            String fieldName = jp.getCurrentName();
+            String fieldName = stripName(jp.getCurrentName(), "field name");
 
             Schema.Field field = avroSchema.getField(fieldName);
 
             jp.nextToken();
 
             if (field == null) {
-                field = avroSchema.getField(stripName(fieldName, "field name"));
+                field = avroSchema.getField(fieldName);
 
                 if (field == null) {
 
