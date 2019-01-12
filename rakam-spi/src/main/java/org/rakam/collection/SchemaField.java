@@ -26,7 +26,7 @@ public class SchemaField {
                        @ApiParam(value = "descriptiveName", required = false) String descriptiveName,
                        @ApiParam(value = "description", required = false) String description,
                        @ApiParam(value = "category", required = false) String category) {
-        this.name = stripName(ValidationUtil.checkNotNull(name, "name"), "field name");
+        this.name = ValidationUtil.checkNotNull(name, "name");
         this.type = ValidationUtil.checkNotNull(type, "type");
         this.descriptiveName = descriptiveName;
         this.description = description;
