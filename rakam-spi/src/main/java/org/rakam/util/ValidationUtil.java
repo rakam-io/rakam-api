@@ -114,9 +114,11 @@ public final class ValidationUtil
                     }
                 }
 
-                builder.append(Character.toLowerCase(charAt));
+                charAt = Character.toLowerCase(charAt);
             }
-            else if (charAt >= 128) {
+
+
+            if (charAt >= 128) {
                 throw new IllegalArgumentException("Unicode characters are not supported. (" + name + ")");
             }
             else {
