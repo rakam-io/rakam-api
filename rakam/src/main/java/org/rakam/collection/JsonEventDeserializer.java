@@ -28,6 +28,7 @@ import org.rakam.util.*;
 
 import javax.inject.Inject;
 import java.io.IOException;
+import java.text.Normalizer;
 import java.time.LocalTime;
 import java.time.temporal.ChronoField;
 import java.util.AbstractMap.SimpleImmutableEntry;
@@ -350,7 +351,13 @@ public class JsonEventDeserializer
 
         JsonToken t = jp.nextToken();
         for (; t == JsonToken.FIELD_NAME; t = jp.nextToken()) {
-            String fieldName = stripName(jp.getCurrentName(), "field name");
+            String fieldName = null;
+            try {
+                fieldName = stripName(jp.getCurrentName(), "field name");
+            } catch (IllegalArgumentException e) {
+                fieldName = stripName(Normalizer.normalize(jp.getCurrentName(), Normalizer.Form.NFD)
+                        .replaceAll("\\p{InCombiningDiacriticalMarks}+", ""), "field name");
+            }
 
             Schema.Field field = avroSchema.getField(fieldName);
 

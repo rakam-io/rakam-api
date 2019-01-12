@@ -116,7 +116,10 @@ public final class ValidationUtil
 
                 builder.append(Character.toLowerCase(charAt));
             }
-            else if (Character.UnicodeBlock.of(charAt) == Character.UnicodeBlock.BASIC_LATIN) {
+            else if (charAt >= 128) {
+                throw new IllegalArgumentException("Unicode characters are not supported. (" + name + ")");
+            }
+            else {
                 builder.append(charAt);
             }
         }
