@@ -30,9 +30,6 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.RequestContext;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.*;
-import org.rakam.report.QueryExecution;
-import org.rakam.report.QueryExecutorService;
-import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.*;
@@ -56,12 +53,9 @@ import javax.script.ScriptException;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.net.InetAddress;
-import java.sql.SQLException;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
@@ -72,11 +66,10 @@ import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static java.lang.String.format;
 import static java.util.Optional.ofNullable;
 import static java.util.concurrent.TimeUnit.*;
-import static org.rakam.report.QueryExecutorService.DEFAULT_QUERY_RESULT_COUNT;
 import static org.rakam.util.AvroUtil.generateAvroSchema;
 
-@Path("/custom-event-mapper")
-@Api(value = "/custom-event-mapper", nickname = "collection", description = "Custom event mapper", tags = "event-mapper")
+//@Path("/custom-event-mapper")
+//@Api(value = "/custom-event-mapper", nickname = "collection", description = "Custom event mapper", tags = "event-mapper")
 public class CustomEventMapperHttpService
         extends HttpService
         implements EventMapper {
@@ -87,15 +80,13 @@ public class CustomEventMapperHttpService
     private final JSCodeCompiler jsCodeCompiler;
     private final Metastore metastore;
     private final JSCodeJDBCLoggerService loggerService;
-    private final QueryExecutorService queryExecutorService;
 
     @Inject
     public CustomEventMapperHttpService(
             @Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
             Metastore metastore,
             JSCodeCompiler jsCodeCompiler,
-            JSCodeJDBCLoggerService loggerService,
-            QueryExecutorService queryExecutorService) {
+            JSCodeJDBCLoggerService loggerService) {
         this.dbi = new DBI(dataSource);
         this.jsCodeCompiler = jsCodeCompiler;
         this.loggerService = loggerService;
@@ -110,7 +101,6 @@ public class CustomEventMapperHttpService
                 .expireAfterWrite(2, MINUTES)
                 .expireAfterAccess(1, HOURS)
                 .build(new MapperCodeCacheLoader());
-        this.queryExecutorService = queryExecutorService;
     }
 
     @PostConstruct
@@ -523,30 +513,6 @@ public class CustomEventMapperHttpService
             this.project = project;
         }
 
-        public Object getOne(String queryString) throws SQLException {
-            List<List<Object>> result = execute(queryString);
-            return null == result ? null :
-                    result.stream().findFirst().orElse(Collections.EMPTY_LIST)
-                            .stream().findFirst().orElse(null);
-        }
-
-        public List<List<Object>> execute(String queryString) throws SQLException {
-            QueryExecution queryExecution =
-                    queryExecutorService.executeQuery(
-                            project, queryString,
-                            null, null, ZoneOffset.UTC, DEFAULT_QUERY_RESULT_COUNT);
-            try {
-                QueryResult queryResult = queryExecution.getResult().get();
-                if (queryResult.isFailed()) {
-                    throw new SQLException(queryResult.getError().message);
-                }
-                return queryResult.getResult();
-            } catch (InterruptedException e) {
-                throw new SQLException(e.getCause());
-            } catch (ExecutionException e) {
-                throw new SQLException(e.getCause());
-            }
-        }
     }
 
     private class ListEventProxy

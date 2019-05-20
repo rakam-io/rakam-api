@@ -6,7 +6,6 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
-import org.rakam.plugin.MaterializedView;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.*;
 import org.rakam.util.CryptUtil;
@@ -33,7 +32,6 @@ public class ProjectHttpService
         extends HttpService {
 
     private final Metastore metastore;
-    private final MaterializedViewService materializedViewService;
     private final ApiKeyService apiKeyService;
     private final ProjectConfig projectConfig;
     private final SchemaChecker schemaChecker;
@@ -42,9 +40,7 @@ public class ProjectHttpService
     public ProjectHttpService(Metastore metastore,
                               ProjectConfig projectConfig,
                               SchemaChecker schemaChecker,
-                              MaterializedViewService materializedViewService,
                               ApiKeyService apiKeyService) {
-        this.materializedViewService = materializedViewService;
         this.apiKeyService = apiKeyService;
         this.metastore = metastore;
         this.schemaChecker = schemaChecker;
@@ -87,12 +83,6 @@ public class ProjectHttpService
         }
         checkProject(context.project);
         metastore.deleteProject(context.project);
-
-        List<MaterializedView> views = materializedViewService.list(context.project);
-        for (MaterializedView view : views) {
-            materializedViewService.delete(context, view.tableName);
-        }
-
         apiKeyService.revokeAllKeys(context.project);
 
         return SuccessMessage.success();
@@ -214,20 +204,6 @@ public class ProjectHttpService
                     CryptUtil.encryptAES(apiKeys.readKey(), projectConfig.getPassphrase()),
                     CryptUtil.encryptAES(apiKeys.writeKey(), projectConfig.getPassphrase()));
         }
-    }
-
-    @JsonRequest
-    @ApiOperation(value = "Get possible attribute values",
-            authorizations = @Authorization(value = "read_key"))
-    @Path("/attributes")
-    public CompletableFuture<List<String>> attributes(@Named("project") RequestContext context,
-                                                      @ApiParam("collection") String collection,
-                                                      @ApiParam("attribute") String attribute,
-                                                      @ApiParam(value = "startDate", required = false) LocalDate startDate,
-                                                      @ApiParam(value = "endDate", required = false) LocalDate endDate,
-                                                      @ApiParam(value = "filter", required = false) String filter) {
-        return metastore.getAttributes(context.project, collection, attribute, Optional.ofNullable(startDate),
-                Optional.ofNullable(endDate), Optional.ofNullable(filter));
     }
 
     @JsonRequest

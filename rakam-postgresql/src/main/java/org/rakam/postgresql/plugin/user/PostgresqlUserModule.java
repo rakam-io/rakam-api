@@ -21,7 +21,6 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.config.JDBCConfig;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.user.UserStorage;
-import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.util.ConditionalModule;
 
 @AutoService(RakamModule.class)
@@ -35,8 +34,7 @@ public class PostgresqlUserModule extends RakamModule {
                 .annotatedWith(Names.named("store.adapter.postgresql"))
                 .toInstance(JDBCPoolDataSource.getOrCreateDataSource(config));
 
-        binder.bind(PostgresqlQueryExecutor.class).in(Scopes.SINGLETON);
-        binder.bind(UserStorage.class).to(AbstractPostgresqlUserStorage.class)
+        binder.bind(UserStorage.class).to(PostgresqlUserStorage.class)
                 .in(Scopes.SINGLETON);
 
         binder.bind(boolean.class).annotatedWith(Names.named("user.storage.postgresql"))

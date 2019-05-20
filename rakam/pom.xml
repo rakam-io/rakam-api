@@ -164,10 +164,6 @@
 
         <dependency>
             <groupId>com.facebook.presto</groupId>
-            <artifactId>presto-parser</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.facebook.presto</groupId>
             <artifactId>presto-bytecode</artifactId>
         </dependency>
         <dependency>
@@ -485,8 +481,6 @@
                                 <ignoredUnusedDeclaredDependency>org.rakam:rakam-postgresql
                                 </ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>org.rakam:rakam-aws
-                                </ignoredUnusedDeclaredDependency>
-                                <ignoredUnusedDeclaredDependency>com.facebook.presto:presto-parser
                                 </ignoredUnusedDeclaredDependency>
                             </ignoredUnusedDeclaredDependencies>
                         </configuration>

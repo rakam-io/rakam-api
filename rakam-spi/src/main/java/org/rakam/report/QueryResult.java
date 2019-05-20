@@ -11,6 +11,7 @@ import org.rakam.server.http.annotations.ApiParam;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class QueryResult {
@@ -108,16 +109,16 @@ public class QueryResult {
 
         QueryResult result1 = (QueryResult) o;
 
-        if (error != null ? !error.equals(result1.error) : result1.error != null) {
+        if (!Objects.equals(error, result1.error)) {
             return false;
         }
-        if (metadata != null ? !metadata.equals(result1.metadata) : result1.metadata != null) {
+        if (!Objects.equals(metadata, result1.metadata)) {
             return false;
         }
-        if (properties != null ? !properties.equals(result1.properties) : result1.properties != null) {
+        if (!Objects.equals(properties, result1.properties)) {
             return false;
         }
-        if (result != null ? !result.equals(result1.result) : result1.result != null) {
+        if (!Objects.equals(result, result1.result)) {
             return false;
         }
 

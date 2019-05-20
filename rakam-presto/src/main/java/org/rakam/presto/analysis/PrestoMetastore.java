@@ -31,9 +31,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.LocalDate;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
@@ -100,10 +98,7 @@ public class PrestoMetastore
                     ResultSet tableRs = conn.getMetaData().getTables(config.getColdStorageConnector(), project, null, new String[]{"TABLE"});
                     while (tableRs.next()) {
                         String tableName = tableRs.getString("table_name");
-
-                        if (!tableName.startsWith(PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX)) {
-                            tables.add(tableName);
-                        }
+                        tables.add(tableName);
                     }
 
                     return tables;
@@ -125,24 +120,19 @@ public class PrestoMetastore
 
     @Override
     public void createProject(String project) {
-        if (config.getExistingProjects().contains(project)) {
-            checkProject(project);
+        checkProject(project);
 
-            try (Handle handle = dbi.open()) {
-                handle.createStatement("INSERT INTO project (name) VALUES(:name)")
-                        .bind("name", project)
-                        .execute();
-            } catch (Exception e) {
-                if (getProjects().contains(project)) {
-                    throw new RakamException("The project already exists", BAD_REQUEST);
-                }
+        try (Handle handle = dbi.open()) {
+            handle.createStatement("INSERT INTO project (name) VALUES(:name)")
+                    .bind("name", project)
+                    .execute();
+        } catch (Exception e) {
+            if (getProjects().contains(project)) {
+                throw new RakamException("The project already exists", BAD_REQUEST);
             }
-
-            super.onCreateProject(project);
-            return;
         }
 
-        throw new RakamException(NOT_IMPLEMENTED);
+        super.onCreateProject(project);
     }
 
     @Override
@@ -217,7 +207,7 @@ public class PrestoMetastore
     public FieldType fromPrestoType(String name) {
         TypeSignature typeSignature = TypeSignature.parseTypeSignature(name);
 
-        return PrestoQueryExecution.fromPrestoType(typeSignature.getBase(),
+        return PrestoRakamRaptorMetastore.fromPrestoType(typeSignature.getBase(),
                 typeSignature.getParameters().stream()
                         .filter(param -> param.getKind() == TYPE)
                         .map(param -> param.getTypeSignature().getBase()).iterator());
@@ -295,12 +285,6 @@ public class PrestoMetastore
                 throw new IllegalStateException(e.getMessage());
             }
         }
-    }
-
-    @Override
-    public CompletableFuture<List<String>> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate,
-                                                         Optional<LocalDate> endDate, Optional<String> filter) {
-        throw new UnsupportedOperationException();
     }
 
     @VisibleForTesting

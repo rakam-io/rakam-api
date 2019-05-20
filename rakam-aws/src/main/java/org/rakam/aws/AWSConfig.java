@@ -103,14 +103,4 @@ public class AWSConfig {
 
         return new StaticCredentialsProvider(new BasicAWSCredentials(getAccessKey(), getSecretAccessKey()));
     }
-
-    public String getDynamodbEndpoint() {
-        return dynamodbEndpoint;
-    }
-
-    @Config("aws.dynamodb-endpoint")
-    public AWSConfig setDynamodbEndpoint(String dynamodbEndpoint) {
-        this.dynamodbEndpoint = dynamodbEndpoint;
-        return this;
-    }
 }

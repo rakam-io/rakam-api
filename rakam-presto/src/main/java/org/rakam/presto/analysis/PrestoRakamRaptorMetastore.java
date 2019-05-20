@@ -1,6 +1,5 @@
 package org.rakam.presto.analysis;
 
-import com.facebook.presto.client.ClientSession;
 import com.facebook.presto.raptor.metadata.Distribution;
 import com.facebook.presto.raptor.metadata.MetadataDao;
 import com.facebook.presto.raptor.metadata.Table;
@@ -12,37 +11,29 @@ import com.facebook.presto.spi.block.BlockBuilder;
 import com.facebook.presto.spi.block.BlockBuilderStatus;
 import com.facebook.presto.spi.function.OperatorType;
 import com.facebook.presto.spi.type.*;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
-import com.google.common.primitives.Ints;
 import com.google.inject.name.Named;
-import io.airlift.log.Logger;
-import io.airlift.units.Duration;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
-import org.rakam.report.QueryResult;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 import org.skife.jdbi.v2.*;
 import org.skife.jdbi.v2.exceptions.DBIException;
-import org.skife.jdbi.v2.util.LongMapper;
 import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.lang.invoke.MethodHandle;
 import java.sql.JDBCType;
-import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -54,26 +45,19 @@ import static com.facebook.presto.raptor.util.DatabaseUtil.metadataError;
 import static com.facebook.presto.raptor.util.DatabaseUtil.onDemandDao;
 import static com.facebook.presto.spi.type.ParameterKind.TYPE;
 import static com.google.common.base.Throwables.propagateIfInstanceOf;
-import static io.netty.handler.codec.http.HttpResponseStatus.*;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static java.sql.JDBCType.VARBINARY;
 import static java.util.Locale.ENGLISH;
-import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.rakam.collection.FieldType.*;
-import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
-import static org.rakam.presto.analysis.PrestoQueryExecution.isServerInactive;
-import static org.rakam.util.ValidationUtil.*;
+import static org.rakam.util.ValidationUtil.checkLiteral;
+import static org.rakam.util.ValidationUtil.checkProject;
 
-public class PrestoRakamRaptorMetastore
-        extends PrestoAbstractMetastore {
-    private static final Logger LOGGER = Logger.get(PrestoRakamRaptorMetastore.class);
-    private final static double SAMPLING_THRESHOLD = 1_000_000;
+public class PrestoRakamRaptorMetastore extends PrestoAbstractMetastore {
     private final DBI dbi;
     private final MetadataDao dao;
     private final PrestoConfig prestoConfig;
-    private final ClientSession defaultSession;
     private final ProjectConfig projectConfig;
-    private final Supplier<Integer> activeNodeCount;
 
     @Inject
     public PrestoRakamRaptorMetastore(
@@ -89,28 +73,6 @@ public class PrestoRakamRaptorMetastore
         this.dao = onDemandDao(dbi, MetadataDao.class);
         this.projectConfig = projectConfig;
         this.prestoConfig = prestoConfig;
-        defaultSession = new ClientSession(
-                prestoConfig.getAddress(),
-                "rakam",
-                "api-server",
-                ImmutableSet.of(), null,
-                prestoConfig.getColdStorageConnector(),
-                "default",
-                TimeZone.getTimeZone(ZoneOffset.UTC).getID(),
-                ENGLISH,
-                ImmutableMap.of(),
-                ImmutableMap.of(),
-                null, false, Duration.succinctDuration(1, MINUTES));
-
-        activeNodeCount = Suppliers.memoizeWithExpiration(() -> {
-            String getNodeCount = "select count(*) from system.runtime.nodes where state = 'active'";
-            QueryResult queryResult = new PrestoQueryExecution(defaultSession, getNodeCount, false).getResult().join();
-            if (queryResult.isFailed()) {
-                throw new RakamException(queryResult.getError().message, SERVICE_UNAVAILABLE);
-            }
-
-            return Ints.checkedCast((long) queryResult.getResult().get(0).get(0));
-        }, 5, MINUTES);
     }
 
     public static <T> void daoTransaction(IDBI dbi, Class<T> daoType, Consumer<T> callback) {
@@ -218,15 +180,6 @@ public class PrestoRakamRaptorMetastore
     public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields) {
         ValidationUtil.checkCollectionValid(collection);
 
-        return getOrCreateCollectionFields(project, collection, fields, fields.size() + 1);
-    }
-
-    private static final String METADATA_ERROR = "Failed to perform metadata operation";
-    private static final String JDBI_CONFLICT_ERROR = "Unique index or primary key violation";
-    private static final String JDBI_DUPLICATE_ERROR = "Duplicate entry";
-
-    public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields, int tryCount) {
-        String query;
         List<SchemaField> schemaFields = getCollection(project, collection);
         List<SchemaField> lastFields;
         Table tableInformation = dao.getTableInformation(project, collection);
@@ -234,73 +187,21 @@ public class PrestoRakamRaptorMetastore
             if (collection.startsWith("$materialized")) {
                 throw new RakamException("Collections cannot start with $materialized prefix", BAD_REQUEST);
             }
-            List<SchemaField> currentFields = new ArrayList<>();
 
             if (!getProjects().contains(project)) {
                 throw new NotExistsException("Project");
             }
-            String queryEnd = fields.stream()
-                    .map(f -> {
-                        currentFields.add(f);
-                        return f;
-                    })
-                    .map(f -> format("\"%s\" %s", f.getName(), toSql(f.getType())))
-                    .collect(Collectors.joining(", "));
-            if (queryEnd.isEmpty()) {
-                return currentFields;
-            }
-
-            queryEnd += format(", \"%s\" %s", prestoConfig.getCheckpointColumn(), toSql(TIMESTAMP));
 
             List<String> params = new ArrayList<>();
             if (fields.stream().anyMatch(f -> f.getName().equals(projectConfig.getTimeColumn()) && (f.getType() == TIMESTAMP || f.getType() == DATE))) {
                 params.add(format("temporal_column = '%s'", checkLiteral(projectConfig.getTimeColumn())));
             }
 
-            if (fields.stream().anyMatch(f -> f.getName().equals(projectConfig.getUserColumn()))) {
-                Distribution distribution = dao.getDistribution(project);
-                int bucketCount;
-                if (distribution == null) {
-                    bucketCount = 3;
-                } else {
-                    bucketCount = distribution.getBucketCount();
-                }
-                params.add(format("bucketed_on = array['%s']", checkLiteral(projectConfig.getUserColumn())));
-                params.add(format("bucket_count = %d", bucketCount));
-                params.add(format("distribution_name = '%s'", project));
-            }
-
-            String properties = params.isEmpty() ? "" : ("WITH( " + params.stream().collect(Collectors.joining(", ")) + ")");
-
-            query = format("CREATE TABLE %s.\"%s\".%s (%s) %s ",
-                    prestoConfig.getColdStorageConnector(), project, checkCollection(collection), queryEnd, properties);
-
-            QueryResult join = new PrestoQueryExecution(defaultSession, query, false).getResult().join();
-            if (join.isFailed()) {
-                if (join.getError().message.contains("exists") || join.getError().message.equals(METADATA_ERROR)) {
-                    if (tryCount > 0) {
-                        return getOrCreateCollectionFields(project, collection, fields, tryCount - 1);
-                    } else {
-                        String description = format("%s.%s: %s: %s",
-                                project, collection, Arrays.toString(fields.toArray()),
-                                join.getError().toString());
-                        String message = "Failed to add new fields to collection";
-
-                        LOGGER.error(message, description);
-                        throw new RakamException(message + " " + description, INTERNAL_SERVER_ERROR);
-                    }
-                } else {
-                    if (isServerInactive(join.getError())) {
-                        throw new RakamException("Database is not active", BAD_GATEWAY);
-                    }
-
-                    throw new IllegalStateException(join.getError().message);
-                }
-            }
-
+            dao.insertTable(project, collection, true, true, 1L, Instant.now().toEpochMilli());
             lastFields = fields.stream().collect(Collectors.toList());
         } else {
             List<SchemaField> newFields = new ArrayList<>();
+
 
             fields.stream()
                     .filter(field -> schemaFields.stream().noneMatch(f -> f.getName().equals(field.getName())))
@@ -343,6 +244,10 @@ public class PrestoRakamRaptorMetastore
         return lastFields;
     }
 
+    private static final String METADATA_ERROR = "Failed to perform metadata operation";
+    private static final String JDBI_CONFLICT_ERROR = "Unique index or primary key violation";
+    private static final String JDBI_DUPLICATE_ERROR = "Duplicate entry";
+
     private void addColumn(Table table, String schema, String tableName, String columnName, FieldType fieldType) {
         List<TableColumn> existingColumns = dao.listTableColumns(schema, tableName);
         TableColumn lastColumn = existingColumns.get(existingColumns.size() - 1);
@@ -381,7 +286,7 @@ public class PrestoRakamRaptorMetastore
                 .map(column -> {
                     TypeSignature typeSignature = column.getDataType().getTypeSignature();
 
-                    return new SchemaField(column.getColumnName(), PrestoQueryExecution.fromPrestoType(typeSignature.getBase(),
+                    return new SchemaField(column.getColumnName(), fromPrestoType(typeSignature.getBase(),
                             typeSignature.getParameters().stream()
                                     .filter(param -> param.getKind() == TYPE)
                                     .map(param -> param.getTypeSignature().getBase()).iterator()));
@@ -395,16 +300,6 @@ public class PrestoRakamRaptorMetastore
         try (Handle handle = dbi.open()) {
             handle.createStatement("delete from project where name = :project")
                     .bind("project", project).execute();
-        }
-
-        for (String collectionName : getCollectionNames(project)) {
-            String query = format("DROP TABLE %s.\"%s\".\"%s\"", prestoConfig.getColdStorageConnector(), project, collectionName);
-
-            QueryResult join = new PrestoQueryExecution(defaultSession, query, true).getResult().join();
-
-            if (join.isFailed()) {
-                LOGGER.error("Error while deleting table %s.%s : %s", project, collectionName, join.getError().toString());
-            }
         }
 
         super.onDeleteProject(project);
@@ -454,73 +349,12 @@ public class PrestoRakamRaptorMetastore
     }
 
     @Override
-    public CompletableFuture<List<String>> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate,
-                                                         Optional<LocalDate> endDate, Optional<String> filter) {
-        long numRows;
-        try (Handle handle = dbi.open()) {
-            numRows = handle.createQuery("select sum(shards.row_count) as row_count from tables join shards on (shards.table_id = tables.table_id) where table_name = :collection and schema_name = :schema")
-                    .bind("collection", checkProject(collection))
-                    .bind("schema", checkProject(project))
-                    .map(LongMapper.FIRST).iterator().next();
-        }
-
-        double samplePercentage;
-        double adjustedSamplingThreshold = SAMPLING_THRESHOLD * activeNodeCount.get();
-        if (numRows > adjustedSamplingThreshold) {
-            samplePercentage = ((adjustedSamplingThreshold / numRows) * 100);
-        } else {
-            samplePercentage = 100;
-        }
-
-        String prestoQuery;
-        prestoQuery = format("SELECT DISTINCT %s FROM %s.%s.%s TABLESAMPLE BERNOULLI (%f) WHERE %s IS NOT NULL",
-                checkTableColumn(attribute),
-                prestoConfig.getColdStorageConnector(),
-                checkProject(project, '"'),
-                checkCollection(collection, '"'),
-                samplePercentage, checkTableColumn(attribute));
-
-        if (startDate.isPresent()) {
-            prestoQuery += format(" AND %s >= date '%s'",
-                    checkTableColumn(projectConfig.getTimeColumn()),
-                    startDate.get().toString(),
-                    checkCollection(attribute));
-        }
-
-        if (endDate.isPresent()) {
-            prestoQuery += format(" AND %s < date '%s'",
-                    checkTableColumn(projectConfig.getTimeColumn()),
-                    endDate.get().toString(),
-                    checkCollection(attribute));
-        }
-
-        if (filter.isPresent() && !filter.get().isEmpty()) {
-            prestoQuery += format(" AND lower(%s) LIKE '%s' ESCAPE '\\'", checkTableColumn(attribute),
-                    filter.get().replaceAll("%", "\\%").replaceAll("_", "\\_").toLowerCase(ENGLISH) + "%");
-        }
-
-        prestoQuery += " LIMIT 10";
-
-        CompletableFuture<QueryResult> result = new PrestoQueryExecution(defaultSession, prestoQuery, true).getResult();
-        return result.thenApply(v -> {
-            if (v.isFailed()) {
-                throw new RakamException(v.getError().message, SERVICE_UNAVAILABLE);
-            }
-
-            return v.getResult().stream().map(object -> Objects.toString(object.get(0), null))
-                    .sorted()
-                    .collect(Collectors.toList());
-        });
-    }
-
-    @Override
     public Map<String, List<SchemaField>> getCollections(String project) {
         return getTables(project, this::filterTables);
     }
 
     private boolean filterTables(String tableName, String tableColumn) {
-        return !tableName.startsWith(MATERIALIZED_VIEW_PREFIX)
-                && !tableColumn.startsWith("$")
+        return !tableColumn.startsWith("$")
                 && !tableName.startsWith("$")
                 && !tableColumn.equals(prestoConfig.getCheckpointColumn());
     }
@@ -528,7 +362,6 @@ public class PrestoRakamRaptorMetastore
     @Override
     public Set<String> getCollectionNames(String project) {
         return dao.listTables(project).stream().map(e -> e.getTableName())
-                .filter(tableName -> !tableName.startsWith(MATERIALIZED_VIEW_PREFIX))
                 .collect(Collectors.toSet());
     }
 
@@ -572,7 +405,7 @@ public class PrestoRakamRaptorMetastore
                 continue;
             }
             TypeSignature typeSignature = tableColumn.getDataType().getTypeSignature();
-            FieldType fieldType = PrestoQueryExecution.fromPrestoType(typeSignature.getBase(),
+            FieldType fieldType = fromPrestoType(typeSignature.getBase(),
                     typeSignature.getParameters().stream()
                             .filter(param -> param.getKind() == TYPE)
                             .map(param -> param.getTypeSignature().getBase()).iterator());
@@ -651,6 +484,42 @@ public class PrestoRakamRaptorMetastore
         @Override
         public Optional<Type> getCommonSuperType(Type type, Type type1) {
             return null;
+        }
+    }
+
+    public static FieldType fromPrestoType(String rawType, Iterator<String> parameter) {
+        switch (rawType) {
+            case StandardTypes.BIGINT:
+                return LONG;
+            case StandardTypes.BOOLEAN:
+                return BOOLEAN;
+            case StandardTypes.DATE:
+                return DATE;
+            case StandardTypes.DOUBLE:
+                return DOUBLE;
+            case StandardTypes.VARBINARY:
+            case StandardTypes.HYPER_LOG_LOG:
+                return BINARY;
+            case StandardTypes.VARCHAR:
+                return STRING;
+            case StandardTypes.INTEGER:
+                return INTEGER;
+            case StandardTypes.DECIMAL:
+                return DECIMAL;
+            case StandardTypes.TIME:
+            case StandardTypes.TIME_WITH_TIME_ZONE:
+                return TIME;
+            case StandardTypes.TIMESTAMP:
+            case StandardTypes.TIMESTAMP_WITH_TIME_ZONE:
+                return TIMESTAMP;
+            case StandardTypes.ARRAY:
+                return fromPrestoType(parameter.next(), null).convertToArrayType();
+            case StandardTypes.MAP:
+                Preconditions.checkArgument(parameter.next().equals(StandardTypes.VARCHAR),
+                        "The first parameter of MAP must be STRING");
+                return fromPrestoType(parameter.next(), null).convertToMapValueType();
+            default:
+                return BINARY;
         }
     }
 }

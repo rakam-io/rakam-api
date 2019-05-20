@@ -9,8 +9,6 @@ import io.sentry.event.EventBuilder;
 import io.sentry.event.interfaces.ExceptionInterface;
 import io.sentry.event.interfaces.HttpInterface;
 import io.sentry.jul.SentryHandler;
-import org.rakam.report.QueryError;
-import org.rakam.report.QueryExecutor;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.RakamServletWrapper;
 
@@ -89,26 +87,5 @@ public class LogUtil {
 
     public static void logException(RakamHttpRequest request, IllegalArgumentException e) {
         logException(request, new RakamException(e.getMessage(), HttpResponseStatus.BAD_REQUEST));
-    }
-
-    public static void logQueryError(String query, QueryError e, Class<? extends QueryExecutor> queryExecutorClass) {
-        EventBuilder builder = new EventBuilder()
-                .withMessage(e.message)
-                .withExtra("query", query)
-                .withLevel(Event.Level.WARNING)
-                .withLogger(QueryError.class.getName())
-                .withTag("executor", queryExecutorClass.getName());
-
-        if (TAGS != null) {
-            for (Map.Entry<String, String> entry : TAGS.entrySet()) {
-                builder.withTag(entry.getKey(), entry.getValue());
-            }
-        }
-
-        if (RELEASE != null) {
-            builder.withRelease(RELEASE);
-        }
-
-        // TODO log errors to Rakam
     }
 }

@@ -19,7 +19,7 @@ public abstract class TestApiKeyService {
     }
 
     @Test
-    public void testCreateApiKeys() throws Exception {
+    public void testCreateApiKeys()  {
         ApiKeyService.ProjectApiKeys testing = getApiKeyService().createApiKeys(PROJECT_NAME);
 
         assertEquals(getApiKeyService().getProjectOfApiKey(testing.readKey(), AccessKeyType.READ_KEY), PROJECT_NAME);
@@ -28,7 +28,7 @@ public abstract class TestApiKeyService {
     }
 
     @Test
-    public void testInvalidApiKeys() throws Exception {
+    public void testInvalidApiKeys() {
         getApiKeyService().createApiKeys(PROJECT_NAME);
 
         try {

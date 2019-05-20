@@ -1,1 +1,0 @@
-Your friend added you as team member to the {{project}} project!

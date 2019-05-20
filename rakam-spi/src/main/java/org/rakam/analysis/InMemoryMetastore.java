@@ -8,9 +8,7 @@ import org.rakam.collection.SchemaField;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.ValidationUtil;
 
-import java.time.LocalDate;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class InMemoryMetastore extends AbstractMetastore {
@@ -75,8 +73,4 @@ public class InMemoryMetastore extends AbstractMetastore {
         super.onDeleteProject(project);
     }
 
-    @Override
-    public CompletableFuture<List<String>> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate, Optional<LocalDate> endDate, Optional<String> filter) {
-        throw new UnsupportedOperationException();
-    }
 }

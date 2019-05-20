@@ -36,17 +36,6 @@
         </dependency>
 
         <dependency>
-            <groupId>io.airlift</groupId>
-            <artifactId>units</artifactId>
-        </dependency>
-
-        <!-- Remove this if QualifiedName0 is renamed to QualifiedName -->
-        <dependency>
-            <groupId>com.facebook.presto</groupId>
-            <artifactId>presto-parser</artifactId>
-        </dependency>
-
-        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
         </dependency>
@@ -54,12 +43,6 @@
         <dependency>
             <groupId>javax.validation</groupId>
             <artifactId>validation-api</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.rakam</groupId>
-            <artifactId>rakam-parser</artifactId>
-            <version>${project.version}</version>
         </dependency>
 
         <dependency>
@@ -102,12 +85,6 @@
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
         </dependency>
-
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-        </dependency>
-
         <dependency>
             <groupId>com.google.auto.value</groupId>
             <artifactId>auto-value</artifactId>
@@ -237,35 +214,6 @@
         <dependency>
             <groupId>javax.mail</groupId>
             <artifactId>mail</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
-            <version>5.1.44</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.microsoft.sqlserver</groupId>
-            <artifactId>mssql-jdbc</artifactId>
-            <version>6.1.0.jre8</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>commons-codec</groupId>
-                    <artifactId>commons-codec</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>commons-logging</groupId>
-                    <artifactId>commons-logging</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.sun.jersey</groupId>
-                    <artifactId>jersey-core</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.httpcomponents</groupId>
-                    <artifactId>httpclient</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>

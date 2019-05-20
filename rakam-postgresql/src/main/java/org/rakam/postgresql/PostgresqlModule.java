@@ -1,8 +1,7 @@
 package org.rakam.postgresql;
 
-import com.facebook.presto.sql.tree.QualifiedName;
+import com.google.api.client.util.Throwables;
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
@@ -11,11 +10,11 @@ import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.name.Names;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import org.postgresql.Driver;
-import org.rakam.analysis.*;
-import org.rakam.analysis.metadata.JDBCQueryMetadata;
+import org.rakam.analysis.ApiKeyService;
+import org.rakam.analysis.ConfigManager;
+import org.rakam.analysis.EscapeIdentifier;
+import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.Metastore;
-import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.JDBCConfig;
@@ -26,15 +25,11 @@ import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
-import org.rakam.postgresql.analysis.*;
-import org.rakam.postgresql.plugin.user.AbstractPostgresqlUserStorage;
+import org.rakam.postgresql.analysis.PostgresqlConfig;
+import org.rakam.postgresql.analysis.PostgresqlEventStore;
+import org.rakam.postgresql.analysis.PostgresqlMetastore;
 import org.rakam.postgresql.plugin.user.PostgresqlUserService;
 import org.rakam.postgresql.plugin.user.PostgresqlUserStorage;
-import org.rakam.postgresql.report.PostgresqlEventExplorer;
-import org.rakam.postgresql.report.PostgresqlQueryExecutor;
-import org.rakam.report.QueryExecutor;
-import org.rakam.report.QueryResult;
-import org.rakam.report.eventexplorer.EventExplorerConfig;
 import org.rakam.util.ConditionalModule;
 
 import javax.inject.Inject;
@@ -45,9 +40,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 
 import static java.lang.String.format;
 import static org.rakam.postgresql.plugin.user.PostgresqlUserService.ANONYMOUS_ID_MAPPING;
@@ -105,16 +98,11 @@ public class PostgresqlModule
 
         binder.bind(PostgresqlVersion.class).asEagerSingleton();
 
-        binder.bind(MaterializedViewService.class).to(PostgresqlMaterializedViewService.class).in(Scopes.SINGLETON);
-        binder.bind(QueryExecutor.class).to(PostgresqlQueryExecutor.class).in(Scopes.SINGLETON);
-        binder.bind(PostgresqlQueryExecutor.class).in(Scopes.SINGLETON);
-        binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class).toInstance("to_unixtime");
-
         boolean isUserModulePostgresql = "postgresql".equals(getConfig("plugin.user.storage"));
         if (isUserModulePostgresql) {
             binder.bind(AbstractUserService.class).to(PostgresqlUserService.class)
                     .in(Scopes.SINGLETON);
-            binder.bind(AbstractPostgresqlUserStorage.class).to(PostgresqlUserStorage.class)
+            binder.bind(PostgresqlUserStorage.class).to(PostgresqlUserStorage.class)
                     .in(Scopes.SINGLETON);
         } else {
             binder.bind(boolean.class).annotatedWith(Names.named("user.storage.postgresql"))
@@ -132,12 +120,6 @@ public class PostgresqlModule
                     .toInstance(orCreateDataSource);
 
             binder.bind(ConfigManager.class).to(PostgresqlConfigManager.class);
-            binder.bind(QueryMetadataStore.class).to(JDBCQueryMetadata.class)
-                    .in(Scopes.SINGLETON);
-        }
-
-        if (buildConfigObject(EventExplorerConfig.class).isEventExplorerEnabled()) {
-            binder.bind(EventExplorer.class).to(PostgresqlEventExplorer.class);
         }
 
         if (postgresqlConfig.isAutoIndexColumns()) {
@@ -145,14 +127,6 @@ public class PostgresqlModule
         }
 
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
-
-        if (userPluginConfig.isFunnelAnalysisEnabled()) {
-            binder.bind(FunnelQueryExecutor.class).to(PostgresqlFunnelQueryExecutor.class);
-        }
-
-        if (userPluginConfig.isRetentionAnalysisEnabled()) {
-            binder.bind(RetentionQueryExecutor.class).to(PostgresqlRetentionQueryExecutor.class);
-        }
 
         if (userPluginConfig.getEnableUserMapping()) {
             binder.bind(UserMergeTableHook.class).asEagerSingleton();
@@ -217,16 +191,16 @@ public class PostgresqlModule
     }
 
     private static class CollectionFieldIndexerListener {
-        private final PostgresqlQueryExecutor executor;
         private final ProjectConfig projectConfig;
+        private final JDBCPoolDataSource connectionPool;
         boolean postgresql9_5;
         private Set<FieldType> brinSupportedTypes = ImmutableSet.of(FieldType.DATE, FieldType.DECIMAL,
                 FieldType.DOUBLE, FieldType.INTEGER, FieldType.LONG,
                 FieldType.STRING, FieldType.TIMESTAMP, FieldType.TIME);
 
         @Inject
-        public CollectionFieldIndexerListener(ProjectConfig projectConfig, PostgresqlQueryExecutor executor, PostgresqlVersion version) {
-            this.executor = executor;
+        public CollectionFieldIndexerListener(ProjectConfig projectConfig, @com.google.inject.name.Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, PostgresqlVersion version) {
+            this.connectionPool = connectionPool;
             this.projectConfig = projectConfig;
             // Postgresql BRIN support came in 9.5 version
             postgresql9_5 = version.getVersion() != PostgresqlVersion.Version.OLD;
@@ -243,45 +217,50 @@ public class PostgresqlModule
         }
 
         public void onCreateCollectionFields(String project, String collection, List<SchemaField> fields) {
-            for (SchemaField field : fields) {
-                try {
-                    // We cant't use CONCURRENTLY because it causes dead-lock with ALTER TABLE and it's slow.
-                    projectConfig.getTimeColumn();
-                    executor.executeRawStatement(String.format("CREATE INDEX %s %s ON %s.%s USING %s(%s)",
-                            postgresql9_5 ? "IF NOT EXISTS" : "",
-                            checkCollection(String.format("%s_%s_%s_auto_index", project, collection, field.getName())),
-                            project, checkCollection(collection),
-                            (postgresql9_5 && field.getName().equals(projectConfig.getTimeColumn())) ? "BRIN" : "BTREE",
-                            checkTableColumn(field.getName())));
-                } catch (Exception e) {
-                    if (postgresql9_5) {
-                        throw e;
+            try (Connection conn = connectionPool.getConnection()) {
+                Statement statement = conn.createStatement();
+                for (SchemaField field : fields) {
+                    try {
+                        // We cant't use CONCURRENTLY because it causes dead-lock with ALTER TABLE and it's slow.
+                        projectConfig.getTimeColumn();
+                        statement.execute(String.format("CREATE INDEX %s %s ON %s.%s USING %s(%s)",
+                                postgresql9_5 ? "IF NOT EXISTS" : "",
+                                checkCollection(String.format("%s_%s_%s_auto_index", project, collection, field.getName())),
+                                project, checkCollection(collection),
+                                (postgresql9_5 && field.getName().equals(projectConfig.getTimeColumn())) ? "BRIN" : "BTREE",
+                                checkTableColumn(field.getName())));
+                    } catch (Exception e) {
+                        if (postgresql9_5) {
+                            throw e;
+                        }
                     }
                 }
+            } catch (SQLException e) {
+                throw Throwables.propagate(e);
             }
         }
+
     }
 
     public static class UserMergeTableHook {
-        private final PostgresqlQueryExecutor executor;
+        private final JDBCPoolDataSource connectionPool;
         private final ProjectConfig projectConfig;
 
         @Inject
-        public UserMergeTableHook(ProjectConfig projectConfig, PostgresqlQueryExecutor executor) {
+        public UserMergeTableHook(ProjectConfig projectConfig, @com.google.inject.name.Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool) {
             this.projectConfig = projectConfig;
-            this.executor = executor;
+            this.connectionPool = connectionPool;
         }
 
         @Subscribe
         public void onCreateProject(SystemEvents.ProjectCreatedEvent event) {
-            createTable(event.project);
-        }
-
-        public CompletableFuture<QueryResult> createTable(String project) {
-            return executor.executeRawStatement(format("CREATE TABLE %s(id VARCHAR, %s VARCHAR, " +
-                            "created_at TIMESTAMP, merged_at TIMESTAMP)",
-                    executor.formatTableReference(project, QualifiedName.of(ANONYMOUS_ID_MAPPING), Optional.empty(), ImmutableMap.of()),
-                    checkCollection(projectConfig.getUserColumn()))).getResult();
+            try (Connection conn = connectionPool.getConnection()) {
+                String query = format("CREATE TABLE %s.%s(id VARCHAR, %s VARCHAR, created_at TIMESTAMP, merged_at TIMESTAMP)",
+                        checkCollection(event.project), ANONYMOUS_ID_MAPPING, checkCollection(projectConfig.getUserColumn()));
+                conn.createStatement().execute(query);
+            } catch (SQLException e) {
+                throw Throwables.propagate(e);
+            }
         }
     }
 }

@@ -53,7 +53,6 @@ public class TestingEnvironment {
                     String prestoUrl = "http://" + testingPrestoServer.getAddress().toString();
                     prestoConfig = new PrestoConfig()
                             .setAddress(URI.create(prestoUrl))
-                            .setStreamingConnector("streaming")
                             .setColdStorageConnector("rakam_raptor");
                     LOGGER.info("Presto started on " + prestoUrl);
 

@@ -1,6 +1,5 @@
 package org.rakam.plugin.user;
 
-import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -8,19 +7,11 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
 import org.rakam.analysis.RequestContext;
 import org.rakam.collection.SchemaField;
-import org.rakam.report.QueryExecution;
-import org.rakam.report.QueryResult;
 import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.util.RakamException;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
 public abstract class AbstractUserService {
     private final UserStorage storage;
@@ -50,21 +41,6 @@ public abstract class AbstractUserService {
         return storage.getMetadata(context);
     }
 
-    public CompletableFuture<QueryResult> searchUsers(RequestContext context, List<String> columns, Expression filterExpression, List<UserStorage.EventFilter> eventFilter, UserStorage.Sorting sorting, int limit, String offset) {
-        return storage.searchUsers(context, columns, filterExpression, eventFilter, sorting, limit, offset);
-    }
-
-    public void createSegment(RequestContext context, String name, String tableName, Expression filterExpression, List<UserStorage.EventFilter> eventFilter, Duration interval)
-            throws RakamException {
-        if (filterExpression == null && (eventFilter == null || eventFilter.isEmpty())) {
-            throw new RakamException("At least one filter is required.", BAD_REQUEST);
-        }
-        storage.createSegment(context, name, tableName, filterExpression, eventFilter, interval);
-    }
-
-    public CompletableFuture<User> getUser(RequestContext context, Object user) {
-        return storage.getUser(context, user);
-    }
 
     public void setUserProperties(String project, Object user, ObjectNode properties) {
         storage.setUserProperties(project, user, properties);
@@ -74,8 +50,6 @@ public abstract class AbstractUserService {
         storage.setUserPropertiesOnce(project, user, properties);
     }
 
-    public abstract CompletableFuture<List<CollectionEvent>> getEvents(RequestContext context, String user, Optional<List<String>> properties, int limit, Instant beforeThisTime);
-
     public void incrementProperty(String project, Object user, String property, double value) {
         storage.incrementProperty(project, user, property, value);
     }
@@ -83,10 +57,6 @@ public abstract class AbstractUserService {
     public void unsetProperties(String project, Object user, List<String> properties) {
         storage.unsetProperties(project, user, properties);
     }
-
-    public abstract void merge(String project, Object user, Object anonymousId, Instant createdAt, Instant mergedAt);
-
-    public abstract QueryExecution preCalculate(String project, PreCalculateQuery query);
 
     public CompletableFuture<Void> batch(String project, List<? extends ISingleUserBatchOperation> batchUserOperations) {
         return storage.batch(project, batchUserOperations);
@@ -112,16 +82,6 @@ public abstract class AbstractUserService {
                                  @ApiParam(value = "dimension", required = false) String dimension) {
             this.collection = collection;
             this.dimension = dimension;
-        }
-    }
-
-    public static class PreCalculatedTable {
-        public final String name;
-        public final String tableName;
-
-        public PreCalculatedTable(String name, String tableName) {
-            this.name = name;
-            this.tableName = tableName;
         }
     }
 

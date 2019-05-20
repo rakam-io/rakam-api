@@ -7,7 +7,6 @@ import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
-import io.airlift.configuration.ConfigBinder;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.swagger.models.Tag;
@@ -20,10 +19,7 @@ import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SyncEventMapper;
 import org.rakam.plugin.SystemEvents;
-import org.rakam.plugin.user.mailbox.MailBoxWebSocketService;
-import org.rakam.report.EmailClientConfig;
 import org.rakam.server.http.HttpService;
-import org.rakam.server.http.WebSocketService;
 import org.rakam.util.ConditionalModule;
 import org.rakam.util.RakamException;
 
@@ -40,20 +36,16 @@ import static org.rakam.analysis.InternalConfig.USER_TYPE;
 public class UserModule
         extends RakamModule {
     private Map<String, Class<? extends UserActionService>> actionList = ImmutableMap.<String, Class<? extends UserActionService>>builder()
-            .put("email", UserEmailActionService.class)
+//            .put("email", UserEmailActionService.class)
             .build();
 
     @Override
     protected void setup(Binder binder) {
         Multibinder.newSetBinder(binder, UserPropertyMapper.class);
 
-        Multibinder<WebSocketService> webSocketServices = Multibinder.newSetBinder(binder, WebSocketService.class);
-        webSocketServices.addBinding().to(MailBoxWebSocketService.class).in(Scopes.SINGLETON);
-
         binder.bind(UserStorageListener.class).asEagerSingleton();
 
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
-        ConfigBinder.configBinder(binder).bindConfig(EmailClientConfig.class);
 
         Multibinder<Tag> tagMultibinder = Multibinder.newSetBinder(binder, Tag.class);
         tagMultibinder.addBinding()
@@ -78,7 +70,6 @@ public class UserModule
         if (userPluginConfig.getStorageModule() != null) {
             binder.bind(UserHttpService.class).asEagerSingleton();
 
-            httpServices.addBinding().to(UserUtilHttpService.class);
             httpServices.addBinding().to(UserHttpService.class).in(Scopes.SINGLETON);
         }
 
@@ -118,51 +109,6 @@ public class UserModule
             if (type != null) {
                 if (storage.isPresent()) {
                     storage.get().createProjectIfNotExists(event.project, type.isNumeric());
-                }
-            }
-        }
-    }
-
-    public static class UserPrecomputationListener {
-        private final AbstractUserService service;
-
-        @Inject
-        public UserPrecomputationListener(AbstractUserService service) {
-            this.service = service;
-        }
-
-        @Subscribe
-        public void onCreateFields(SystemEvents.CollectionFieldCreatedEvent event) {
-            if (event.fields.stream().anyMatch(f -> f.getName().equals("_user"))) {
-                createInternal(event.project, event.collection);
-            }
-        }
-
-        @Subscribe
-        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
-            if (event.fields.stream().anyMatch(f -> f.getName().equals("_user"))) {
-                createInternal(event.project, event.collection);
-            }
-        }
-
-        private void createInternal(String project, String collection) {
-            if (collection != null) {
-                try {
-//                    continuousQueryService.get(project, "_users_daily_" + collection);
-                } catch (RakamException e) {
-                    try {
-                        service.preCalculate(project, new AbstractUserService.PreCalculateQuery(collection, null));
-                    } catch (RakamException e1) {
-                    }
-                }
-            }
-
-            try {
-//                continuousQueryService.get(project, "_users_daily");
-            } catch (RakamException e) {
-                try {
-                    service.preCalculate(project, new AbstractUserService.PreCalculateQuery(null, null));
-                } catch (RakamException e1) {
                 }
             }
         }
