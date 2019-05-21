@@ -207,20 +207,22 @@ public class EventCollectionHttpService
             } catch (JsonMappingException e) {
                 String message = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
                 returnError(request, "JSON couldn't parsed: " + message, BAD_REQUEST);
+                LogUtil.logException(request, e);
                 return;
             } catch (IOException e) {
                 returnError(request, "JSON couldn't parsed: " + e.getMessage(), BAD_REQUEST);
+                LogUtil.logException(request, e);
                 return;
             } catch (RakamException e) {
-                LogUtil.logException(request, e);
                 returnError(request, e.getMessage(), e.getStatusCode());
+                LogUtil.logException(request, e);
                 return;
             } catch (HttpRequestException e) {
                 returnError(request, e.getMessage(), e.getStatusCode());
                 return;
             } catch (IllegalArgumentException e) {
-                LogUtil.logException(request, e);
                 returnError(request, e.getMessage(), BAD_REQUEST);
+                LogUtil.logException(request, e);
                 return;
             } catch (Exception e) {
                 LOGGER.error(e, "Error while collecting event");
