@@ -32,20 +32,18 @@ import org.rakam.http.OptionMethodHttpService;
 import org.rakam.http.WebServiceModule;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.InjectionHook;
-import org.rakam.plugin.LockServiceProvider;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.TimestampEventMapper;
 import org.rakam.plugin.stream.EventStreamConfig;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserStorage;
 import org.rakam.server.http.HttpRequestHandler;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
-import org.rakam.ui.ActiveModuleListBuilder;
 import org.rakam.util.NotFoundHandler;
 import org.rakam.util.RAsyncHttpClient;
 import org.rakam.util.javascript.JSCodeJDBCLoggerService;
 import org.rakam.util.javascript.JSLoggerService;
-import org.rakam.util.lock.LockService;
 
 import javax.inject.Inject;
 import java.io.IOException;
@@ -172,12 +170,14 @@ public final class ServiceStarter {
         @Override
         protected void setup(Binder binder) {
             binder.bind(Clock.class).toInstance(Clock.systemUTC());
-            binder.bind(LockService.class).toProvider(LockServiceProvider.class);
             binder.bind(FieldDependency.class).toProvider(FieldDependencyProvider.class).in(Scopes.SINGLETON);
 
             Multibinder.newSetBinder(binder, InjectionHook.class);
             OptionalBinder.newOptionalBinder(binder, AbstractUserService.class);
             OptionalBinder.newOptionalBinder(binder, UserStorage.class);
+
+            Multibinder<EventMapper> timeMapper = Multibinder.newSetBinder(binder, EventMapper.class);
+            timeMapper.addBinding().to(TimestampEventMapper.class).in(Scopes.SINGLETON);
 
             EventBus eventBus = new EventBus(new SubscriberExceptionHandler() {
                 Logger logger = Logger.get("System Event Listener");
@@ -208,7 +208,6 @@ public final class ServiceStarter {
 
             configBinder(binder).bindConfig(TaskConfig.class);
             configBinder(binder).bindConfig(EventStreamConfig.class);
-            binder.bind(ActiveModuleListBuilder.class).asEagerSingleton();
 
             Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
             httpServices.addBinding().to(OptionMethodHttpService.class);

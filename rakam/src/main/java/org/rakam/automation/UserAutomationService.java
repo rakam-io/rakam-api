@@ -25,7 +25,7 @@ public class UserAutomationService {
     private final Set<AutomationAction> automationActions;
 
     @Inject
-    public UserAutomationService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource, Set<AutomationAction> automationActions) {
+    public UserAutomationService(@Named("metadata.store.jdbc") JDBCPoolDataSource dataSource, Set<AutomationAction> automationActions) {
         dbi = new DBI(dataSource);
         this.automationActions = automationActions;
 

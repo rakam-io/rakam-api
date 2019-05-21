@@ -117,12 +117,6 @@ public class JSCodeCompiler {
             if (firstLineBreak == -1) {
                 throw new RakamException("Custom javascript code is not allowed in trial mode.", BAD_REQUEST);
             }
-            String substring = code.substring(0, firstLineBreak);
-            if (!substring.startsWith("//@ sourceURL=rakam-ui/src/main/resources/")) {
-                throw new RakamException("Custom javascript code is not allowed in trial mode.", BAD_REQUEST);
-            }
-
-            String path = substring.substring("//@ sourceURL=rakam-ui/src/main/resources/".length());
         }
         ScriptEngine engine = factory.getScriptEngine(args, classLoader, classFilter);
         Bindings bindings = engine.getBindings(ScriptContext.ENGINE_SCOPE);

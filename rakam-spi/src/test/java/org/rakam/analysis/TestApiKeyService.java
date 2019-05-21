@@ -22,7 +22,6 @@ public abstract class TestApiKeyService {
     public void testCreateApiKeys()  {
         ApiKeyService.ProjectApiKeys testing = getApiKeyService().createApiKeys(PROJECT_NAME);
 
-        assertEquals(getApiKeyService().getProjectOfApiKey(testing.readKey(), AccessKeyType.READ_KEY), PROJECT_NAME);
         assertEquals(getApiKeyService().getProjectOfApiKey(testing.writeKey(), AccessKeyType.WRITE_KEY), PROJECT_NAME);
         assertEquals(getApiKeyService().getProjectOfApiKey(testing.masterKey(), AccessKeyType.MASTER_KEY), PROJECT_NAME);
     }
@@ -30,12 +29,6 @@ public abstract class TestApiKeyService {
     @Test
     public void testInvalidApiKeys() {
         getApiKeyService().createApiKeys(PROJECT_NAME);
-
-        try {
-            getApiKeyService().getProjectOfApiKey("invalidKey", AccessKeyType.READ_KEY);
-            fail();
-        } catch (RakamException e) {
-        }
 
         try {
             getApiKeyService().getProjectOfApiKey("invalidKey", AccessKeyType.WRITE_KEY);
@@ -51,16 +44,10 @@ public abstract class TestApiKeyService {
     }
 
     @Test
-    public void testRevokeApiKeys() throws Exception {
+    public void testRevokeApiKeys() {
         ApiKeyService.ProjectApiKeys apiKeys = getApiKeyService().createApiKeys(PROJECT_NAME);
 
         getApiKeyService().revokeApiKeys(PROJECT_NAME, apiKeys.masterKey());
-
-        try {
-            getApiKeyService().getProjectOfApiKey(apiKeys.readKey(), AccessKeyType.READ_KEY);
-            fail();
-        } catch (RakamException e) {
-        }
 
         try {
             getApiKeyService().getProjectOfApiKey(apiKeys.writeKey(), AccessKeyType.WRITE_KEY);

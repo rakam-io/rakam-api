@@ -63,7 +63,7 @@ public class AutomationHttpService extends HttpService {
     }
 
     @ApiOperation(value = "List scenarios",
-            authorizations = @Authorization(value = "read_key")
+            authorizations = @Authorization(value = "master_key")
     )
     @GET
     @Path("/list")

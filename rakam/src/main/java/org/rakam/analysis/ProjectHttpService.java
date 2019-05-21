@@ -96,7 +96,7 @@ public class ProjectHttpService
         for (String apiKey : apiKeys) {
             String project;
             try {
-                project = apiKeyService.getProjectOfApiKey(apiKey, READ_KEY);
+                project = apiKeyService.getProjectOfApiKey(apiKey, MASTER_KEY);
             } catch (RakamException e) {
                 if (e.getStatusCode() == FORBIDDEN) {
                     continue;
@@ -115,7 +115,7 @@ public class ProjectHttpService
     }
 
     @ApiOperation(value = "List created projects",
-            authorizations = @Authorization(value = "read_key")
+            authorizations = @Authorization(value = "master_key")
     )
     @JsonRequest
     @Path("/list")
@@ -154,7 +154,7 @@ public class ProjectHttpService
 
     @JsonRequest
     @ApiOperation(value = "Get collection schema",
-            authorizations = @Authorization(value = "read_key"))
+            authorizations = @Authorization(value = "master_key"))
 
     @Path("/schema")
     public List<Collection> schema(@Named("project") RequestContext context,
@@ -186,7 +186,6 @@ public class ProjectHttpService
                     }
                 };
                 Optional.ofNullable(key.masterKey()).map(k -> apiKeyService.getProjectOfApiKey(k, MASTER_KEY)).ifPresent(stringConsumer);
-                Optional.ofNullable(key.readKey()).map(k -> apiKeyService.getProjectOfApiKey(k, READ_KEY)).ifPresent(stringConsumer);
                 Optional.ofNullable(key.writeKey()).map(k -> apiKeyService.getProjectOfApiKey(k, WRITE_KEY)).ifPresent(stringConsumer);
                 return true;
             } catch (RakamException e) {
@@ -196,19 +195,14 @@ public class ProjectHttpService
     }
 
     private ProjectApiKeys transformKeys(ProjectApiKeys apiKeys) {
-        if (projectConfig.getPassphrase() == null) {
-            return ProjectApiKeys.create(apiKeys.masterKey(), apiKeys.readKey(), apiKeys.writeKey());
-        } else {
-            return ProjectApiKeys.create(
-                    CryptUtil.encryptAES(apiKeys.masterKey(), projectConfig.getPassphrase()),
-                    CryptUtil.encryptAES(apiKeys.readKey(), projectConfig.getPassphrase()),
-                    CryptUtil.encryptAES(apiKeys.writeKey(), projectConfig.getPassphrase()));
-        }
+        return ProjectApiKeys.create(
+                CryptUtil.encryptAES(apiKeys.masterKey(), projectConfig.getPassphrase()),
+                CryptUtil.encryptAES(apiKeys.writeKey(), projectConfig.getPassphrase()));
     }
 
     @JsonRequest
     @ApiOperation(value = "Get collection names",
-            authorizations = @Authorization(value = "read_key"))
+            authorizations = @Authorization(value = "master_key"))
 
     @Path("/collection")
     public Set<String> collections(@Named("project") RequestContext context) {

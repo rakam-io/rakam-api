@@ -26,7 +26,7 @@ public class JSCodeJDBCLoggerService implements JSLoggerService {
     private final DBI dbi;
 
     @Inject
-    public JSCodeJDBCLoggerService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
+    public JSCodeJDBCLoggerService(@Named("metadata.store.jdbc") JDBCPoolDataSource dataSource) {
         this.dbi = new DBI(dataSource);
     }
 

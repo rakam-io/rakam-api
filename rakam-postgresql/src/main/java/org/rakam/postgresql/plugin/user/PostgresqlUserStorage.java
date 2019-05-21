@@ -13,6 +13,7 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
+import com.google.inject.name.Named;
 import org.postgresql.util.PGobject;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.JDBCPoolDataSource;
@@ -29,6 +30,7 @@ import org.rakam.util.ProjectCollection;
 import org.rakam.util.RakamException;
 
 import javax.annotation.Nullable;
+import javax.inject.Inject;
 import java.sql.*;
 import java.sql.Date;
 import java.time.Instant;
@@ -55,7 +57,8 @@ public class PostgresqlUserStorage
     private final ConfigManager configManager;
     private final ThreadPoolExecutor executor;
 
-    public PostgresqlUserStorage(JDBCPoolDataSource connectionPool, ConfigManager configManager) {
+    @Inject
+    public PostgresqlUserStorage(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, ConfigManager configManager) {
         executor = new ThreadPoolExecutor(
                 0,
                 Runtime.getRuntime().availableProcessors() * 4,

@@ -12,6 +12,7 @@ public class ProjectConfig {
     private String lockKey;
     private String passphrase;
     private String timeColumn = "_time";
+    private String clientTimeColumn = "_client_time";
     private String userColumn = "_user";
     private String companyName;
     private int maxStringLength = 100;
@@ -45,6 +46,16 @@ public class ProjectConfig {
     @Config("time-column")
     public ProjectConfig setTimeColumn(String timeColumn) {
         this.timeColumn = timeColumn;
+        return this;
+    }
+
+    public String getClientTimeColumn() {
+        return clientTimeColumn;
+    }
+
+    @Config("client-time-column")
+    public ProjectConfig setClientTimeColumn(String timeColumn) {
+        this.clientTimeColumn = timeColumn;
         return this;
     }
 

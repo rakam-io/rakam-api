@@ -53,8 +53,6 @@ public class ClickHouseQueryExecutor implements QueryExecutor {
             String prefix = node.getPrefix().get().toString();
             if (prefix.equals("continuous")) {
                 return ".`" + project + "`.`$continuous_" + checkCollection(node.getSuffix(), '`');
-            } else if (prefix.equals("materialized")) {
-                return ".`" + project + "`.`$materialized_" + checkCollection(node.getSuffix(), '`');
             } else if (prefix.equals("user")) {
                 throw new IllegalArgumentException();
             } else if (!prefix.equals("collection")) {

@@ -31,7 +31,7 @@ public interface ApiKeyService {
     }
 
     enum AccessKeyType {
-        MASTER_KEY("master_key"), READ_KEY("read_key"), WRITE_KEY("write_key");
+        MASTER_KEY("master_key"), WRITE_KEY("write_key");
 
         private final String key;
 
@@ -58,18 +58,13 @@ public interface ApiKeyService {
         @JsonCreator
         public static ProjectApiKeys create(
                 @JsonProperty("master_key") String masterKey,
-                @JsonProperty("read_key") String readKey,
                 @JsonProperty("write_key") String writeKey) {
-            return new AutoValue_ApiKeyService_ProjectApiKeys(masterKey, readKey, writeKey);
+            return new AutoValue_ApiKeyService_ProjectApiKeys(masterKey, writeKey);
         }
 
         @Nullable
         @JsonProperty("master_key")
         public abstract String masterKey();
-
-        @Nullable
-        @JsonProperty("read_key")
-        public abstract String readKey();
 
         @Nullable
         @JsonProperty("write_key")
@@ -81,8 +76,6 @@ public interface ApiKeyService {
                     return writeKey();
                 case MASTER_KEY:
                     return masterKey();
-                case READ_KEY:
-                    return readKey();
                 default:
                     throw new IllegalStateException();
             }

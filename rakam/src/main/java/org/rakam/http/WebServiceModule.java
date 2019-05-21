@@ -85,7 +85,6 @@ public class WebServiceModule
                 .basePath("/")
                 .tags(ImmutableList.copyOf(tags))
                 .securityDefinition("write_key", new ApiKeyAuthDefinition().in(In.HEADER).name("write_key"))
-                .securityDefinition("read_key", new ApiKeyAuthDefinition().in(In.HEADER).name("read_key"))
                 .securityDefinition("master_key", new ApiKeyAuthDefinition().in(In.HEADER).name("master_key"));
 
         EventLoopGroup eventExecutors;

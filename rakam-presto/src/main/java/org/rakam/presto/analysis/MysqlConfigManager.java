@@ -18,7 +18,7 @@ public class MysqlConfigManager
     private final DBI dbi;
 
     @Inject
-    public MysqlConfigManager(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
+    public MysqlConfigManager(@Named("metadata.store.jdbc") JDBCPoolDataSource dataSource) {
         this.dbi = new DBI(dataSource);
     }
 

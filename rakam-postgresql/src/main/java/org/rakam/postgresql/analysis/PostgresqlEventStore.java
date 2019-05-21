@@ -1,5 +1,6 @@
 package org.rakam.postgresql.analysis;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
@@ -107,6 +108,9 @@ public class PostgresqlEventStore
         for (int i = startFrom; i < events.size(); i++) {
             Event event = events.get(i);
             Number time = event.getAttribute("_time");
+            if(time == null) {
+                time = System.currentTimeMillis();
+            }
             cal.setTimeInMillis(time.longValue());
             int year = cal.get(Calendar.YEAR);
             int month = cal.get(Calendar.MONDAY) + 1;
@@ -142,16 +146,17 @@ public class PostgresqlEventStore
                 int month = Integer.parseInt(split[1]);
 
                 try {
-                    statement.execute(format("CREATE TABLE %s.\"%s~%d_%d\" PARTITION OF %s.%s\n" +
-                                    "FOR VALUES FROM ('%s-%d-1 00:00:00.000000') to ( '%s-%d-1 00:00:00.000000')",
+                    String query = format("CREATE TABLE %s.\"%s~%d_%d\" PARTITION OF %s.%s\n" +
+                                    "FOR VALUES FROM ('%s-%s-1 00:00:00.000000') to ( '%s-%s-1 00:00:00.000000')",
                             checkProject(project, '"'),
                             collection.replaceAll("\"", ""),
                             year, month,
                             checkProject(project, '"'),
                             checkCollection(collection, '"'),
-                            year, month,
-                            month == 12 ? year + 1 : year,
-                            month == 12 ? 1 : month + 1));
+                            Strings.padStart(String.valueOf(year), 2, '0'), month,
+                            Strings.padStart(String.valueOf(month == 12 ? year + 1 : year), 2, '0'),
+                                    Strings.padStart(String.valueOf(month == 12 ? 1 : month + 1), 2, '0'));
+                    statement.execute(query);
                 } catch (SQLException e) {
                     if (!"42P07".equals(e.getSQLState())) {
                         throw new RuntimeException(e);

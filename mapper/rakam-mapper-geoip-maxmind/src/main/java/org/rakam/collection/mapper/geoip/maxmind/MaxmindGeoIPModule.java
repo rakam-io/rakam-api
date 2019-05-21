@@ -121,12 +121,8 @@ public class MaxmindGeoIPModule
     protected void setup(Binder binder) {
         MaxmindGeoIPModuleConfig geoIPModuleConfig = buildConfigObject(MaxmindGeoIPModuleConfig.class);
         MaxmindGeoIPEventMapper geoIPEventMapper;
-        try {
-            geoIPEventMapper = new MaxmindGeoIPEventMapper(geoIPModuleConfig);
-        } catch (IOException e) {
-            binder.addError(e);
-            return;
-        }
+        geoIPEventMapper = new MaxmindGeoIPEventMapper(geoIPModuleConfig);
+
         Multibinder.newSetBinder(binder, UserPropertyMapper.class).addBinding().toInstance(geoIPEventMapper);
         Multibinder.newSetBinder(binder, EventMapper.class).addBinding().toInstance(geoIPEventMapper);
     }

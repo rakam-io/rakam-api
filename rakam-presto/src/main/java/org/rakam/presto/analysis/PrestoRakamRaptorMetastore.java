@@ -1,7 +1,6 @@
 package org.rakam.presto.analysis;
 
 import com.facebook.presto.raptor.metadata.Distribution;
-import com.facebook.presto.raptor.metadata.MetadataDao;
 import com.facebook.presto.raptor.metadata.Table;
 import com.facebook.presto.raptor.metadata.TableColumn;
 import com.facebook.presto.spi.ConnectorSession;
@@ -17,6 +16,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
 import com.google.inject.name.Named;
 import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.analysis.metadata.AbstractMetastore;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
@@ -36,10 +36,8 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static com.facebook.presto.raptor.metadata.DatabaseShardManager.*;
 import static com.facebook.presto.raptor.storage.ShardStats.MAX_BINARY_INDEX_SIZE;
 import static com.facebook.presto.raptor.util.DatabaseUtil.metadataError;
 import static com.facebook.presto.raptor.util.DatabaseUtil.onDemandDao;
@@ -50,10 +48,9 @@ import static java.lang.String.format;
 import static java.sql.JDBCType.VARBINARY;
 import static java.util.Locale.ENGLISH;
 import static org.rakam.collection.FieldType.*;
-import static org.rakam.util.ValidationUtil.checkLiteral;
 import static org.rakam.util.ValidationUtil.checkProject;
 
-public class PrestoRakamRaptorMetastore extends PrestoAbstractMetastore {
+public class PrestoRakamRaptorMetastore extends AbstractMetastore {
     private final DBI dbi;
     private final MetadataDao dao;
     private final PrestoConfig prestoConfig;
@@ -61,7 +58,7 @@ public class PrestoRakamRaptorMetastore extends PrestoAbstractMetastore {
 
     @Inject
     public PrestoRakamRaptorMetastore(
-            @Named("presto.metastore.jdbc") JDBCPoolDataSource prestoMetastoreDataSource,
+            @Named("metadata.store.jdbc") JDBCPoolDataSource prestoMetastoreDataSource,
             EventBus eventBus,
             ProjectConfig projectConfig,
             PrestoConfig prestoConfig) {
@@ -182,63 +179,22 @@ public class PrestoRakamRaptorMetastore extends PrestoAbstractMetastore {
 
         List<SchemaField> schemaFields = getCollection(project, collection);
         List<SchemaField> lastFields;
-        Table tableInformation = dao.getTableInformation(project, collection);
-        if (schemaFields.isEmpty() && tableInformation == null) {
-            if (collection.startsWith("$materialized")) {
-                throw new RakamException("Collections cannot start with $materialized prefix", BAD_REQUEST);
-            }
-
+        if (schemaFields.isEmpty()) {
             if (!getProjects().contains(project)) {
                 throw new NotExistsException("Project");
             }
-
-            List<String> params = new ArrayList<>();
-            if (fields.stream().anyMatch(f -> f.getName().equals(projectConfig.getTimeColumn()) && (f.getType() == TIMESTAMP || f.getType() == DATE))) {
-                params.add(format("temporal_column = '%s'", checkLiteral(projectConfig.getTimeColumn())));
-            }
-
-            dao.insertTable(project, collection, true, true, 1L, Instant.now().toEpochMilli());
-            lastFields = fields.stream().collect(Collectors.toList());
-        } else {
-            List<SchemaField> newFields = new ArrayList<>();
-
-
-            fields.stream()
-                    .filter(field -> schemaFields.stream().noneMatch(f -> f.getName().equals(field.getName())))
-                    .forEach(f -> {
-                        if (f.getName().equals(prestoConfig.getCheckpointColumn())) {
-                            throw new RakamException("Checkpoint column is reserved", BAD_REQUEST);
-                        }
-                        newFields.add(f);
-                        try {
-                            addColumn(tableInformation, project, collection, f.getName(), f.getType());
-                        } catch (Exception e) {
-                            if (e.getMessage().equals(METADATA_ERROR) && (e.getCause().getMessage().contains(JDBI_CONFLICT_ERROR) || e.getCause().getMessage().contains(JDBI_DUPLICATE_ERROR))) {
-                                for (int i = 0; i < 50; i++) {
-                                    try {
-                                        addColumn(tableInformation, project, collection, f.getName(), f.getType());
-                                    } catch (Exception ex) {
-                                        if (ex.getMessage().equals(METADATA_ERROR) && (ex.getCause().getMessage().contains(JDBI_CONFLICT_ERROR) || ex.getCause().getMessage().contains(JDBI_DUPLICATE_ERROR))) {
-                                            continue;
-                                        } else if (e.getMessage().contains("exists")) {
-                                            break;
-                                        }
-
-                                        throw new IllegalStateException(format("Error while adding a column called %s : %s", f.getName(), f.getType().name()), ex);
-                                    }
-
-                                    break;
-                                }
-                            } else if (e.getMessage().contains("exists")) {
-                                // no op
-                            } else {
-                                throw new IllegalStateException(format("Error while adding a column called %s : %s", f.getName(), f.getType().name()), e);
-                            }
-                        }
-                    });
-
-            lastFields = getCollection(project, collection);
         }
+
+        fields.stream()
+                .filter(field -> schemaFields.stream().noneMatch(f -> f.getName().equals(field.getName())))
+                .forEach(f -> {
+                    if (f.getName().equals(prestoConfig.getCheckpointColumn())) {
+                        throw new RakamException("Checkpoint column is reserved", BAD_REQUEST);
+                    }
+                    addColumn(project, collection, f.getName(), f.getType());
+                });
+
+        lastFields = getCollection(project, collection);
 
         super.onCreateCollection(project, collection, schemaFields);
         return lastFields;
@@ -248,33 +204,16 @@ public class PrestoRakamRaptorMetastore extends PrestoAbstractMetastore {
     private static final String JDBI_CONFLICT_ERROR = "Unique index or primary key violation";
     private static final String JDBI_DUPLICATE_ERROR = "Duplicate entry";
 
-    private void addColumn(Table table, String schema, String tableName, String columnName, FieldType fieldType) {
-        List<TableColumn> existingColumns = dao.listTableColumns(schema, tableName);
-        TableColumn lastColumn = existingColumns.get(existingColumns.size() - 1);
-        long columnId = lastColumn.getColumnId() + 1;
-        int ordinalPosition = existingColumns.size();
-
+    private void addColumn(Table table, String columnName, FieldType fieldType) {
         String type = TypeSignature.parseTypeSignature(toSql(fieldType)).toString().toLowerCase(ENGLISH);
 
         daoTransaction(dbi, MetadataDao.class, dao -> {
-            dao.insertColumn(table.getTableId(), columnId, columnName, ordinalPosition, type, null, null);
-            dao.updateTableVersion(table.getTableId(), System.currentTimeMillis());
+            dao.insertColumn(table.getTableId(), columnName, type);
         });
 
         String columnType = sqlColumnType(fieldType);
         if (columnType == null) {
             return;
-        }
-
-        String sql = format("ALTER TABLE %s ADD COLUMN (%s %s, %s %s)",
-                shardIndexTable(table.getTableId()),
-                minColumn(columnId), columnType,
-                maxColumn(columnId), columnType);
-
-        try (Handle handle = dbi.open()) {
-            handle.execute(sql);
-        } catch (DBIException e) {
-            throw metadataError(e);
         }
     }
 
@@ -361,8 +300,7 @@ public class PrestoRakamRaptorMetastore extends PrestoAbstractMetastore {
 
     @Override
     public Set<String> getCollectionNames(String project) {
-        return dao.listTables(project).stream().map(e -> e.getTableName())
-                .collect(Collectors.toSet());
+        return dao.listTables(project).stream().collect(Collectors.toSet());
     }
 
     @Override
@@ -391,11 +329,6 @@ public class PrestoRakamRaptorMetastore extends PrestoAbstractMetastore {
                     handle.createQuery("select name from project")
                             .map(StringMapper.FIRST).iterator());
         }
-    }
-
-    @Override
-    public Map<String, List<SchemaField>> getSchemas(String project, Predicate<String> filter) {
-        return getTables(project, (t, c) -> filter.test(t));
     }
 
     public Map<String, List<SchemaField>> getTables(String project, BiPredicate<String, String> filter) {

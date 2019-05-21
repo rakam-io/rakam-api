@@ -32,44 +32,17 @@ public class PrestoModule
         configBinder(binder).bindConfig(PrestoConfig.class);
         PrestoConfig prestoConfig = buildConfigObject(PrestoConfig.class);
 
-        buildConfigObject(JDBCConfig.class, "report.metadata.store.jdbc");
+        buildConfigObject(JDBCConfig.class, "metadata.store.jdbc");
 
-        JDBCPoolDataSource metadataDataSource;
-        if ("rakam_raptor".equals(prestoConfig.getColdStorageConnector())) {
-            metadataDataSource = bindJDBCConfig(binder, "presto.metastore.jdbc");
-        } else {
-            metadataDataSource = bindJDBCConfig(binder, "report.metadata.store.jdbc");
-        }
+        JDBCPoolDataSource metadataDataSource = bindJDBCConfig(binder, "metadata.store.jdbc");
 
         binder.bind(ApiKeyService.class).toInstance(new JDBCApiKeyService(metadataDataSource));
+        binder.bind(ConfigManager.class).to(MysqlConfigManager.class);
+        binder.bind(JDBCPoolDataSource.class)
+                .annotatedWith(Names.named("metadata.store.jdbc"))
+                .toInstance(metadataDataSource);
 
-        // use same jdbc pool if report.metadata.store is not set explicitly.
-        if (getConfig("report.metadata.store") == null) {
-            binder.bind(JDBCPoolDataSource.class)
-                    .annotatedWith(Names.named("report.metadata.store.jdbc"))
-                    .toInstance(metadataDataSource);
-
-            String url = metadataDataSource.getConfig().getUrl();
-            if (url.startsWith("jdbc:mysql")) {
-                binder.bind(ConfigManager.class).to(MysqlConfigManager.class);
-            } else if (url.startsWith("jdbc:postgresql")) {
-                binder.bind(ConfigManager.class).to(PostgresqlConfigManager.class);
-            } else {
-                throw new IllegalStateException(format("Invalid report metadata database: %s", url));
-            }
-        }
-
-        Class<? extends PrestoAbstractMetastore> implementation;
-        if ("rakam_raptor".equals(prestoConfig.getColdStorageConnector())) {
-            implementation = PrestoRakamRaptorMetastore.class;
-        } else {
-            implementation = PrestoMetastore.class;
-        }
-
-        binder.bind(Metastore.class).to(implementation).in(Scopes.SINGLETON);
-        binder.bind(PrestoAbstractMetastore.class).to(implementation).in(Scopes.SINGLETON);
-        Multibinder<EventMapper> timeMapper = Multibinder.newSetBinder(binder, EventMapper.class);
-        timeMapper.addBinding().to(TimestampEventMapper.class).in(Scopes.SINGLETON);
+        binder.bind(Metastore.class).to(PrestoRakamRaptorMetastore.class).in(Scopes.SINGLETON);
     }
 
     @Override

@@ -112,16 +112,8 @@ public class AutomationRule {
             this.collection = collection;
             this.filter = filterExpression;
             this.threshold = threshold == null ? DEFAULT_THRESHOLD : threshold;
+            filterPredicate = (event) -> true;
 
-            if (filterExpression == null || filterExpression.isEmpty()) {
-                filterPredicate = (event) -> true;
-            } else {
-                try {
-                    filterPredicate = ExpressionCompiler.compile(filterExpression);
-                } catch (UnsupportedOperationException e) {
-                    throw new RakamException("Unable to compile filter expression", HttpResponseStatus.NOT_IMPLEMENTED);
-                }
-            }
         }
     }
 }

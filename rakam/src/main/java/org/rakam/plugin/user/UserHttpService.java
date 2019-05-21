@@ -1,7 +1,5 @@
 package org.rakam.plugin.user;
 
-import com.facebook.presto.sql.parser.SqlParser;
-import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
@@ -53,7 +51,6 @@ import static org.rakam.server.http.HttpServer.returnError;
 public class UserHttpService
         extends HttpService {
     private final static Logger LOGGER = Logger.get(UserHttpService.class);
-    private final static SqlParser sqlParser = new SqlParser();
     private final byte[] OK_MESSAGE = "1".getBytes(UTF_8);
     private final UserPluginConfig config;
     private final AbstractUserService service;
@@ -71,23 +68,8 @@ public class UserHttpService
         this.mappers = mappers;
     }
 
-    public static Expression parseExpression(String filter) {
-        if (filter != null) {
-            try {
-                synchronized (sqlParser) {
-                    return sqlParser.createExpression(filter);
-                }
-            } catch (Exception e) {
-                throw new RakamException(format("filter expression '%s' couldn't parsed", filter),
-                        BAD_REQUEST);
-            }
-        } else {
-            return null;
-        }
-    }
-
     @GET
-    @ApiOperation(value = "Get user storage metadata", authorizations = @Authorization(value = "read_key"))
+    @ApiOperation(value = "Get user storage metadata", authorizations = @Authorization(value = "master_key"))
     @JsonRequest
     @Path("/metadata")
     public MetadataResponse getMetadata(@Named("project") RequestContext context) {

@@ -32,7 +32,6 @@ project/plugins/project/
 # Scala-IDE specific
 .scala_dependencies
 
-rakam-ui/src/main/resources/rakam-ui-master
 git.properties
 .DS_Store
 dependency-reduced-pom.xml

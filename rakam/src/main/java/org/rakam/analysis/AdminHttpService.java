@@ -11,8 +11,6 @@ import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.EventMapper;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.*;
-import org.rakam.ui.ActiveModuleListBuilder;
-import org.rakam.ui.ActiveModuleListBuilder.ActiveModuleList;
 
 import javax.inject.Inject;
 import javax.ws.rs.GET;
@@ -25,16 +23,14 @@ import java.util.stream.Collectors;
 public class AdminHttpService
         extends HttpService {
     private final SystemRegistry systemRegistry;
-    private final ActiveModuleList activeModules;
     private final ProjectConfig projectConfig;
     private final Set<EventMapper> eventMappers;
 
     @Inject
-    public AdminHttpService(SystemRegistry systemRegistry, Set<EventMapper> eventMappers, ProjectConfig projectConfig, ActiveModuleListBuilder activeModuleListBuilder) {
+    public AdminHttpService(SystemRegistry systemRegistry, Set<EventMapper> eventMappers, ProjectConfig projectConfig) {
         this.systemRegistry = systemRegistry;
         this.projectConfig = projectConfig;
         this.eventMappers = eventMappers;
-        activeModules = activeModuleListBuilder.build();
     }
 
     @ApiOperation(value = "List installed modules",
@@ -93,16 +89,6 @@ public class AdminHttpService
     @Path("/lock_key")
     public boolean checkLockKey(@ApiParam(value = "lock_key", required = false) String lockKey) {
         return Objects.equals(lockKey, projectConfig.getLockKey());
-    }
-
-    @Path("/modules")
-    @GET
-    @IgnoreApi
-    @ApiOperation(value = "List installed modules for Rakam UI",
-            authorizations = @Authorization(value = "master_key")
-    )
-    public ActiveModuleList modules() {
-        return activeModules;
     }
 
     public static class EventMapperDescription {

@@ -33,7 +33,6 @@ import org.rakam.collection.*;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.*;
-import org.rakam.ui.CustomEventMapperUIHttpService.Parameter;
 import org.rakam.util.AvroUtil;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
@@ -83,7 +82,7 @@ public class CustomEventMapperHttpService
 
     @Inject
     public CustomEventMapperHttpService(
-            @Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
+            @Named("metadata.store.jdbc") JDBCPoolDataSource dataSource,
             Metastore metastore,
             JSCodeCompiler jsCodeCompiler,
             JSCodeJDBCLoggerService loggerService) {

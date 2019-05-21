@@ -1,6 +1,5 @@
 package org.rakam.postgresql;
 
-import com.google.api.client.util.Throwables;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.Subscribe;
@@ -8,6 +7,7 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Provider;
 import com.google.inject.Scopes;
+import com.google.inject.multibindings.Multibinder;
 import com.google.inject.name.Names;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import org.rakam.analysis.ApiKeyService;
@@ -20,9 +20,7 @@ import org.rakam.collection.SchemaField;
 import org.rakam.config.JDBCConfig;
 import org.rakam.config.MetadataConfig;
 import org.rakam.config.ProjectConfig;
-import org.rakam.plugin.EventStore;
-import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.SystemEvents;
+import org.rakam.plugin.*;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.postgresql.analysis.PostgresqlConfig;
@@ -100,10 +98,8 @@ public class PostgresqlModule
 
         boolean isUserModulePostgresql = "postgresql".equals(getConfig("plugin.user.storage"));
         if (isUserModulePostgresql) {
-            binder.bind(AbstractUserService.class).to(PostgresqlUserService.class)
-                    .in(Scopes.SINGLETON);
-            binder.bind(PostgresqlUserStorage.class).to(PostgresqlUserStorage.class)
-                    .in(Scopes.SINGLETON);
+            binder.bind(AbstractUserService.class).to(PostgresqlUserService.class).in(Scopes.SINGLETON);
+            binder.bind(PostgresqlUserStorage.class).in(Scopes.SINGLETON);
         } else {
             binder.bind(boolean.class).annotatedWith(Names.named("user.storage.postgresql"))
                     .toInstance(false);
@@ -114,9 +110,9 @@ public class PostgresqlModule
         }
 
         // use same jdbc pool if report.metadata.store is not set explicitly.
-        if (getConfig("report.metadata.store") == null) {
+        if (getConfig("metadata.store") == null) {
             binder.bind(JDBCPoolDataSource.class)
-                    .annotatedWith(Names.named("report.metadata.store.jdbc"))
+                    .annotatedWith(Names.named("metadata.store.jdbc"))
                     .toInstance(orCreateDataSource);
 
             binder.bind(ConfigManager.class).to(PostgresqlConfigManager.class);
@@ -236,7 +232,7 @@ public class PostgresqlModule
                     }
                 }
             } catch (SQLException e) {
-                throw Throwables.propagate(e);
+                throw new RuntimeException(e);
             }
         }
 
@@ -259,7 +255,7 @@ public class PostgresqlModule
                         checkCollection(event.project), ANONYMOUS_ID_MAPPING, checkCollection(projectConfig.getUserColumn()));
                 conn.createStatement().execute(query);
             } catch (SQLException e) {
-                throw Throwables.propagate(e);
+                throw new RuntimeException(e);
             }
         }
     }
