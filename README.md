@@ -1,5 +1,4 @@
-[![Build Status](https://travis-ci.org/rakam-io/rakam.svg?branch=master)](https://travis-ci.org/rakam-io/rakam) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [<img alt="Deploy" src="https://www.herokucdn.com/deploy/button.png" height="21">](https://dashboard.heroku.com/new?button-url=https%3A%2F%2Fgithub.com%2Frakam-io%2Frakam&template=https%3A%2F%2Fgithub.com%2Frakam-io%2Frakam) [![Install on DigitalOcean](https://installer.71m.us/button.svg)](https://installer.71m.us/install?url=https://github.com/rakam-io/rakam)
-
+[![Build Status](https://travis-ci.org/rakam-io/rakam.svg?branch=master)](https://travis-ci.org/rakam-io/rakam) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [<img alt="Deploy" src="https://www.herokucdn.com/deploy/button.png" height="21">](https://dashboard.heroku.com/new?button-url=https%3A%2F%2Fgithub.com%2Frakam-io%2Frakam&template=https%3A%2F%2Fgithub.com%2Frakam-io%2Frakam) 
 Rakam
 =======
 
@@ -34,12 +33,6 @@ However Rakam is designed to be highly scalable in order to provide a solution f
 You can deploy Rakam to Heroku using Heroku button, it uses Heroku Postgresql add-on for your app and uses Postgresql deployment type.
 
 [![Deploy](https://www.herokucdn.com/deploy/button.png)](https://dashboard.heroku.com/new?button-url=https%3A%2F%2Fgithub.com%2Frakam-io%2Frakam&template=https%3A%2F%2Fgithub.com%2Frakam-io%2Frakam)
-
-### Digitalocean
-
-Digitalocean installer uses Docker under the hood. It will install Docker on your droplet and run docker image of Postgresql and link it with your Rakam container. The API the image exposes is `9999`, you may visit your Rakam API address from `YOUR_DROPLET_IP:80`. The default lock key is `mylockKey`.
-
-[![Install on DigitalOcean](https://installer.71m.us/button.svg)](https://installer.71m.us/install?url=https://github.com/rakam-io/rakam)
 
 ### Docker
 
