@@ -51,7 +51,8 @@ public class TimestampEventMapper
             properties.put(projectConfig.getTimeColumn(), serverTime * 1000);
         } else if (time instanceof Number && event.api() != null && event.api().uploadTime != null) {
             // match server time and client time and get an estimate
-            long fixedTime = ((Number) time).longValue() + ((Instant.now().getEpochSecond() - (event.api().uploadTime / 1000)) * 1000);
+            long shift = System.currentTimeMillis() - event.api().uploadTime;
+            long fixedTime = ((Number) time).longValue() + shift;
             properties.put(projectConfig.getTimeColumn(), fixedTime);
         }
         return null;
