@@ -1,10 +1,12 @@
 package org.rakam.aws.kinesis;
 
+import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.handlers.AsyncHandler;
+import com.amazonaws.services.kinesis.AmazonKinesisAsync;
 import com.amazonaws.services.kinesis.AmazonKinesisAsyncClient;
+import com.amazonaws.services.kinesis.AmazonKinesisAsyncClientBuilder;
 import com.amazonaws.services.kinesis.model.PutRecordRequest;
 import com.amazonaws.services.kinesis.model.PutRecordResult;
-import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import io.airlift.log.Logger;
@@ -39,7 +41,7 @@ public class AWSKinesisEventStore
         implements EventStore {
     private final static Logger LOGGER = Logger.get(AWSKinesisEventStore.class);
 
-    private final AmazonKinesisAsyncClient kinesis;
+    private final AmazonKinesisAsync kinesis;
     private final AWSConfig config;
     private final S3BulkEventStore bulkClient;
     private final KinesisProducer producer;
@@ -48,11 +50,15 @@ public class AWSKinesisEventStore
     public AWSKinesisEventStore(AWSConfig config,
                                 Metastore metastore,
                                 FieldDependency fieldDependency) {
-        kinesis = new AmazonKinesisAsyncClient(config.getCredentials());
-        kinesis.setRegion(config.getAWSRegion());
-        if (config.getKinesisEndpoint() != null) {
-            kinesis.setEndpoint(config.getKinesisEndpoint());
+        AmazonKinesisAsyncClientBuilder builder = AmazonKinesisAsyncClient.asyncBuilder().withCredentials(config.getCredentials());
+        if (config.getRegion() != null) {
+            builder.setRegion(config.getRegion());
         }
+        if (config.getKinesisEndpoint() != null) {
+            builder.setEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(config.getRegion(), null));
+        }
+
+        kinesis = builder.build();
         this.config = config;
         this.bulkClient = new S3BulkEventStore(metastore, config, fieldDependency);
 
@@ -137,10 +143,10 @@ public class AWSKinesisEventStore
 
     private String getPartitionKey(Event event) {
         Object user = event.getAttribute("_user");
-        if(user == null) {
+        if (user == null) {
             user = event.getAttribute("_device_id");
         }
-        if(user == null) {
+        if (user == null) {
             user = getRandomNumberInRange(0, 100000);
         }
 
@@ -153,7 +159,7 @@ public class AWSKinesisEventStore
             throw new IllegalArgumentException("max must be greater than min");
         }
 
-        return (int)(Math.random() * ((max - min) + 1)) + min;
+        return (int) (Math.random() * ((max - min) + 1)) + min;
     }
 
     public void store(Event event, CompletableFuture<Void> future, int tryCount) {
@@ -166,13 +172,13 @@ public class AWSKinesisEventStore
                 @Override
                 public void onError(Exception e) {
                     try {
-                        if (e instanceof ResourceNotFoundException) {
-                            try {
-                                KinesisUtils.createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
-                            } catch (Exception e1) {
-                                throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
-                            }
-                        }
+//                        if (e instanceof ResourceNotFoundException) {
+//                            try {
+//                                KinesisUtils.createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
+//                            } catch (Exception e1) {
+//                                throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
+//                            }
+//                        }
 
                         LOGGER.error(e);
                         if (tryCount > 0) {

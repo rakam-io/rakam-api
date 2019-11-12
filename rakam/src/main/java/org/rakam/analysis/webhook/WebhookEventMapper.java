@@ -1,6 +1,8 @@
 package org.rakam.analysis.webhook;
 
+import com.amazonaws.services.cloudwatch.AmazonCloudWatchAsync;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchAsyncClient;
+import com.amazonaws.services.cloudwatch.AmazonCloudWatchAsyncClientBuilder;
 import com.amazonaws.services.cloudwatch.model.MetricDatum;
 import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -39,7 +41,7 @@ public class WebhookEventMapper implements EventMapper {
     private final Queue<Event> queue = new ConcurrentLinkedQueue<>();
     private final DynamicSliceOutput slice;
     private final AtomicInteger counter;
-    private final AmazonCloudWatchAsyncClient cloudWatchClient;
+    private final AmazonCloudWatchAsync cloudWatchClient;
 
     @Inject
     public WebhookEventMapper(WebhookConfig config, AWSConfig awsConfig) {
@@ -50,8 +52,12 @@ public class WebhookEventMapper implements EventMapper {
                 .build();
         slice = new DynamicSliceOutput(100);
         counter = new AtomicInteger();
-        cloudWatchClient = new AmazonCloudWatchAsyncClient(awsConfig.getCredentials());
-        cloudWatchClient.setRegion(awsConfig.getAWSRegion());
+
+        AmazonCloudWatchAsyncClientBuilder cwBuilder = AmazonCloudWatchAsyncClient.asyncBuilder().withCredentials(awsConfig.getCredentials());
+        if(awsConfig.getRegion() != null) {
+            cwBuilder.setRegion(awsConfig.getRegion());
+        }
+        cloudWatchClient = cwBuilder.build();
 
         ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("collection-webhook").build());

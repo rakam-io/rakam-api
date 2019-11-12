@@ -1,12 +1,15 @@
 package org.rakam.aws.s3;
 
 import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatchAsyncClient;
+import com.amazonaws.client.builder.AwsClientBuilder;
+import com.amazonaws.services.cloudwatch.*;
 import com.amazonaws.services.cloudwatch.model.Dimension;
 import com.amazonaws.services.cloudwatch.model.MetricDatum;
 import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
-import com.amazonaws.services.kinesis.AmazonKinesisClient;
+import com.amazonaws.services.kinesis.*;
+import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import io.airlift.log.Logger;
@@ -36,29 +39,39 @@ import static org.rakam.util.AvroUtil.convertAvroSchema;
 public class S3BulkEventStore {
     private final static Logger LOGGER = Logger.get(S3BulkEventStore.class);
     private final Metastore metastore;
-    private final AmazonS3Client s3Client;
+    private final AmazonS3 s3Client;
     private final AWSConfig config;
     private final int conditionalMagicFieldsSize;
-    private final AmazonCloudWatchAsyncClient cloudWatchClient;
-    private final AmazonKinesisClient kinesis;
+    private final AmazonCloudWatchAsync cloudWatchClient;
+    private final AmazonKinesis kinesis;
 
     public S3BulkEventStore(Metastore metastore, AWSConfig config, FieldDependencyBuilder.FieldDependency fieldDependency) {
         this.metastore = metastore;
         this.config = config;
-        this.s3Client = new AmazonS3Client(config.getCredentials());
-        s3Client.setRegion(config.getAWSRegion());
-        if (config.getS3Endpoint() != null) {
-            s3Client.setEndpoint(config.getS3Endpoint());
+        AmazonS3ClientBuilder builder = AmazonS3Client.builder().withCredentials(config.getCredentials());
+        if(config.getRegion() != null) {
+            builder.setRegion(config.getRegion());
+        }
+        if(config.getS3Endpoint() != null) {
+            builder.setEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(config.getS3Endpoint(), null));
         }
 
-        kinesis = new AmazonKinesisClient(config.getCredentials());
-        kinesis.setRegion(config.getAWSRegion());
+        AmazonKinesisClientBuilder kinesisBuilder = AmazonKinesisAsyncClient.builder().withCredentials(config.getCredentials());
+        if (config.getRegion() != null) {
+            kinesisBuilder.setRegion(config.getRegion());
+        }
         if (config.getKinesisEndpoint() != null) {
-            kinesis.setEndpoint(config.getKinesisEndpoint());
+            kinesisBuilder.setEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(config.getRegion(), null));
         }
 
-        cloudWatchClient = new AmazonCloudWatchAsyncClient(config.getCredentials());
-        cloudWatchClient.setRegion(config.getAWSRegion());
+        kinesis = kinesisBuilder.build();
+        s3Client = builder.build();
+
+        AmazonCloudWatchAsyncClientBuilder cwBuilder = AmazonCloudWatchAsyncClient.asyncBuilder().withCredentials(config.getCredentials());
+        if(config.getRegion() != null) {
+            cwBuilder.setRegion(config.getRegion());
+        }
+        cloudWatchClient = cwBuilder.build();
 
         this.conditionalMagicFieldsSize = fieldDependency.dependentFields.size();
     }

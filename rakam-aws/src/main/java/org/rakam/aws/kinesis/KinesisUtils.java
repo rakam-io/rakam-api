@@ -15,6 +15,7 @@
 package org.rakam.aws.kinesis;
 
 import com.amazonaws.AmazonServiceException;
+import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.model.*;
 import io.airlift.log.Logger;
@@ -35,7 +36,7 @@ public final class KinesisUtils {
     /**
      * Creates an Amazon Kinesis stream if it does not exist and waits for it to become available
      *
-     * @param kinesisClient The {@link com.amazonaws.services.kinesis.AmazonKinesisClient} with Amazon Kinesis read and write privileges
+     * @param kinesisClient The {@link AmazonKinesisClient} with Amazon Kinesis read and write privileges
      * @param streamName    The Amazon Kinesis stream name to create
      * @param shardCount    The shard count to create the stream with
      * @throws IllegalStateException Invalid Amazon Kinesis stream state
