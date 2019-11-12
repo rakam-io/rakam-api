@@ -23,10 +23,8 @@ RUN apt-get update \
 # Make environment variable active
 RUN cd /var/app/rakam/target/rakam-*-bundle/rakam-*/etc/ && echo '\n-Denv=RAKAM_CONFIG' >> jvm.config
 
-WORKDIR /var/app
-
 EXPOSE 9999
 
-ENTRYPOINT target/rakam-*-bundle/rakam-*/bin/launcher run --config ../config.properties
+ENTRYPOINT rakam/target/rakam-*-bundle/rakam-*/bin/launcher run --config ../config.properties
 
 RUN apt-get clean
