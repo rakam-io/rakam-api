@@ -72,7 +72,7 @@
         <presto.version>0.190</presto.version>
         <java.version>1.8</java.version>
         <jackson.version>2.8.1</jackson.version>
-        <aws.library>1.10.66</aws.library>
+        <aws.library>1.11.272</aws.library>
         <netty.rest.version>0.93</netty.rest.version>
         <swagger.version>1.5.16</swagger.version>
 
@@ -457,6 +457,12 @@
             <dependency>
                 <groupId>com.fasterxml.jackson.datatype</groupId>
                 <artifactId>jackson-datatype-jdk8</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.fasterxml.jackson.dataformat</groupId>
+                <artifactId>jackson-dataformat-cbor</artifactId>
                 <version>${jackson.version}</version>
             </dependency>
 
