@@ -3,7 +3,7 @@ MAINTAINER Burak Emre Kabakci "emre@rakam.io"
 
 WORKDIR /var/app
 
-ADD . ./rakam
+ADD . .
 RUN mvn clean install -T 1C -DskipTests=true
 
 RUN echo 'org.rakam=INFO\n\
