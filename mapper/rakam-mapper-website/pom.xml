@@ -28,10 +28,6 @@
                 <enabled>true</enabled>
             </snapshots>
         </repository>
-        <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
-        </repository>
     </repositories>
 
     <dependencies>
@@ -83,11 +79,10 @@
             <groupId>org.apache.avro</groupId>
             <artifactId>avro</artifactId>
         </dependency>
-        <!-- ua_parser doesn't publish the library in maven central so currently we're using jitpack. -->
         <dependency>
             <groupId>com.github.ua-parser</groupId>
             <artifactId>uap-java</artifactId>
-            <version>5193d4015f</version>
+            <version>1.4.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.inject.extensions</groupId>
