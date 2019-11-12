@@ -46,72 +46,23 @@ import static org.rakam.util.ValidationUtil.checkProject;
 public class MysqlExplicitMetastore extends AbstractMetastore {
     private final DBI dbi;
     private final MetadataDao dao;
-    private final ProjectConfig projectConfig;
 
     @Inject
     public MysqlExplicitMetastore(
             @Named("metadata.store.jdbc") JDBCPoolDataSource prestoMetastoreDataSource,
-            EventBus eventBus,
-            ProjectConfig projectConfig) {
+            EventBus eventBus) {
         super(eventBus);
         dbi = new DBI(prestoMetastoreDataSource);
         MysqlExplicitMetastore.SignatureReferenceTypeManager signatureReferenceTypeManager = new SignatureReferenceTypeManager();
         dbi.registerMapper(new TableColumn.Mapper(signatureReferenceTypeManager));
         this.dao = onDemandDao(dbi, MetadataDao.class);
-        this.projectConfig = projectConfig;
     }
 
-    public static <T> void daoTransaction(IDBI dbi, Class<T> daoType, Consumer<T> callback) {
-        runTransaction(dbi, (handle, status) -> {
-            callback.accept(handle.attach(daoType));
-            return null;
-        });
-    }
-
-    public static <T> T runTransaction(IDBI dbi, TransactionCallback<T> callback) {
-        return dbi.inTransaction(callback);
-    }
-
-    private static String sqlColumnType(FieldType type) {
-        JDBCType jdbcType = jdbcType(type);
-        if (jdbcType != null) {
-            switch (jdbcType) {
-                case BOOLEAN:
-                    return "boolean";
-                case BIGINT:
-                    return "bigint";
-                case DOUBLE:
-                    return "double";
-                case INTEGER:
-                    return "int";
-                case VARBINARY:
-                    return format("varbinary(%s)", MAX_BINARY_INDEX_SIZE);
-            }
-        }
-
-        return null;
-    }
-
-    public static JDBCType jdbcType(FieldType type) {
-        if (type.equals(FieldType.BOOLEAN)) {
-            return JDBCType.BOOLEAN;
-        }
-        if (type.equals(LONG) || type.equals(TIMESTAMP)) {
-            return JDBCType.BIGINT;
-        }
-        if (type.equals(FieldType.INTEGER)) {
-            return JDBCType.INTEGER;
-        }
-        if (type.equals(FieldType.DOUBLE)) {
-            return JDBCType.DOUBLE;
-        }
-        if (type.equals(FieldType.DATE)) {
-            return JDBCType.INTEGER;
-        }
-        if (type.equals(FieldType.STRING)) {
-            return VARBINARY;
-        }
-        return null;
+    @PostConstruct
+    public void installSchema() {
+        SchemaDao schemaDao = dbi.onDemand(SchemaDao.class);
+        schemaDao.createTable();
+        schemaDao.createColumn();
     }
 
     public static String toSql(FieldType type) {
