@@ -3,8 +3,8 @@ MAINTAINER Burak Emre Kabakci "emre@rakam.io"
 
 WORKDIR /var/app
 
-RUN git clone https://github.com/rakam-io/rakam.git
-RUN cd rakam && mvn install -DskipTests
+ADD . ./rakam
+RUN mvn clean install -T 1C -DskipTests=true
 
 RUN echo 'org.rakam=INFO\n\
 io.netty=INFO' > log.properties
@@ -21,12 +21,12 @@ RUN apt-get update \
     && gzip -d /tmp/GeoLite2-City.mmdb.gz
 
 # Make environment variable active
-RUN cd /var/app/rakam/rakam/target/rakam-*-bundle/rakam-*/etc/ && echo '\n-Denv=RAKAM_CONFIG' >> jvm.config
+RUN cd /var/app/rakam/target/rakam-*-bundle/rakam-*/etc/ && echo '\n-Denv=RAKAM_CONFIG' >> jvm.config
 
-WORKDIR /var/app/rakam
+WORKDIR /var/app
 
 EXPOSE 9999
 
-ENTRYPOINT rakam/target/rakam-*-bundle/rakam-*/bin/launcher run --config ../config.properties
+ENTRYPOINT target/rakam-*-bundle/rakam-*/bin/launcher run --config ../config.properties
 
 RUN apt-get clean
