@@ -354,55 +354,6 @@ public class PostgresqlMetastore
     }
 
     @Override
-    public Map<String, Stats> getStats(Collection<String> projects) {
-        if (projects.isEmpty()) {
-            return ImmutableMap.of();
-        }
-
-        try (Connection conn = connectionPool.getConnection()) {
-            PreparedStatement ps = conn.prepareStatement("SELECT\n" +
-                    "        nspname, sum(reltuples)\n" +
-                    "        FROM pg_class C\n" +
-                    "        LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace)\n" +
-                    "        WHERE nspname = any(?) AND (relkind='r' or relkind='p') AND relname != '_users' GROUP BY 1");
-            ps.setArray(1, conn.createArrayOf("text", projects.toArray()));
-            ResultSet resultSet = ps.executeQuery();
-            Map<String, Stats> map = new HashMap<>();
-
-            while (resultSet.next()) {
-                map.put(resultSet.getString(1), new Stats(resultSet.getLong(2), null, null));
-            }
-
-            for (String project : projects) {
-                map.computeIfAbsent(project, (k) -> new Stats(0L, null, null));
-            }
-
-            return map;
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
-        }
-    }
-
-    public HashSet<String> getViews(String project) {
-        try (Connection conn = connectionPool.getConnection()) {
-            HashSet<String> tables = new HashSet<>();
-
-            ResultSet tableRs = conn.getMetaData().getTables("", project, null, new String[]{"VIEW"});
-            while (tableRs.next()) {
-                String tableName = tableRs.getString("table_name");
-
-                if (!tableName.startsWith("_")) {
-                    tables.add(tableName);
-                }
-            }
-
-            return tables;
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
-        }
-    }
-
-    @Override
     public void deleteProject(String project) {
         try (Connection conn = connectionPool.getConnection()) {
             conn.createStatement().execute(format("DROP SCHEMA %s CASCADE", checkProject(project, '"')));

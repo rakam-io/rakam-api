@@ -127,6 +127,9 @@ public class PostgresqlModule
         if (userPluginConfig.getEnableUserMapping()) {
             binder.bind(UserMergeTableHook.class).asEagerSingleton();
         }
+
+        Multibinder<EventMapper> timeMapper = Multibinder.newSetBinder(binder, EventMapper.class);
+        timeMapper.addBinding().to(TimestampEventMapper.class).in(Scopes.SINGLETON);
     }
 
     @Override

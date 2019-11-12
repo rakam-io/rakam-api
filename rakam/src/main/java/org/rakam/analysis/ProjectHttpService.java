@@ -88,32 +88,6 @@ public class ProjectHttpService
         return SuccessMessage.success();
     }
 
-    @ApiOperation(value = "Get project stats")
-    @JsonRequest
-    @Path("/stats")
-    public Map<String, Metastore.Stats> getStats(@BodyParam List<String> apiKeys) {
-        Map<String, String> keys = new LinkedHashMap<>();
-        for (String apiKey : apiKeys) {
-            String project;
-            try {
-                project = apiKeyService.getProjectOfApiKey(apiKey, MASTER_KEY);
-            } catch (RakamException e) {
-                if (e.getStatusCode() == FORBIDDEN) {
-                    continue;
-                }
-                throw e;
-            }
-            keys.put(project, apiKey);
-        }
-
-        Map<String, Metastore.Stats> stats = metastore.getStats(keys.keySet());
-        if (stats == null) {
-            return ImmutableMap.of();
-        }
-        return stats.entrySet().stream()
-                .collect(Collectors.toMap(e -> keys.get(e.getKey()), e -> e.getValue()));
-    }
-
     @ApiOperation(value = "List created projects",
             authorizations = @Authorization(value = "master_key")
     )
@@ -196,8 +170,8 @@ public class ProjectHttpService
 
     private ProjectApiKeys transformKeys(ProjectApiKeys apiKeys) {
         return ProjectApiKeys.create(
-                CryptUtil.encryptAES(apiKeys.masterKey(), projectConfig.getPassphrase()),
-                CryptUtil.encryptAES(apiKeys.writeKey(), projectConfig.getPassphrase()));
+                projectConfig.getPassphrase() != null ? apiKeys.masterKey() : CryptUtil.encryptAES(apiKeys.masterKey(), projectConfig.getPassphrase()),
+                projectConfig.getPassphrase() != null ? apiKeys.writeKey() :  CryptUtil.encryptAES(apiKeys.writeKey(), projectConfig.getPassphrase()));
     }
 
     @JsonRequest

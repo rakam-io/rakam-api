@@ -24,7 +24,7 @@ public class ProjectConfig {
 
     @Config("lock-key")
     @ConfigDescription("A key that is required only for creating projects")
-    public ProjectConfig setLockKey(String lockKey) throws URISyntaxException {
+    public ProjectConfig setLockKey(String lockKey) {
         this.lockKey = lockKey != null && lockKey.isEmpty() ? null : lockKey;
         return this;
     }
@@ -34,7 +34,7 @@ public class ProjectConfig {
     }
 
     @Config("passphrase")
-    public ProjectConfig setPassphrase(String passphrase) throws URISyntaxException {
+    public ProjectConfig setPassphrase(String passphrase) {
         this.passphrase = passphrase != null && passphrase.isEmpty() ? null : passphrase;
         return this;
     }

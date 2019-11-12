@@ -23,8 +23,6 @@ public interface Metastore {
 
     void deleteProject(String project);
 
-    Map<String, Stats> getStats(Collection<String> projects);
-
     default void setup() {
     }
 
