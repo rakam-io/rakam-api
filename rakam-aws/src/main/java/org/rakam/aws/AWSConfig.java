@@ -5,7 +5,6 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.internal.StaticCredentialsProvider;
 import com.amazonaws.regions.Region;
-import com.amazonaws.regions.Regions;
 import io.airlift.configuration.Config;
 
 import javax.validation.constraints.NotNull;
@@ -78,10 +77,6 @@ public class AWSConfig {
     public AWSConfig setKinesisEndpoint(String kinesisEndpoint) {
         this.kinesisEndpoint = kinesisEndpoint;
         return this;
-    }
-
-    public Region getAWSRegion() {
-        return Region.getRegion(region == null || region.isEmpty() ? Regions.DEFAULT_REGION : Regions.fromName(region));
     }
 
     public String getSecretAccessKey() {
