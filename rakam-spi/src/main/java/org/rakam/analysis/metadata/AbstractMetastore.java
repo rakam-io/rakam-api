@@ -36,9 +36,4 @@ public abstract class AbstractMetastore
     }
 
     public abstract List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields);
-
-    @Override
-    public Map<String, Stats> getStats(Collection<String> projects) {
-        return projects.stream().collect(Collectors.toMap(e -> e, e -> new Stats()));
-    }
 }

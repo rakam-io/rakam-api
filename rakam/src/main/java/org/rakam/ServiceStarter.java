@@ -8,7 +8,6 @@ import com.google.inject.*;
 import com.google.inject.matcher.Matchers;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.multibindings.OptionalBinder;
-import com.google.inject.name.Named;
 import com.google.inject.name.Names;
 import com.google.inject.spi.InjectionListener;
 import com.google.inject.spi.TypeEncounter;
@@ -18,10 +17,7 @@ import io.airlift.log.Logger;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.swagger.models.Tag;
-import org.flywaydb.core.Flyway;
-import org.flywaydb.core.api.FlywayException;
 import org.rakam.analysis.*;
-import org.rakam.analysis.datasource.CustomDataSourceConfig;
 import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.bootstrap.ProxyBootstrap;
 import org.rakam.collection.*;
@@ -36,24 +32,18 @@ import org.rakam.http.OptionMethodHttpService;
 import org.rakam.http.WebServiceModule;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.InjectionHook;
-import org.rakam.plugin.LockServiceProvider;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.TimestampEventMapper;
 import org.rakam.plugin.stream.EventStreamConfig;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserStorage;
-import org.rakam.plugin.user.mailbox.UserMailboxStorage;
-import org.rakam.postgresql.analysis.FastGenericFunnelQueryExecutor;
-import org.rakam.report.QueryExecutorService;
-import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.server.http.HttpRequestHandler;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
-import org.rakam.ui.ActiveModuleListBuilder;
 import org.rakam.util.NotFoundHandler;
 import org.rakam.util.RAsyncHttpClient;
 import org.rakam.util.javascript.JSCodeJDBCLoggerService;
 import org.rakam.util.javascript.JSLoggerService;
-import org.rakam.util.lock.LockService;
 
 import javax.inject.Inject;
 import java.io.IOException;
@@ -180,14 +170,14 @@ public final class ServiceStarter {
         @Override
         protected void setup(Binder binder) {
             binder.bind(Clock.class).toInstance(Clock.systemUTC());
-//            binder.bind(FlywayExecutor.class).asEagerSingleton();
-            binder.bind(LockService.class).toProvider(LockServiceProvider.class);
             binder.bind(FieldDependency.class).toProvider(FieldDependencyProvider.class).in(Scopes.SINGLETON);
 
             Multibinder.newSetBinder(binder, InjectionHook.class);
             OptionalBinder.newOptionalBinder(binder, AbstractUserService.class);
             OptionalBinder.newOptionalBinder(binder, UserStorage.class);
-            OptionalBinder.newOptionalBinder(binder, UserMailboxStorage.class);
+
+            Multibinder<EventMapper> timeMapper = Multibinder.newSetBinder(binder, EventMapper.class);
+            timeMapper.addBinding().to(TimestampEventMapper.class).in(Scopes.SINGLETON);
 
             EventBus eventBus = new EventBus(new SubscriberExceptionHandler() {
                 Logger logger = Logger.get("System Event Listener");
@@ -216,16 +206,10 @@ public final class ServiceStarter {
             Multibinder<CustomParameter> customParameters = Multibinder.newSetBinder(binder, CustomParameter.class);
             customParameters.addBinding().toProvider(ProjectPermissionParameterProvider.class);
 
-            binder.bind(QueryHttpService.class).asEagerSingleton();
-            binder.bind(QueryExecutorService.class).asEagerSingleton();
             configBinder(binder).bindConfig(TaskConfig.class);
             configBinder(binder).bindConfig(EventStreamConfig.class);
-            configBinder(binder).bindConfig(RealTimeConfig.class);
-            binder.bind(ActiveModuleListBuilder.class).asEagerSingleton();
 
             Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
-            httpServices.addBinding().to(MaterializedViewHttpService.class);
-            httpServices.addBinding().to(QueryHttpService.class);
             httpServices.addBinding().to(OptionMethodHttpService.class);
 
             Multibinder.newSetBinder(binder, WebSocketService.class);
@@ -235,12 +219,9 @@ public final class ServiceStarter {
             binder.bind(EventListDeserializer.class);
             binder.bind(JsonEventDeserializer.class);
 
-            binder.bind(FastGenericFunnelQueryExecutor.class);
-
             configBinder(binder).bindConfig(HttpServerConfig.class);
             configBinder(binder).bindConfig(ProjectConfig.class);
             configBinder(binder).bindConfig(EncryptionConfig.class);
-            configBinder(binder).bindConfig(CustomDataSourceConfig.class);
 
             binder.bind(SchemaChecker.class).asEagerSingleton();
 
@@ -278,22 +259,6 @@ public final class ServiceStarter {
         public CustomParameter get() {
             return new CustomParameter("project",
                     method -> new WebServiceModule.ProjectPermissionIRequestParameter(apiKeyService, method));
-        }
-    }
-
-    public static class FlywayExecutor {
-        @Inject
-        public FlywayExecutor(@Named("report.metadata.store.jdbc") JDBCPoolDataSource config) {
-            Flyway flyway = new Flyway();
-            flyway.setBaselineOnMigrate(true);
-            flyway.setDataSource(config);
-            flyway.setLocations("db/migration/report");
-            flyway.setTable("schema_version_report");
-            try {
-                flyway.migrate();
-            } catch (FlywayException e) {
-                flyway.repair();
-            }
         }
     }
 }

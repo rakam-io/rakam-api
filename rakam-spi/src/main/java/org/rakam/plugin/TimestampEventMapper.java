@@ -60,7 +60,10 @@ public class TimestampEventMapper
 
     @Override
     public void addFieldDependency(FieldDependencyBuilder builder) {
-        builder.addFields(of(new SchemaField(projectConfig.getTimeColumn(), FieldType.TIMESTAMP)));
+        builder.addFields(of(
+                new SchemaField(projectConfig.getTimeColumn(), FieldType.TIMESTAMP)
+//                ,new SchemaField(projectConfig.getClientTimeColumn(), FieldType.TIMESTAMP)
+                ));
     }
 
     @Override

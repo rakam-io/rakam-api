@@ -47,7 +47,7 @@ public class ProxyBootstrap
                 this.setOptionalConfigurationProperty(configName, entry.getValue());
             });
 
-            LOGGER.info("Set the configurations using environment variables (%s)", objects.stream().collect(Collectors.joining(". ")));
+            LOGGER.info("Set the configurations using environment variables (%s)", objects.stream().collect(Collectors.joining(", ")));
         }
 
         Injector initialize = super.initialize();

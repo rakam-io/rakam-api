@@ -12,8 +12,7 @@ public class InMemoryApiKeyService implements ApiKeyService {
     public synchronized ProjectApiKeys createApiKeys(String project) {
         List<ProjectApiKeys> keys = apiKeys.computeIfAbsent(project, p -> new ArrayList<>());
 
-        ProjectApiKeys projectApiKeys = ProjectApiKeys.create(
-                UUID.randomUUID().toString(), UUID.randomUUID().toString(), UUID.randomUUID().toString());
+        ProjectApiKeys projectApiKeys = ProjectApiKeys.create(UUID.randomUUID().toString(), UUID.randomUUID().toString());
         keys.add(projectApiKeys);
         return projectApiKeys;
     }
@@ -45,8 +44,6 @@ public class InMemoryApiKeyService implements ApiKeyService {
         switch (type) {
             case MASTER_KEY:
                 return keys.masterKey();
-            case READ_KEY:
-                return keys.readKey();
             case WRITE_KEY:
                 return keys.writeKey();
             default:

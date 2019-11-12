@@ -54,7 +54,6 @@ public class JDBCApiKeyService
             statement.execute("CREATE TABLE IF NOT EXISTS api_key (" +
                     primaryKey +
                     "  project VARCHAR(255) NOT NULL,\n" +
-                    "  read_key VARCHAR(255) NOT NULL,\n" +
                     "  write_key VARCHAR(255) NOT NULL,\n" +
                     "  master_key VARCHAR(255) NOT NULL,\n" +
                     "  created_at TIMESTAMP default current_timestamp NOT NULL," +
@@ -68,17 +67,15 @@ public class JDBCApiKeyService
     @Override
     public ProjectApiKeys createApiKeys(String project) {
         String masterKey = CryptUtil.generateRandomKey(64);
-        String readKey = CryptUtil.generateRandomKey(64);
         String writeKey = CryptUtil.generateRandomKey(64);
 
         try (Connection connection = connectionPool.getConnection()) {
             PreparedStatement ps = connection.prepareStatement("INSERT INTO api_key " +
-                            "(master_key, read_key, write_key, project) VALUES (?, ?, ?, ?)",
+                            "(master_key, write_key, project) VALUES (?, ?, ?)",
                     Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, masterKey);
-            ps.setString(2, readKey);
-            ps.setString(3, writeKey);
-            ps.setString(4, project);
+            ps.setString(2, writeKey);
+            ps.setString(3, project);
             ps.executeUpdate();
             final ResultSet generatedKeys = ps.getGeneratedKeys();
             generatedKeys.next();
@@ -86,7 +83,7 @@ public class JDBCApiKeyService
             throw Throwables.propagate(e);
         }
 
-        return ProjectApiKeys.create(masterKey, readKey, writeKey);
+        return ProjectApiKeys.create(masterKey, writeKey);
     }
 
     @Override
@@ -152,13 +149,12 @@ public class JDBCApiKeyService
     private List<Set<String>> getKeys(Connection conn, String project)
             throws SQLException {
         Set<String> masterKeyList = new HashSet<>();
-        Set<String> readKeyList = new HashSet<>();
         Set<String> writeKeyList = new HashSet<>();
 
         Set<String>[] keys =
                 Arrays.stream(AccessKeyType.values()).map(key -> new HashSet<String>()).toArray(Set[]::new);
 
-        PreparedStatement ps = conn.prepareStatement("SELECT master_key, read_key, write_key from api_key WHERE project = ?");
+        PreparedStatement ps = conn.prepareStatement("SELECT master_key from api_key WHERE project = ?");
         ps.setString(1, project);
         ResultSet resultSet = ps.executeQuery();
         while (resultSet.next()) {
@@ -168,18 +164,9 @@ public class JDBCApiKeyService
             if (apiKey != null) {
                 masterKeyList.add(apiKey);
             }
-            apiKey = resultSet.getString(2);
-            if (apiKey != null) {
-                readKeyList.add(apiKey);
-            }
-            apiKey = resultSet.getString(3);
-            if (apiKey != null) {
-                writeKeyList.add(apiKey);
-            }
         }
 
         keys[MASTER_KEY.ordinal()] = Collections.unmodifiableSet(masterKeyList);
-        keys[READ_KEY.ordinal()] = Collections.unmodifiableSet(readKeyList);
         keys[WRITE_KEY.ordinal()] = Collections.unmodifiableSet(writeKeyList);
 
         return Collections.unmodifiableList(Arrays.asList(keys));

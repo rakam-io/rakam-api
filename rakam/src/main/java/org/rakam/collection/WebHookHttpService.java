@@ -27,12 +27,12 @@ import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.RequestContext;
 import org.rakam.plugin.EventStore;
+import org.rakam.plugin.Parameter;
 import org.rakam.server.http.HttpRequestException;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
 import org.rakam.server.http.annotations.*;
-import org.rakam.ui.WebHookUIHttpService.Parameter;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.LogUtil;
 import org.rakam.util.RakamException;
@@ -88,7 +88,7 @@ public class WebHookHttpService
 
     @Inject
     public WebHookHttpService(
-            @Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
+            @Named("metadata.store.jdbc") JDBCPoolDataSource dataSource,
             JsonEventDeserializer deserializer,
             ApiKeyService apiKeyService,
             JSCodeCompiler jsCodeCompiler,

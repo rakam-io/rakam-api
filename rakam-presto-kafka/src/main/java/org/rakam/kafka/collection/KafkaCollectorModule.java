@@ -21,7 +21,6 @@ public class KafkaCollectorModule extends RakamModule {
                 .prefixedWith("event.store.kafka")
                 .to(KafkaConfig.class);
         binder.bind(EventStore.class).to(KafkaEventStore.class);
-        binder.bind(EventStream.class).to(KafkaStream.class);
     }
 
     @Override

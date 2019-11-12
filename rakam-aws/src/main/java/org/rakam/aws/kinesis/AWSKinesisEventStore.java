@@ -137,7 +137,23 @@ public class AWSKinesisEventStore
 
     private String getPartitionKey(Event event) {
         Object user = event.getAttribute("_user");
-        return event.project() + "|" + (user == null ? event.collection() : user.toString());
+        if(user == null) {
+            user = event.getAttribute("_device_id");
+        }
+        if(user == null) {
+            user = getRandomNumberInRange(0, 100000);
+        }
+
+        return event.project() + "|" + event.collection() + user.toString();
+    }
+
+    private static int getRandomNumberInRange(int min, int max) {
+
+        if (min >= max) {
+            throw new IllegalArgumentException("max must be greater than min");
+        }
+
+        return (int)(Math.random() * ((max - min) + 1)) + min;
     }
 
     public void store(Event event, CompletableFuture<Void> future, int tryCount) {

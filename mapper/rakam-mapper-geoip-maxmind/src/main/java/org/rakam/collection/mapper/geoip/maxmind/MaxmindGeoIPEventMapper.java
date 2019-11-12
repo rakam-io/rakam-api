@@ -57,8 +57,7 @@ public class MaxmindGeoIPEventMapper
     private final DatabaseReader cityLookup;
     private final boolean attachIp;
 
-    public MaxmindGeoIPEventMapper(MaxmindGeoIPModuleConfig config)
-            throws IOException {
+    public MaxmindGeoIPEventMapper(MaxmindGeoIPModuleConfig config) {
         Preconditions.checkNotNull(config, "config is null");
 
         DatabaseReader connectionTypeLookup = null, ispLookup = null, cityLookup = null;

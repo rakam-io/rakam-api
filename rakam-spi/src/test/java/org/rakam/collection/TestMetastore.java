@@ -142,7 +142,7 @@ public abstract class TestMetastore {
      * The schema change requests may be performed from any Rakam node in a cluster and they have to be consistent.
      **/
     @Test
-    public void testConcurrentSchemaChanges() throws Exception {
+    public void testConcurrentSchemaChanges() {
         getMetastore().createProject("test");
 
         List<List<SchemaField>> collect = IntStream.range(0, 10).parallel().mapToObj(i ->
@@ -157,53 +157,5 @@ public abstract class TestMetastore {
                         String.format("%s not in %s", schemaFields.get(i), allSchemas));
             }
         }
-    }
-
-    @Test
-    public void testGetAttributes() {
-        getMetastore().createProject(PROJECT_NAME);
-
-        getMetastore().getOrCreateCollectionFields(PROJECT_NAME, "test", ImmutableSet.of(new SchemaField("_time", TIMESTAMP), new SchemaField("test", STRING)));
-
-        ImmutableSet<SchemaField> schema = ImmutableSet.of(new SchemaField("test", STRING));
-        getMetastore().getOrCreateCollectionFields(PROJECT_NAME, "test", schema);
-
-        assertEquals(getMetastore().getAttributes(PROJECT_NAME, "test", "test", Optional.empty(), Optional.empty(), Optional.empty()).join().size(), 0);
-    }
-
-    @Test
-    public void testGetAttributesWithTime() {
-        getMetastore().createProject(PROJECT_NAME);
-
-        getMetastore().getOrCreateCollectionFields(PROJECT_NAME, "test", ImmutableSet.of(new SchemaField("_time", TIMESTAMP), new SchemaField("test", STRING)));
-
-        ImmutableSet<SchemaField> schema = ImmutableSet.of(new SchemaField("test", STRING));
-        getMetastore().getOrCreateCollectionFields(PROJECT_NAME, "test", schema);
-
-        assertEquals(getMetastore().getAttributes(PROJECT_NAME, "test", "test", Optional.of(LocalDate.parse("2017-01-01")), Optional.of(LocalDate.parse("2017-02-01")), Optional.empty()).join().size(), 0);
-    }
-
-    @Test
-    public void testGetAttributesWithTimeAndFilter() {
-        getMetastore().createProject(PROJECT_NAME);
-
-        getMetastore().getOrCreateCollectionFields(PROJECT_NAME, "test", ImmutableSet.of(new SchemaField("_time", TIMESTAMP), new SchemaField("test", STRING)));
-
-        ImmutableSet<SchemaField> schema = ImmutableSet.of(new SchemaField("test", STRING));
-        getMetastore().getOrCreateCollectionFields(PROJECT_NAME, "test", schema);
-
-        assertEquals(getMetastore().getAttributes(PROJECT_NAME, "test", "test", Optional.of(LocalDate.parse("2017-01-01")), Optional.of(LocalDate.parse("2017-02-01")), Optional.of("T")).join().size(), 0);
-    }
-
-    @Test
-    public void testGetAttributesWithFilter() {
-        getMetastore().createProject(PROJECT_NAME);
-
-        getMetastore().getOrCreateCollectionFields(PROJECT_NAME, "test", ImmutableSet.of(new SchemaField("_time", TIMESTAMP), new SchemaField("test", STRING)));
-
-        ImmutableSet<SchemaField> schema = ImmutableSet.of(new SchemaField("test", STRING));
-        getMetastore().getOrCreateCollectionFields(PROJECT_NAME, "test", schema);
-
-        assertEquals(getMetastore().getAttributes(PROJECT_NAME, "test", "test", Optional.empty(), Optional.empty(), Optional.of("T")).join().size(), 0);
     }
 }

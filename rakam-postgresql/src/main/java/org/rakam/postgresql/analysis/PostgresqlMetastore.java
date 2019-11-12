@@ -16,7 +16,6 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
 import org.rakam.postgresql.PostgresqlModule.PostgresqlVersion;
-import org.rakam.postgresql.report.JDBCQueryExecution;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.ProjectCollection;
 import org.rakam.util.RakamException;
@@ -25,34 +24,28 @@ import org.rakam.util.ValidationUtil;
 import javax.inject.Inject;
 import javax.inject.Named;
 import java.sql.*;
-import java.time.LocalDate;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
-import static java.time.temporal.ChronoUnit.DAYS;
 import static org.rakam.util.JDBCUtil.fromSql;
 import static org.rakam.util.ValidationUtil.*;
 
 public class PostgresqlMetastore
         extends AbstractMetastore {
-    private final static double SAMPLING_THRESHOLD = 1_000_000;
     private final PostgresqlVersion.Version version;
     private final JDBCPoolDataSource connectionPool;
-    private final ProjectConfig projectConfig;
     private LoadingCache<ProjectCollection, List<SchemaField>> schemaCache;
     private LoadingCache<String, Set<String>> collectionCache;
 
     @Inject
-    public PostgresqlMetastore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, PostgresqlVersion version, EventBus eventBus, ProjectConfig projectConfig) {
+    public PostgresqlMetastore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, PostgresqlVersion version, EventBus eventBus) {
         super(eventBus);
         this.connectionPool = connectionPool;
         this.version = version.getVersion();
-        this.projectConfig = projectConfig;
 
         schemaCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<ProjectCollection, List<SchemaField>>() {
             @Override
@@ -358,111 +351,6 @@ public class PostgresqlMetastore
 
         task.run();
         return currentFields;
-    }
-
-    @Override
-    public Map<String, Stats> getStats(Collection<String> projects) {
-        if (projects.isEmpty()) {
-            return ImmutableMap.of();
-        }
-
-        try (Connection conn = connectionPool.getConnection()) {
-            PreparedStatement ps = conn.prepareStatement("SELECT\n" +
-                    "        nspname, sum(reltuples)\n" +
-                    "        FROM pg_class C\n" +
-                    "        LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace)\n" +
-                    "        WHERE nspname = any(?) AND (relkind='r' or relkind='p') AND relname != '_users' GROUP BY 1");
-            ps.setArray(1, conn.createArrayOf("text", projects.toArray()));
-            ResultSet resultSet = ps.executeQuery();
-            Map<String, Stats> map = new HashMap<>();
-
-            while (resultSet.next()) {
-                map.put(resultSet.getString(1), new Stats(resultSet.getLong(2), null, null));
-            }
-
-            for (String project : projects) {
-                map.computeIfAbsent(project, (k) -> new Stats(0L, null, null));
-            }
-
-            return map;
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
-        }
-    }
-
-    @Override
-    public CompletableFuture<List<String>> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate,
-                                                         Optional<LocalDate> endDate, Optional<String> filter) {
-
-        int samplePercentage;
-        long totalRowCount;
-
-        try (Connection conn = connectionPool.getConnection()) {
-            PreparedStatement ps = conn.prepareStatement("SELECT sum(reltuples)" +
-                    "        FROM pg_class C\n" +
-                    "        LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace)\n" +
-                    "        WHERE nspname = ? AND (relkind='r' or relkind='p') AND relname = ?");
-
-            ps.setString(1, project);
-            ps.setString(2, collection);
-            ResultSet resultSet = ps.executeQuery();
-            resultSet.next();
-            totalRowCount = resultSet.getLong(1);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-
-        if (totalRowCount > SAMPLING_THRESHOLD) {
-            samplePercentage = (int) ((SAMPLING_THRESHOLD / totalRowCount) * 100);
-        } else {
-            samplePercentage = 100;
-        }
-
-        String queryPrep = format("SELECT DISTINCT %s as result FROM %s.%s TABLESAMPLE SYSTEM(%d) WHERE TRUE",
-                checkCollection(attribute),
-                checkProject(project),
-                checkProject(collection),
-                samplePercentage);
-        if (filter.isPresent() && !filter.get().isEmpty()) {
-            String value = "%" + filter.get().replaceAll("%", "\\%").replaceAll("_", "\\_") + "%";
-            queryPrep += format(" AND %s like '%s' escape '\\' and %s is not null",
-                    checkCollection(attribute), checkLiteral(value), checkCollection(attribute));
-        }
-
-        if (startDate.isPresent() || endDate.isPresent()) {
-            if (startDate.isPresent() && endDate.isPresent()) {
-                if (DAYS.between(startDate.get(), endDate.get()) > 30) {
-                    throw new UnsupportedOperationException("Start date and end date must be within 30 days.");
-                }
-            }
-            String startDateStr = startDate.isPresent() ? startDate.get().toString() : endDate.get().minusDays(30).toString();
-            String endDateStr = endDate.isPresent() ? endDate.get().plusDays(1).toString() : startDate.get().plusDays(30).toString();
-            queryPrep += format(" AND %s >= '%s'::date AND %s <= '%s'::date",
-                    projectConfig.getTimeColumn(), startDateStr, projectConfig.getTimeColumn(), endDateStr);
-        }
-        queryPrep += " LIMIT 10";
-
-        JDBCQueryExecution execution = new JDBCQueryExecution(() -> connectionPool.getConnection(), queryPrep, false, Optional.empty(), false);
-        return execution.getResult().thenApply(v -> v.getResult().stream().map(str -> (String) str.get(0)).sorted().collect(Collectors.toList()));
-    }
-
-    public HashSet<String> getViews(String project) {
-        try (Connection conn = connectionPool.getConnection()) {
-            HashSet<String> tables = new HashSet<>();
-
-            ResultSet tableRs = conn.getMetaData().getTables("", project, null, new String[]{"VIEW"});
-            while (tableRs.next()) {
-                String tableName = tableRs.getString("table_name");
-
-                if (!tableName.startsWith("_")) {
-                    tables.add(tableName);
-                }
-            }
-
-            return tables;
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
-        }
     }
 
     @Override

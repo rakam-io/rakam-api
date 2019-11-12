@@ -20,7 +20,7 @@ public class OptionMethodHttpService extends HttpService {
     public static void handle(RakamHttpRequest request) {
         DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, HttpResponseStatus.OK);
 
-        response.headers().set(ACCESS_CONTROL_ALLOW_HEADERS, "Origin, X-Requested-With, Content-Type, Accept, master_key, read_key, write_key");
+        response.headers().set(ACCESS_CONTROL_ALLOW_HEADERS, "Origin, X-Requested-With, Content-Type, Accept, master_key, write_key");
         response.headers().set(ACCESS_CONTROL_EXPOSE_HEADERS, "_auto_action");
         response.headers().set(ACCESS_CONTROL_ALLOW_METHODS, "GET, POST, OPTIONS, PUT, DELETE");
 

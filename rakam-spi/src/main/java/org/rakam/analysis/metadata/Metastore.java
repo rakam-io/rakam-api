@@ -23,10 +23,6 @@ public interface Metastore {
 
     void deleteProject(String project);
 
-    Map<String, Stats> getStats(Collection<String> projects);
-
-    CompletableFuture<List<String>> getAttributes(String project, String collection, String attribute, Optional<LocalDate> startDate, Optional<LocalDate> endDate, Optional<String> filter);
-
     default void setup() {
     }
 

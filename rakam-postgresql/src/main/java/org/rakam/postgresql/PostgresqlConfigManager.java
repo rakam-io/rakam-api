@@ -17,7 +17,7 @@ public class PostgresqlConfigManager implements ConfigManager {
     private final DBI dbi;
 
     @Inject
-    public PostgresqlConfigManager(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
+    public PostgresqlConfigManager(@Named("metadata.store.jdbc") JDBCPoolDataSource dataSource) {
         this.dbi = new DBI(dataSource);
     }
 
