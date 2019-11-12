@@ -50,7 +50,6 @@ public class AWSConfig {
         return this;
     }
 
-    @NotNull
     public String getRegion() {
         return region;
     }
