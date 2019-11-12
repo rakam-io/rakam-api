@@ -25,6 +25,6 @@ RUN cd /var/app/rakam/target/rakam-*-bundle/rakam-*/etc/ && echo '\n-Denv=RAKAM_
 
 EXPOSE 9999
 
-ENTRYPOINT rakam/target/rakam-*-bundle/rakam-*/bin/launcher run --config ../config.properties
+ENTRYPOINT rakam/target/rakam-*-bundle/rakam-*/bin/launcher run --config config.properties
 
 RUN apt-get clean
