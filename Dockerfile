@@ -9,6 +9,10 @@ RUN cd rakam && mvn install -DskipTests
 RUN echo 'org.rakam=INFO\n\
 io.netty=INFO' > log.properties
 
+RUN [ -s config.properties ] || (echo "\
+plugin.geoip.enabled=true\n\
+http.server.address=0.0.0.0:9999\n\
+plugin.geoip.database.url=file://tmp/GeoLite2-City.mmdb\n" > config.properties)
 
 RUN apt-get update \
     # Rakam can automatically download & extract the database but we do this
