@@ -1,6 +1,5 @@
 package org.rakam.analysis;
 
-import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.ApiKeyService.ProjectApiKeys;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.SchemaChecker;
@@ -16,14 +15,13 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.Path;
-import java.time.LocalDate;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
-import static org.rakam.analysis.ApiKeyService.AccessKeyType.*;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 @Path("/project")
@@ -171,7 +169,7 @@ public class ProjectHttpService
     private ProjectApiKeys transformKeys(ProjectApiKeys apiKeys) {
         return ProjectApiKeys.create(
                 projectConfig.getPassphrase() != null ? apiKeys.masterKey() : CryptUtil.encryptAES(apiKeys.masterKey(), projectConfig.getPassphrase()),
-                projectConfig.getPassphrase() != null ? apiKeys.writeKey() :  CryptUtil.encryptAES(apiKeys.writeKey(), projectConfig.getPassphrase()));
+                projectConfig.getPassphrase() != null ? apiKeys.writeKey() : CryptUtil.encryptAES(apiKeys.writeKey(), projectConfig.getPassphrase()));
     }
 
     @JsonRequest
