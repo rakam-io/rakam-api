@@ -168,8 +168,8 @@ public class ProjectHttpService
 
     private ProjectApiKeys transformKeys(ProjectApiKeys apiKeys) {
         return ProjectApiKeys.create(
-                projectConfig.getPassphrase() != null ? apiKeys.masterKey() : CryptUtil.encryptAES(apiKeys.masterKey(), projectConfig.getPassphrase()),
-                projectConfig.getPassphrase() != null ? apiKeys.writeKey() : CryptUtil.encryptAES(apiKeys.writeKey(), projectConfig.getPassphrase()));
+                projectConfig.getPassphrase() == null ? apiKeys.masterKey() : CryptUtil.encryptAES(apiKeys.masterKey(), projectConfig.getPassphrase()),
+                projectConfig.getPassphrase() == null ? apiKeys.writeKey() : CryptUtil.encryptAES(apiKeys.writeKey(), projectConfig.getPassphrase()));
     }
 
     @JsonRequest
