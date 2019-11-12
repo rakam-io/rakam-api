@@ -9,18 +9,6 @@ RUN cd rakam && mvn install -DskipTests
 RUN echo 'org.rakam=INFO\n\
 io.netty=INFO' > log.properties
 
-RUN [ -s config.properties ] || (echo "store.adapter=postgresql\n\
-plugin.user.enabled=true\n\
-event-explorer.enabled=true\n\
-custom-data-source.enabled=true\n\
-user.funnel-analysis.enabled=true\n\
-plugin.user.enable-user-mapping=true\n\
-user.retention-analysis.enabled=true\n\
-plugin.geoip.enabled=true\n\
-plugin.user.storage=postgresql\n\
-http.server.address=0.0.0.0:9999\n\
-plugin.user.storage.identifier-column=id\n\
-plugin.geoip.database.url=file://tmp/GeoLite2-City.mmdb\n" > config.properties)
 
 RUN apt-get update \
     # Rakam can automatically download & extract the database but we do this
