@@ -219,6 +219,7 @@
                             <ignoredUnusedDeclaredDependencies>
                                 <ignoredUnusedDeclaredDependency>io.airlift:node</ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>joda-time:joda-time</ignoredUnusedDeclaredDependency>
+                                <ignoredUnusedDeclaredDependency>com.fasterxml.jackson.dataformat:jackson-dataformat-cbor</ignoredUnusedDeclaredDependency>
                             </ignoredUnusedDeclaredDependencies>
                         </configuration>
                     </execution>
