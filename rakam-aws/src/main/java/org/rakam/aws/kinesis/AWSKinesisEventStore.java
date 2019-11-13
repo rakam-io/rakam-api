@@ -63,8 +63,12 @@ public class AWSKinesisEventStore
         this.bulkClient = new S3BulkEventStore(metastore, config, fieldDependency);
 
         KinesisProducerConfiguration producerConfiguration = new KinesisProducerConfiguration()
-                .setRegion(config.getRegion())
                 .setCredentialsProvider(config.getCredentials());
+
+        if(config.getRegion() != null) {
+            producerConfiguration.setRegion(config.getRegion());
+        }
+
         if (config.getKinesisEndpoint() != null) {
             try {
                 URL url = new URL(config.getKinesisEndpoint());
