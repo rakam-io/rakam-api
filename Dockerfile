@@ -13,7 +13,7 @@ ADD ./rakam-spi/pom.xml rakam-spi/pom.xml
 ADD ./mapper/rakam-mapper-geoip-ip2location/pom.xml mapper/rakam-mapper-geoip-ip2location/pom.xml
 ADD ./mapper/rakam-mapper-geoip-maxmind/pom.xml mapper/rakam-mapper-geoip-maxmind/pom.xml
 ADD ./mapper/rakam-mapper-website/pom.xml mapper/rakam-mapper-website/pom.xml
-RUN mvn dependency:go-offline
+RUN mvn verify clean --fail-never
 
 ADD ./rakam/ rakam
 ADD ./rakam-aws/ rakam-aws
@@ -33,13 +33,17 @@ RUN apt-get update \
     && gzip -d /tmp/GeoLite2-City.mmdb.gz
 
 # Make environment variable active
-RUN cd /var/app/rakam/target/rakam-*-bundle/rakam-*/etc/ && echo '\n-Denv=RAKAM_CONFIG' >> jvm.config
+RUN cd /var/app/rakam/target/rakam-*-bundle/rakam-*/ && \
+    mkdir etc && \
+    echo '\n-Denv=RAKAM_CONFIG' >> ./etc/jvm.config
 
+FROM openjdk:8-jre-alpine
+COPY --from=build /var/app/rakam/target/ /tmp
+ADD ./entrypoint.sh /app/entrypoint.sh
 
-FROM maven:3-jdk-8 as target
-COPY --from=build /var/app/rakam/target/rakam-*-bundle /app
-ADD ./entrypoint.sh /app
+RUN cp -r /tmp/rakam-*-bundle/rakam-*/* /app/ && \
+    chmod +x /app/entrypoint.sh && \
+    rm -rf /tmp/rakam-*-bundle/
 
-RUN chmod +x /app/entrypoint.sh
 ENTRYPOINT ["/app/entrypoint.sh"]
 EXPOSE 9999
