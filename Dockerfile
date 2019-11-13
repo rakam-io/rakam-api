@@ -1,18 +1,30 @@
-FROM maven:3-jdk-8
+FROM maven:3-jdk-8 as build
 MAINTAINER Burak Emre Kabakci "emre@rakam.io"
 
 WORKDIR /var/app
 
-ADD . .
-RUN mvn clean install -T 1C -DskipTests=true
+ADD pom.xml pom.xml
+ADD ./rakam/pom.xml rakam/pom.xml
+ADD ./rakam-aws/pom.xml rakam-aws/pom.xml
+ADD ./rakam-postgresql/pom.xml rakam-postgresql/pom.xml
+ADD ./rakam-presto/pom.xml rakam-presto/pom.xml
+ADD ./rakam-presto-kafka/pom.xml rakam-presto-kafka/pom.xml
+ADD ./rakam-spi/pom.xml rakam-spi/pom.xml
+ADD ./mapper/rakam-mapper-geoip-ip2location/pom.xml mapper/rakam-mapper-geoip-ip2location/pom.xml
+ADD ./mapper/rakam-mapper-geoip-maxmind/pom.xml mapper/rakam-mapper-geoip-maxmind/pom.xml
+ADD ./mapper/rakam-mapper-website/pom.xml mapper/rakam-mapper-website/pom.xml
+RUN mvn dependency:go-offline
 
-RUN echo 'org.rakam=INFO\n\
-io.netty=INFO' > log.properties
-
-RUN [ -s config.properties ] || (echo "\
-plugin.geoip.enabled=true\n\
-http.server.address=0.0.0.0:9999\n\
-plugin.geoip.database.url=file://tmp/GeoLite2-City.mmdb\n" > config.properties)
+ADD ./rakam/ rakam
+ADD ./rakam-aws/ rakam-aws
+ADD ./rakam-postgresql/ rakam-postgresql
+ADD ./rakam-presto/ rakam-presto
+ADD ./rakam-presto-kafka/ rakam-presto-kafka
+ADD ./rakam-spi/ rakam-spi
+ADD ./mapper/rakam-mapper-geoip-ip2location/ mapper/rakam-mapper-geoip-ip2location
+ADD ./mapper/rakam-mapper-geoip-maxmind/ mapper/rakam-mapper-geoip-maxmind
+ADD ./mapper/rakam-mapper-website/ mapper/rakam-mapper-website
+RUN mvn package -T 1C -DskipTests=true
 
 RUN apt-get update \
     # Rakam can automatically download & extract the database but we do this
@@ -23,8 +35,11 @@ RUN apt-get update \
 # Make environment variable active
 RUN cd /var/app/rakam/target/rakam-*-bundle/rakam-*/etc/ && echo '\n-Denv=RAKAM_CONFIG' >> jvm.config
 
+
+FROM maven:3-jdk-8 as target
+COPY --from=build /var/app/rakam/target/rakam-*-bundle /app
+ADD ./entrypoint.sh /app
+
+RUN chmod +x /app/entrypoint.sh
+ENTRYPOINT ["/app/entrypoint.sh"]
 EXPOSE 9999
-
-ENTRYPOINT rakam/target/rakam-*-bundle/rakam-*/bin/launcher run --config config.properties
-
-RUN apt-get clean
