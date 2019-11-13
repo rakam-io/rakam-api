@@ -39,6 +39,7 @@ RUN cd /var/app/rakam/target/rakam-*-bundle/rakam-*/ && \
 
 FROM openjdk:8-jre-alpine
 COPY --from=build /var/app/rakam/target/ /tmp
+COPY --from=build /tmp/GeoLite2-City.mmdb /tmp/GeoLite2-City.mmdb
 ADD ./entrypoint.sh /app/entrypoint.sh
 
 RUN cp -r /tmp/rakam-*-bundle/rakam-*/* /app/ && \
