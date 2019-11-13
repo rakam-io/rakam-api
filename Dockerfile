@@ -42,9 +42,9 @@ COPY --from=build /var/app/rakam/target/ /rtmp
 COPY --from=build /tmp/GeoLite2-City.mmdb /tmp/GeoLite2-City.mmdb
 ADD ./entrypoint.sh /app/entrypoint.sh
 
-RUN cp -r /tmp/rakam-*-bundle/rakam-*/* /app/ && \
+RUN cp -r /rtmp/rakam-*-bundle/rakam-*/* /app/ && \
     chmod +x /app/entrypoint.sh && \
-    rm -rf /tmp/rakam-*-bundle/
+    rm -rf /rtmp
 
 ENTRYPOINT ["/app/entrypoint.sh"]
 EXPOSE 9999
