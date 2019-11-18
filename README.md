@@ -78,13 +78,11 @@ In order to set environment variables for container, you may use `-e` flag for f
 
 Then you can share same file among the Rakam containers. If Dockerfile can't find any environment variable starts with `RAKAM_CONFIG`, it tries to connect Postgresql instance created with docker-compose.
 
-### AWS (Cloudformation)
+### AWS (Terraform)
 
-Please [contact us](https://rakam.io/contact) for Cloudformation templates of Rakam.
+See [https://github.com/rakam-io/rakam-api-terraform-aws](https://github.com/rakam-io/rakam-api-terraform-aws).
 
-Cloudformation templates create a Opsworks stack in your AWS account for Rakam. You can easily monitor, scale and manage your Rakam cluster with these Cloudformation templates.
-
-Cloudformation is the recommended way to deploy Rakam in production because AWS automatically handles most of the complexity like fail over and load-balancing.
+Terraform installer is the recommended way to deploy Rakam in production because it automatically handles most of the complexity like fail over and load-balancing.
 
 ### Custom
 - Download Java 1.8 for your operating system.
