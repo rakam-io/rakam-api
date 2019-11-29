@@ -101,8 +101,6 @@ public class EventListDeserializer
 
     private EventList readEvents(JsonParser jp, Event.EventContext context, DeserializationContext deserializationContext)
             throws IOException {
-        Object inputSource = jp.getInputSource();
-
         long start = jp.getTokenLocation().getByteOffset();
 
         List<Event> list = new ArrayList<>();

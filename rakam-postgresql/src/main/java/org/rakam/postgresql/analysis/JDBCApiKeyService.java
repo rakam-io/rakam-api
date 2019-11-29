@@ -22,18 +22,15 @@ import static org.rakam.analysis.ApiKeyService.AccessKeyType.*;
 public class JDBCApiKeyService
         implements ApiKeyService {
     protected final JDBCPoolDataSource connectionPool;
-    private final LoadingCache<String, List<Set<String>>> apiKeyCache;
+    private final LoadingCache<KeyTypePair, String> apiKeyCache;
 
     public JDBCApiKeyService(JDBCPoolDataSource connectionPool) {
         this.connectionPool = connectionPool;
 
-        apiKeyCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<String, List<Set<String>>>() {
+        apiKeyCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<KeyTypePair, String>() {
             @Override
-            public List<Set<String>> load(String project)
-                    throws Exception {
-                try (Connection conn = connectionPool.getConnection()) {
-                    return getKeys(conn, project);
-                }
+            public String load(KeyTypePair pair) {
+                return getProjectOfApiKeyInternal(pair.key, pair.type);
             }
         });
     }
@@ -88,6 +85,10 @@ public class JDBCApiKeyService
 
     @Override
     public String getProjectOfApiKey(String apiKey, AccessKeyType type) {
+        return apiKeyCache.getUnchecked(new KeyTypePair(apiKey, type));
+    }
+
+    public String getProjectOfApiKeyInternal(String apiKey, AccessKeyType type) {
         if (type == null) {
             throw new IllegalStateException();
         }
@@ -104,7 +105,7 @@ public class JDBCApiKeyService
             }
             return resultSet.getString(1);
         } catch (SQLException e) {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -146,67 +147,31 @@ public class JDBCApiKeyService
         }
     }
 
-    private List<Set<String>> getKeys(Connection conn, String project)
-            throws SQLException {
-        Set<String> masterKeyList = new HashSet<>();
-        Set<String> writeKeyList = new HashSet<>();
-
-        Set<String>[] keys =
-                Arrays.stream(AccessKeyType.values()).map(key -> new HashSet<String>()).toArray(Set[]::new);
-
-        PreparedStatement ps = conn.prepareStatement("SELECT master_key from api_key WHERE project = ?");
-        ps.setString(1, project);
-        ResultSet resultSet = ps.executeQuery();
-        while (resultSet.next()) {
-            String apiKey;
-
-            apiKey = resultSet.getString(1);
-            if (apiKey != null) {
-                masterKeyList.add(apiKey);
-            }
-        }
-
-        keys[MASTER_KEY.ordinal()] = Collections.unmodifiableSet(masterKeyList);
-        keys[WRITE_KEY.ordinal()] = Collections.unmodifiableSet(writeKeyList);
-
-        return Collections.unmodifiableList(Arrays.asList(keys));
-    }
-
     public void clearCache() {
         apiKeyCache.cleanUp();
     }
 
-    public static final class ApiKey {
+    public static class KeyTypePair {
         public final String key;
         public final AccessKeyType type;
 
-        public ApiKey(String key, AccessKeyType type) {
+        public KeyTypePair(String key, AccessKeyType type) {
             this.key = key;
             this.type = type;
         }
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (!(o instanceof ApiKey)) {
-                return false;
-            }
-
-            ApiKey apiKey = (ApiKey) o;
-
-            if (!key.equals(apiKey.key)) {
-                return false;
-            }
-            return type == apiKey.type;
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            KeyTypePair that = (KeyTypePair) o;
+            return key.equals(that.key) &&
+                    type == that.type;
         }
 
         @Override
         public int hashCode() {
-            int result = key.hashCode();
-            result = 31 * result + type.hashCode();
-            return result;
+            return Objects.hash(key, type);
         }
     }
 }
