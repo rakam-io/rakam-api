@@ -4,6 +4,7 @@ import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.util.CryptUtil;
@@ -13,6 +14,7 @@ import javax.annotation.PostConstruct;
 import java.net.URI;
 import java.sql.*;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
@@ -85,7 +87,15 @@ public class JDBCApiKeyService
 
     @Override
     public String getProjectOfApiKey(String apiKey, AccessKeyType type) {
-        return apiKeyCache.getUnchecked(new KeyTypePair(apiKey, type));
+        try {
+            return apiKeyCache.getUnchecked(new KeyTypePair(apiKey, type));
+        } catch (UncheckedExecutionException e) {
+            if(e.getCause() instanceof RakamException) {
+                throw (RakamException) e.getCause();
+            } else {
+                throw new RuntimeException(e.getCause());
+            }
+        }
     }
 
     public String getProjectOfApiKeyInternal(String apiKey, AccessKeyType type) {
