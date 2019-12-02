@@ -27,10 +27,7 @@ import org.rakam.collection.Event.EventContext;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.EventStore.CopyType;
-import org.rakam.server.http.HttpRequestException;
-import org.rakam.server.http.HttpService;
-import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
+import org.rakam.server.http.*;
 import org.rakam.server.http.annotations.*;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.LogUtil;
@@ -64,7 +61,6 @@ import static org.rakam.plugin.EventMapper.COMPLETED_EMPTY_FUTURE;
 import static org.rakam.plugin.EventStore.COMPLETED_FUTURE;
 import static org.rakam.plugin.EventStore.CopyType.*;
 import static org.rakam.plugin.EventStore.SUCCESSFUL_BATCH;
-import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.encodeAsBytes;
 import static org.rakam.util.StandardErrors.PARTIAL_ERROR_MESSAGE;
 import static org.rakam.util.ValidationUtil.checkCollection;
@@ -147,8 +143,12 @@ public class EventCollectionHttpService
         }
     }
 
+    private static HttpServer.ErrorMessage returnError(String title) {
+        return new HttpServer.ErrorMessage(ImmutableList.of(HttpServer.JsonAPIError.title(title)), null);
+    }
+
     public static void returnError(RakamHttpRequest request, String msg, HttpResponseStatus status) {
-        ByteBuf byteBuf = Unpooled.wrappedBuffer(JsonHelper.encodeAsBytes(errorMessage(msg, status)));
+        ByteBuf byteBuf = Unpooled.wrappedBuffer(JsonHelper.encodeAsBytes(returnError(msg)));
         DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HTTP_1_1, status, byteBuf);
         setBrowser(request, errResponse);
         request.response(errResponse).end();
@@ -434,7 +434,7 @@ public class EventCollectionHttpService
                                     "Error while storing event.");
 
                             return new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR,
-                                    Unpooled.wrappedBuffer(encodeAsBytes(errorMessage("An error occurred: " + e.getMessage(), INTERNAL_SERVER_ERROR))),
+                                    Unpooled.wrappedBuffer(encodeAsBytes(returnError("An error occurred: " + e.getMessage()))),
                                     responseHeaders);
                         }
                     }
@@ -525,7 +525,7 @@ public class EventCollectionHttpService
                                         new RuntimeException(sample.toString().substring(0, 200), e)),
                                 "Error while storing event.");
                         return new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR,
-                                Unpooled.wrappedBuffer(encodeAsBytes(errorMessage("An error occurred", INTERNAL_SERVER_ERROR))),
+                                Unpooled.wrappedBuffer(encodeAsBytes(returnError("An error occurred"))),
                                 responseHeaders);
                     }
 
@@ -580,7 +580,7 @@ public class EventCollectionHttpService
                             List<Event> sample = events.size() > 5 ? events.subList(0, 5) : events;
                             LOGGER.error(new RuntimeException(sample.toString(), e), "Error executing EventStore " + (single ? "store" : "batch") + " method.");
                             return completedFuture(new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR,
-                                    Unpooled.wrappedBuffer(encodeAsBytes(errorMessage("An error occurred", INTERNAL_SERVER_ERROR))),
+                                    Unpooled.wrappedBuffer(encodeAsBytes(returnError("An error occurred"))),
                                     responseHeaders));
                         }
                     } else {
@@ -684,7 +684,7 @@ public class EventCollectionHttpService
                     if (ex != null) {
                         String message = "Error while processing event mappers";
                         LOGGER.error(ex, message);
-                        request.response(JsonHelper.encode(errorMessage(message, INTERNAL_SERVER_ERROR)),
+                        request.response(JsonHelper.encode(returnError(message)),
                                 INTERNAL_SERVER_ERROR);
                     } else {
                         if (value != null) {

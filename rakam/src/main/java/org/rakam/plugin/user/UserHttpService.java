@@ -13,6 +13,7 @@ import org.rakam.plugin.user.AbstractUserService.BatchUserOperationRequest;
 import org.rakam.plugin.user.AbstractUserService.BatchUserOperationRequest.BatchUserOperations;
 import org.rakam.plugin.user.AbstractUserService.SingleUserBatchOperationRequest;
 import org.rakam.server.http.HttpRequestException;
+import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.*;
@@ -38,12 +39,10 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static io.netty.handler.codec.http.cookie.ServerCookieEncoder.STRICT;
-import static java.lang.String.format;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
 import static org.rakam.collection.EventCollectionHttpService.getHeaderList;
 import static org.rakam.collection.EventCollectionHttpService.setBrowser;
-import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.server.http.HttpServer.returnError;
 
 @Path("/user")
@@ -140,7 +139,7 @@ public class UserHttpService
                 setBrowser(request, response);
 
                 if (ex != null) {
-                    request.response(JsonHelper.encode(errorMessage("An error occurred", INTERNAL_SERVER_ERROR)),
+                    request.response(JsonHelper.encode(new HttpServer.ErrorMessage(ImmutableList.of(HttpServer.JsonAPIError.title("An error occurred")), null)),
                             INTERNAL_SERVER_ERROR);
                     LOGGER.error(ex, "Error while performing batch user operation");
                     return;
@@ -278,33 +277,6 @@ public class UserHttpService
             service.setUserPropertiesOnce(project, req.id, req.properties);
             request.response(OK_MESSAGE).end();
         });
-    }
-
-    @JsonRequest
-    @ApiOperation(value = "Set user property", authorizations = @Authorization(value = "master_key"))
-    @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
-    @Path("/increment_property")
-    @AllowCookie
-    public SuccessMessage incrementProperty(@ApiParam("api") User.UserContext api,
-                                            @ApiParam("id") String user,
-                                            @ApiParam("property") String property,
-                                            @ApiParam("value") double value) {
-        String project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
-        service.incrementProperty(project, user, property, value);
-        return SuccessMessage.success();
-    }
-
-    @JsonRequest
-    @ApiOperation(value = "Unset user property")
-    @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
-    @Path("/unset_properties")
-    @AllowCookie
-    public SuccessMessage unsetProperty(@ApiParam("api") User.UserContext api,
-                                        @ApiParam("id") Object id,
-                                        @ApiParam("properties") List<String> properties) {
-        String project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
-        service.unsetProperties(project, id, properties);
-        return SuccessMessage.success();
     }
 
     public static class MetadataResponse {

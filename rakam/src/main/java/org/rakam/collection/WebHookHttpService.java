@@ -11,6 +11,7 @@ import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -28,10 +29,7 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.RequestContext;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.Parameter;
-import org.rakam.server.http.HttpRequestException;
-import org.rakam.server.http.HttpService;
-import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
+import org.rakam.server.http.*;
 import org.rakam.server.http.annotations.*;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.LogUtil;
@@ -64,7 +62,6 @@ import java.util.stream.Collectors;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
-import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.server.http.HttpServer.returnError;
 
 @Path("/event/hook")
@@ -262,8 +259,7 @@ public class WebHookHttpService
 
                     request.response(saved ? "1" : "0").end();
                 } else {
-                    byte[] bytes = JsonHelper.encodeAsBytes(errorMessage("Webhook code timeouts.",
-                            INTERNAL_SERVER_ERROR));
+                    byte[] bytes = JsonHelper.encodeAsBytes(new HttpServer.ErrorMessage(ImmutableList.of(HttpServer.JsonAPIError.title("Webhook code timed-out")), null));
 
                     request.response(bytes, INTERNAL_SERVER_ERROR).end();
                 }
@@ -459,8 +455,7 @@ public class WebHookHttpService
 
                     request.response(stringify.toString()).end();
                 } else {
-                    byte[] bytes = JsonHelper.encodeAsBytes(errorMessage("Webhook code timeouts.",
-                            INTERNAL_SERVER_ERROR));
+                    byte[] bytes = JsonHelper.encodeAsBytes(new HttpServer.ErrorMessage(ImmutableList.of(HttpServer.JsonAPIError.title("Webhook code timed out")), null));
 
                     request.response(bytes, INTERNAL_SERVER_ERROR).end();
                 }

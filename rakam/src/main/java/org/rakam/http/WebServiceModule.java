@@ -120,9 +120,7 @@ public class WebServiceModule
                         LogUtil.logException(request, ex);
                     }
                 })
-                .setOverridenMappings(ImmutableMap.of(GenericRecord.class, PrimitiveType.OBJECT, ZoneId.class, PrimitiveType.STRING))
-                .addPostProcessor(response -> response.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"),
-                        method -> method.isAnnotationPresent(AllowCookie.class));
+                .setOverridenMappings(ImmutableMap.of(GenericRecord.class, PrimitiveType.OBJECT, ZoneId.class, PrimitiveType.STRING));
 
         requestPreProcessorItems.forEach(i -> httpServer.addJsonPreprocessor(i.processor, i.predicate));
 
