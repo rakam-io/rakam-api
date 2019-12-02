@@ -663,9 +663,6 @@ public class EventCollectionHttpService
                 if (value != null) {
                     responseHeaders.add(SET_COOKIE, STRICT.encode(value));
                 }
-                if (response.isDone()) {
-                    request.response(response.join()).end();
-                }
             });
 
             response.whenComplete((resp, storeEx) -> {
