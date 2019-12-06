@@ -698,7 +698,7 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
         }
 
         public void log(String name, FieldType type, String error, JsonParser parser) throws IOException {
-            List<SchemaField> fields = metastore.getOrCreateCollectionFields(project, collection, rakamSchema);
+            List<SchemaField> fields = metastore.getOrCreateCollectionFields(project, "$invalid_schema", rakamSchema);
 
             if(events == null) {
                 events = new ArrayList<>();
