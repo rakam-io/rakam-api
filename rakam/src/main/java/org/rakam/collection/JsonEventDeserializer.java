@@ -9,9 +9,7 @@ import com.fasterxml.jackson.databind.util.TokenBuffer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.*;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
 import org.apache.avro.generic.GenericData;
@@ -469,7 +467,7 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
             record = newRecord;
         }
 
-        invalidSchemaLogger.flushInBackground(record.get("_id"));
+        invalidSchemaLogger.flushInBackground(record.get("_id"), record.get(projectConfig.getUserColumn()), record.get(projectConfig.getTimeColumn()));
 
         return new SimpleImmutableEntry<>(rakamSchema, record);
     }
@@ -687,13 +685,13 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
         public InvalidSchemaLogger(String project, String collection) {
             this.project = project;
             this.collection = collection;
-            rakamSchema  = ImmutableSet.of(
+            rakamSchema  = Sets.union(ImmutableSet.of(
                     new SchemaField("collection", STRING),
                     new SchemaField("property", STRING),
                     new SchemaField("type", STRING),
                     new SchemaField("event_id", STRING),
                     new SchemaField("error_message", STRING),
-                    new SchemaField("encoded_value", STRING));
+                    new SchemaField("encoded_value", STRING)), constantFields);
             avroSchema = AvroUtil.convertAvroSchema(rakamSchema);
         }
 
@@ -714,11 +712,15 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
             events.add(new Event(project, "$invalid_schema", EventContext.empty(), fields, record));
         }
 
-        public void flushInBackground(Object eventId) {
+        public void flushInBackground(Object eventId, Object user, Object time) {
             if(events != null) {
                 if(eventId != null) {
                     String eventIdValue = eventId.toString();
-                    events.forEach(event -> event.properties().put("event_id",  eventIdValue));
+                    events.forEach(event -> {
+                        event.properties().put("event_id",  eventIdValue);
+                        event.properties().put(projectConfig.getUserColumn(),  user);
+                        event.properties().put(projectConfig.getTimeColumn(),  time);
+                    });
                 }
                 eventstore.storeBatch(events);
             }
