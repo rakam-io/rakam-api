@@ -32,6 +32,7 @@ import java.util.*;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.facebook.presto.raptor.storage.ShardStats.MAX_BINARY_INDEX_SIZE;
 import static com.facebook.presto.raptor.util.DatabaseUtil.onDemandDao;
@@ -150,7 +151,6 @@ public class MysqlExplicitMetastore extends AbstractMetastore {
         ValidationUtil.checkCollectionValid(collection);
 
         List<SchemaField> schemaFields = getCollection(project, collection);
-        List<SchemaField> lastFields;
         if (schemaFields.isEmpty()) {
             // the table does not exist
             try {
@@ -163,16 +163,17 @@ public class MysqlExplicitMetastore extends AbstractMetastore {
             }
         }
 
-        fields.stream()
+        List<SchemaField> newFields = fields.stream()
                 .filter(field -> schemaFields.stream().noneMatch(f -> f.getName().equals(field.getName())))
-                .forEach(f -> {
-                    addColumn(project, collection, f.getName(), f.getType());
-                });
+                .collect(Collectors.toList());
 
-        lastFields = getCollection(project, collection);
-
-        super.onCreateCollection(project, collection, schemaFields);
-        return lastFields;
+        if(!newFields.isEmpty()) {
+            newFields.forEach(f -> addColumn(project, collection, f.getName(), f.getType()));
+            super.onCreateCollection(project, collection, schemaFields);
+            return getCollection(project, collection);
+        } else {
+            return schemaFields;
+        }
     }
 
     private void addColumn(String project, String collection, String columnName, FieldType fieldType) {

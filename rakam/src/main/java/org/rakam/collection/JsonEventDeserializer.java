@@ -12,8 +12,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import io.airlift.log.Logger;
-import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
 import org.apache.avro.generic.GenericData;
@@ -24,6 +22,7 @@ import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.collection.Event.EventContext;
 import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.config.ProjectConfig;
+import org.rakam.plugin.EventStore;
 import org.rakam.util.*;
 
 import javax.inject.Inject;
@@ -51,10 +50,7 @@ import static org.rakam.util.AvroUtil.convertAvroSchema;
 import static org.rakam.util.ValidationUtil.checkCollectionValid;
 import static org.rakam.util.ValidationUtil.stripName;
 
-public class JsonEventDeserializer
-        extends JsonDeserializer<Event> {
-    private final static Logger LOGGER = Logger.get(JsonEventDeserializer.class);
-
+public class JsonEventDeserializer extends JsonDeserializer<Event> {
     private final Map<String, List<SchemaField>> conditionalMagicFields;
     private final Metastore metastore;
     private final Cache<ProjectCollection, Map.Entry<List<SchemaField>, Schema>> schemaCache =
@@ -67,6 +63,7 @@ public class JsonEventDeserializer
     private final SchemaChecker schemaChecker;
     private final ProjectConfig projectConfig;
     private final ImmutableMap<String, FieldType> conditionalFieldMapping;
+    public final EventStore eventstore;
 
     @Inject
     public JsonEventDeserializer(Metastore metastore,
@@ -74,12 +71,14 @@ public class JsonEventDeserializer
                                  ConfigManager configManager,
                                  SchemaChecker schemaChecker,
                                  ProjectConfig projectConfig,
+                                 EventStore eventstore,
                                  FieldDependency fieldDependency) {
         this.metastore = metastore;
         this.conditionalMagicFields = fieldDependency.dependentFields;
         this.apiKeyService = apiKeyService;
         this.schemaChecker = schemaChecker;
         this.projectConfig = projectConfig;
+        this.eventstore = eventstore;
         this.configManager = configManager;
         this.constantFields = fieldDependency.constantFields;
         conditionalFieldMapping = conditionalMagicFields.values().stream()
@@ -303,7 +302,7 @@ public class JsonEventDeserializer
         if (properties == null) {
             if (propertiesBuffer != null) {
                 if (project == null) {
-                    if(api == null) {
+                    if (api == null) {
                         throw new RakamException("api parameter is required", BAD_REQUEST);
                     }
                     try {
@@ -343,6 +342,8 @@ public class JsonEventDeserializer
             schemaCache.put(key, schema);
         }
 
+        InvalidSchemaLogger invalidSchemaLogger = new InvalidSchemaLogger(project, collection);
+
         Schema avroSchema = schema.getValue();
         List<SchemaField> rakamSchema = schema.getKey();
 
@@ -351,7 +352,7 @@ public class JsonEventDeserializer
 
         JsonToken t = jp.nextToken();
         for (; t == JsonToken.FIELD_NAME; t = jp.nextToken()) {
-            String fieldName = null;
+            String fieldName;
             try {
                 fieldName = stripName(jp.getCurrentName(), "field name");
             } catch (IllegalArgumentException e) {
@@ -364,53 +365,53 @@ public class JsonEventDeserializer
             jp.nextToken();
 
             if (field == null) {
-                field = avroSchema.getField(fieldName);
-
-                if (field == null) {
-
-                    FieldType type = conditionalFieldMapping.get(fieldName);
-                    if (type == null) {
-                        type = getTypeForUnknown(jp);
+                FieldType type = conditionalFieldMapping.get(fieldName);
+                if (type == null) {
+                    type = getTypeForUnknown(jp);
+                }
+                if (type != null) {
+                    if (newFields == null) {
+                        newFields = new ArrayList<>();
                     }
-                    if (type != null) {
-                        if (newFields == null) {
-                            newFields = new ArrayList<>();
-                        }
 
-                        if (fieldName.equals(projectConfig.getUserColumn())) {
-                            // the type of magic _user field must be consistent between collections
-                            if (type.isArray() || type.isMap()) {
-                                throw new RakamException("_user field must be numeric or string.", BAD_REQUEST);
-                            }
-                            final FieldType eventUserType = type.isNumeric() ? (type != INTEGER ? LONG : INTEGER) : STRING;
-                            type = configManager.setConfigOnce(project, USER_TYPE.name(), eventUserType);
-                        }
-
-                        SchemaField newField = new SchemaField(fieldName, type);
-                        newFields.add(newField);
-
-                        avroSchema = createNewSchema(avroSchema, newField);
-                        field = avroSchema.getField(newField.getName());
-
-                        GenericData.Record newRecord = new GenericData.Record(avroSchema);
-                        for (Schema.Field f : record.getSchema().getFields()) {
-                            newRecord.put(f.name(), record.get(f.name()));
-                        }
-                        record = newRecord;
-
+                    if (fieldName.equals(projectConfig.getUserColumn())) {
+                        // the type of magic _user field must be consistent between collections
                         if (type.isArray() || type.isMap()) {
-                            // if the type of new field is ARRAY, we already switched to next token
-                            // so current token is not START_ARRAY.
-                            record.put(field.pos(), getValue(jp, type, field, true, project, collection));
-                        } else {
-                            record.put(field.pos(), getValue(jp, type, field, false, project, collection));
+                            throw new RakamException("_user field must be numeric or string.", BAD_REQUEST);
                         }
-                        continue;
-                    } else {
-                        // the type is null or an empty array
-                        t = jp.getCurrentToken();
-                        continue;
+                        final FieldType eventUserType = type.isNumeric() ? (type != INTEGER ? LONG : INTEGER) : STRING;
+                        type = configManager.setConfigOnce(project, USER_TYPE.name(), eventUserType);
                     }
+
+                    SchemaField newField = new SchemaField(fieldName, type);
+                    newFields.add(newField);
+
+                    avroSchema = createNewSchema(avroSchema, newField);
+                    field = avroSchema.getField(newField.getName());
+
+                    GenericData.Record newRecord = new GenericData.Record(avroSchema);
+                    for (Schema.Field f : record.getSchema().getFields()) {
+                        newRecord.put(f.name(), record.get(f.name()));
+                    }
+                    record = newRecord;
+
+
+                    Object value = null;
+                    try {
+                        value = getValue(jp, type, field,
+                                // if the type of new field is ARRAY, we already switched to next token
+                                // so current token is not START_ARRAY.
+                                type.isArray() || type.isMap());
+                    } catch (ParseException e) {
+                        invalidSchemaLogger.log(fieldName, type, e.getMessage(), jp);
+                    }
+
+                    record.put(field.pos(), value);
+                    continue;
+                } else {
+                    // the type is null or an empty array
+                    t = jp.getCurrentToken();
+                    continue;
                 }
             } else {
                 if (field.schema().getType() == NULL) {
@@ -429,7 +430,13 @@ public class JsonEventDeserializer
             FieldType type = field.schema().getType() == NULL ? null :
                     (field.pos() >= rakamSchema.size() ?
                             newFields.get(field.pos() - rakamSchema.size()) : rakamSchema.get(field.pos())).getType();
-            Object value = getValue(jp, type, field, false, project, collection);
+
+            Object value = null;
+            try {
+                value = getValue(jp, type, field, false);
+            } catch (ParseException e) {
+                invalidSchemaLogger.log(fieldName, type, e.getMessage(), jp);
+            }
             record.put(field.pos(), value);
         }
 
@@ -457,14 +464,12 @@ public class JsonEventDeserializer
 
             for (Schema.Field field : record.getSchema().getFields()) {
                 Object value = record.get(field.name());
-                try {
-                    newRecord.put(field.name(), value);
-                } catch (AvroRuntimeException e) {
-                    LOGGER.error(e);
-                }
+                newRecord.put(field.name(), value);
             }
             record = newRecord;
         }
+
+        invalidSchemaLogger.flushInBackground(record.get("_id"));
 
         return new SimpleImmutableEntry<>(rakamSchema, record);
     }
@@ -491,8 +496,8 @@ public class JsonEventDeserializer
         return avroSchema;
     }
 
-    private Object getValue(JsonParser jp, FieldType type, Schema.Field field, boolean passInitialToken, String project, String collection)
-            throws IOException {
+    private Object getValue(JsonParser jp, FieldType type, Schema.Field field, boolean passInitialToken)
+            throws IOException, ParseException {
         if (type == null) {
             return getValueOfMagicField(jp);
         }
@@ -510,31 +515,62 @@ public class JsonEventDeserializer
                     }
                     return valueAsString;
                 case BOOLEAN:
-                    return jp.getValueAsBoolean();
+                    if (jp.getCurrentToken() == VALUE_FALSE || jp.getCurrentToken() == VALUE_TRUE) {
+                        return jp.getValueAsBoolean();
+                    } else {
+                        throw new ParseException(String.format("Invalid type %s", jp.getCurrentToken()));
+                    }
                 case LONG:
                 case DECIMAL:
-                    return jp.getValueAsLong();
                 case INTEGER:
-                    return jp.getValueAsInt();
+                case DOUBLE:
+                    if (jp.getCurrentToken() == VALUE_NUMBER_FLOAT || jp.getCurrentToken() == VALUE_NUMBER_INT) {
+                        if(type == INTEGER) {
+                            return jp.getValueAsInt();
+                        }
+                        if(type == DOUBLE) {
+                            return jp.getValueAsDouble();
+                        }
+                        if(type == LONG || type == DECIMAL) {
+                            return jp.getValueAsLong();
+                        }
+                    } else {
+                        if(jp.getCurrentToken() == VALUE_STRING) {
+                            if(type == INTEGER) {
+                                int valueAsInt = jp.getValueAsInt(Integer.MIN_VALUE);
+                                if(valueAsInt != Integer.MIN_VALUE) {
+                                    return valueAsInt;
+                                }
+                            }
+                            if(type == DOUBLE) {
+                                double valueAsDouble = jp.getValueAsDouble(Double.MIN_VALUE);
+                                if(valueAsDouble != Double.MIN_VALUE) {
+                                    return valueAsDouble;
+                                }
+                            }
+                            if(type == LONG || type == DECIMAL) {
+                                long valueAsLong = jp.getValueAsLong(Long.MIN_VALUE);
+                                if(valueAsLong != Long.MIN_VALUE) {
+                                    return valueAsLong;
+                                }
+                            }
+                            // try to parse the value
+                        }
+
+                        throw new ParseException(String.format("Invalid token %s", jp.getCurrentToken()));
+                    }
                 case TIME:
                     try {
                         return (long) LocalTime.parse(jp.getValueAsString())
                                 .get(ChronoField.MILLI_OF_DAY);
                     } catch (Exception e) {
-                        LOGGER.warn(new RuntimeException(jp.getValueAsString(), e), "Error while parsing TIME field");
-                        return null;
-//                        throw new RakamException(String.format("Unable to parse TIME value '%s'", jp.getValueAsString()),
-//                                BAD_REQUEST);
+                        throw new ParseException(e.getMessage());
                     }
-                case DOUBLE:
-                    return jp.getValueAsDouble();
                 case TIMESTAMP:
-                    if (jp.getValueAsString().isEmpty()) {
-                        return null;
-                    }
                     if (jp.getCurrentToken().isNumeric()) {
                         return jp.getValueAsLong();
                     }
+
                     try {
                         return DateTimeUtils.parseTimestamp(jp.getValueAsString());
                     } catch (Exception e) {
@@ -542,12 +578,9 @@ public class JsonEventDeserializer
                             throw new RakamException(String.format("Unable to parse TIMESTAMP value '%s' in time column", jp.getValueAsString()),
                                     BAD_REQUEST);
                         }
-                        return null;
+                        throw new ParseException(e.getMessage());
                     }
                 case DATE:
-                    if (jp.getValueAsString().isEmpty()) {
-                        return null;
-                    }
                     try {
                         return DateTimeUtils.parseDate(jp.getValueAsString());
                     } catch (Exception e) {
@@ -555,37 +588,18 @@ public class JsonEventDeserializer
                             throw new RakamException(String.format("Unable to parse DATE value '%s' in time column", jp.getValueAsString()),
                                     BAD_REQUEST);
                         }
-                        return null;
+                        throw new ParseException(e.getMessage());
                     }
                 default:
                     if (type.isArray()) {
                         Schema actualSchema = field.schema().getTypes().get(1);
-                        Object value = getValue(jp, type.getArrayElementType(), null, false, project, collection);
-                        if(value == null) {
-                            LOGGER.warn(new RuntimeException(jp.getValueAsString()), String.format("Error while parsing %s field", type.name()));
+                        Object value = getValue(jp, type.getArrayElementType(), null, false);
+                        if (value != null) {
+                            return new GenericData.Array(actualSchema, ImmutableList.of(value));
                         }
-                        return new GenericData.Array(actualSchema, ImmutableList.of(value));
                     }
-//                    if(type.isArray()) {
-//                    if (jp.getCurrentToken() == VALUE_STRING && jp.getValueAsString().charAt(0) == '[') {
-//                        List<Object> read = JsonHelper.read(jp.getValueAsString(), List.class);
-//                        return new GenericData.Array(actualSchema, read);
-//                    }
-//                    }
-//                    if(type.isMap()) {
-//                        if (jp.getCurrentToken() == VALUE_STRING && jp.getValueAsString().charAt(0) == '{') {
-//                            JsonNode read = JsonHelper.read(jp.getValueAsString());
-//                            return new GenericData.Array(actualSchema, objects);
-//                        }
-//                    }
-//                    return null;
 
-                    String format = format("Scalar value '%s' cannot be cast to %s type for '%s' field.",
-                            jp.getValueAsString(), type.name(), field.name());
-
-                    LOGGER.warn(new RuntimeException(format), String.format("Error while parsing JSON field in collection %s.%s", project, collection));
-
-                    throw new JsonMappingException(jp, format);
+                    throw new ParseException("Unable to cast scalar value to a complex type");
             }
         } else {
             Schema actualSchema = field.schema().getTypes().get(1);
@@ -596,8 +610,7 @@ public class JsonEventDeserializer
 
                 if (!passInitialToken) {
                     if (t != JsonToken.START_OBJECT) {
-                        jp.skipChildren();
-                        return null;
+                        throw new ParseException(String.format("Unable to parse token %s", t));
                     } else {
                         t = jp.nextToken();
                     }
@@ -607,7 +620,7 @@ public class JsonEventDeserializer
                     String key = jp.getCurrentName();
                     Object value;
                     if (t.isScalarValue()) {
-                        value = getValue(jp, type.getMapValueType(), null, false, project, collection);
+                        value = getValue(jp, type.getMapValueType(), null, false);
                     } else {
                         value = JsonHelper.encode(jp.readValueAsTree());
                     }
@@ -620,12 +633,9 @@ public class JsonEventDeserializer
 
                     Object value;
                     if (!jp.nextToken().isScalarValue()) {
-                        if (type.getMapValueType() != STRING) {
-                            throw new JsonMappingException(jp, String.format("Nested properties are not supported if the type is not MAP_STRING. ('%s' field)", field.name()));
-                        }
-                        value = JsonHelper.encode(jp.readValueAsTree());
+                        throw new ParseException("Unable to cast scalar value to a complex type");
                     } else {
-                        value = getValue(jp, type.getMapValueType(), null, false, project, collection);
+                        value = getValue(jp, type.getMapValueType(), null, false);
                     }
 
                     map.put(key, value);
@@ -637,7 +647,7 @@ public class JsonEventDeserializer
                 // so there is no need to check if the current token is START_ARRAY
                 if (!passInitialToken) {
                     if (t != JsonToken.START_ARRAY) {
-                        return null;
+                        throw new ParseException("Unable to cast scalar value to a complex type");
                     } else {
                         t = jp.nextToken();
                     }
@@ -647,23 +657,17 @@ public class JsonEventDeserializer
                 for (; t != JsonToken.END_ARRAY; t = jp.nextToken()) {
                     if (!t.isScalarValue()) {
                         if (type.getArrayElementType() != STRING) {
-                            throw new JsonMappingException(jp, String.format("Nested properties are not supported if the type is not MAP_STRING. ('%s' field)", field.name()));
+                            throw new ParseException("Nested properties are not supported if the type is not MAP_STRING.");
                         }
 
                         objects.add(JsonHelper.encode(jp.readValueAsTree()));
                     } else {
-                        objects.add(getValue(jp, type.getArrayElementType(), null, false, project, collection));
+                        objects.add(getValue(jp, type.getArrayElementType(), null, false));
                     }
                 }
                 return new GenericData.Array(actualSchema, objects);
             } else {
-                if (type == STRING) {
-                    return JsonHelper.encode(jp.readValueAs(TokenBuffer.class));
-                } else {
-                    jp.skipChildren();
-                    return null;
-//                    throw new JsonMappingException(jp, String.format("Cannot cast object to %s for '%s' field", type.name(), field.name()));
-                }
+                throw new ParseException("Unable to cast complex value to a scalar type");
             }
         }
     }
@@ -671,6 +675,67 @@ public class JsonEventDeserializer
     @VisibleForTesting
     public void cleanCache() {
         schemaCache.invalidateAll();
+    }
+
+    public class InvalidSchemaLogger {
+        private final String project;
+        private final String collection;
+        private final Set<SchemaField> rakamSchema;
+        private final Schema avroSchema;
+        private List<Event> events = null;
+
+        public InvalidSchemaLogger(String project, String collection) {
+            this.project = project;
+            this.collection = collection;
+            rakamSchema  = ImmutableSet.of(
+                    new SchemaField("collection", STRING),
+                    new SchemaField("property", STRING),
+                    new SchemaField("type", STRING),
+                    new SchemaField("event_id", STRING),
+                    new SchemaField("error_message", STRING),
+                    new SchemaField("encoded_value", STRING));
+            avroSchema = AvroUtil.convertAvroSchema(rakamSchema);
+        }
+
+        public void log(String name, FieldType type, String error, JsonParser parser) throws IOException {
+            List<SchemaField> fields = metastore.getOrCreateCollectionFields(project, collection, rakamSchema);
+
+            if(events == null) {
+                events = new ArrayList<>();
+            }
+
+            GenericData.Record record = new GenericData.Record(avroSchema);
+            record.put("collection", this.collection);
+            record.put("property", name);
+            record.put("type", type.toString());
+            record.put("event_id", null);
+            record.put("error_message", error);
+            record.put("encoded_value", JsonHelper.encode(parser.readValueAsTree()));
+            events.add(new Event(project, "$invalid_schema", EventContext.empty(), fields, record));
+        }
+
+        public void flushInBackground(Object eventId) {
+            if(events != null) {
+                if(eventId != null) {
+                    String eventIdValue = eventId.toString();
+                    events.forEach(event -> event.properties().put("event_id",  eventIdValue));
+                }
+                eventstore.storeBatch(events);
+            }
+        }
+    }
+
+    public static class ParseException extends Exception {
+
+        public ParseException(String message) {
+            super(message);
+        }
+
+        // Stack traces are expensive and we don't need them.
+        @Override
+        public Throwable fillInStackTrace() {
+            return this;
+        }
     }
 }
 

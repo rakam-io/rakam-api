@@ -37,14 +37,13 @@ public class TestEventJsonParser {
     private InMemoryApiKeyService apiKeyService;
 
     @BeforeSuite
-    public void setUp()
-            throws Exception {
+    public void setUp() {
         FieldDependencyBuilder.FieldDependency fieldDependency = new FieldDependencyBuilder().build();
         apiKeyService = new InMemoryApiKeyService();
         metastore = new InMemoryMetastore(apiKeyService);
 
         SchemaChecker schemaChecker = new SchemaChecker(metastore, fieldDependency);
-        eventDeserializer = new JsonEventDeserializer(metastore, apiKeyService, new TestingConfigManager(), schemaChecker, new ProjectConfig(), fieldDependency);
+        eventDeserializer = new JsonEventDeserializer(metastore, apiKeyService, new TestingConfigManager(), schemaChecker, new ProjectConfig(), null, fieldDependency);
         EventListDeserializer eventListDeserializer = new EventListDeserializer(apiKeyService, eventDeserializer);
 
         mapper = JsonHelper.getMapper();

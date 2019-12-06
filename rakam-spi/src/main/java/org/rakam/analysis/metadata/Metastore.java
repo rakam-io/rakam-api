@@ -25,19 +25,4 @@ public interface Metastore {
 
     default void setup() {
     }
-
-    class Stats {
-        public Long allEvents;
-        public Long monthlyEvents;
-        public Long dailyEvents;
-
-        public Stats() {
-        }
-
-        public Stats(Long allEvents, Long monthlyEvents, Long dailyEvents) {
-            this.allEvents = allEvents;
-            this.monthlyEvents = monthlyEvents;
-            this.dailyEvents = dailyEvents;
-        }
-    }
 }
