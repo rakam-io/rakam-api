@@ -61,7 +61,9 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
     private final SchemaChecker schemaChecker;
     private final ProjectConfig projectConfig;
     private final ImmutableMap<String, FieldType> conditionalFieldMapping;
-    public final EventStore eventstore;
+    private final EventStore eventstore;
+    private final Set<SchemaField> rakamInvalidSchema;
+    private final Schema rakamInvalidAvroSchema;
 
     @Inject
     public JsonEventDeserializer(Metastore metastore,
@@ -81,6 +83,15 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
         this.constantFields = fieldDependency.constantFields;
         conditionalFieldMapping = conditionalMagicFields.values().stream()
                 .flatMap(e -> e.stream()).collect(toImmutableMap(e -> e.getName(), e -> e.getType()));
+        this.rakamInvalidSchema = Sets.union(ImmutableSet.of(
+                new SchemaField("collection", STRING),
+                new SchemaField("property", STRING),
+                new SchemaField("type", STRING),
+                new SchemaField("event_id", STRING),
+                new SchemaField("error_message", STRING),
+                new SchemaField("encoded_value", STRING),
+                new SchemaField("_user", STRING)), constantFields);
+        this.rakamInvalidAvroSchema = AvroUtil.convertAvroSchema(rakamInvalidSchema);
     }
 
     public static Object getValueOfMagicField(JsonParser jp)
@@ -678,31 +689,21 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
     public class InvalidSchemaLogger {
         private final String project;
         private final String collection;
-        private final Set<SchemaField> rakamSchema;
-        private final Schema avroSchema;
         private List<Event> events = null;
 
         public InvalidSchemaLogger(String project, String collection) {
             this.project = project;
             this.collection = collection;
-            rakamSchema  = Sets.union(ImmutableSet.of(
-                    new SchemaField("collection", STRING),
-                    new SchemaField("property", STRING),
-                    new SchemaField("type", STRING),
-                    new SchemaField("event_id", STRING),
-                    new SchemaField("error_message", STRING),
-                    new SchemaField("encoded_value", STRING)), constantFields);
-            avroSchema = AvroUtil.convertAvroSchema(rakamSchema);
         }
 
         public void log(String name, FieldType type, String error, JsonParser parser) throws IOException {
-            List<SchemaField> fields = metastore.getOrCreateCollectionFields(project, "$invalid_schema", rakamSchema);
+            List<SchemaField> fields = metastore.getOrCreateCollectionFields(project, "$invalid_schema", rakamInvalidSchema);
 
             if(events == null) {
                 events = new ArrayList<>();
             }
 
-            GenericData.Record record = new GenericData.Record(avroSchema);
+            GenericData.Record record = new GenericData.Record(rakamInvalidAvroSchema);
             record.put("collection", this.collection);
             record.put("property", name);
             record.put("type", type.toString());
