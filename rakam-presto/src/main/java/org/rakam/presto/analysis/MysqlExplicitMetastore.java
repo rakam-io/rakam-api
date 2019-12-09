@@ -12,6 +12,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
 import com.google.inject.name.Named;
 import com.mysql.jdbc.exceptions.jdbc4.MySQLIntegrityConstraintViolationException;
+import io.airlift.log.Logger;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.AbstractMetastore;
 import org.rakam.collection.FieldType;
@@ -45,6 +46,8 @@ import static org.rakam.collection.FieldType.*;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 public class MysqlExplicitMetastore extends AbstractMetastore {
+    private final static Logger LOGGER = Logger.get(MysqlExplicitMetastore.class);
+
     private final DBI dbi;
     private final MetadataDao dao;
 

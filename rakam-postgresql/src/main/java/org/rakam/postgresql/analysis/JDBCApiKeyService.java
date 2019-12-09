@@ -13,13 +13,11 @@ import org.rakam.util.RakamException;
 import javax.annotation.PostConstruct;
 import java.net.URI;
 import java.sql.*;
-import java.util.*;
-import java.util.concurrent.ExecutionException;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static java.lang.String.format;
-import static org.rakam.analysis.ApiKeyService.AccessKeyType.*;
 
 public class JDBCApiKeyService
         implements ApiKeyService {
@@ -32,7 +30,7 @@ public class JDBCApiKeyService
         apiKeyCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<KeyTypePair, String>() {
             @Override
             public String load(KeyTypePair pair) {
-                return getProjectOfApiKeyInternal(pair.key, pair.type);
+            return getProjectOfApiKeyInternal(pair.key, pair.type);
             }
         });
     }
@@ -90,7 +88,7 @@ public class JDBCApiKeyService
         try {
             return apiKeyCache.getUnchecked(new KeyTypePair(apiKey, type));
         } catch (UncheckedExecutionException e) {
-            if(e.getCause() instanceof RakamException) {
+            if (e.getCause() instanceof RakamException) {
                 throw (RakamException) e.getCause();
             } else {
                 throw new RuntimeException(e.getCause());
