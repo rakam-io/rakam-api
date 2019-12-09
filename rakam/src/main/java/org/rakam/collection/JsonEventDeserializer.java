@@ -51,10 +51,7 @@ import static org.rakam.util.ValidationUtil.stripName;
 public class JsonEventDeserializer extends JsonDeserializer<Event> {
     private final Map<String, List<SchemaField>> conditionalMagicFields;
     private final Metastore metastore;
-    private final Cache<ProjectCollection, Map.Entry<List<SchemaField>, Schema>> schemaCache =
-            CacheBuilder
-                    .newBuilder()
-                    .expireAfterWrite(5, TimeUnit.MINUTES).build();
+    private final Cache<ProjectCollection, Map.Entry<List<SchemaField>, Schema>> schemaCache = CacheBuilder.newBuilder().build();
     private final Set<SchemaField> constantFields;
     private final ApiKeyService apiKeyService;
     private final ConfigManager configManager;
