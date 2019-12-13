@@ -528,10 +528,10 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                         return jp.getValueAsBoolean();
                     } else {
                         if(jp.getCurrentToken() == VALUE_STRING) {
-                            if(jp.getValueAsString().equals("true")) {
+                            if(jp.getValueAsString().toLowerCase(Locale.ENGLISH).equals("true")) {
                                 return true;
                             }
-                            if(jp.getValueAsString().equals("false")) {
+                            if(jp.getValueAsString().toLowerCase(Locale.ENGLISH).equals("false")) {
                                 return false;
                             }
                         }

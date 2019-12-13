@@ -171,19 +171,14 @@ public class AWSKinesisEventStore
     }
 
     public void store(ByteBuf buffer, String partitionKey, CompletableFuture<Void> future, int tryCount) {
+//        while (producer.getOutstandingRecordsCount() > MAX_RECORDS_IN_FLIGHT) {
+//            Thread.sleep(SLEEP_BACKOFF_IN_MS);
+//        }
         try {
             kinesis.putRecordAsync(config.getEventStoreStreamName(), buffer.nioBuffer(), partitionKey, new AsyncHandler<PutRecordRequest, PutRecordResult>() {
                 @Override
                 public void onError(Exception e) {
                     try {
-//                        if (e instanceof ResourceNotFoundException) {
-//                            try {
-//                                KinesisUtils.createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
-//                            } catch (Exception e1) {
-//                                throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
-//                            }
-//                        }
-
                         LOGGER.error(e);
                         if (tryCount > 0) {
                             store(buffer, partitionKey, future, tryCount - 1);

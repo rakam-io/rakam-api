@@ -4,11 +4,7 @@ import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.log.Logger;
 
-import java.net.URISyntaxException;
-
 public class ProjectConfig {
-    private final static Logger LOGGER = Logger.get(ProjectConfig.class);
-
     private String lockKey;
     private String passphrase;
     private String timeColumn = "_time";

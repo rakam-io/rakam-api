@@ -90,8 +90,7 @@ public class RakamClient {
                 }
 
                 @Override
-                public void onResponse(Call call, Response response)
-                        throws IOException {
+                public void onResponse(Call call, Response response) {
                     logger.debug("Successfully logged %s event", collection);
                     response.close();
                 }
