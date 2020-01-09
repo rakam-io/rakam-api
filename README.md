@@ -1,7 +1,5 @@
 [![Build Status](https://travis-ci.org/rakam-io/rakam.svg?branch=master)](https://travis-ci.org/rakam-io/rakam)
 [<img alt="Deploy" src="https://www.herokucdn.com/deploy/button.png" height="21">](https://dashboard.heroku.com/new?button-url=https%3A%2F%2Fgithub.com%2Frakam-io%2Frakam&template=https%3A%2F%2Fgithub.com%2Frakam-io%2Frakam) 
-[<img src="https://img.shields.io/badge/slack-community-red?logo=slack&style=plastic">](https://joinslack.rakam.io/)
-
 [![Slack Channel](https://slackin-extended.ilkercam.now.sh/badge.svg)](https://slackin-extended.ilkercam.now.sh/)
 Rakam
 =======
