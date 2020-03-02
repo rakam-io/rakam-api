@@ -226,7 +226,7 @@ public class EventCollectionHttpService
                 return;
             } catch (Exception e) {
                 LOGGER.error(e, "Error while collecting event");
-
+                LogUtil.logException(request, e);
                 returnError(request, "An error occurred", INTERNAL_SERVER_ERROR);
                 return;
             }
