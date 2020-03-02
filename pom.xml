@@ -191,6 +191,10 @@
                         <groupId>com.google.code.findbugs</groupId>
                         <artifactId>jsr305</artifactId>
                     </exclusion>
+                    <exclusion>
+                        <groupId>io.airlift</groupId>
+                        <artifactId>jmx</artifactId>
+                    </exclusion>
                 </exclusions>
             </dependency>
             <dependency>
