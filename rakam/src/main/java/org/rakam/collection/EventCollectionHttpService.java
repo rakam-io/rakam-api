@@ -246,6 +246,7 @@ public class EventCollectionHttpService
                         returnError(request, ex.getMessage(), ((RakamException) ex).getStatusCode());
                     } else {
                         LOGGER.error(ex, "Error while collecting event");
+                        LogUtil.logException(request, ex);
                         returnError(request, "An error occurred", INTERNAL_SERVER_ERROR);
                     }
                     return;
@@ -319,6 +320,7 @@ public class EventCollectionHttpService
             response.headers().add("server-error", e.getMessage());
         } catch (Exception e) {
             LOGGER.error(e, "Error while collecting event");
+            LogUtil.logException(request, e);
             response.headers().add("server-error", "An error occurred");
             return;
         }
@@ -647,7 +649,7 @@ public class EventCollectionHttpService
                 return;
             } catch (Throwable e) {
                 LOGGER.error(e, "Error while collecting event");
-
+                LogUtil.logException(request, e);
                 returnError(request, "An error occurred", INTERNAL_SERVER_ERROR);
                 return;
             }
@@ -672,6 +674,7 @@ public class EventCollectionHttpService
                         returnError(request, storeEx.getMessage(), ((RakamException) storeEx).getStatusCode());
                     } else {
                         LOGGER.error(storeEx, "Error while collecting events");
+                        LogUtil.logException(request, storeEx);
                         returnError(request, "An error occurred", INTERNAL_SERVER_ERROR);
                     }
                     return;
