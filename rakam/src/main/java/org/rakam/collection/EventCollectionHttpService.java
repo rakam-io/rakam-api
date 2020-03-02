@@ -224,7 +224,7 @@ public class EventCollectionHttpService
                 returnError(request, e.getMessage(), BAD_REQUEST);
                 LogUtil.logException(request, e);
                 return;
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 LOGGER.error(e, "Error while collecting event");
                 LogUtil.logException(request, e);
                 returnError(request, "An error occurred", INTERNAL_SERVER_ERROR);
