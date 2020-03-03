@@ -114,7 +114,10 @@ public class WebServiceModule
                 .setProxyProtocol(config.getProxyProtocol())
                 .setExceptionHandler((request, ex) -> {
                     if (ex instanceof RakamException) {
-                        LogUtil.logException(request, (RakamException) ex);
+                        RakamException rakamEx = (RakamException) ex;
+                        if(rakamEx.getStatusCode() != FORBIDDEN) {
+                            LogUtil.logException(request, rakamEx);
+                        }
                     }
                     if (!(ex instanceof HttpRequestException)) {
                         LogUtil.logException(request, ex);
