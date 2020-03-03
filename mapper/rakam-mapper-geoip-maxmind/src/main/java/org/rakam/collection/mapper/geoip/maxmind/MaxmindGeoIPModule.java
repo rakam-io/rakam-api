@@ -22,12 +22,13 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.zip.GZIPInputStream;
 
+import static io.airlift.configuration.ConfigBinder.configBinder;
+
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "plugin.geoip.enabled", value = "true")
 public class MaxmindGeoIPModule
         extends RakamModule {
-    static File downloadOrGetFile(URL url)
-            throws Exception {
+    static File downloadOrGetFile(URL url) throws Exception {
         if ("file".equals(url.getProtocol())) {
             return new File(url.toString().substring("file:/".length()));
         }
@@ -119,12 +120,10 @@ public class MaxmindGeoIPModule
 
     @Override
     protected void setup(Binder binder) {
-        MaxmindGeoIPModuleConfig geoIPModuleConfig = buildConfigObject(MaxmindGeoIPModuleConfig.class);
-        MaxmindGeoIPEventMapper geoIPEventMapper;
-        geoIPEventMapper = new MaxmindGeoIPEventMapper(geoIPModuleConfig);
-
-        Multibinder.newSetBinder(binder, UserPropertyMapper.class).addBinding().toInstance(geoIPEventMapper);
-        Multibinder.newSetBinder(binder, EventMapper.class).addBinding().toInstance(geoIPEventMapper);
+        configBinder(binder).bindConfig(MaxmindGeoIPModuleConfig.class);
+        binder.bind(MaxmindGeoIPEventMapper.class).asEagerSingleton();
+        Multibinder.newSetBinder(binder, UserPropertyMapper.class).addBinding().to(MaxmindGeoIPEventMapper.class);
+        Multibinder.newSetBinder(binder, EventMapper.class).addBinding().to(MaxmindGeoIPEventMapper.class);
     }
 
     @Override

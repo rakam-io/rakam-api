@@ -6,24 +6,15 @@ import com.google.common.collect.ImmutableList;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 
+import javax.validation.constraints.NotNull;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
 
 public class MaxmindGeoIPModuleConfig {
 
-    private static final URL DEMO_URL;
-
-    static {
-        try {
-            DEMO_URL = new URL("http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz");
-        } catch (MalformedURLException e) {
-            throw Throwables.propagate(e);
-        }
-    }
-
     private List<String> attributes;
-    private URL databaseUrl = DEMO_URL;
+    private URL databaseUrl = null;
     private URL ispDatabaseUrl;
     private URL connectionTypeDatabaseUrl;
     private boolean useExistingFields;
@@ -48,6 +39,7 @@ public class MaxmindGeoIPModuleConfig {
         return this;
     }
 
+    @NotNull
     public URL getDatabaseUrl() {
         return databaseUrl;
     }

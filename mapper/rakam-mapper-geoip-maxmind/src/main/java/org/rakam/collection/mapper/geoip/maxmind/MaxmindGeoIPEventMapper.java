@@ -23,6 +23,7 @@ import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.plugin.user.UserPropertyMapper;
 import org.rakam.util.MapProxyGenericRecord;
 
+import javax.inject.Inject;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.Inet4Address;
@@ -57,6 +58,7 @@ public class MaxmindGeoIPEventMapper
     private final DatabaseReader cityLookup;
     private final boolean attachIp;
 
+    @Inject
     public MaxmindGeoIPEventMapper(MaxmindGeoIPModuleConfig config) {
         Preconditions.checkNotNull(config, "config is null");
 

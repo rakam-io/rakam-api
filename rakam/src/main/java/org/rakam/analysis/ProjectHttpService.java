@@ -14,6 +14,7 @@ import org.rakam.util.SuccessMessage;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.util.*;
 import java.util.function.Consumer;
@@ -99,6 +100,12 @@ public class ProjectHttpService
         return metastore.getProjects();
     }
 
+    @GET
+    @Path("/exception")
+    public String getProjects() {
+        throw new NullPointerException();
+    }
+
     @JsonRequest
     @ApiOperation(value = "Add fields to collections",
             authorizations = @Authorization(value = "master_key"))
@@ -173,9 +180,7 @@ public class ProjectHttpService
     }
 
     @JsonRequest
-    @ApiOperation(value = "Get collection names",
-            authorizations = @Authorization(value = "master_key"))
-
+    @ApiOperation(value = "Get collection names", authorizations = @Authorization(value = "master_key"))
     @Path("/collection")
     public Set<String> collections(@Named("project") RequestContext context) {
         return metastore.getCollectionNames(context.project);
