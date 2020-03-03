@@ -26,11 +26,7 @@ ADD ./mapper/rakam-mapper-geoip-maxmind/ mapper/rakam-mapper-geoip-maxmind
 ADD ./mapper/rakam-mapper-website/ mapper/rakam-mapper-website
 RUN mvn package -T 1C -DskipTests=true
 
-RUN apt-get update \
-    # Rakam can automatically download & extract the database but we do this
-    # at compile time of the container because it increases the start time of the containers.
-    && wget -P /tmp http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz \
-    && gzip -d /tmp/GeoLite2-City.mmdb.gz
+RUN apt-get update
 
 # Make environment variable active
 RUN cd /var/app/rakam/target/rakam-*-bundle/rakam-*/ && \
@@ -39,7 +35,6 @@ RUN cd /var/app/rakam/target/rakam-*-bundle/rakam-*/ && \
 
 FROM openjdk:8-jre
 COPY --from=build /var/app/rakam/target/ /rtmp
-COPY --from=build /tmp/GeoLite2-City.mmdb /tmp/GeoLite2-City.mmdb
 ADD ./entrypoint.sh /app/entrypoint.sh
 
 RUN cp -r /rtmp/rakam-*-bundle/rakam-*/* /app/ && \
