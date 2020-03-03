@@ -1,25 +1,16 @@
 package org.rakam;
 
 import com.google.auto.service.AutoService;
-import com.google.common.base.Splitter;
 import com.google.inject.Binder;
 import io.airlift.configuration.Config;
 import io.sentry.Sentry;
-import io.sentry.SentryClient;
-import io.sentry.SentryClientFactory;
 import io.sentry.event.User;
-import io.sentry.jul.SentryHandler;
 import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.RakamModule;
 import org.rakam.util.RakamClient;
-import org.slf4j.MDC;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.Arrays;
-import java.util.logging.Level;
-import java.util.logging.LogManager;
-import java.util.logging.Logger;
 
 @AutoService(RakamModule.class)
 public class LogModule
@@ -32,19 +23,21 @@ public class LogModule
             ip = InetAddress.getLocalHost();
             HOST_NAME = ip.getHostName();
         } catch (UnknownHostException e) {
-           //
+            //
         }
     }
-
-    private static final String SENTRY_DSN = String.format("https://76daa36329be422ab9b592ab7239c2aa@sentry.io/1290994?release=%s&servername=%s&stacktrace.app.packages=org.rakam",
-            RakamClient.RELEASE, HOST_NAME);
 
     @Override
     protected void setup(Binder binder) {
         LogConfig logConfig = buildConfigObject(LogConfig.class);
         ProjectConfig projectConfig = buildConfigObject(ProjectConfig.class);
         if (logConfig.getLogActive()) {
-            Sentry.init(SENTRY_DSN+"&environment="+projectConfig.getCompanyName());
+            if(projectConfig.getCompanyName() != null) {
+                Sentry.getStoredClient().setEnvironment(projectConfig.getCompanyName());
+            }
+            Sentry.getStoredClient().setRelease(RakamClient.RELEASE);
+            Sentry.getStoredClient().setServerName(HOST_NAME);
+            Sentry.init(logConfig.getSentryUri() + "?stacktrace.app.packages=org.rakam");
         }
     }
 
@@ -59,8 +52,10 @@ public class LogModule
     }
 
     public static class LogConfig {
+        private static final String PUBLIC_SENTRY_DSN = "https://76daa36329be422ab9b592ab7239c2aa@sentry.io/1290994";
+
         private boolean logActive = true;
-        private String tags;
+        private String sentryUri = PUBLIC_SENTRY_DSN;
 
         public boolean getLogActive() {
             return logActive;
@@ -72,14 +67,14 @@ public class LogModule
             return this;
         }
 
-        public String getTags() {
-            return tags;
+        @Config("sentry-uri")
+        public LogConfig setSentryUri(String sentryUri) {
+            this.sentryUri = sentryUri;
+            return this;
         }
 
-        @Config("log-identifier")
-        public LogConfig setTags(String tags) {
-            this.tags = tags;
-            return this;
+        public String getSentryUri() {
+            return sentryUri;
         }
     }
 }

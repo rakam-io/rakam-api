@@ -424,7 +424,7 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                 }
             } else {
                 if (field.schema().getType() == NULL) {
-                    // TODO: get rid of this loop.
+                    // TODO: if there is a field in the database with this name, the code will add the types
                     for (SchemaField schemaField : conditionalMagicFields.get(fieldName)) {
                         if (avroSchema.getField(schemaField.getName()) == null) {
                             if (newFields == null) {
