@@ -44,7 +44,7 @@ public class LogModule
         LogConfig logConfig = buildConfigObject(LogConfig.class);
         ProjectConfig projectConfig = buildConfigObject(ProjectConfig.class);
         if (logConfig.getLogActive()) {
-            Sentry.init(SENTRY_DSN+"&tags=company:"+projectConfig.getCompanyName());
+            Sentry.init(SENTRY_DSN+"&environment="+projectConfig.getCompanyName());
         }
     }
 
