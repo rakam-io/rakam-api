@@ -34,11 +34,10 @@ public class MaxmindGeoIPModule
         }
         String name = url.getFile().substring(url.getFile().lastIndexOf('/') + 1, url.getFile().length());
         File data = new File(new File(System.getProperty("java.io.tmpdir")), "rakam/" + name);
-
         data.getParentFile().mkdirs();
 
         String extension;
-        if (url.getHost().equals("download.maxmind.com") && url.getPath().startsWith("/app")) {
+        if (url.getHost().equals("download.maxmind.com")) {
             extension = "tar.gz";
         } else {
             extension = Files.getFileExtension(data.getAbsolutePath()).split("\\?")[0];

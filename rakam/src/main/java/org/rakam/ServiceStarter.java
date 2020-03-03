@@ -149,8 +149,7 @@ public final class ServiceStarter {
         }
     }
 
-    public static class CollectionServiceRecipe
-            extends AbstractConfigurationAwareModule {
+    public static class CollectionServiceRecipe extends AbstractConfigurationAwareModule {
         @Override
         protected void setup(Binder binder) {
             Multibinder<Tag> tags = Multibinder.newSetBinder(binder, Tag.class);

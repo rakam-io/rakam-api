@@ -100,9 +100,9 @@ public class ProjectHttpService
         return metastore.getProjects();
     }
 
-    @GET
+    @JsonRequest
     @Path("/exception")
-    public String getProjects() {
+    public String exceptiontest(@ApiParam("collection") String collection) {
         throw new NullPointerException();
     }
 

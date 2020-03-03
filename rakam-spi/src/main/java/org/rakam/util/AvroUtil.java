@@ -96,7 +96,12 @@ public final class AvroUtil {
     }
 
     public static void put(GenericRecord properties, String key, Object value) {
-        Schema union = properties.getSchema().getField(key).schema();
+        Schema.Field field = properties.getSchema().getField(key);
+        if(field == null) {
+            throw new IllegalArgumentException(String.format("The field `%s` not found in schema. The available properties are %s",
+                    key, properties.getSchema().getFields().stream().map(e -> e.name()).collect(Collectors.joining(", "))));
+        }
+        Schema union = field.schema();
         Schema.Type type;
         if (union.getType().equals(UNION)) {
             type = union.getTypes().get(1).getType();
