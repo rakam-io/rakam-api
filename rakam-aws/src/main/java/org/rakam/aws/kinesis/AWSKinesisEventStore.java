@@ -146,15 +146,17 @@ public class AWSKinesisEventStore
     }
 
     private String getPartitionKey(Event event) {
-        Object user = event.getAttribute("_user");
-        if (user == null) {
-            user = event.getAttribute("_device_id");
-        }
-        if (user == null) {
-            user = getRandomNumberInRange(0, 100000);
-        }
+        int user =  getRandomNumberInRange(0, 100000);
+//        Object user = event.getAttribute("_user");
+//        if (user == null) {
+//            user = event.getAttribute("_device_id");
+//        }
+//
+//        if (user == null) {
+//            user = getRandomNumberInRange(0, 100000);
+//        }
 
-        return event.project() + "|" + event.collection() + user.toString();
+        return event.project() + "|" + event.collection() + user;
     }
 
     private static int getRandomNumberInRange(int min, int max) {
