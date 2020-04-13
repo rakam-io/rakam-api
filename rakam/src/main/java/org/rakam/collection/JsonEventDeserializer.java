@@ -2,9 +2,8 @@ package org.rakam.collection;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.core.TreeNode;
+import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.util.TokenBuffer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
@@ -412,7 +411,7 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                                 // so current token is not START_ARRAY.
                                 type.isArray() || type.isMap());
                     } catch (ParseException e) {
-                        invalidSchemaLogger.log(fieldName, type, e.getMessage(), jp);
+                        invalidSchemaLogger.log(fieldName, type, e.getMessage(), e.value);
                     }
 
                     record.put(field.pos(), value);
@@ -444,7 +443,7 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
             try {
                 value = getValue(jp, type, field, false);
             } catch (ParseException e) {
-                invalidSchemaLogger.log(fieldName, type, e.getMessage(), jp);
+                invalidSchemaLogger.log(fieldName, type, e.getMessage(), e.value);
             }
             record.put(field.pos(), value);
         }
@@ -535,7 +534,7 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                                 return false;
                             }
                         }
-                        throw new ParseException(String.format("Invalid value %s", jp.getCurrentToken()));
+                        throw new ParseException(String.format("Invalid value %s", jp.getCurrentToken()), jp.readValueAsTree());
                     }
                 case LONG:
                 case DECIMAL:
@@ -553,6 +552,10 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                         }
                     } else {
                         if(jp.getCurrentToken() == VALUE_STRING) {
+                            if(jp.getValueAsString().isEmpty()) {
+                                return null;
+                            }
+
                             if(type == INTEGER) {
                                 int valueAsInt = jp.getValueAsInt(Integer.MIN_VALUE);
                                 if(valueAsInt != Integer.MIN_VALUE) {
@@ -574,14 +577,14 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                             // try to parse the value
                         }
 
-                        throw new ParseException(String.format("Invalid token %s", jp.getCurrentToken()));
+                        throw new ParseException(String.format("Invalid token %s", jp.getCurrentToken()), jp.readValueAsTree());
                     }
                 case TIME:
                     try {
                         return (long) LocalTime.parse(jp.getValueAsString())
                                 .get(ChronoField.MILLI_OF_DAY);
                     } catch (Exception e) {
-                        throw new ParseException(e.getMessage());
+                        throw new ParseException(e.getMessage(), jp.readValueAsTree());
                     }
                 case TIMESTAMP:
                     if (jp.getCurrentToken().isNumeric()) {
@@ -595,7 +598,7 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                             throw new RakamException(String.format("Unable to parse TIMESTAMP value '%s' in time column", jp.getValueAsString()),
                                     BAD_REQUEST);
                         }
-                        throw new ParseException(e.getMessage());
+                        throw new ParseException(e.getMessage(), jp.readValueAsTree());
                     }
                 case DATE:
                     try {
@@ -605,18 +608,34 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                             throw new RakamException(String.format("Unable to parse DATE value '%s' in time column", jp.getValueAsString()),
                                     BAD_REQUEST);
                         }
-                        throw new ParseException(e.getMessage());
+                        throw new ParseException(e.getMessage(), jp.readValueAsTree());
                     }
                 default:
                     if (type.isArray()) {
                         Schema actualSchema = field.schema().getTypes().get(1);
-                        Object value = getValue(jp, type.getArrayElementType(), null, false);
-                        if (value != null) {
-                            return new GenericData.Array(actualSchema, ImmutableList.of(value));
+                        if(jp.currentToken() == VALUE_STRING && jp.getValueAsString().trim().startsWith("[")) {
+                            ObjectMapper mapper = JsonHelper.getMapper();
+                            JsonNode parsedJson = null;
+                            try {
+                                // try to parse json
+                                parsedJson = mapper.readTree(jp.getValueAsString());
+                            } catch (Exception e) {
+                                //
+                            }
+
+                            if(parsedJson != null) {
+                                // parse as json
+                                JsonParser arrayJp = mapper.treeAsTokens(parsedJson);
+                                arrayJp.nextToken();
+                                Object value = getValue(arrayJp, type, field, false);
+                                if (value != null) {
+                                    return value;
+                                }
+                            }
                         }
                     }
 
-                    throw new ParseException("Unable to cast scalar value to a complex type");
+                    throw new ParseException("Unable to cast scalar value to a complex type", jp.readValueAsTree());
             }
         } else {
             Schema actualSchema = field.schema().getTypes().get(1);
@@ -627,7 +646,7 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
 
                 if (!passInitialToken) {
                     if (t != JsonToken.START_OBJECT) {
-                        throw new ParseException(String.format("Unable to parse token %s", t));
+                        throw new ParseException(String.format("Unable to parse token %s", t), jp.readValueAsTree());
                     } else {
                         t = jp.nextToken();
                     }
@@ -648,14 +667,18 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                 for (; t == JsonToken.FIELD_NAME; t = jp.nextToken()) {
                     String key = jp.getCurrentName();
 
-                    Object value;
-                    if (!jp.nextToken().isScalarValue()) {
-                        throw new ParseException("Unable to cast scalar value to a complex type");
-                    } else {
-                        value = getValue(jp, type.getMapValueType(), null, false);
-                    }
+                    try {
+                        Object value;
+                        if (!jp.nextToken().isScalarValue()) {
+                            throw new ParseException("Unable to cast scalar value to a complex type", jp.readValueAsTree());
+                        } else {
+                            value = getValue(jp, type.getMapValueType(), null, false);
+                        }
 
-                    map.put(key, value);
+                        map.put(key, value);
+                    } catch (ParseException e) {
+                        // ignore field
+                    }
                 }
                 return map;
             } else if (type.isArray()) {
@@ -664,7 +687,7 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                 // so there is no need to check if the current token is START_ARRAY
                 if (!passInitialToken) {
                     if (t != JsonToken.START_ARRAY) {
-                        throw new ParseException("Unable to cast scalar value to a complex type");
+                        throw new ParseException("Unable to cast scalar value to a complex type", jp.readValueAsTree());
                     } else {
                         t = jp.nextToken();
                     }
@@ -672,19 +695,30 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
 
                 List<Object> objects = new ArrayList<>();
                 for (; t != JsonToken.END_ARRAY; t = jp.nextToken()) {
-                    if (!t.isScalarValue()) {
-                        if (type.getArrayElementType() != STRING) {
-                            throw new ParseException("Nested properties are not supported if the type is not MAP_STRING.");
-                        }
+                    try {
+                        if (!t.isScalarValue()) {
+                            if (type.getArrayElementType() != STRING) {
+                                throw new ParseException("Nested properties are not supported if the type is not MAP_STRING.", jp.readValueAsTree());
+                            }
 
-                        objects.add(JsonHelper.encode(jp.readValueAsTree()));
-                    } else {
-                        objects.add(getValue(jp, type.getArrayElementType(), null, false));
+                            objects.add(JsonHelper.encode(jp.readValueAsTree()));
+                        } else {
+                            objects.add(getValue(jp, type.getArrayElementType(), null, false));
+                        }
+                    } catch (ParseException e) {
+                        // ignore field, TODO: add it to invalid schema as well
                     }
                 }
                 return new GenericData.Array(actualSchema, objects);
             } else {
-                throw new ParseException("Unable to cast complex value to a scalar type");
+                TreeNode value = jp.readValueAsTree();
+                if(value.isArray() && value.size() == 0) {
+                    return null;
+                }
+                if(value.isObject() && !value.fieldNames().hasNext()) {
+                    return null;
+                }
+                throw new ParseException("Unable to cast complex value to a scalar type", value);
             }
         }
     }
@@ -704,7 +738,7 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
             this.collection = collection;
         }
 
-        public void log(String name, FieldType type, String error, JsonParser parser) throws IOException {
+        public void log(String name, FieldType type, String error, Object value) {
             List<SchemaField> fields = metastore.getOrCreateCollectionFields(project, "$invalid_schema", rakamInvalidSchema);
 
             if(events == null) {
@@ -717,7 +751,7 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
             record.put("type", type.toString());
             record.put("event_id", null);
             record.put("error_message", error);
-            record.put("encoded_value", JsonHelper.encode(parser.readValueAsTree()));
+            record.put("encoded_value", JsonHelper.encode(value));
             events.add(new Event(project, "$invalid_schema", EventContext.empty(), fields, record));
         }
 
@@ -737,9 +771,11 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
     }
 
     public static class ParseException extends Exception {
+        private final Object value;
 
-        public ParseException(String message) {
+        public ParseException(String message, Object value) {
             super(message);
+            this.value = value;
         }
 
         // Stack traces are expensive and we don't need them.

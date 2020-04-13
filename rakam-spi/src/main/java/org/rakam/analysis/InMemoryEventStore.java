@@ -21,6 +21,10 @@ public class InMemoryEventStore implements SyncEventStore {
         return EventStore.SUCCESSFUL_BATCH;
     }
 
+    public void clear() {
+        this.events.clear();
+    }
+
     public List<Event> getEvents() {
         return events;
     }

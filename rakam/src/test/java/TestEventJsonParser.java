@@ -8,6 +8,7 @@ import org.rakam.EventBuilder;
 import org.rakam.TestingConfigManager;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.InMemoryApiKeyService;
+import org.rakam.analysis.InMemoryEventStore;
 import org.rakam.analysis.InMemoryMetastore;
 import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.collection.*;
@@ -25,8 +26,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
+import static org.testng.Assert.*;
 
 public class TestEventJsonParser {
     private ObjectMapper mapper;
@@ -35,6 +35,7 @@ public class TestEventJsonParser {
     private InMemoryMetastore metastore;
     private JsonEventDeserializer eventDeserializer;
     private InMemoryApiKeyService apiKeyService;
+    private InMemoryEventStore eventStore;
 
     @BeforeSuite
     public void setUp() {
@@ -42,8 +43,9 @@ public class TestEventJsonParser {
         apiKeyService = new InMemoryApiKeyService();
         metastore = new InMemoryMetastore(apiKeyService);
 
+        eventStore = new InMemoryEventStore();
         SchemaChecker schemaChecker = new SchemaChecker(metastore, fieldDependency);
-        eventDeserializer = new JsonEventDeserializer(metastore, apiKeyService, new TestingConfigManager(), schemaChecker, new ProjectConfig(), null, fieldDependency);
+        eventDeserializer = new JsonEventDeserializer(metastore, apiKeyService, new TestingConfigManager(), schemaChecker, new ProjectConfig(), eventStore, fieldDependency);
         EventListDeserializer eventListDeserializer = new EventListDeserializer(apiKeyService, eventDeserializer);
 
         mapper = JsonHelper.getMapper();
@@ -59,6 +61,7 @@ public class TestEventJsonParser {
         metastore.deleteProject("test");
         eventDeserializer.cleanCache();
         eventBuilder.cleanCache();
+        eventStore.clear();
     }
 
     @BeforeMethod
@@ -206,7 +209,6 @@ public class TestEventJsonParser {
         ));
 
         Event event = mapper.readValue(bytes, Event.class);
-        ;
 
         assertEquals("test", event.project());
         assertEquals("test", event.collection());
@@ -249,8 +251,7 @@ public class TestEventJsonParser {
     }
 
     @Test
-    public void testInvalidArray()
-            throws Exception {
+    public void testInvalidArrayIgnoreField() throws Exception {
 
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
@@ -263,7 +264,7 @@ public class TestEventJsonParser {
         assertEquals("test", event.project());
         assertEquals("test", event.collection());
         assertEquals(api, event.api());
-        assertEquals(eventBuilder.createEvent("test", ImmutableMap.of("test1", ImmutableList.of(true, true))).properties(),
+        assertEquals(eventBuilder.createEvent("test", ImmutableMap.of("test1", ImmutableList.of(true))).properties(),
                 event.properties());
     }
 
@@ -282,7 +283,7 @@ public class TestEventJsonParser {
         assertEquals("test", event.collection());
         assertEquals(api, event.api());
         assertEquals(eventBuilder
-                        .createEvent("test", ImmutableMap.of("test1", ImmutableMap.of("test", 1.0, "test2", 0.0))).properties(),
+                        .createEvent("test", ImmutableMap.of("test1", ImmutableMap.of("test", 1.0))).properties(),
                 event.properties());
     }
 
@@ -390,15 +391,15 @@ public class TestEventJsonParser {
                 ImmutableSet.of(new SchemaField("test", FieldType.STRING)));
 
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
-        ImmutableMap<String, Object> props = ImmutableMap.of(
-                "test", ImmutableList.of("test"));
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "api", api,
                 "collection", "test",
-                "properties", props));
+                "properties", ImmutableMap.of(
+                        "test", ImmutableList.of("test"))));
 
         Event events = mapper.readValue(bytes, Event.class);
-        assertEquals(events.properties().get("test"), "[\"test\"]");
+        assertEquals(events.properties().get("test"), null);
+        assertTrue(eventStore.getEvents().get(0).collection().equals("$invalid_schema"));
     }
 
     //    @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "Cannot cast object to INTEGER for 'test' field.*")
@@ -427,15 +428,16 @@ public class TestEventJsonParser {
                 ImmutableSet.of(new SchemaField("test", FieldType.ARRAY_BOOLEAN)));
 
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
-        ImmutableMap<String, Object> props = ImmutableMap.of(
-                "test", "test");
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "api", api,
                 "collection", "test",
-                "properties", props));
+                "properties",  ImmutableMap.of(
+                        "test", "test")));
 
         Event event = mapper.readValue(bytes, Event.class);
-        assertEquals(event.getAttribute("test"), ImmutableList.of(false));
+        assertNull(event.getAttribute("test"));
+        assertTrue(eventStore.getEvents().get(0).collection().equals("$invalid_schema"));
+
     }
 
     @Test
