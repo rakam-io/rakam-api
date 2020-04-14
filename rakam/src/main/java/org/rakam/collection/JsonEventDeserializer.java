@@ -612,7 +612,6 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                     }
                 default:
                     if (type.isArray()) {
-                        Schema actualSchema = field.schema().getTypes().get(1);
                         if(jp.currentToken() == VALUE_STRING && jp.getValueAsString().trim().startsWith("[")) {
                             ObjectMapper mapper = JsonHelper.getMapper();
                             JsonNode parsedJson = null;
@@ -632,6 +631,12 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                                     return value;
                                 }
                             }
+                        }
+
+                        Object value = getValue(jp, type.getArrayElementType(), null, false);
+                        if (value != null) {
+                            Schema actualSchema = field.schema().getTypes().get(1);
+                            return new GenericData.Array(actualSchema, ImmutableList.of(value));
                         }
                     }
 
