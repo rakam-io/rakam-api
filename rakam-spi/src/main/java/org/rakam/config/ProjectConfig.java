@@ -1,8 +1,11 @@
 package org.rakam.config;
 
+import com.google.common.base.Splitter;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.log.Logger;
+
+import java.util.List;
 
 public class ProjectConfig {
     private String lockKey;
@@ -13,6 +16,7 @@ public class ProjectConfig {
     private String companyName;
     private int maxStringLength = 100;
     private boolean allowProjectDeletion;
+    private List<String> excludeEvents;
 
     public String getLockKey() {
         return lockKey;
@@ -73,6 +77,16 @@ public class ProjectConfig {
     public ProjectConfig setCompanyName(String companyName) {
         this.companyName = companyName;
         return this;
+    }
+
+    @Config("exclude-events")
+    public ProjectConfig setExcludeEvents(String excludeEvents) {
+        this.excludeEvents = Splitter.on(",").splitToList(excludeEvents);
+        return this;
+    }
+
+    public List<String> getExcludeEvents() {
+        return excludeEvents;
     }
 
     public int getMaxStringLength() {

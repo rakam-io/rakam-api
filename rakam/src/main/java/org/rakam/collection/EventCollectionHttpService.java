@@ -24,6 +24,7 @@ import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.collection.Event.EventContext;
+import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.EventStore.CopyType;
@@ -48,6 +49,8 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import static com.fasterxml.jackson.core.JsonToken.START_OBJECT;
 import static com.google.common.base.Charsets.UTF_8;
@@ -80,9 +83,11 @@ public class EventCollectionHttpService
     private final ApiKeyService apiKeyService;
     private final AvroEventDeserializer avroEventDeserializer;
     private final JsonEventDeserializer jsonEventDeserializer;
+    private final List<String> excludedEvents;
 
     @Inject
     public EventCollectionHttpService(
+            ProjectConfig projectConfig,
             EventStore eventStore,
             ApiKeyService apiKeyService,
             JsonEventDeserializer deserializer,
@@ -93,6 +98,7 @@ public class EventCollectionHttpService
         this.eventStore = eventStore;
         this.eventMappers = ImmutableList.copyOf(mappers);
         this.apiKeyService = apiKeyService;
+        this.excludedEvents = projectConfig.getExcludeEvents() != null ? projectConfig.getExcludeEvents() : ImmutableList.of();
 
         jsonMapper = new ObjectMapper();
         SimpleModule module = new SimpleModule();
@@ -562,6 +568,8 @@ public class EventCollectionHttpService
                 },
                 (events, responseHeaders) -> {
                     CompletableFuture<int[]> errorIndexes;
+                    // ignore excluded events
+                    events = events.stream().filter(event -> !excludedEvents.contains(event.collection())).collect(Collectors.toList());
 
                     if (events.size() > 0) {
                         boolean single = events.size() == 1;
