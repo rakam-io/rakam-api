@@ -13,6 +13,7 @@ import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Longs;
 import io.airlift.log.Logger;
@@ -83,7 +84,7 @@ public class EventCollectionHttpService
     private final ApiKeyService apiKeyService;
     private final AvroEventDeserializer avroEventDeserializer;
     private final JsonEventDeserializer jsonEventDeserializer;
-    private final List<String> excludedEvents;
+    private final Set<String> excludedEvents;
 
     @Inject
     public EventCollectionHttpService(
@@ -98,7 +99,7 @@ public class EventCollectionHttpService
         this.eventStore = eventStore;
         this.eventMappers = ImmutableList.copyOf(mappers);
         this.apiKeyService = apiKeyService;
-        this.excludedEvents = projectConfig.getExcludeEvents() != null ? projectConfig.getExcludeEvents() : ImmutableList.of();
+        this.excludedEvents = projectConfig.getExcludeEvents() != null ? ImmutableSet.copyOf(projectConfig.getExcludeEvents()) : ImmutableSet.of();
 
         jsonMapper = new ObjectMapper();
         SimpleModule module = new SimpleModule();
@@ -569,7 +570,7 @@ public class EventCollectionHttpService
                 (events, responseHeaders) -> {
                     CompletableFuture<int[]> errorIndexes;
                     // ignore excluded events
-                    events = events.stream().filter(event -> !excludedEvents.contains(event.collection())).collect(Collectors.toList());
+                    events = events.stream().filter(event -> !excludedEvents.contains(event.collection().toLowerCase())).collect(Collectors.toList());
 
                     if (events.size() > 0) {
                         boolean single = events.size() == 1;
