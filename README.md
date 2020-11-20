@@ -50,7 +50,7 @@ We also provide a docker-compose definition for a Postgresql backend. Create a `
     version: '2.1'
     services:
       rakam-db:
-        image: postgres:10.1
+        image: postgres:11.4
         environment:
           - POSTGRES_PASSWORD=dummy
           - POSTGRES_USER=rakam
