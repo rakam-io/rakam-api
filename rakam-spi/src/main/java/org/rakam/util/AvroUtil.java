@@ -95,9 +95,15 @@ public final class AvroUtil {
         return Schema.createUnion(Lists.newArrayList(Schema.create(NULL), getAvroSchema(field)));
     }
 
+    public static void putIfNotSet(GenericRecord properties, String key, Object value) {
+        if (properties.get(key) == null) {
+            put(properties, key, value);
+        }
+    }
+
     public static void put(GenericRecord properties, String key, Object value) {
         Schema.Field field = properties.getSchema().getField(key);
-        if(field == null) {
+        if (field == null) {
             throw new IllegalArgumentException(String.format("The field `%s` not found in schema. The available properties are %s",
                     key, properties.getSchema().getFields().stream().map(e -> e.name()).collect(Collectors.joining(", "))));
         }

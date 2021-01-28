@@ -16,6 +16,7 @@ import org.rakam.collection.SchemaField;
 import org.rakam.plugin.SyncEventMapper;
 import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.plugin.user.UserPropertyMapper;
+import org.rakam.util.AvroUtil;
 import org.rakam.util.MapProxyGenericRecord;
 
 import java.io.FileInputStream;
@@ -28,7 +29,6 @@ import java.util.stream.Collectors;
 
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.collection.mapper.geoip.maxmind.ip2location.IP2LocationGeoIPModule.downloadOrGetFile;
-import static org.rakam.util.AvroUtil.put;
 
 @Mapper(name = "IP2Location Event mapper", description = "Looks up geolocation data from _ip field using IP2Location and attaches geo-related attributed")
 public class IP2LocationGeoIPEventMapper
@@ -89,7 +89,7 @@ public class IP2LocationGeoIPEventMapper
                 // Cloudflare country code header (Only works when the request passed through CF servers)
                 String countryCode = extraProperties.headers().get("HTTP_CF_IPCOUNTRY");
                 if (countryCode != null) {
-                    put(event.properties(),"_country_code", countryCode);
+                    put(event.properties(), "_country_code", countryCode);
                 }
             }
 
@@ -145,10 +145,11 @@ public class IP2LocationGeoIPEventMapper
 
     private void setGeoFields(GenericRecord record, InetAddress address) {
         GeoLocation city = lookup.lookup(address);
-        put(record,"_country_code", city.country);
-        put(record,"_region", city.stateProv);
-        put(record,"_city", city.city);
-        put(record,"_latitude", city.coordination.latitude);
-        put(record,"_longitude", city.coordination.longitude);
+
+        AvroUtil.putIfNotSet(record, "_country_code", city.country);
+        AvroUtil.putIfNotSet(record, "_region", city.stateProv);
+        AvroUtil.putIfNotSet(record, "_city", city.city);
+        AvroUtil.putIfNotSet(record, "_latitude", city.coordination.latitude);
+        AvroUtil.putIfNotSet(record, "_longitude", city.coordination.longitude);
     }
 }
