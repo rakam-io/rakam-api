@@ -89,7 +89,7 @@ public class IP2LocationGeoIPEventMapper
                 // Cloudflare country code header (Only works when the request passed through CF servers)
                 String countryCode = extraProperties.headers().get("HTTP_CF_IPCOUNTRY");
                 if (countryCode != null) {
-                    put(event.properties(), "_country_code", countryCode);
+                    AvroUtil.putIfNotSet(event.properties(), "_country_code", countryCode);
                 }
             }
 
