@@ -244,7 +244,12 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                     if (t != VALUE_STRING) {
                         throw new RakamException("collection parameter must be a string", BAD_REQUEST);
                     }
-                    collection = checkCollectionValid(jp.getValueAsString().toLowerCase());
+                    String collectionStr = jp.getValueAsString().toLowerCase();
+                    if(collectionStr.isEmpty()) {
+                        collectionStr = "(empty string)";
+                    }
+
+                    collection = checkCollectionValid(collectionStr);
                     break;
                 case "event_id":
                     if (t != VALUE_NUMBER_INT) {
