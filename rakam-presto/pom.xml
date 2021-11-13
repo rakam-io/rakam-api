@@ -155,7 +155,7 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>org.rakam</groupId>
+            <groupId>com.github.airlift</groupId>
             <artifactId>testing-postgresql-server</artifactId>
             <scope>test</scope>
         </dependency>
@@ -173,17 +173,6 @@
     </build>
 
     <repositories>
-        <repository>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-            <id>bintray-buremba-maven</id>
-            <name>bintray</name>
-            <url>http://dl.bintray.com/buremba/maven</url>
-        </repository>
         <repository>
             <releases>
                 <enabled>true</enabled>

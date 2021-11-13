@@ -145,7 +145,7 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.rakam</groupId>
+            <groupId>com.github.airlift</groupId>
             <artifactId>testing-postgresql-server</artifactId>
             <scope>test</scope>
         </dependency>
@@ -218,7 +218,7 @@
         </dependency>
 
         <dependency>
-            <groupId>org.rakam</groupId>
+            <groupId>com.github.buremba</groupId>
             <artifactId>netty-rest</artifactId>
         </dependency>
     </dependencies>

@@ -26,17 +26,6 @@
         </developer>
     </developers>
 
-    <repositories>
-        <repository>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-            <id>bintray-buremba-maven</id>
-            <name>bintray</name>
-            <url>http://dl.bintray.com/buremba/maven</url>
-        </repository>
-    </repositories>
-
     <licenses>
         <license>
             <name>Apache License 2.0</name>
@@ -73,7 +62,7 @@
         <java.version>1.8</java.version>
         <jackson.version>2.8.1</jackson.version>
         <aws.library>1.11.272</aws.library>
-        <netty.rest.version>0.107</netty.rest.version>
+        <netty.rest.version>netty-rest-0.107</netty.rest.version>
         <swagger.version>1.5.16</swagger.version>
 
         <!--Plugin versions-->
@@ -669,9 +658,9 @@
             <!--</dependency>-->
 
             <dependency>
-                <groupId>org.rakam</groupId>
+                <groupId>com.github.airlift</groupId>
                 <artifactId>testing-postgresql-server</artifactId>
-                <version>0.6</version>
+                <version>9.6.3-3</version>
                 <exclusions>
                     <exclusion>
                         <groupId>io.airlift</groupId>
@@ -714,7 +703,7 @@
             </dependency>
 
             <dependency>
-                <groupId>org.rakam</groupId>
+                <groupId>com.github.buremba</groupId>
                 <artifactId>netty-rest</artifactId>
                 <version>${netty.rest.version}</version>
                 <exclusions>
@@ -808,17 +797,17 @@
         </plugins>
     </build>
 
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+
     <scm>
         <connection>scm:git:https://github.com/rakam-io/rakam.git</connection>
         <developerConnection>scm:git:git@github.com:rakam-io/rakam.git</developerConnection>
         <url>https://github.com/rakam-io/rakam</url>
         <tag>HEAD</tag>
     </scm>
-
-    <distributionManagement>
-        <repository>
-            <id>bintray-repo-maven</id>
-            <url>https://api.bintray.com/maven/buremba/maven/rakam/;publish=1</url>
-        </repository>
-    </distributionManagement>
 </project>

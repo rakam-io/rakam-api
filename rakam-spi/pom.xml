@@ -170,7 +170,7 @@
         </dependency>
 
         <dependency>
-            <groupId>org.rakam</groupId>
+            <groupId>com.github.buremba</groupId>
             <artifactId>netty-rest</artifactId>
         </dependency>
 
